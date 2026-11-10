@@ -35,12 +35,14 @@ be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
 
 ## Pass plan
 
-1. [x] Foundations: design system, data, store, router, build
-2. [ ] Landing page
-3. [ ] Member app, part 1: onboarding, home, cafés, café detail, plan picker, payment
-4. [ ] Member app, part 2: pass (QR), map, gifting, rewards, profile
-5. [ ] Café partner view: redeem, busy status, today
-6. [ ] Design polish and QA against the quality bar in the spec
+This order overrides any order implied by the spec.
+
+1. [x] Design system, data, state, router
+2. [ ] Café partner view (`#/cafe`)
+3. [ ] Member app: Pass (QR), Home, Map
+4. [ ] Member app: Cafés, plan builder, payment
+5. [ ] Member app: gifting, rewards, onboarding
+6. [ ] Landing page and waitlist
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**

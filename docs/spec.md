@@ -1,3 +1,18 @@
+> **Note:** this spec lists surfaces in the order landing → member app →
+> café view and asks for the complete file in one go. The project is built
+> in passes instead, and the pass plan in `CLAUDE.md` wins:
+>
+> 1. Design system, data, state, router (done)
+> 2. Café partner view (`#/cafe`)
+> 3. Member app: Pass (QR), Home, Map
+> 4. Member app: Cafés, plan builder, payment
+> 5. Member app: gifting, rewards, onboarding
+> 6. Landing page and waitlist
+>
+> Everything below is the original spec, verbatim.
+
+---
+
 ROLE
 You are a senior product designer and front-end engineer who has shipped 
 consumer apps at the level of Apple, Airbnb, and Monzo. You care about 

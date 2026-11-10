@@ -160,7 +160,7 @@
                   <p class="eyebrow num">${String(i + 1).padStart(2, "0")}</p>
                   <div class="placeholder">
                     <h2 class="t-h3" id="${s.id}-h" style="color:var(--ink)">${s.label}</h2>
-                    <span>Built in Pass 2.</span>
+                    <span>Built in Pass 6.</span>
                   </div>
                 </div>
               </section>`)}
@@ -191,7 +191,7 @@
                   <p class="eyebrow">Member app</p>
                   <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
                   <div class="placeholder">
-                    <span>Screens are built in Pass 2.</span>
+                    <span>Built in Passes 3 to 5.</span>
                     <span>Store check: <span class="num" data-bind="cups">${m.cupsLeft} of ${m.cupsTotal}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
                   </div>
                 </div>
