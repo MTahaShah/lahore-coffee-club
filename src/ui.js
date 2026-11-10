@@ -230,6 +230,24 @@
     }
   });
 
+  /* QR code (qrcode-generator from cdnjs) -----------------------------
+     Returns SVG markup, or a fallback note when the library didn't load. */
+  function qrSvg(payload, { fallback = "QR unavailable offline. Read the code below to the barista." } = {}) {
+    if (typeof window.qrcode !== "function") return html`<div class="qr--fallback" style="height:100%">${fallback}</div>`.s;
+    try {
+      const qr = window.qrcode(0, "M");
+      qr.addData(payload);
+      qr.make();
+      const n = qr.getModuleCount();
+      let d = "";
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+      return `<svg viewBox="-1 -1 ${n + 2} ${n + 2}" aria-hidden="true" focusable="false"><path d="${d}" fill="currentColor"/></svg>`;
+    } catch (err) {
+      console.warn("[LCC] QR render failed", err);
+      return html`<div class="qr--fallback" style="height:100%">${fallback}</div>`.s;
+    }
+  }
+
   /* Stepper ------------------------------------------------------------- */
   function stepper({ id, value = 0, min = 0, max = 10, label }) {
     return html`<div class="stepper" role="group" aria-label="${label}" data-stepper="${id}" data-min="${min}" data-max="${max}">
@@ -275,7 +293,7 @@
   LCC.ui = {
     html, raw, esc, $, $$, icon,
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
-    animateNumber, toast, openSheet, closeSheet,
+    animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,
     reducedMotion,
   };

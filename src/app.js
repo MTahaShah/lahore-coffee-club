@@ -136,7 +136,7 @@
         const r = resolve(Array.isArray(path) ? path : [path]);
         if (active.key === r.key && !force) return;
         const screen = r.make();
-        if (screen.redirect) { history.replaceState(null, "", screen.redirect); LCC.router.render(); return; }
+        if (screen.redirect) { history.replaceState(null, "", LCC.sync ? LCC.sync.withRoom(screen.redirect) : screen.redirect); LCC.router.render(); return; }
         if (active.key !== r.key) {
           if (replacing && trail.length) trail[trail.length - 1] = r.key;
           else if (trail[trail.length - 2] === r.key) trail.pop();
@@ -160,8 +160,9 @@
 
       /** Navigate inside the app. replace: swap the history entry (after payment, redirects). */
       function go(hash, { replace = false } = {}) {
-        if (replace) { replacing = true; history.replaceState(null, "", hash); LCC.router.render(); }
-        else location.hash = hash;
+        const to = LCC.sync ? LCC.sync.withRoom(hash) : hash; // keep the sync room in the URL
+        if (replace) { replacing = true; history.replaceState(null, "", to); LCC.router.render(); }
+        else location.hash = to;
       }
       /** Back button: step back if we got here inside the app, otherwise go to the fallback. */
       function back(fallback) {
@@ -324,6 +325,7 @@
               </div>
               <div class="pass__card" data-pass-card></div>
               <p class="pass__note">${icon("sun")} Turn your brightness up if the scanner struggles.</p>
+              ${LCC.sync ? LCC.sync.pill() : ""}
             </div>`.s,
           mount() {
             paintQrCard();
@@ -372,7 +374,7 @@
           if (p.code === lastCode) return;
           lastCode = p.code;
           const qrEl = $("[data-qr]", view);
-          if (qrEl) qrEl.innerHTML = qrSvg(p.payload);
+          if (qrEl) qrEl.innerHTML = ui.qrSvg(p.payload);
           const codeEl = $("[data-code]", view);
           if (codeEl) {
             codeEl.innerHTML = html`<span>${p.code.slice(0, 3)}</span><span>${p.code.slice(3)}</span>`.s;
@@ -413,24 +415,6 @@
           setTimeout(() => ui.animateNumber($("[data-success-cups]", view), m2.cupsLeft, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
           clearTimeout(backTimer);
           backTimer = setTimeout(paintQrCard, 8000);
-        }
-      }
-
-      function qrSvg(payload) {
-        if (typeof window.qrcode !== "function") {
-          return html`<div class="qr--fallback" style="height:100%">QR unavailable offline. Read the code below to the barista.</div>`.s;
-        }
-        try {
-          const qr = window.qrcode(0, "M");
-          qr.addData(payload);
-          qr.make();
-          const n = qr.getModuleCount();
-          let d = "";
-          for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
-          return `<svg viewBox="-1 -1 ${n + 2} ${n + 2}" aria-hidden="true" focusable="false"><path d="${d}" fill="currentColor"/></svg>`;
-        } catch (err) {
-          console.warn("[LCC] QR render failed", err);
-          return html`<div class="qr--fallback" style="height:100%">Read the code below to the barista.</div>`.s;
         }
       }
 
@@ -553,6 +537,11 @@
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.key === "pass") return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);
+      }));
+
+      // Another device filled this one in (join handshake): redraw, unless mid-purchase
+      offs.push(store.on("snapshot", () => {
+        if (!$(".phone__screen", el).classList.contains("is-flow")) show(LCC.router.parse().path, { force: true });
       }));
 
       api = { show };

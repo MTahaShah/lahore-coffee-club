@@ -58,6 +58,7 @@
                 <span class="open-indicator" data-open-indicator data-open="${open.open}">${open.label}</span>
               </div>
             </header>
+            ${LCC.sync ? pairBar() : ""}
 
             <div class="cafe-grid">
               <section class="card" aria-labelledby="redeem-h">
@@ -99,9 +100,45 @@
             </div>
 
             <p class="t-small t-faint" style="margin-top:var(--space-6)">Works on any phone or tablet. No special hardware.</p>
-          </div>`;
+          </div>
+          ${LCC.sync ? pairSheet() : ""}`;
         paintRedeem();
         paintToday();
+      }
+
+      /* ---------------------------------------------------------------
+         Pairing: show a QR of the member pass in this sync room
+         --------------------------------------------------------------- */
+      function pairBar() {
+        return html`<div class="pair-bar">
+          ${LCC.sync.pill()}
+          <span class="t-small t-faint num">Room ${LCC.sync.room}</span>
+          <button type="button" class="btn btn--secondary btn--compact" data-pair>Pair a phone</button>
+        </div>`;
+      }
+
+      function pairSheet() {
+        return html`<div class="sheet sheet--viewport" id="pair-sheet" role="dialog" aria-modal="true" aria-labelledby="pair-title" aria-hidden="true">
+          <div class="sheet__scrim" data-sheet-close></div>
+          <div class="sheet__panel">
+            <div class="sheet__handle" aria-hidden="true"></div>
+            <div class="sheet__body pair" data-pair-body></div>
+          </div>
+        </div>`;
+      }
+
+      function openPair() {
+        const url = LCC.sync.pairUrl();
+        const local = !location.href.startsWith(LCC.sync.liveUrl);
+        $("[data-pair-body]", el).innerHTML = html`
+          <h2 class="t-h2" id="pair-title">Pair a phone</h2>
+          <p class="t-small t-muted">Scan with the phone’s camera. It opens Mumtaz’s pass in this room, and redemptions here show up there live.</p>
+          <div class="qr pair__qr" role="img" aria-label="QR code for the pairing link">${raw(ui.qrSvg(url, { fallback: "QR unavailable offline. Type the link below on the phone." }))}</div>
+          <p class="pair__room"><span class="t-micro t-faint">Room</span><span class="num">${LCC.sync.room}</span></p>
+          <p class="t-micro t-faint pair__url">${url}</p>
+          ${local ? html`<p class="t-small t-faint pair__note">The phone opens the live site. It stays in sync with this window while both are online.</p>` : ""}
+          <button type="button" class="btn btn--primary btn--block" data-sheet-close>Done</button>`.s;
+        ui.openSheet($("#pair-sheet", el));
       }
 
       /* ---------------------------------------------------------------
@@ -314,6 +351,7 @@
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
+        if (t.closest("[data-pair]")) return openPair();
         const drink = t.closest("[data-drink]");
         if (drink) {
           r.drinkId = drink.dataset.drink;
@@ -387,6 +425,8 @@
           $("[data-viewing]", el)?.focus();
         }),
         store.on("tick", paintOpen),
+        // A device that joined the room was filled in by another café window
+        store.on("snapshot", () => { renderAll(); }),
       ];
 
       renderAll();

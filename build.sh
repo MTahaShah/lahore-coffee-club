@@ -25,6 +25,7 @@ JS_FILES=(
   state.js
   ui.js
   router.js
+  sync.js
   kit.js
   cafe.js
   app.js

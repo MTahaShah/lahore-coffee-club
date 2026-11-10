@@ -927,3 +927,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .kit-swatch { display: grid; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); }
 .kit-swatch span:first-child { height: 48px; border-radius: var(--radius-sm); border: var(--hairline); }
 .kit-demo-phone { position: relative; height: 320px; overflow: hidden; border-radius: var(--radius-card); border: var(--hairline); background: var(--bg); }
+
+/* Live sync indicator (sync.js) --------------------------------------- */
+.sync-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); }
+.sync-pill__dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-4); }
+.sync-pill[data-state="online"] .sync-pill__dot { background: var(--accent); border-color: var(--accent); }
+.sync-pill[data-state="connecting"] .sync-pill__dot { animation: sync-pulse 1.2s var(--ease) infinite alternate; }
+@keyframes sync-pulse { to { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .sync-pill__dot { animation: none !important; } }

@@ -2,7 +2,9 @@
 
 A clickable, high-fidelity prototype of a monthly coffee membership across
 Lahore cafés. It is shown to café owners and potential members. There is no
-backend: all data is fictional and all state is in memory.
+backend: all data is fictional and all state is in memory. One approved
+exception: live sync between devices over Supabase Realtime Broadcast
+(Pass 4.5; messages only, nothing stored).
 Full spec: `docs/spec.md` (verbatim; the source of truth).
 
 ## Build and preview
@@ -11,11 +13,16 @@ Full spec: `docs/spec.md` (verbatim; the source of truth).
 ./build.sh            # assemble src/ into one self-contained index.html
 ./build.sh --watch    # rebuild on every change in src/
 open index.html       # file:// works
-python3 -m http.server 8000   # needed to mirror state across two windows
+python3 -m http.server 8000   # or file://; phones need the deployed link
 ```
+
+Live: https://lcc-omega.vercel.app (Vercel). The café
+view's "Pair a phone" QR always points here (`LIVE_URL` in `sync.js`), with
+`#/app/pass?room=XXXX`, even when the café window runs locally.
 
 Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
 `#/kit` component sheet (not in the switcher; for review).
+Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
 `index.html` is generated. Edit `src/`, never `index.html`.
 
 ## src/ layout
@@ -28,6 +35,8 @@ Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
   pricing, pass codes, redemption rules, `LCC.fmt` formatting
 - `ui.js` — templating, icons, toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher, theme toggle, Pass 1 shells
+- `sync.js` — live sync per room: BroadcastChannel (same computer) and
+  Supabase Realtime Broadcast (other devices), join handshake, `LCC.sync`
 - `kit.js` — `#/kit` component sheet wired to the real store
 - `cafe.css`, `cafe.js` — café partner view (`#/cafe`): redeem, busy status, today
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
@@ -47,6 +56,7 @@ This order overrides any order implied by the spec.
 2. [x] Café partner view (`#/cafe`)
 3. [x] Member app: Pass (QR), Home, Map
 4. [x] Member app: Cafés, plan builder, payment
+4.5. [ ] Cross-device live sync (Supabase Realtime Broadcast)
 5. [ ] Member app: gifting, rewards, onboarding
 6. [ ] Landing page and waitlist
 
@@ -68,7 +78,17 @@ next pass until asked.**
   a separate line based on `avgDailyCups`.
 - 14 background "regulars" fill each café's day; they have no codes.
 - Busy status uses the cup-level icon (`ui.cupIcon`) everywhere, in ink.
-- Live sync works between windows on the same computer only.
+- Live sync (Pass 4.5, approved exception to "no backend"): Supabase
+  Realtime Broadcast only. No tables, no database writes, nothing stored.
+  Only the publishable key is in the code; never add a secret key.
+- supabase-js 2.118.0 loads from jsDelivr (approved exception: it isn't on
+  cdnjs), pinned with SRI. If it can't load or connect, sync quietly falls
+  back to same-computer windows and shows "Offline, this device only".
+- Devices sync per "room" (`?room=` in the hash). With no room, the browser
+  reuses its last one (localStorage, optional) or makes a 4-digit one.
+- Synced: café status, redemptions, and Mumtaz's plan and cups (newest copy
+  wins by `syncAt`). A joining device says hello; a café device answers with
+  statuses, today's live redemptions and Mumtaz's plan and cups.
 - QR library: qrcode-generator 1.4.4 from cdnjs; falls back to the 6-digit
   code offline.
 - Plan changes apply immediately: cups start fresh, renewal = one month from
@@ -76,4 +96,4 @@ next pass until asked.**
 - Wallet numbers ending in 0000 simulate a failed payment (presenter
   knowledge only, not shown on screen).
 - "Add to my plan" adds the café with 2 cups.
-- Plan changes don't sync across windows; status and redemptions do.
+- Plan changes now sync too (Pass 4.5), across windows and devices.

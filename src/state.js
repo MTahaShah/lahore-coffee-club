@@ -10,11 +10,13 @@
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, redeem, pass, member, plan, builder,
-           gift, waitlist, partner, tick (every 30s, for relative times)
+           gift, waitlist, partner, snapshot, tick (every 30s, for relative times)
 
-   No storage. If two windows of the prototype are open on the same
-   machine (e.g. café view on one screen, member app on another), café
-   status and redemptions are mirrored between them over BroadcastChannel.
+   No storage. Café status, redemptions and the demo member’s plan/cups
+   are handed to "transports" (store.addTransport); sync.js registers two:
+   BroadcastChannel (same computer) and Supabase Realtime (other devices).
+   Incoming messages come back through store.applyRemote(), which uses the
+   same internals as local actions but never re-sends (no echo loops).
    ===================================================================== */
 (function () {
   "use strict";
@@ -66,29 +68,87 @@
     };
     (listeners.get(type) || []).forEach((fn) => call(fn, payload, type));
     (listeners.get("*") || []).forEach((fn) => call(fn, type, payload));
-    if (!remote && SYNCED.has(type)) broadcast(type, payload);
+    if (!remote) outgoing(type, payload);
   }
 
   /* -------------------------------------------------------------------
-     Cross-window mirror (optional; silently off if unsupported)
+     Sync seam: what leaves this device, and how remote messages apply
      ------------------------------------------------------------------- */
-  const SYNCED = new Set(["cafe:status", "redeem"]);
-  const tabId = Math.random().toString(36).slice(2);
-  let channel = null;
-  try {
-    if ("BroadcastChannel" in window) {
-      channel = new BroadcastChannel("lahore-coffee-club");
-      channel.onmessage = ({ data }) => {
-        if (!data || data.from === tabId) return;
-        if (data.type === "cafe:status") applyStatus(data.payload, { remote: true });
-        if (data.type === "redeem") commitRedemption(data.payload.entry, { remote: true });
-      };
-    }
-  } catch (_) { channel = null; }
+  const transports = new Set(); // fn(type, data)
+  function addTransport(fn) { transports.add(fn); return () => transports.delete(fn); }
 
-  function broadcast(type, payload) {
-    if (!channel) return;
-    try { channel.postMessage({ from: tabId, type, payload }); } catch (_) { /* ignore */ }
+  function send(type, data) {
+    transports.forEach((fn) => { try { fn(type, data); } catch (err) { console.warn("[LCC] sync send failed", err); } });
+  }
+
+  /** Local events worth sharing, reduced to plain data. */
+  function outgoing(type, payload) {
+    if (type === "cafe:status") send(type, { cafeId: payload.cafeId, status: payload.status, at: payload.at });
+    else if (type === "redeem") send(type, { entry: payload.entry });
+    else if (type === "member" && payload.member?.id === state.memberId) {
+      payload.member.syncAt = Date.now();
+      send("member", { snapshot: memberSnapshot() });
+    }
+  }
+
+  /** The demo member’s plan and cups. syncAt decides which copy is newer. */
+  function memberSnapshot() {
+    const m = state.members[state.memberId];
+    return {
+      at: m.syncAt || 0,
+      plan: clone(state.plan),
+      member: clone({
+        planId: m.planId, cupsTotal: m.cupsTotal, cupsLeft: m.cupsLeft, renewsAt: m.renewsAt,
+        cycleStartedAt: m.cycleStartedAt, payment: m.payment, visits: m.visits, cafesTried: m.cafesTried,
+      }),
+    };
+  }
+
+  /** Newest wins; equal stamps (both still on the seed) leave things alone. */
+  function applyMemberSnapshot(snap) {
+    const m = state.members[state.memberId];
+    if (!snap || !snap.member || (snap.at || 0) <= (m.syncAt || 0)) return false;
+    Object.assign(m, clone(snap.member));
+    m.syncAt = snap.at;
+    if (snap.plan) state.plan = clone(snap.plan);
+    emit("plan", { plan: state.plan }, { remote: true });
+    emit("member", { member: m }, { remote: true });
+    return true;
+  }
+
+  /** What a café device sends to a device that just joined the room. */
+  function roomSnapshot() {
+    // BACKEND: this becomes reads of cafe_status, redemptions (today) and subscriptions
+    const since = startOfToday();
+    return {
+      statuses: Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])),
+      // Seeded rows have the same ids on every device; only live ones need sending
+      redemptions: state.redemptions.filter((r) => r.at >= since && r.live),
+      member: memberSnapshot(),
+    };
+  }
+
+  function applyRoomSnapshot(snap) {
+    if (!snap) return;
+    Object.entries(snap.statuses || {}).forEach(([cafeId, { status, at }]) => {
+      const c = state.cafes[cafeId];
+      if (c && (c.status !== status || c.statusUpdatedAt !== at)) applyStatus({ cafeId, status, at }, { remote: true });
+    });
+    // Cups and visits come with the member snapshot, so these rows only join the log
+    (snap.redemptions || []).forEach((entry) => {
+      if (!state.redemptions.some((r) => r.id === entry.id)) state.redemptions.push(entry);
+    });
+    applyMemberSnapshot(snap.member);
+    emit("snapshot", {}, { remote: true });
+  }
+
+  /** Entry point for messages from another window or device. */
+  function applyRemote(type, data) {
+    if (!data) return;
+    if (type === "cafe:status") applyStatus(data, { remote: true });
+    else if (type === "redeem" && data.entry) commitRedemption(data.entry, { remote: true });
+    else if (type === "member") applyMemberSnapshot(data.snapshot);
+    else if (type === "snapshot") applyRoomSnapshot(data);
   }
 
   /* -------------------------------------------------------------------
@@ -326,10 +386,11 @@
   }
 
   function commitRedemption(entry, { remote = false } = {}) {
-    if (state.redemptions.some((r) => r.id === entry.id)) return; // idempotent across windows
+    if (state.redemptions.some((r) => r.id === entry.id)) return; // idempotent across windows and transports
     const member = state.members[entry.memberId];
     if (!member) return;
     member.cupsLeft = Math.max(0, member.cupsLeft - entry.credits);
+    member.syncAt = Math.max(member.syncAt || 0, entry.at); // a cup used counts as a change to the member
     member.visits = member.visits || {};
     member.visits[entry.cafeId] = (member.visits[entry.cafeId] || 0) + 1;
     if (member.cafesTried && !member.cafesTried.includes(entry.cafeId)) member.cafesTried.push(entry.cafeId);
@@ -370,6 +431,7 @@
         drinkId: drink.id,
         credits: drink.credits,
         firstVisit: !(member.visits && member.visits[cafeId] > 0),
+        live: true, // made in this session, not seeded
       };
       commitRedemption(entry);
       return { ...check, ok: true, entry, cupsLeft: member.cupsLeft };
@@ -547,5 +609,8 @@
   };
 
   LCC.fmt = fmt;
-  LCC.store = { on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state };
+  LCC.store = {
+    on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state,
+    addTransport, applyRemote, roomSnapshot, memberSnapshot,
+  };
 })();

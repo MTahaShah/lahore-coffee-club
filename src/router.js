@@ -30,7 +30,8 @@
   }
 
   function parse() {
-    const clean = location.hash.replace(/^#\/?/, "").replace(/\/+$/, "");
+    // “#/cafe?room=4821” -> cafe. The query belongs to sync.js.
+    const clean = location.hash.replace(/^#\/?/, "").replace(/\?.*$/, "").replace(/\/+$/, "");
     const [name = "", ...path] = clean.split("/");
     return { name, path };
   }
