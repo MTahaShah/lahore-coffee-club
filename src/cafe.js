@@ -1,141 +1,549 @@
 /* =====================================================================
    Lahore Coffee Club — cafe.js
-   Café partner view (#/cafe). Used by a busy barista with one hand:
-   big targets, little reading. Replaces the Pass 1 shell in router.js.
+   Café partner view (#/cafe). For the counter, the till and the books:
+   calm, plain, big targets.
 
-   Reads and writes the shared store, so a redemption here updates the
-   member’s cups everywhere, and a status change here updates the map.
+     Header   ring logo, café, area · staff on shift (PIN) · taking cups
+     Counter  scan or enter a code, redeem, last 5 cups, busy level, pause
+     Today    four numbers, cups by hour, every redemption, CSV export
+     Payouts  this month, next payout, history, statement
+     Settings what a cup covers, limits, hours, staff PINs
+
+   Tablet: a slim left rail. Phone: a segmented control at the top.
+   Reads and writes the shared store, so a redemption here takes a cup
+   off the member's phone, and the busy level shows on the member map.
    ===================================================================== */
 (function () {
   "use strict";
   const LCC = window.LCC;
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
+  const S = store.select;
+  const A = store.actions;
 
-  const STATUS_HINTS = { quiet: "Walk right in", moderate: "Short wait", packed: "Expect a queue" };
-  const RESET_AFTER_MS = 5000;
-  const RECENT_LIMIT = 6;
+  const RESET_AFTER_MS = 6000;
+  const RECENT_LIMIT = 5;
+  const PAUSE_MINUTES = 30;
+  const SECTIONS = [
+    { id: "counter",  label: "Counter" },
+    { id: "today",    label: "Today" },
+    { id: "payouts",  label: "Payouts" },
+    { id: "settings", label: "Settings" },
+  ];
+  const BUSY = [
+    { id: "auto", label: "Auto" },
+    { id: "quiet", label: "Quiet" },
+    { id: "moderate", label: "Moderate" },
+    { id: "packed", label: "Packed" },
+  ];
+  const ROLES = { counter: "counter", owner: "owner", manager: "manager" };
+
+  // Thin-line icons for the rail, drawn like ui.icon (24 grid, 1.5 stroke)
+  const RAIL_ICONS = {
+    counter: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5z"/>',
+    today: '<path d="M4 20h16M7 20v-6M12 20V8M17 20v-9"/>',
+    payouts: '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9.5v5M17 9.5v5"/>',
+    settings: '<path d="M5 7h9M18 7h1M5 17h3M12 17h7"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  };
+  const railIcon = (id) => raw(`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${RAIL_ICONS[id]}</svg>`);
+
+  const firstName = (m) => (m ? m.firstName : "Member");
+  const cafeSlug = (c) => c.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const isoDay = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
   LCC.router.register("cafe", {
     title: "Café view",
     mount(el) {
       let cafeId = store.getState().partnerCafeId;
-      // Redeem panel state: idle | error | found | success
-      let r = freshRedeem();
-      let resetTimer = null;
-      let scanTimer = null;
+      let section = "counter";
+      let r = freshRedeem();       // counter: idle | error | found | success
+      let resetTimer = null, scanTimer = null;
+      let pin = "";                // staff sign-in entry
+      let wasPaused = false;       // so the tick only redraws the pause control when it ends
 
-      function freshRedeem() {
-        return { state: "idle", code: "", message: "", lookup: null, drinkId: null, result: null };
-      }
-      const cafe = () => store.select.cafe(cafeId);
-      const oneCupDrinks = () => cafe().drinks.filter((d) => d.credits === 1);
+      function freshRedeem() { return { state: "idle", code: "", message: "", lookup: null, result: null }; }
+      const cafe = () => S.cafe(cafeId);
+      const P = () => S.partner(cafeId);
+      const staffOnShift = () => P().staff.find((x) => x.id === P().staffOnShift) || P().staff[0];
+      const defaultDrink = () => cafe().drinks.find((d) => d.credits === 1) || cafe().drinks[0];
 
       /* ---------------------------------------------------------------
          Shell
          --------------------------------------------------------------- */
       function renderAll() {
         const c = cafe();
-        const area = store.select.area(c.area);
-        const open = store.select.openState(c);
         el.innerHTML = html`
-          <div class="surface cafe">
-            <header class="cafe-header">
-              <div class="stack" style="--stack-gap:var(--space-2)">
-                <p class="eyebrow">Partner view</p>
-                <div class="cafe-title">
-                  ${ui.logo("ring", { label: null, cls: "cafe-title__ring" })}
-                  <h1 class="t-h1">${c.name}</h1>
+          <div class="surface cv">
+            <header class="cv-head">
+              <div class="cv-brand">
+                ${ui.logo("ring", { label: null, cls: "cv-brand__ring" })}
+                <div>
+                  <h1 class="cv-name">${c.name}</h1>
+                  <p class="t-small t-muted">${S.area(c.area).name}</p>
                 </div>
-                <p class="t-small t-muted">${area.name} · ${fmt.date(Date.now())}</p>
               </div>
-              <div class="cafe-header__aside">
-                <label class="viewing-as">
-                  <span class="t-micro t-faint">Viewing as</span>
-                  <span class="select">
-                    <select class="input" data-viewing>
-                      ${store.select.cafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}
-                    </select>
-                  </span>
-                </label>
-                <span class="open-indicator" data-open-indicator data-open="${open.open}">${open.label}</span>
+              <div class="cv-head__aside">
+                <button type="button" class="cv-staff" data-staff aria-haspopup="dialog" aria-label="On the counter: ${staffLabel()}. Change with a PIN">
+                  <span data-staff-label>${staffLabel()}</span>${icon("chevronDown", { size: 16 })}
+                </button>
+                <p class="cv-state" data-cv-state>${stateLine()}</p>
               </div>
             </header>
-            ${LCC.sync ? pairBar() : ""}
 
-            <div class="cafe-grid">
-              <section class="card" aria-labelledby="redeem-h">
-                <div class="panel-title"><h2 class="eyebrow" id="redeem-h">Redeem a cup</h2></div>
-                <div data-redeem-body></div>
-              </section>
+            <div class="cv-body">
+              <nav class="cv-nav" aria-label="Café view">
+                <div class="cv-tabs" role="tablist" aria-label="Sections">
+                  ${SECTIONS.map((x) => html`<button type="button" role="tab" class="cv-tab" id="cv-tab-${x.id}" data-section="${x.id}"
+                      aria-controls="cv-panel" aria-selected="${x.id === section}" tabindex="${x.id === section ? 0 : -1}">
+                      ${railIcon(x.id)}<span>${x.label}</span>
+                    </button>`)}
+                </div>
+              </nav>
 
-              <div class="cafe-grid__side">
-                <section class="card" aria-labelledby="busy-h">
-                  <div class="panel-title"><h2 class="eyebrow" id="busy-h">How busy are you?</h2></div>
-                  ${busyControl()}
-                  <p class="t-small t-faint busy-updated" data-busy-updated data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="Updated">Updated ${fmt.ago(c.statusUpdatedAt)}</p>
-                </section>
+              <main class="cv-main" id="cv-panel" role="tabpanel" aria-labelledby="cv-tab-${section}" tabindex="-1" data-panel></main>
 
-                <section class="card" aria-labelledby="today-h">
-                  <div class="panel-title"><h2 class="eyebrow" id="today-h">Today</h2></div>
-                  <dl class="today-stats">
-                    <div><dt>Redemptions</dt><dd class="t-h1 num" data-stat="redemptions" data-value="0">0</dd></div>
-                    <div><dt>New customers</dt><dd class="t-h1 num" data-stat="new" data-value="0">0</dd></div>
-                    <div class="today-stats__wide">
-                      <dt>Payout today</dt>
-                      <dd class="t-h1 num" data-stat="payout" data-value="0">${fmt.rs(0)}</dd>
-                      <dd class="t-small t-faint num" data-payout-meta></dd>
-                    </div>
-                  </dl>
-                  <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
-                  <h3 class="eyebrow">This month</h3>
-                  <dl class="month-stats" data-month>
-                    <div><dt>Cups reserved here</dt><dd class="t-h3 num" data-month-stat="reserved">0</dd><dd class="t-small t-faint num" data-month-stat="reservers"></dd></div>
-                    <div><dt>Cups redeemed so far</dt><dd class="t-h3 num" data-month-stat="redeemed">0</dd></div>
-                    <div class="month-stats__wide"><dt>Payout so far</dt><dd class="t-h3 num" data-stat="month" data-value="0">${fmt.rs(0)}</dd><dd class="t-small t-faint num" data-month-meta></dd></div>
-                  </dl>
-                  <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
-                  <h3 class="eyebrow">Recent redemptions</h3>
-                  <ol class="recent" role="list" data-recent aria-live="polite"></ol>
-                  <p class="t-small t-faint" data-recent-more></p>
-                </section>
+              <div class="cv-demo">
+                ${LCC.sync ? html`<div class="cv-demo__sync">${LCC.sync.pill()}<span class="t-micro t-faint num">Room ${LCC.sync.room}</span></div>
+                  <button type="button" class="btn btn--secondary btn--compact" data-pair>Pair a phone</button>` : ""}
+                <label class="cv-demo__cafe">
+                  <span class="t-micro t-faint">Demo café</span>
+                  <span class="select"><select class="input" data-viewing>
+                    ${S.cafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}
+                  </select></span>
+                </label>
               </div>
             </div>
-
-            <p class="t-small t-faint" style="margin-top:var(--space-6)">Works on any phone or tablet. No special hardware.</p>
           </div>
-          ${LCC.sync ? pairSheet() : ""}`;
-        paintRedeem();
-        paintToday();
+          ${sheets()}`;
+        paintSection();
+      }
+
+      const staffLabel = () => { const s = staffOnShift(); return `${s.name} · ${ROLES[s.role] || s.role}`; };
+      function stateLine() {
+        const paused = S.isPaused(cafeId);
+        return html`<span class="cv-state__dot" data-paused="${paused}" aria-hidden="true"></span>${paused ? `Paused until ${fmt.time(cafe().pausedUntil)}` : "Taking member cups"}`;
+      }
+      function paintHead() {
+        const st = $("[data-cv-state]", el);
+        if (st) st.innerHTML = stateLine().s;
+        const lab = $("[data-staff-label]", el);
+        if (lab) { lab.textContent = staffLabel(); $("[data-staff]", el).setAttribute("aria-label", `On the counter: ${staffLabel()}. Change with a PIN`); }
+      }
+
+      function showSection(id, { focus = false } = {}) {
+        section = id;
+        $$("[data-section]", el).forEach((b) => { const on = b.dataset.section === id; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; });
+        $("[data-panel]", el).setAttribute("aria-labelledby", `cv-tab-${id}`);
+        paintSection();
+        if (focus) $("[data-panel]", el).focus({ preventScroll: true });
+      }
+
+      function paintSection() {
+        const panel = $("[data-panel]", el);
+        if (!panel) return;
+        const make = { counter: counterHtml, today: todayHtml, payouts: payoutsHtml, settings: settingsHtml }[section];
+        panel.innerHTML = `<div class="enter">${make().s}</div>`;
+        if (section === "counter") { paintRedeem(); paintRecent(); paintBusy(); paintPause(); }
       }
 
       /* ---------------------------------------------------------------
-         Pairing: show a QR of the member pass in this sync room
+         Counter
          --------------------------------------------------------------- */
-      function pairBar() {
-        return html`<div class="pair-bar">
-          ${LCC.sync.pill()}
-          <span class="t-small t-faint num">Room ${LCC.sync.room}</span>
-          <button type="button" class="btn btn--secondary btn--compact" data-pair>Pair a phone</button>
+      function counterHtml() {
+        return html`<div class="cv-counter">
+          <section class="cv-redeem" aria-labelledby="redeem-h">
+            <h2 class="eyebrow" id="redeem-h">Redeem a cup</h2>
+            <div data-redeem-body></div>
+          </section>
+          <div class="cv-side">
+            <section aria-labelledby="recent-h">
+              <h2 class="eyebrow" id="recent-h">Last ${RECENT_LIMIT} cups</h2>
+              <ol class="cv-list" role="list" data-recent aria-live="polite"></ol>
+            </section>
+            <section aria-labelledby="busy-h">
+              <h2 class="eyebrow" id="busy-h">Busy level</h2>
+              <div class="cv-busy" role="radiogroup" aria-labelledby="busy-h" data-busy>
+                ${BUSY.map((b) => html`<button type="button" role="radio" class="cv-busy__opt" data-busy-option="${b.id}" aria-checked="false" tabindex="-1">
+                  ${b.id === "auto" ? "" : ui.cupIcon(b.id, { size: 16, cls: "cv-busy__icon" })}<span>${b.label}</span></button>`)}
+              </div>
+              <p class="t-small t-muted" data-busy-line></p>
+              <p class="t-small t-muted">Members see this on the map, so they come when you have room.</p>
+            </section>
+            <section aria-label="Pause member cups" data-pause></section>
+          </div>
         </div>`;
       }
 
-      function pairSheet() {
-        return html`<div class="sheet sheet--viewport" id="pair-sheet" role="dialog" aria-modal="true" aria-labelledby="pair-title" aria-hidden="true">
-          <div class="sheet__scrim" data-sheet-close></div>
-          <div class="sheet__panel">
-            <div class="sheet__handle" aria-hidden="true"></div>
-            <div class="sheet__body pair" data-pair-body></div>
+      function paintRedeem({ focus = false } = {}) {
+        const body = $("[data-redeem-body]", el);
+        if (!body) return;
+
+        if (r.state === "idle" || r.state === "error") {
+          const invalid = r.state === "error";
+          body.innerHTML = html`
+            <div class="cv-entry">
+              <button type="button" class="btn btn--primary btn--block btn--tall" data-sim-scan>${icon("qr")}<span>Scan pass</span></button>
+              <p class="cv-or t-small t-faint"><span>or enter the code</span></p>
+              <form class="cv-code" data-code-form novalidate>
+                <div class="field" data-invalid="${invalid}">
+                  <label class="field__label" for="member-code">Six-digit code</label>
+                  <input class="input code-input" id="member-code" name="code" value="${r.code}"
+                    inputmode="numeric" autocomplete="off" maxlength="6" placeholder="000000"
+                    aria-describedby="member-code-hint member-code-err" aria-invalid="${invalid}">
+                  <p class="field__hint" id="member-code-hint">Under the QR on the member’s pass.</p>
+                  <p class="field__error cv-error" id="member-code-err" role="alert">${r.message}</p>
+                </div>
+                <button type="submit" class="btn btn--secondary btn--block">Check code</button>
+              </form>
+            </div>`.s;
+          if (focus) { const input = $("#member-code", body); input.focus(); if (invalid) input.select(); }
+          return;
+        }
+
+        if (r.state === "found") {
+          const { member, left, here, usedToday, dailyLimit } = r.lookup;
+          const plan = S.memberPlan(member);
+          const club = member.memberNo != null ? S.club(member.id) : null;
+          const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
+          const perks = club ? S.perksAt(member.id, cafeId) : [];
+          const hereLine = here.bonus ? "Free cup from the club"
+            : here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here`
+            : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
+          body.innerHTML = html`
+            <div class="cv-member enter">
+              ${clubLine ? html`<p class="cv-member__club num">${clubLine}</p>` : ""}
+              <p class="cv-member__name" id="member-name">${member.firstName}</p>
+              <dl class="cv-facts">
+                <div><dt>Plan</dt><dd>${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}</dd></div>
+                <div><dt>Cups left</dt><dd class="num">${left} <span class="t-faint">· ${hereLine}</span></dd></div>
+                <div><dt>Today here</dt><dd class="num">${usedToday} of ${dailyLimit}</dd></div>
+                <div><dt>A cup covers</dt><dd>${S.coversLine(cafeId)}</dd></div>
+                ${perks.length ? html`<div><dt>Perk to offer</dt><dd>${perks.map((p) => p.text).join("; ")}</dd></div>` : ""}
+              </dl>
+              <button type="button" class="btn btn--primary btn--block btn--tall" data-redeem aria-describedby="member-name">Redeem 1 cup</button>
+              <button type="button" class="btn btn--link" data-reset>Not ${member.firstName}? Enter another code</button>
+            </div>`.s;
+          if (focus) $("[data-redeem]", body).focus();
+          return;
+        }
+
+        if (r.state === "success") {
+          const { member, entry } = r.result;
+          body.innerHTML = html`
+            <div class="cv-success" role="status">
+              <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+              <p class="cv-success__title">Cup redeemed for ${member.firstName}</p>
+              <p class="cv-success__ref num">Reference ${S.redemptionRef(entry)}</p>
+              <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
+              <p class="t-small t-faint num">${fmt.time(entry.at)} · ${member.firstName} has ${fmt.cups(S.balance(member.id).left)} left this month</p>
+              <button type="button" class="btn btn--secondary" data-reset>Next</button>
+              <span class="cv-success__timer" aria-hidden="true"></span>
+            </div>`.s;
+          if (focus) $("[data-reset]", body).focus({ preventScroll: true });
+        }
+      }
+
+      function check(code, { focus = true } = {}) {
+        r.code = code;
+        const res = store.lookupCode(code, cafeId, 1);
+        r = res.ok ? { ...freshRedeem(), state: "found", code, lookup: res } : { ...freshRedeem(), state: "error", code, message: res.message };
+        paintRedeem({ focus });
+      }
+
+      function redeemNow() {
+        // store.actions.redeem carries the // BACKEND: POST /redeem seam
+        const res = A.redeem({ code: r.code, cafeId, drinkId: defaultDrink().id });
+        if (!res.ok) {
+          // e.g. the code expired, or the café paused, while the barista looked
+          r = { ...freshRedeem(), state: "error", code: r.code, message: res.message };
+          paintRedeem({ focus: true });
+          return;
+        }
+        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry } };
+        paintRedeem({ focus: true });
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
+      }
+
+      function reset({ focus = true } = {}) {
+        clearTimeout(resetTimer); clearTimeout(scanTimer);
+        r = freshRedeem();
+        paintRedeem({ focus });
+      }
+
+      function simulateScan(btn) {
+        // BACKEND: a real scan decodes the QR payload (LCC1:<member>:<code>) with the camera
+        btn.disabled = true;
+        btn.querySelector("span").textContent = "Scanning…";
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(() => check(S.pass(store.getState().memberId).code), 600);
+      }
+
+      function paintRecent(newId) {
+        const list = $("[data-recent]", el);
+        if (!list) return;
+        const rows = S.cafeDay(cafeId).entries.slice(0, RECENT_LIMIT);
+        list.innerHTML = rows.length
+          ? html`${rows.map((e) => html`<li class="cv-row${e.id === newId ? " enter" : ""}">
+              <span class="cv-row__time num">${fmt.time(e.at)}</span>
+              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
+              <span class="cv-row__ref num">${S.redemptionRef(e)}</span>
+            </li>`)}`.s
+          : html`<li class="cv-row"><span class="cv-row__main t-muted">No member cups yet today.</span></li>`.s;
+      }
+
+      function paintBusy() {
+        const group = $("[data-busy]", el);
+        if (!group) return;
+        const c = cafe();
+        const current = c.busyMode === "auto" ? "auto" : c.status;
+        $$("[data-busy-option]", group).forEach((b) => {
+          const on = b.dataset.busyOption === current;
+          b.setAttribute("aria-checked", on);
+          b.tabIndex = on ? 0 : -1;
+        });
+        const line = $("[data-busy-line]", el);
+        if (c.busyMode === "auto") {
+          const est = S.busyEstimate(cafeId);
+          line.innerHTML = html`<strong>${fmt.statusLabel(c.status)}</strong> now, from ${fmt.cups(est.cups)} in the last 30 min · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
+        } else {
+          line.innerHTML = html`Set to <strong>${fmt.statusLabel(c.status).toLowerCase()}</strong> · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
+        }
+      }
+
+      function paintPause() {
+        const box = $("[data-pause]", el);
+        if (!box) return;
+        box.innerHTML = S.isPaused(cafeId)
+          ? html`<p class="t-small"><strong>Member cups are paused until ${fmt.time(cafe().pausedUntil)}.</strong> Codes won’t redeem until then.</p>
+              <button type="button" class="btn btn--secondary btn--block" data-resume>Take member cups again</button>`.s
+          : html`<button type="button" class="btn btn--secondary btn--block" data-pause-now>Pause member cups for ${PAUSE_MINUTES} min</button>
+              <p class="t-small t-faint">For a rush. Codes won’t redeem until it ends; you can end it early.</p>`.s;
+      }
+
+      /* ---------------------------------------------------------------
+         Today
+         --------------------------------------------------------------- */
+      function todayHtml() {
+        const d = S.cafeDay(cafeId);
+        const max = Math.max(1, ...d.byHour.map((h) => h.cups));
+        const nowHour = new Date().getHours();
+        const hourLabel = (h) => fmt.clock(h * 60);
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Today</h2>
+              <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+            </div>
+            <dl class="cv-stats">
+              <div><dt>Cups redeemed</dt><dd class="num">${d.cups}</dd></div>
+              <div><dt>New members</dt><dd class="num">${d.newMembers}</dd></div>
+              <div><dt>Returning members</dt><dd class="num">${d.returningMembers}</dd></div>
+              <div><dt>Estimated earnings</dt><dd class="num">${fmt.rs(d.earnings)}</dd></div>
+            </dl>
+
+            <section aria-labelledby="hours-h">
+              <h3 class="eyebrow" id="hours-h">Cups by hour</h3>
+              <div class="cv-chart" role="img" aria-label="Cups by hour today: ${d.byHour.filter((h) => h.cups).map((h) => `${hourLabel(h.hour)} ${h.cups}`).join(", ") || "none yet"}">
+                ${d.byHour.map((h) => html`<div class="cv-chart__col${h.hour === nowHour ? " is-now" : ""}">
+                  <span class="cv-chart__bar" style="--h:${(h.cups / max).toFixed(3)}">${h.cups ? html`<span class="cv-chart__n num">${h.cups}</span>` : ""}</span>
+                  <span class="cv-chart__label num">${h.hour % 3 === 2 ? hourLabel(h.hour) : ""}</span>
+                </div>`)}
+              </div>
+            </section>
+
+            <section aria-labelledby="list-h">
+              <div class="cv-section__bar">
+                <h3 class="eyebrow" id="list-h">Every cup today</h3>
+                <button type="button" class="btn btn--secondary btn--compact" data-export>Export today (CSV)</button>
+              </div>
+              ${d.entries.length ? html`<table class="cv-table">
+                <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
+                <tbody>${d.entries.map((e) => html`<tr>
+                  <td class="num">${fmt.time(e.at)}</td>
+                  <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}</td>
+                  <td class="num">${S.redemptionRef(e)}</td>
+                  <td class="num r">${fmt.rs(e.credits * d.rate)}</td>
+                </tr>`)}</tbody>
+                <tfoot><tr><th scope="row" colspan="3">${fmt.cups(d.cups)} at ${fmt.rs(d.rate)} a cup</th><td class="num r">${fmt.rs(d.earnings)}</td></tr></tfoot>
+              </table>` : html`<p class="t-small t-muted">No member cups yet today.</p>`}
+            </section>
+          </div>`;
+      }
+
+      /* ---------------------------------------------------------------
+         Payouts
+         --------------------------------------------------------------- */
+      function payoutsHtml() {
+        const p = S.cafePayouts(cafeId);
+        const month = (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Payouts</h2>
+              <p class="t-small t-muted">${month(p.monthStart)} so far</p>
+            </div>
+            <dl class="cv-stats">
+              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
+              <div><dt>Your rate per cup</dt><dd class="num">${fmt.rs(p.rate)}</dd><dd class="t-small t-muted num">${p.share}% of your ${fmt.rs(p.price)} counter price</dd></div>
+              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
+              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
+            </dl>
+
+            <section aria-labelledby="history-h">
+              <div class="cv-section__bar">
+                <h3 class="eyebrow" id="history-h">Payout history</h3>
+                <button type="button" class="btn btn--secondary btn--compact" data-statement>Download statement (PDF)</button>
+              </div>
+              ${p.history.length ? html`<table class="cv-table">
+                <thead><tr><th scope="col">Month</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Amount</th><th scope="col" class="r">Status</th></tr></thead>
+                <tbody>${p.history.map((h) => html`<tr>
+                  <td>${month(h.month)}</td>
+                  <td class="num r">${h.cups}</td>
+                  <td class="num r">${fmt.rs(h.amount)}</td>
+                  <td class="r"><span class="cv-paid">Paid</span> <span class="t-faint num">${fmt.shortDate(h.paidAt)}</span></td>
+                </tr>`)}</tbody>
+              </table>` : html`<p class="t-small t-muted">Your first payout comes on the ${S.partner(cafeId).payoutDay}th of next month.</p>`}
+            </section>
+            <p class="t-small t-muted">Paid monthly, per cup redeemed, at the rate you agreed.</p>
+          </div>`;
+      }
+
+      /* ---------------------------------------------------------------
+         Settings
+         --------------------------------------------------------------- */
+      function settingsHtml() {
+        const p = P();
+        const c = cafe();
+        return html`
+          <div class="cv-section cv-settings">
+            <div class="cv-section__head"><h2 class="cv-title">Settings</h2></div>
+
+            <fieldset class="cv-set">
+              <legend class="eyebrow">What a member cup covers</legend>
+              <div class="cv-checks">
+                ${S.drinkCategories().map((k) => html`<label class="cv-check">
+                  <input type="checkbox" name="cat" value="${k.id}" ${p.covers.categories.includes(k.id) ? raw("checked") : ""}>
+                  <span>${k.name}</span>
+                </label>`)}
+              </div>
+              <div class="cv-inline">
+                <label class="field__label" for="cv-size">Size</label>
+                <span class="select"><select class="input" id="cv-size" name="size">
+                  ${["regular", "any"].map((sz) => html`<option value="${sz}" ${p.covers.size === sz ? raw("selected") : ""}>${sz === "regular" ? "Regular" : "Any size"}</option>`)}
+                </select></span>
+              </div>
+              <label class="cv-check">
+                <input type="checkbox" name="extras" ${p.covers.extrasPaid ? raw("checked") : ""}>
+                <span>Extras paid at the counter (extra shot, syrup, oat milk)</span>
+              </label>
+              <p class="t-small t-muted">Your counter shows: “${S.coversLine(cafeId)}”</p>
+            </fieldset>
+
+            <fieldset class="cv-set">
+              <legend class="eyebrow">Limits</legend>
+              <div class="cv-limit">
+                <div><p class="cv-limit__title">Member cups a day, for the café</p><p class="t-small t-muted">After this, codes stop working here until tomorrow.</p></div>
+                ${ui.stepper({ id: "cafePerDay", value: p.limits.cafePerDay, min: 5, max: 200, label: "Member cups a day for the café" })}
+              </div>
+              <div class="cv-limit">
+                <div><p class="cv-limit__title">Cups per member a day</p><p class="t-small t-muted">How many one member can have here in a day.</p></div>
+                ${ui.stepper({ id: "perMemberPerDay", value: p.limits.perMemberPerDay, min: 1, max: 4, label: "Cups per member a day" })}
+              </div>
+            </fieldset>
+
+            <fieldset class="cv-set">
+              <legend class="eyebrow">Opening hours</legend>
+              <div class="cv-hours">
+                <span class="t-body">Every day</span>
+                <label class="sr-only" for="cv-open">Opens</label>
+                <input class="input num" type="time" id="cv-open" name="open" value="${c.hours.open.padStart(5, "0")}">
+                <span class="t-faint">to</span>
+                <label class="sr-only" for="cv-close">Closes</label>
+                <input class="input num" type="time" id="cv-close" name="close" value="${(c.hours.close === "24:00" ? "00:00" : c.hours.close).padStart(5, "0")}">
+              </div>
+              <p class="t-small t-muted">Members see “${c.hours.label}” on your page in the app.</p>
+            </fieldset>
+
+            <fieldset class="cv-set">
+              <legend class="eyebrow">Staff PINs</legend>
+              <ul class="cv-list" role="list">
+                ${p.staff.map((x) => html`<li class="cv-row">
+                  <span class="cv-row__main">${x.name} <span class="t-faint">· ${ROLES[x.role] || x.role}${x.id === p.staffOnShift ? " · on the counter now" : ""}</span></span>
+                  <span class="cv-row__ref num" aria-label="PIN hidden">••••</span>
+                  <button type="button" class="btn btn--link" data-remove-staff="${x.id}" ${x.id === p.staffOnShift || p.staff.length <= 1 ? raw("disabled") : ""} aria-label="Remove ${x.name}">Remove</button>
+                </li>`)}
+              </ul>
+              <form class="cv-add" data-add-staff novalidate>
+                <div class="field"><label class="field__label" for="st-name">Name</label><input class="input" id="st-name" name="name" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="st-role">Role</label><span class="select"><select class="input" id="st-role" name="role"><option value="counter">Counter</option><option value="manager">Manager</option><option value="owner">Owner</option></select></span></div>
+                <div class="field"><label class="field__label" for="st-pin">4-digit PIN</label><input class="input num" id="st-pin" name="pin" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+                <button type="submit" class="btn btn--secondary">Add</button>
+                <p class="cv-error" data-add-err role="alert"></p>
+              </form>
+            </fieldset>
+
+            <p class="t-small t-faint cv-foot">Works on any phone or tablet. No special hardware. No till integration needed.</p>
+          </div>`;
+      }
+
+      const saved = (what = "Saved.") => ui.toast(what);
+
+      /* ---------------------------------------------------------------
+         Sheets: staff PIN, pairing
+         --------------------------------------------------------------- */
+      function sheets() {
+        return html`
+          <div class="sheet sheet--viewport" id="pin-sheet" role="dialog" aria-modal="true" aria-labelledby="pin-title" aria-hidden="true">
+            <div class="sheet__scrim" data-sheet-close></div>
+            <div class="sheet__panel"><div class="sheet__handle" aria-hidden="true"></div><div class="sheet__body cv-pin" data-pin-body></div></div>
           </div>
-        </div>`;
+          ${LCC.sync ? html`<div class="sheet sheet--viewport" id="pair-sheet" role="dialog" aria-modal="true" aria-labelledby="pair-title" aria-hidden="true">
+            <div class="sheet__scrim" data-sheet-close></div>
+            <div class="sheet__panel"><div class="sheet__handle" aria-hidden="true"></div><div class="sheet__body pair" data-pair-body></div></div>
+          </div>` : ""}`;
+      }
+
+      function openPin() {
+        pin = "";
+        $("[data-pin-body]", el).innerHTML = html`
+          <h2 class="cv-title" id="pin-title">Who’s on the counter?</h2>
+          <p class="t-small t-muted">Enter your 4-digit PIN.</p>
+          <div class="cv-pin__dots" data-pin-dots aria-hidden="true">${[0, 1, 2, 3].map(() => html`<span></span>`)}</div>
+          <label class="sr-only" for="pin-input">PIN</label>
+          <input class="sr-only" id="pin-input" inputmode="numeric" maxlength="4" autocomplete="off" data-pin-input>
+          <p class="cv-error" data-pin-err role="alert"></p>
+          <div class="cv-pad" role="group" aria-label="Keypad">
+            ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"].map((k) => k === ""
+              ? html`<span></span>`
+              : html`<button type="button" class="cv-pad__key" data-key="${k}" aria-label="${k === "del" ? "Delete" : k}">${k === "del" ? icon("arrowLeft", { size: 22 }) : k}</button>`)}
+          </div>`.s;
+        ui.openSheet($("#pin-sheet", el));
+      }
+      function paintPin(err = "") {
+        $$("[data-pin-dots] span", el).forEach((d, i) => d.classList.toggle("is-on", i < pin.length));
+        $("[data-pin-err]", el).textContent = err;
+        const inp = $("[data-pin-input]", el);
+        if (inp && inp.value !== pin) inp.value = pin;
+      }
+      function tryPin() {
+        const res = A.signInStaff(cafeId, pin);
+        if (res.ok) { ui.closeSheet($("#pin-sheet", el)); ui.toast(`${res.staff.name} is on the counter.`); }
+        else { pin = ""; paintPin("That PIN doesn’t match. Try again."); }
+      }
+      function pressKey(k) {
+        if (k === "del") pin = pin.slice(0, -1);
+        else if (pin.length < 4) pin += k;
+        paintPin();
+        if (pin.length === 4) tryPin();
       }
 
       function openPair() {
         const url = LCC.sync.pairUrl();
         const local = !location.href.startsWith(LCC.sync.liveUrl);
         $("[data-pair-body]", el).innerHTML = html`
-          <h2 class="t-h2" id="pair-title">Pair a phone</h2>
-          <p class="t-small t-muted">Scan with the phone’s camera. It opens Mumtaz’s pass in this room, and redemptions here show up there live.</p>
+          <h2 class="cv-title" id="pair-title">Pair a phone</h2>
+          <p class="t-small t-muted">Scan with the phone’s camera. It opens Mumtaz’s pass in this room, and cups redeemed here come off it live.</p>
           <div class="qr pair__qr" role="img" aria-label="QR code for the pairing link">${raw(ui.qrSvg(url, { fallback: "QR unavailable offline. Type the link below on the phone." }))}</div>
           <p class="pair__room"><span class="t-micro t-faint">Room</span><span class="num">${LCC.sync.room}</span></p>
           <p class="t-micro t-faint pair__url">${url}</p>
@@ -145,327 +553,182 @@
       }
 
       /* ---------------------------------------------------------------
-         Redeem panel
-         --------------------------------------------------------------- */
-      function paintRedeem({ focus = false } = {}) {
-        const body = $("[data-redeem-body]", el);
-        if (!body) return;
-
-        if (r.state === "idle" || r.state === "error") {
-          const invalid = r.state === "error";
-          body.innerHTML = html`
-            <form class="stack" style="--stack-gap:var(--space-4)" data-code-form novalidate>
-              <div class="field" data-invalid="${invalid}">
-                <label class="field__label" for="member-code">Member code</label>
-                <input class="input code-input" id="member-code" name="code" value="${r.code}"
-                  inputmode="numeric" autocomplete="off" maxlength="6" placeholder="000000"
-                  aria-describedby="member-code-hint member-code-err" aria-invalid="${invalid}">
-                <p class="field__hint" id="member-code-hint">Six digits, under the QR on the member’s pass.</p>
-                <p class="field__error" id="member-code-err" role="alert">${r.message}</p>
-              </div>
-              <div class="redeem-actions">
-                <button type="submit" class="btn btn--primary">Check code</button>
-                <button type="button" class="btn btn--secondary" data-sim-scan>Simulate scan</button>
-              </div>
-            </form>`;
-          if (focus) { const input = $("#member-code", body); input.focus(); if (invalid) input.select(); }
-          return;
-        }
-
-        if (r.state === "found") {
-          const { member, usedToday, dailyLimit, here, left } = r.lookup;
-          const plan = store.select.memberPlan(member);
-          // What they can have HERE, and why: Explorer cap or My cafés reservation
-          const hereWhy = here.bonus ? "free, from the club"
-            : here.type === "mycafes"
-            ? `${here.left} of ${here.reserved} reserved here`
-            : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
-          const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
-          // Who they are in the club, so the barista can greet them properly
-          const club = member.memberNo != null ? store.select.club(member.id) : null;
-          const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
-          const perks = club ? store.select.perksAt(member.id, cafeId) : [];
-          body.innerHTML = html`
-            <div class="stack enter" style="--stack-gap:var(--space-5)">
-              <div class="member-head">
-                <div class="stack" style="--stack-gap:var(--space-1)">
-                  ${clubLine ? html`<p class="member-club num">${clubLine}</p>` : ""}
-                  <p class="t-h2" id="member-name">${name}</p>
-                  <p class="t-small t-muted">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"} · ${fmt.cups(plan.cups)} a month</p>
-                </div>
-                <span class="badge badge--accent">Valid pass</span>
-              </div>
-              ${perks.length ? html`<div class="member-perks" role="note" aria-label="Perks to offer">
-                <p class="eyebrow">Perk to offer</p>
-                <ul role="list">${perks.map((p) => html`<li>${p.text}<span class="t-faint"> · for ${p.audience}</span></li>`)}</ul>
-              </div>` : ""}
-              <dl class="member-stats">
-                <div class="member-stats__wide"><dt>Can have here</dt><dd class="t-h1 num" data-here>${here.left} <span class="t-small t-muted">${hereWhy}</span></dd></div>
-                <div><dt>Cups left in plan</dt><dd class="t-h3 num">${left}</dd></div>
-                <div><dt>Here today</dt><dd class="t-h3 num">${usedToday} <span class="t-small t-faint">of ${dailyLimit}</span></dd></div>
-              </dl>
-              <fieldset style="border:0;padding:0">
-                <legend class="field__label" style="margin-bottom:var(--space-3)">Drink</legend>
-                <div class="cluster" style="--cluster-gap:var(--space-2)">
-                  ${oneCupDrinks().map((d) => html`<button type="button" class="chip" data-drink="${d.id}" aria-pressed="${d.id === r.drinkId}">${d.name}</button>`)}
-                </div>
-              </fieldset>
-              <button type="button" class="btn btn--primary btn--block btn--tall" data-redeem aria-describedby="member-name">Redeem 1 cup</button>
-              <button type="button" class="btn btn--link" data-reset style="justify-self:start">Not ${member.firstName}? Enter another code</button>
-            </div>`;
-          if (focus) $("[data-redeem]", body).focus();
-          return;
-        }
-
-        if (r.state === "success") {
-          const { member, entry, before, here } = r.result;
-          const left = store.select.balance(member.id).left;
-          const hereLine = entry.bonus ? "That was a free cup from the club." : here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here are left.` : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month.`;
-          const drink = store.select.drink(cafeId, entry.drinkId);
-          body.innerHTML = html`
-            <div class="redeem-success" role="status">
-              <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
-              <p class="t-h2">Cup redeemed.</p>
-              <p class="t-body t-muted">${member.firstName} has <span class="num" style="color:var(--ink);font-weight:500" data-cups-left data-value="${before}">${before}</span> ${raw(`<span data-cups-word>${before === 1 ? "cup" : "cups"}</span>`)} left this month.</p>
-              <p class="t-small t-muted num" data-success-here>${hereLine}</p>
-              <p class="t-small t-faint">${drink ? drink.name : "1 cup"} · ${fmt.time(entry.at)}</p>
-              <button type="button" class="btn btn--secondary" data-reset style="margin-top:var(--space-3)">Next customer</button>
-            </div>`;
-          const cups = $("[data-cups-left]", body);
-          const word = $("[data-cups-word]", body);
-          setTimeout(() => {
-            ui.animateNumber(cups, left, { duration: 600 });
-            word.textContent = left === 1 ? "cup" : "cups";
-          }, ui.reducedMotion() ? 0 : 450);
-          if (focus) $("[data-reset]", body).focus({ preventScroll: true });
-        }
-      }
-
-      function check(code, { focus = true } = {}) {
-        r.code = code;
-        const res = store.lookupCode(code, cafeId, 1);
-        if (res.ok) {
-          r = { ...freshRedeem(), state: "found", code, lookup: res, drinkId: oneCupDrinks()[0]?.id };
-        } else {
-          r = { ...freshRedeem(), state: "error", code, message: res.message };
-        }
-        paintRedeem({ focus });
-      }
-
-      function redeemNow() {
-        const before = r.lookup.left;
-        const res = store.actions.redeem({ code: r.code, cafeId, drinkId: r.drinkId });
-        if (!res.ok) {
-          // e.g. the code expired while the barista was choosing a drink
-          r = { ...freshRedeem(), state: "error", code: r.code, message: res.message };
-          paintRedeem({ focus: true });
-          return;
-        }
-        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry, before, here: res.here } };
-        paintRedeem({ focus: true });
-        clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
-      }
-
-      function reset({ focus = true } = {}) {
-        clearTimeout(resetTimer);
-        clearTimeout(scanTimer);
-        r = freshRedeem();
-        paintRedeem({ focus });
-      }
-
-      function simulateScan(btn) {
-        // BACKEND: a real scan decodes the QR payload (LCC1:<member>:<code>) on device
-        btn.disabled = true;
-        btn.textContent = "Scanning…";
-        clearTimeout(scanTimer);
-        scanTimer = setTimeout(() => check(store.select.pass(store.getState().memberId).code), 600);
-      }
-
-      /* ---------------------------------------------------------------
-         Busy status
-         --------------------------------------------------------------- */
-      function busyControl() {
-        const current = cafe().status;
-        const index = store.statuses.indexOf(current);
-        return html`
-          <div class="busy" role="radiogroup" aria-labelledby="busy-h" style="--index:${index}" data-busy>
-            <span class="busy__thumb" aria-hidden="true"></span>
-            ${store.statuses.map((s) => html`
-              <button type="button" role="radio" class="busy__option" data-busy-option="${s}"
-                aria-checked="${s === current}" tabindex="${s === current ? 0 : -1}">
-                ${ui.cupIcon(s, { size: 32, cls: "busy__icon" })}
-                <span class="busy__label">${fmt.statusLabel(s)}</span>
-                <span class="busy__hint">${STATUS_HINTS[s]}</span>
-              </button>`)}
-          </div>`;
-      }
-
-      function paintBusy() {
-        const group = $("[data-busy]", el);
-        if (!group) return;
-        const c = cafe();
-        group.style.setProperty("--index", store.statuses.indexOf(c.status));
-        $$("[data-busy-option]", group).forEach((b) => {
-          const on = b.dataset.busyOption === c.status;
-          b.setAttribute("aria-checked", on);
-          b.tabIndex = on ? 0 : -1;
-        });
-        const upd = $("[data-busy-updated]", el);
-        upd.dataset.relTime = c.statusUpdatedAt;
-        upd.textContent = `Updated ${fmt.ago(c.statusUpdatedAt)}`;
-      }
-
-      function setBusy(status) {
-        // store.actions.setCafeStatus carries the // BACKEND: PATCH /cafes/:id/status seam
-        store.actions.setCafeStatus(cafeId, status);
-      }
-
-      /* ---------------------------------------------------------------
-         Today
-         --------------------------------------------------------------- */
-      function paintToday(newEntryId) {
-        // BACKEND: GET /cafes/:id/summary?date=today
-        const s = store.select.cafeSummary(cafeId);
-        ui.animateNumber($('[data-stat="redemptions"]', el), s.redemptionsToday);
-        ui.animateNumber($('[data-stat="new"]', el), s.newCustomersToday);
-        ui.animateNumber($('[data-stat="payout"]', el), s.payoutToday, { format: fmt.rs, duration: 700 });
-        ui.animateNumber($('[data-stat="month"]', el), s.payoutMonth, { format: fmt.rs, duration: 700 });
-        $("[data-payout-meta]", el).textContent = `${fmt.cups(s.cupsToday)} × ${fmt.rs(s.payoutPerCup)}, your rate per cup`;
-        // BACKEND: the monthly statement (reserved cups from subscriptions, redeemed cups from the ledger)
-        $('[data-month-stat="reserved"]', el).textContent = fmt.num(s.reservedCups);
-        $('[data-month-stat="reservers"]', el).textContent = s.reservedMembers ? `by ${s.reservedMembers} My cafés ${s.reservedMembers === 1 ? "member" : "members"}` : "No My cafés members yet";
-        $('[data-month-stat="redeemed"]', el).textContent = fmt.num(s.monthCups);
-        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)} × ${fmt.rs(s.payoutPerCup)}, paid on the 1st`;
-
-        const list = $("[data-recent]", el);
-        const shown = s.today.slice(0, RECENT_LIMIT);
-        list.innerHTML = shown.length
-          ? html`${shown.map((e) => {
-              const m = store.select.member(e.memberId);
-              const d = store.select.drink(cafeId, e.drinkId);
-              return html`<li class="row${e.id === newEntryId ? " enter" : ""}">
-                <span class="row__trail num">${fmt.time(e.at)}</span>
-                <div class="row__main">
-                  <div class="row__title">${d ? d.name : "Coffee"}</div>
-                  <div class="row__meta">${m ? m.firstName : "Member"}${e.firstVisit ? " · first visit" : ""}</div>
-                </div>
-                <span class="badge">${fmt.cups(e.credits)}</span>
-              </li>`;
-            })}`.s
-          : html`<li class="row"><div class="row__main row__meta">No cups redeemed yet today.</div></li>`.s;
-        const more = s.today.length - shown.length;
-        $("[data-recent-more]", el).textContent = more > 0 ? `And ${more} earlier today.` : "";
-      }
-
-      function paintOpen() {
-        const ind = $("[data-open-indicator]", el);
-        if (!ind) return;
-        const open = store.select.openState(cafe());
-        ind.dataset.open = open.open;
-        ind.textContent = open.label;
-      }
-
-      /* ---------------------------------------------------------------
          Events
          --------------------------------------------------------------- */
       const onClick = (e) => {
         const t = e.target;
-        const opt = t.closest("[data-busy-option]");
-        if (opt) return setBusy(opt.dataset.busyOption);
+        const tab = t.closest("[data-section]");
+        if (tab) return showSection(tab.dataset.section);
+        const busy = t.closest("[data-busy-option]");
+        if (busy) return A.setBusyMode(cafeId, busy.dataset.busyOption);
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
+        if (t.closest("[data-pause-now]")) { A.pauseMemberCups(cafeId, PAUSE_MINUTES); return ui.toast(`Member cups paused until ${fmt.time(cafe().pausedUntil)}.`); }
+        if (t.closest("[data-resume]")) { A.pauseMemberCups(cafeId, 0); return ui.toast("Taking member cups again."); }
+        if (t.closest("[data-staff]")) return openPin();
+        const key = t.closest("[data-key]");
+        if (key) return pressKey(key.dataset.key);
         if (t.closest("[data-pair]")) return openPair();
-        const drink = t.closest("[data-drink]");
-        if (drink) {
-          r.drinkId = drink.dataset.drink;
-          $$("[data-drink]", el).forEach((b) => b.setAttribute("aria-pressed", b === drink));
+        if (t.closest("[data-export]")) {
+          // BACKEND: GET /cafes/:id/day.csv
+          const d = S.cafeDay(cafeId);
+          return ui.toast(`${cafeSlug(cafe())}-${isoDay(Date.now())}.csv: ${fmt.cups(d.cups)}, ${fmt.rs(d.earnings)}. Prototype: no file saved.`, { duration: 4200 });
+        }
+        if (t.closest("[data-statement]")) {
+          // BACKEND: GET /cafes/:id/statements/:month.pdf
+          return ui.toast("Statement for the last 3 months is ready. Prototype: no file saved.", { duration: 4200 });
+        }
+        const step = t.closest("[data-stepper] [data-step]");
+        if (step) {
+          const st = step.closest("[data-stepper]");
+          const id = st.dataset.stepper;
+          const min = Number(st.dataset.min), max = Number(st.dataset.max);
+          const by = id === "cafePerDay" ? 5 : 1;
+          const next = Math.max(min, Math.min(max, P().limits[id] + Number(step.dataset.step) * by));
+          A.updatePartner(cafeId, { limits: { [id]: next } });
+          ui.setStepper(st, next);
+          return;
+        }
+        const rm = t.closest("[data-remove-staff]");
+        if (rm) {
+          const name = P().staff.find((x) => x.id === rm.dataset.removeStaff)?.name;
+          if (A.removeStaff(cafeId, rm.dataset.removeStaff).ok) { paintSection(); saved(`${name} removed.`); }
         }
       };
 
       const onInput = (e) => {
-        if (e.target.id !== "member-code") return;
-        const input = e.target;
-        const digits = input.value.replace(/\D/g, "").slice(0, 6);
-        if (input.value !== digits) input.value = digits;
-        r.code = digits;
-        // Clear the error as soon as they start correcting
-        const field = input.closest(".field");
-        if (field.dataset.invalid === "true") { field.dataset.invalid = "false"; input.setAttribute("aria-invalid", "false"); r.state = "idle"; }
-        if (digits.length === 6) check(digits);
-      };
-
-      const onSubmit = (e) => {
-        if (!e.target.matches("[data-code-form]")) return;
-        e.preventDefault();
-        const code = $("#member-code", el).value.replace(/\D/g, "");
-        if (code.length !== 6) {
-          r = { ...freshRedeem(), state: "error", code, message: code.length ? `That’s ${code.length} digit${code.length === 1 ? "" : "s"}. Member codes have six.` : "Enter the six-digit code from the member’s pass." };
-          paintRedeem({ focus: true });
+        const t = e.target;
+        if (t.id === "member-code") {
+          const digits = t.value.replace(/\D/g, "").slice(0, 6);
+          if (t.value !== digits) t.value = digits;
+          r.code = digits;
+          const field = t.closest(".field");
+          if (field.dataset.invalid === "true") { field.dataset.invalid = "false"; t.setAttribute("aria-invalid", "false"); r.state = "idle"; }
+          if (digits.length === 6) check(digits);
           return;
         }
-        check(code);
+        if (t.matches("[data-pin-input]")) {
+          pin = t.value.replace(/\D/g, "").slice(0, 4);
+          paintPin();
+          if (pin.length === 4) tryPin();
+          return;
+        }
+        if (t.id === "st-pin") t.value = t.value.replace(/\D/g, "").slice(0, 4);
       };
 
       const onChange = (e) => {
-        if (e.target.matches("[data-viewing]")) store.actions.setPartnerCafe(e.target.value);
+        const t = e.target;
+        if (t.matches("[data-viewing]")) return A.setPartnerCafe(t.value);
+        if (t.name === "cat") {
+          const cats = $$('input[name="cat"]:checked', el).map((x) => x.value);
+          if (!cats.length) { t.checked = true; return ui.toast("A member cup needs to cover at least one kind of drink.", { iconName: "info" }); }
+          A.updatePartner(cafeId, { covers: { categories: cats } }); paintSection(); return saved();
+        }
+        if (t.name === "size") { A.updatePartner(cafeId, { covers: { size: t.value } }); paintSection(); return saved(); }
+        if (t.name === "extras") { A.updatePartner(cafeId, { covers: { extrasPaid: t.checked } }); paintSection(); return saved(); }
+        if (t.name === "open" || t.name === "close") {
+          const open = $("#cv-open", el).value, close = $("#cv-close", el).value;
+          if (!open || !close) return;
+          A.setCafeHours(cafeId, open.replace(/^0(\d)/, "$1"), close === "00:00" ? "24:00" : close.replace(/^0(\d)/, "$1"));
+          paintSection(); return saved("Hours saved.");
+        }
       };
 
-      // Radio group keys: arrows move and select, Home/End jump
+      const onSubmit = (e) => {
+        if (e.target.matches("[data-code-form]")) {
+          e.preventDefault();
+          const code = $("#member-code", el).value.replace(/\D/g, "");
+          if (code.length !== 6) {
+            r = { ...freshRedeem(), state: "error", code, message: code.length ? `That’s ${code.length} digit${code.length === 1 ? "" : "s"}. Member codes have six.` : "Enter the six-digit code from the member’s pass." };
+            return paintRedeem({ focus: true });
+          }
+          return check(code);
+        }
+        if (e.target.matches("[data-add-staff]")) {
+          e.preventDefault();
+          const f = e.target;
+          const name = f.elements.name.value.trim(), role = f.elements.role.value, p = f.elements.pin.value;
+          const err = !name ? "Add a name." : !/^\d{4}$/.test(p) ? "PINs are four digits." : "";
+          if (err) { $("[data-add-err]", el).textContent = err; return; }
+          const res = A.addStaff(cafeId, { name, role, pin: p });
+          if (!res.ok) { $("[data-add-err]", el).textContent = res.message; return; }
+          paintSection();
+          saved(`${name} added. Their PIN works on the counter now.`);
+        }
+      };
+
+      // Arrow keys: section tabs and the busy radio group
       const onKeydown = (e) => {
+        const tab = e.target.closest?.("[data-section]");
         const opt = e.target.closest?.("[data-busy-option]");
-        if (!opt) return;
+        if (!tab && !opt) return;
+        const ids = tab ? SECTIONS.map((x) => x.id) : BUSY.map((x) => x.id);
+        let i = ids.indexOf(tab ? tab.dataset.section : opt.dataset.busyOption);
         const keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
-        const list = store.statuses;
-        let i = list.indexOf(opt.dataset.busyOption);
-        if (e.key in keys) i = (i + keys[e.key] + list.length) % list.length;
+        if (e.key in keys) i = (i + keys[e.key] + ids.length) % ids.length;
         else if (e.key === "Home") i = 0;
-        else if (e.key === "End") i = list.length - 1;
+        else if (e.key === "End") i = ids.length - 1;
         else return;
         e.preventDefault();
-        setBusy(list[i]);
-        $(`[data-busy-option="${list[i]}"]`, el).focus();
+        if (tab) { showSection(ids[i]); $(`[data-section="${ids[i]}"]`, el).focus(); }
+        else { A.setBusyMode(cafeId, ids[i]); $(`[data-busy-option="${ids[i]}"]`, el).focus(); }
       };
 
       el.addEventListener("click", onClick);
       el.addEventListener("input", onInput);
-      el.addEventListener("submit", onSubmit);
       el.addEventListener("change", onChange);
+      el.addEventListener("submit", onSubmit);
       el.addEventListener("keydown", onKeydown);
 
       const offs = [
         store.on("cafe:status", ({ cafeId: id }) => { if (id === cafeId) paintBusy(); }),
+        store.on("cafe:pause", ({ cafeId: id }) => {
+          if (id !== cafeId) return;
+          wasPaused = S.isPaused(cafeId);
+          paintHead(); paintPause();
+          if (r.state === "found") check(r.code, { focus: false });
+        }),
         store.on("redeem", ({ entry }) => {
           if (entry.cafeId !== cafeId) return;
-          paintToday(entry.id);
-          // A redemption from another window for the member on screen: refresh their numbers
+          A.refreshAutoBusy(cafeId);
+          paintBusy();   // the cup count in the busy line, even if the level holds
+          paintRecent(entry.id);
+          if (section === "today" || section === "payouts") paintSection();
+          // Another window redeemed for the member on screen: refresh their numbers
           if (r.state === "found" && r.lookup.member.id === entry.memberId) check(r.code, { focus: false });
         }),
+        store.on("partner:settings", ({ cafeId: id }) => { if (id === cafeId) { paintHead(); if (r.state === "found") check(r.code, { focus: false }); } }),
         store.on("cafe:viewing", ({ cafeId: id }) => {
           cafeId = id;
           clearTimeout(resetTimer); clearTimeout(scanTimer);
           r = freshRedeem();
+          A.refreshAutoBusy(cafeId);
           renderAll();
           $("[data-viewing]", el)?.focus();
         }),
-        store.on("tick", paintOpen),
+        store.on("tick", () => {
+          A.refreshAutoBusy(cafeId);  // cups age out of the 30-minute window
+          paintHead(); paintBusy();
+          const paused = S.isPaused(cafeId);
+          if (paused !== wasPaused) { wasPaused = paused; paintPause(); }
+        }),
         // A plan bought or switched (here or on a phone) changes reserved cups
-        store.on("plan", () => { paintToday(); if (r.state === "found") check(r.code, { focus: false }); }),
+        store.on("plan", () => { if (r.state === "found") check(r.code, { focus: false }); }),
         // A device that joined the room was filled in by another café window
         store.on("snapshot", () => { renderAll(); }),
       ];
 
+      A.refreshAutoBusy(cafeId);
       renderAll();
 
       return () => {
-        clearTimeout(resetTimer);
-        clearTimeout(scanTimer);
+        clearTimeout(resetTimer); clearTimeout(scanTimer);
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);
         el.removeEventListener("input", onInput);
-        el.removeEventListener("submit", onSubmit);
         el.removeEventListener("change", onChange);
+        el.removeEventListener("submit", onSubmit);
         el.removeEventListener("keydown", onKeydown);
       };
     },

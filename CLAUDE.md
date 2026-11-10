@@ -81,7 +81,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `sync.js` — live sync per room: BroadcastChannel (same computer) and
   Supabase Realtime Broadcast (other devices), join handshake, `LCC.sync`
 - `kit.js` — `#/kit` component sheet wired to the real store
-- `cafe.css`, `cafe.js` — café partner view (`#/cafe`): redeem, busy status, today
+- `cafe.css`, `cafe.js` — café partner view (`#/cafe`): header (staff on
+  shift, taking or paused), Counter, Today, Payouts, Settings; a left rail
+  on tablets (768px and up), segmented tabs on phones
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
   bar, Pass, Home, Map, café sheet, club milestone toasts
 - `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
@@ -251,3 +253,24 @@ next pass until asked.**
   data is never touched, except a free cup if her invite code is used).
 - Café view after lookup: "No. 0042 · Founding Member · Local" and any perk
   claimable at that café.
+- Café view (redesign): Counter scans or takes a 6-digit code, shows what a
+  cup covers, redeems with a reference (`select.redemptionRef`, the same on
+  every device) and "Ring it up on your till as: LCC member", then resets
+  after 6 s. The redemption records the café's first one-cup drink (the till
+  handles the actual drink).
+- Busy level: Auto by default (`select.busyEstimate`: cups here in the last
+  30 min, 0–1 quiet, 2–4 moderate, 5+ packed), or a fixed level. Only the
+  café view drives Auto (`actions.refreshAutoBusy` on redeem and tick); the
+  status syncs to the member map as before, now with its mode.
+- Pause member cups for 30 min (`cafe.pausedUntil`, synced as `cafe:pause`).
+  While paused, codes are refused with a friendly message.
+- Partner settings live in `state.partner[cafeId]` (Kiln & Bean seeded in
+  `data.js`; others get defaults): what a cup covers, limits (member cups a
+  day for the café, cups per member a day; both enforced in
+  `canRedeemHere`), opening hours (`cafe.hours`, also used by the app),
+  staff PINs, payout account and history. Settings are not synced.
+- Demo staff PINs at Kiln & Bean: Bilal 1234, Hira 5678, Saad 2468.
+- Payouts: this month from the ledger (calendar month) × the café's rate
+  (`payoutPerCup`; Kiln & Bean Rs 480 = 74% of Rs 650); next payout on the
+  5th; three months of seeded history. CSV export and PDF statement are
+  simulated with a toast.

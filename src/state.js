@@ -52,10 +52,28 @@
     club: clone(seed.club),
     rsvps: {},                   // gatheringId -> memberId -> { going, at }
     session: { saved: null },    // presenter: Mumtaz's place while a new member onboards
+    drinkCategories: clone(seed.drinkCategories || []),
     gifts: [],
     waitlist: [],
     partnerRequests: [],
   };
+
+  /* Partner settings per café (café view). Kiln & Bean's come from data.js;
+     the others get sensible defaults. Every café starts on the Auto busy
+     level and taking member cups.                                       */
+  function defaultPartner(c) {
+    return {
+      staff: [{ id: `st_${c.id}_owner`, name: "Owner", role: "owner", pin: "0000" }],
+      staffOnShift: `st_${c.id}_owner`,
+      covers: { categories: ["espresso", "milk", "filter", "tea"], size: "regular", extrasPaid: true },
+      limits: { cafePerDay: c.avgDailyCups * 5, perMemberPerDay: state.rules.dailyLimitPerCafe },
+      account: { label: "bank account", last4: "0000" },
+      payoutDay: 5,
+      payouts: [],
+    };
+  }
+  state.partner = Object.fromEntries(state.cafeOrder.map((id) => [id, { ...defaultPartner(state.cafes[id]), ...clone((seed.partner || {})[id] || {}) }]));
+  state.cafeOrder.forEach((id) => { state.cafes[id].busyMode = "auto"; state.cafes[id].pausedUntil = 0; });
 
   /* -------------------------------------------------------------------
      Pub-sub
@@ -90,7 +108,8 @@
 
   /** Local events worth sharing, reduced to plain data. Cups travel only as ledger entries. */
   function outgoing(type, payload) {
-    if (type === "cafe:status") send(type, { cafeId: payload.cafeId, status: payload.status, at: payload.at });
+    if (type === "cafe:status") send(type, { cafeId: payload.cafeId, status: payload.status, at: payload.at, mode: payload.mode });
+    else if (type === "cafe:pause") send(type, { cafeId: payload.cafeId, until: payload.until, at: payload.at });
     else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
   }
@@ -117,7 +136,7 @@
   function roomSnapshot({ statuses = true } = {}) {
     // BACKEND: this becomes reads of cafe_status, the ledger (this cycle) and subscriptions
     return {
-      statuses: statuses ? Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])) : null,
+      statuses: statuses ? Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt, mode: state.cafes[id].busyMode, pausedUntil: state.cafes[id].pausedUntil }])) : null,
       entries: state.ledger.filter((e) => e.live),
       plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
@@ -127,9 +146,10 @@
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
-    Object.entries(snap.statuses || {}).forEach(([cafeId, { status, at }]) => {
+    Object.entries(snap.statuses || {}).forEach(([cafeId, { status, at, mode, pausedUntil }]) => {
       const c = state.cafes[cafeId];
-      if (c && (c.status !== status || c.statusUpdatedAt !== at)) applyStatus({ cafeId, status, at }, { remote: true });
+      if (c && (c.status !== status || c.statusUpdatedAt !== at)) applyStatus({ cafeId, status, at, mode }, { remote: true });
+      if (c && pausedUntil != null && pausedUntil !== c.pausedUntil) applyPause({ cafeId, until: pausedUntil, at: Date.now() }, { remote: true });
     });
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
@@ -150,6 +170,7 @@
   function applyRemote(type, data) {
     if (!data) return;
     if (type === "cafe:status") applyStatus(data, { remote: true });
+    else if (type === "cafe:pause") applyPause(data, { remote: true });
     else if (type === "ledger") applyLedgerMessage(data);
     else if (type === "snapshot") applyRoomSnapshot(data);
     else if (type === "rsvp") applyRsvp(data, { remote: true });
@@ -317,14 +338,19 @@
       const bal = select.balance(memberId);
       const here = select.cafeBalance(memberId, cafeId);
       const usedToday = select.usedToday(memberId, cafeId);
-      const limit = state.rules.dailyLimitPerCafe;
+      const P = state.partner[cafeId];
+      const limit = P ? P.limits.perMemberPerDay : state.rules.dailyLimitPerCafe;
       const base = { member: m, left: bal.left, total: bal.total, here, usedToday, dailyLimit: limit };
-      const no = (reason) => ({ ...base, ok: false, reason, message: MESSAGES[reason](m, { here, credits, limit, bal }) });
+      const no = (reason) => ({ ...base, ok: false, reason, message: MESSAGES[reason](m, { here, credits, limit, bal, cafeId }) });
+      // The café paused member cups (busy rush): nothing redeems until it ends
+      if (select.isPaused(cafeId)) return no("paused");
       if (bal.left <= 0 || !m.plan) return no("no-cups");
       if (here.type === "mycafes" && !here.reserved && !here.bonus) return no("not-reserved");
       if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
       if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
       if (usedToday >= limit) return no("daily-limit");
+      // The café's own cap on member cups a day
+      if (P && select.cafeCupsToday(cafeId) + credits > P.limits.cafePerDay) return no("cafe-cap");
       if (here.left < credits || usedToday + credits > limit) return no("not-enough");
       return { ...base, ok: true };
     },
@@ -603,6 +629,72 @@
       return { next: all.find((g) => g.at >= at) || null, past: all.filter((g) => g.at < at).reverse() };
     },
 
+    /* ---------------- Café partner view ---------------- */
+
+    partner: (cafeId = state.partnerCafeId) => state.partner[cafeId],
+    drinkCategories: () => state.drinkCategories,
+
+    /** Member cups are paused at this café right now? */
+    isPaused: (cafeId, at = Date.now()) => (state.cafes[cafeId]?.pausedUntil || 0) > at,
+
+    /** Cups redeemed at a café today (two-cup drinks count twice). */
+    cafeCupsToday(cafeId) {
+      const since = startOfToday();
+      return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0);
+    },
+
+    /** Auto busy level: estimated from cups redeemed here in the last 30 min. */
+    busyEstimate(cafeId, at = Date.now()) {
+      const since = at - 30 * MIN;
+      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since && e.at <= at ? n + e.credits : n), 0);
+      return { cups, status: cups >= 5 ? "packed" : cups >= 2 ? "moderate" : "quiet" };
+    },
+
+    /** A short reference for one redemption, the same on every device. */
+    redemptionRef: (entry) => `LCC-${1000 + (fnv1a(entry.id) % 9000)}`,
+
+    /** What a member cup covers here, in one plain sentence. */
+    coversLine(cafeId = state.partnerCafeId) {
+      const c = state.partner[cafeId].covers;
+      return `Any drink on your LCC list, ${c.size} size.${c.extrasPaid ? " Extras paid at the counter." : " Extras included."}`;
+    },
+
+    /** The café's day: counts, earnings, cups per hour, every redemption. */
+    cafeDay(cafeId = state.partnerCafeId) {
+      // BACKEND: GET /cafes/:id/day?date=today (ledger rows for this café)
+      const cafe = state.cafes[cafeId];
+      const since = startOfToday();
+      const entries = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since).sort((a, b) => b.at - a.at);
+      const cups = entries.reduce((n, e) => n + e.credits, 0);
+      const fresh = new Set(entries.filter((e) => e.firstVisit).map((e) => e.memberId));
+      const back = new Set(entries.filter((e) => !fresh.has(e.memberId)).map((e) => e.memberId));
+      const byHour = Array.from({ length: 16 }, (_, i) => ({ hour: 8 + i, cups: 0 }));
+      entries.forEach((e) => { const h = new Date(e.at).getHours(); if (h >= 8 && h <= 23) byHour[h - 8].cups += e.credits; });
+      return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings: cups * cafe.payoutPerCup, rate: cafe.payoutPerCup, byHour };
+    },
+
+    /** This month's payout so far, the next payout, and past payouts. */
+    cafePayouts(cafeId = state.partnerCafeId, at = Date.now()) {
+      // BACKEND: GET /cafes/:id/payouts (statement per calendar month)
+      const cafe = state.cafes[cafeId];
+      const P = state.partner[cafeId];
+      const d = new Date(at); d.setHours(0, 0, 0, 0); d.setDate(1);
+      const monthStart = d.getTime();
+      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
+      const next = new Date(monthStart); next.setMonth(next.getMonth() + 1); next.setDate(P.payoutDay);
+      return {
+        monthStart,
+        cups,
+        rate: cafe.payoutPerCup,
+        price: cafe.price,
+        share: Math.round((cafe.payoutPerCup / cafe.price) * 100),
+        earned: cups * cafe.payoutPerCup,
+        nextAt: next.getTime(),
+        account: P.account,
+        history: P.payouts.map((p) => ({ ...p, amount: p.cups * cafe.payoutPerCup })),
+      };
+    },
+
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
       const visits = state.members[memberId]?.visits?.[cafeId] || 0;
@@ -616,7 +708,9 @@
   const reservedCafes = (m) => Object.entries(select.balance(m.id).perCafe).filter(([, b]) => b.reserved).map(([id]) => id);
   const MESSAGES = {
     "not-found": () => "That code didn’t match a member. Check the six digits and try again.",
-    "expired": (m) => `That code has expired. Ask ${m.firstName} for the new one on the pass screen.`,
+    "expired": (m) => `That code has expired. Ask ${m.firstName} to refresh their pass and read you the new code.`,
+    "paused": (m, { cafeId }) => `Member cups are paused here until ${fmt.time(state.cafes[cafeId].pausedUntil)}. ${m.firstName} can pay at the counter, or come back after.`,
+    "cafe-cap": (m, { cafeId }) => `Today’s member cups here are used up (${state.partner[cafeId].limits.cafePerDay} a day). They start again tomorrow.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
     "not-reserved": (m) => `${m.firstName}’s cups are reserved for ${listNames(reservedCafes(m))}.`,
     "reserved-used": (m, { here }) => {
@@ -624,7 +718,7 @@
       return `${m.firstName} has used the ${fmt.cups(here.reserved)} reserved here this month.${others.length ? ` There are still cups for ${m.pronoun || "them"} at ${listNames(others)}.` : ""}`;
     },
     "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
-    "daily-limit": (m, { limit }) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+    "daily-limit": (m, { limit }) => `${m.firstName} has had ${fmt.cups(limit)} here today, the most a member can have in a day. It resets tomorrow.`,
     "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
   };
 
@@ -661,12 +755,20 @@
   /* -------------------------------------------------------------------
      Actions (the only things that write to state)
      ------------------------------------------------------------------- */
-  function applyStatus({ cafeId, status, at }, opts) {
+  function applyStatus({ cafeId, status, at, mode }, opts) {
     const cafe = state.cafes[cafeId];
     if (!cafe || !STATUSES.includes(status)) return;
     cafe.status = status;
     cafe.statusUpdatedAt = at;
-    emit("cafe:status", { cafeId, status, at }, opts);
+    if (mode === "auto" || mode === "manual") cafe.busyMode = mode;
+    emit("cafe:status", { cafeId, status, at, mode: cafe.busyMode }, opts);
+  }
+
+  function applyPause({ cafeId, until }, opts) {
+    const cafe = state.cafes[cafeId];
+    if (!cafe) return;
+    cafe.pausedUntil = until || 0;
+    emit("cafe:pause", { cafeId, until: cafe.pausedUntil, at: Date.now() }, opts);
   }
 
   /** A free cup when a new café stamp brings the passport to 5, and to every café.
@@ -699,7 +801,77 @@
   const actions = {
     setCafeStatus(cafeId, status) {
       // BACKEND: PATCH /cafes/:cafeId/status { status }
-      applyStatus({ cafeId, status, at: Date.now() });
+      applyStatus({ cafeId, status, at: Date.now(), mode: "manual" });
+    },
+
+    /** Busy level: "auto" (estimated from redemptions) or a fixed status. */
+    setBusyMode(cafeId, mode) {
+      const cafe = state.cafes[cafeId];
+      if (!cafe) return;
+      if (STATUSES.includes(mode)) return actions.setCafeStatus(cafeId, mode);
+      cafe.busyMode = "auto";
+      const est = select.busyEstimate(cafeId);
+      // BACKEND: PATCH /cafes/:cafeId/status { mode: "auto" } (estimated server-side)
+      applyStatus({ cafeId, status: est.status, at: cafe.status === est.status ? cafe.statusUpdatedAt : Date.now(), mode: "auto" });
+    },
+
+    /** Auto mode: re-estimate and publish only when the level changes. */
+    refreshAutoBusy(cafeId) {
+      const cafe = state.cafes[cafeId];
+      if (!cafe || cafe.busyMode !== "auto") return;
+      const est = select.busyEstimate(cafeId);
+      if (est.status !== cafe.status) applyStatus({ cafeId, status: est.status, at: Date.now(), mode: "auto" });
+    },
+
+    /** Pause member cups for a while (a rush), or resume now (minutes 0). */
+    pauseMemberCups(cafeId, minutes = 30) {
+      // BACKEND: PATCH /cafes/:cafeId { paused_until }
+      applyPause({ cafeId, until: minutes ? Date.now() + minutes * MIN : 0 });
+    },
+
+    /** Café settings: covers, limits, hours, staff on shift. */
+    updatePartner(cafeId, patch) {
+      // BACKEND: PATCH /cafes/:cafeId/settings
+      const P = state.partner[cafeId];
+      if (!P) return;
+      if (patch.covers) Object.assign(P.covers, patch.covers);
+      if (patch.limits) Object.assign(P.limits, patch.limits);
+      if (patch.staffOnShift) P.staffOnShift = patch.staffOnShift;
+      emit("partner:settings", { cafeId });
+    },
+
+    setCafeHours(cafeId, open, close) {
+      // BACKEND: PATCH /cafes/:cafeId { hours }
+      const cafe = state.cafes[cafeId];
+      const toMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+      cafe.hours = { open, close, label: `${fmt.clock(toMin(open))} – ${fmt.clock(toMin(close))}` };
+      emit("partner:settings", { cafeId });
+    },
+
+    addStaff(cafeId, { name, role, pin }) {
+      // BACKEND: POST /cafes/:cafeId/staff (PIN stored hashed)
+      const P = state.partner[cafeId];
+      if (P.staff.some((x) => x.pin === pin)) return { ok: false, message: "Another staff member already uses that PIN." };
+      const member = { id: uid("st"), name: String(name).trim(), role, pin };
+      P.staff.push(member);
+      emit("partner:settings", { cafeId });
+      return { ok: true, staff: member };
+    },
+
+    removeStaff(cafeId, staffId) {
+      const P = state.partner[cafeId];
+      if (P.staffOnShift === staffId || P.staff.length <= 1) return { ok: false };
+      P.staff = P.staff.filter((x) => x.id !== staffId);
+      emit("partner:settings", { cafeId });
+      return { ok: true };
+    },
+
+    /** Staff sign in at the counter with their 4-digit PIN. */
+    signInStaff(cafeId, pin) {
+      const who = state.partner[cafeId].staff.find((x) => x.pin === String(pin));
+      if (!who) return { ok: false };
+      actions.updatePartner(cafeId, { staffOnShift: who.id });
+      return { ok: true, staff: who };
     },
 
     /** Redeem by code (café view). Returns the lookup result plus the entry. */

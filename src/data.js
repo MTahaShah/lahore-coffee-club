@@ -538,6 +538,41 @@
     ],
   };
 
+  /* Partner settings (café view) ------------------------------------------
+     Kiln & Bean is the demo café, so it has real-looking settings. Other
+     cafés get defaults in state.js. Staff PINs are demo knowledge:
+     Bilal 1234, Hira 5678, Saad 2468.
+     // BACKEND: partner_settings, partner_staff and payouts tables     */
+  const monthStart = (n) => { const d = new Date(startOfToday); d.setDate(1); d.setMonth(d.getMonth() - n); return d.getTime(); };
+  const partner = {
+    kiln: {
+      staff: [
+        { id: "st_bilal", name: "Bilal", role: "counter", pin: "1234" },
+        { id: "st_hira",  name: "Hira",  role: "counter", pin: "5678" },
+        { id: "st_saad",  name: "Saad",  role: "owner",   pin: "2468" },
+      ],
+      staffOnShift: "st_bilal",
+      covers: { categories: ["espresso", "milk", "filter", "tea"], size: "regular", extrasPaid: true },
+      limits: { cafePerDay: 40, perMemberPerDay: rules.dailyLimitPerCafe },
+      account: { label: "bank account", last4: "4821" },
+      payoutDay: 5,
+      // Last three months, oldest last. Paid on the 5th of the next month.
+      payouts: [
+        { month: monthStart(1), cups: 248, paidAt: monthStart(0) + 4 * DAY },
+        { month: monthStart(2), cups: 231, paidAt: monthStart(1) + 4 * DAY },
+        { month: monthStart(3), cups: 204, paidAt: monthStart(2) + 4 * DAY },
+      ],
+    },
+  };
+  // What a member cup can cover; each café ticks its own
+  const drinkCategories = [
+    { id: "espresso", name: "Espresso and americano" },
+    { id: "milk",     name: "Milk drinks: latte, flat white, cortado" },
+    { id: "filter",   name: "Filter and pour-over" },
+    { id: "tea",      name: "Chai and tea" },
+    { id: "cold",     name: "Cold drinks" },
+  ];
+
   LCC.data = {
     seededAt: now,
     rules,
@@ -549,6 +584,8 @@
     partnerCafeId: "kiln",       // the café shown in the partner view
     ledger,
     club,
+    partner,
+    drinkCategories,
     // Builder default for the “My cafés” plan
     builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
   };
