@@ -59,7 +59,7 @@
   gap: var(--space-3);
   padding-block: var(--space-4);
 }
-.redeem-success .check-draw { width: 64px; height: 64px; color: var(--accent); }
+.redeem-success .check-draw { width: 64px; height: 64px; color: var(--primary); }
 
 /* Busy status: one segmented control, three tall segments ------------- */
 .busy {
@@ -119,7 +119,7 @@
 .pair { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding-bottom: var(--space-6); }
 .pair .qr { width: 240px; height: 240px; }
 .pair__room { display: grid; gap: 2px; }
-.pair__room .num { font-family: var(--font-serif); font-size: var(--fs-40); font-weight: 300; line-height: 1; letter-spacing: 0.08em; }
+.pair__room .num { font-family: var(--font-sans); font-size: var(--fs-40); font-weight: 400; line-height: 1; letter-spacing: 0.08em; }
 .pair__url { max-width: 100%; overflow-wrap: anywhere; }
 .pair__note { max-width: 40ch; }
 
@@ -132,7 +132,11 @@
 .month-stats__wide { grid-column: 1 / -1; }
 
 /* The club (Pass 5): who the member is, and what to offer them -------- */
-.member-club { font-size: var(--fs-14); font-weight: 500; letter-spacing: 0.02em; color: var(--accent); }
-.member-perks { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card); background: var(--accent-soft); }
+.member-club { font-size: var(--fs-14); font-weight: 500; letter-spacing: 0.02em; color: var(--primary); }
+.member-perks { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card); background: var(--primary-soft); }
 .member-perks li { font-size: var(--fs-16); font-weight: 500; }
 .member-perks li + li { margin-top: var(--space-1); }
+
+/* Café name with the small brick ring (BRAND.md) */
+.cafe-title { display: flex; align-items: center; gap: var(--space-3); }
+.cafe-title__ring { width: 40px; }

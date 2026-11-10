@@ -4,8 +4,14 @@
 #   ./build.sh            build once
 #   ./build.sh --watch    rebuild whenever a file in src/ changes
 #
-# The template's <!-- @styles --> and <!-- @scripts --> markers are
-# replaced with the files below, in order. Add new files to these lists.
+# The template's markers are replaced, so index.html stays one
+# self-contained file:
+#   <!-- @favicon -->  src/logos/favicon-32.png as a data URI
+#   <!-- @styles -->   the CSS files below, with src/fonts/*.woff2 inlined
+#                      as base64 wherever a stylesheet says url("fonts/…")
+#   <!-- @logos -->    the logo SVGs below as hidden <template>s (ui.logo)
+#   <!-- @scripts -->  the JS files below, in order
+# Add new files to these lists.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -20,6 +26,19 @@ CSS_FILES=(
   club.css
   landing.css
 )
+
+# Inlined as <template id="logo-NAME">; colours come from --logo-* in CSS
+LOGO_FILES=(
+  wordmark.svg
+  monogram-horizontal.svg
+  ring.svg
+  app-icon-mark.svg
+)
+FONT_FILES=(
+  GlacialIndifference-Regular.woff2
+  GlacialIndifference-Bold.woff2
+)
+FAVICON="$SRC/logos/favicon-32.png"
 
 # Order matters: data -> state -> ui -> router -> surfaces
 JS_FILES=(
@@ -38,10 +57,25 @@ JS_FILES=(
   landing.js
 )
 
+b64() { base64 < "$1" | tr -d '\n'; }
+
+# Print a stylesheet with url("fonts/X.woff2") replaced by a base64 data URI
+FONT_SED=()
+inline_fonts() {
+  if [[ ${#FONT_SED[@]} -eq 0 ]]; then
+    local f
+    for f in "${FONT_FILES[@]}"; do FONT_SED+=(-e "s|url(\"fonts/$f\")|url(\"data:font/woff2;base64,$(b64 "$SRC/fonts/$f")\")|g"); done
+  fi
+  sed "${FONT_SED[@]}" "$1"
+}
+
 build() {
   for f in "${CSS_FILES[@]}" "${JS_FILES[@]}"; do
     [[ -f "$SRC/$f" ]] || { echo "build: missing $SRC/$f" >&2; return 1; }
   done
+  for f in "${LOGO_FILES[@]}"; do [[ -f "$SRC/logos/$f" ]] || { echo "build: missing $SRC/logos/$f" >&2; return 1; }; done
+  for f in "${FONT_FILES[@]}"; do [[ -f "$SRC/fonts/$f" ]] || { echo "build: missing $SRC/fonts/$f" >&2; return 1; }; done
+  [[ -f "$FAVICON" ]] || { echo "build: missing $FAVICON" >&2; return 1; }
 
   # A literal </script> or </style> inside a source file would end the tag early
   if grep -l -i '</script' "${JS_FILES[@]/#/$SRC/}" >/dev/null 2>&1; then
@@ -60,10 +94,20 @@ build() {
   tmp="$(mktemp "${TMPDIR:-/tmp}/lcc-build.XXXXXX")"
   while IFS= read -r line || [[ -n "$line" ]]; do
     case "$line" in
+      *"<!-- @favicon -->"*)
+        echo "  <link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"data:image/png;base64,$(b64 "$FAVICON")\">"
+        ;;
       *"<!-- @styles -->"*)
         echo "<style>"
-        for f in "${CSS_FILES[@]}"; do echo "/* ---- $SRC/$f ---- */"; cat "$SRC/$f"; echo; done
+        for f in "${CSS_FILES[@]}"; do echo "/* ---- $SRC/$f ---- */"; inline_fonts "$SRC/$f"; echo; done
         echo "</style>"
+        ;;
+      *"<!-- @logos -->"*)
+        echo "<div id=\"lcc-logos\" hidden>"
+        for f in "${LOGO_FILES[@]}"; do
+          echo "<template id=\"logo-${f%.svg}\">"; cat "$SRC/logos/$f"; echo; echo "</template>"
+        done
+        echo "</div>"
         ;;
       *"<!-- @scripts -->"*)
         for f in "${JS_FILES[@]}"; do

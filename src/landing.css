@@ -39,7 +39,7 @@
 .lp-steps li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-4); padding-block: var(--space-5); border-top: var(--hairline); }
 .lp-steps li:first-child { border-top: 0; padding-top: 0; }
 .lp-steps li > div { display: grid; gap: var(--space-2); }
-.lp-steps__n { font-family: var(--font-serif); font-weight: 300; font-size: var(--fs-28); line-height: 1; color: var(--ink-3); }
+.lp-steps__n { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-28); line-height: 1; color: var(--ink-3); }
 
 /* Plans ------------------------------------------------------------ */
 .lp-plans { display: grid; gap: var(--space-6); }
@@ -58,6 +58,7 @@
 .lp-teaser__head { display: grid; gap: var(--space-1); }
 .lp-teaser__sum { display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--space-3); border-top: var(--hairline); }
 .lp-teaser [data-teaser-note] { min-height: 1.45em; }
+.lp-teaser [data-teaser-note].is-save { color: var(--accent-text); }   /* accent: the savings line */
 
 /* Busy map ----------------------------------------------------------- */
 .lp-map { display: grid; gap: var(--space-5); }
@@ -88,7 +89,7 @@
 .lp-est { display: grid; gap: var(--space-5); }
 .lp-est > p.t-small { margin-top: calc(-1 * var(--space-4)); }
 .lp-est__out { display: grid; gap: var(--space-1); padding-top: var(--space-4); border-top: var(--hairline); }
-.lp-est__total { font-size: clamp(40px, 6vw, 56px); color: var(--accent); }
+.lp-est__total { font-size: clamp(40px, 6vw, 56px); color: var(--primary); }
 
 .lp-slider { display: grid; gap: var(--space-2); }
 .lp-slider__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
@@ -99,7 +100,7 @@
   height: var(--tap);
   margin: 0;
   background: transparent;
-  accent-color: var(--accent);
+  accent-color: var(--primary);
   cursor: pointer;
 }
 
@@ -109,7 +110,7 @@
 .lp-form { display: grid; gap: var(--space-4); }
 .lp-form__send { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
 .lp-thanks { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-6); background: var(--surface); border: var(--hairline); border-radius: var(--radius-card); }
-.lp-thanks .check-draw { width: 56px; height: 56px; color: var(--accent); }
+.lp-thanks .check-draw { width: 56px; height: 56px; color: var(--primary); }
 .lp-thanks .btn--link { padding-inline: 0; }
 
 /* FAQ accordion ----------------------------------------------------- */
@@ -146,3 +147,8 @@
 .lp-types > div { display: grid; gap: var(--space-1); }
 .lp-types dd { margin: 0; }
 @media (min-width: 720px) { .lp-types { grid-template-columns: 1fr 1fr; column-gap: var(--space-6); } }
+
+/* Brand logos (inline SVG, see ui.logo) */
+.lp .landing-nav .wordmark { width: 120px; }
+.lp-hero__mark { width: clamp(160px, 22vw, 240px); margin-bottom: var(--space-3); }
+.lp-footer .wordmark { width: 120px; }

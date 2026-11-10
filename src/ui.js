@@ -78,6 +78,49 @@
     );
   }
 
+  /* Logos ----------------------------------------------------------------
+     The real SVGs from src/logos/, inlined by build.sh as
+     <template id="logo-NAME">. Their fills read --logo-ink, --logo-face,
+     --logo-side and --logo-top, so CSS sets the colours (ink for type, coffee tones for bricks).
+     name: wordmark | monogram-horizontal | ring | app-icon-mark          */
+  const logoCache = {};
+  function logo(name, { label = "Lahore Coffee Club", cls = "" } = {}) {
+    if (!(name in logoCache)) {
+      const tpl = document.getElementById(`logo-${name}`);
+      logoCache[name] = tpl
+        ? tpl.innerHTML.trim().replace(/\s(role|aria-label)="[^"]*"/g, "").replace("<svg ", '<svg aria-hidden="true" focusable="false" ')
+        : null;
+    }
+    const svg = logoCache[name];
+    const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
+    if (!svg) return raw(`<span class="logo logo--${name} logo--text ${cls}" ${a11y}>Lahore Coffee Club</span>`);
+    return raw(`<span class="logo logo--${name} ${cls}" ${a11y}>${svg}</span>`);
+  }
+
+  /* Brick ring -----------------------------------------------------------
+     The brand's signature graphic: one brick per cup on a ring, with one
+     gap at 3 o'clock. Bricks run clockwise from the gap; the first `filled`
+     are solid, the rest (used cups) are outlined. Flat in the interface.
+     Colours come from CSS (.brick-ring: color for bricks, --brick-line). */
+  function brickRing({ total = 0, filled = 0, size = 200, radius = 82, length = 22, twist = 14, cls = "", stagger = false } = {}) {
+    const c = size / 2;
+    if (!total) {
+      return raw(`<svg class="brick-ring ${cls}" viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false"><circle class="brick-ring__empty" cx="${c}" cy="${c}" r="${radius}"/></svg>`);
+    }
+    const slots = total + 1;                       // one empty slot: the gap at 3 o'clock
+    const step = 360 / slots;
+    const arc = (2 * Math.PI * radius) / slots;
+    const width = Math.max(4, Math.min(length * 0.5, arc * 0.45));
+    let out = "";
+    for (let i = 0; i < total; i++) {
+      const angle = (i + 1) * step;                // 0deg = 3 o'clock, clockwise in SVG
+      const on = i < filled;
+      out += `<g transform="translate(${c} ${c}) rotate(${angle.toFixed(2)}) translate(${radius} 0) rotate(${twist})">` +
+        `<rect class="brick${on ? " is-full" : " is-used"}"${stagger && on ? ` style="--i:${i}"` : ""} x="${(-length / 2).toFixed(2)}" y="${(-width / 2).toFixed(2)}" width="${length}" height="${width.toFixed(2)}" rx="${Math.min(2.5, width / 3).toFixed(2)}"/></g>`;
+    }
+    return raw(`<svg class="brick-ring ${cls}" viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false">${out}</svg>`);
+  }
+
   /* Status pill --------------------------------------------------------- */
   /** Renders a pill bound to a café; it updates itself on store changes. */
   function statusPill(cafeId, { bare = false, time = true } = {}) {
@@ -296,7 +339,7 @@
   });
 
   LCC.ui = {
-    html, raw, esc, $, $$, icon,
+    html, raw, esc, $, $$, icon, logo, brickRing,
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,

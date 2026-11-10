@@ -48,7 +48,7 @@
         <circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="92"/><circle cx="200" cy="200" r="124"/><circle cx="200" cy="200" r="156"/>
       </svg>
       <div class="mcard__top">
-        <span class="mcard__brand">Lahore Coffee Club</span>
+        <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
         ${c.founding ? seal() : ""}
       </div>
       <p class="mcard__no"><span class="mcard__no-label">No.</span> <span class="num" data-card-no>${String(c.memberNo).padStart(4, "0")}</span></p>
@@ -373,7 +373,7 @@
       const where = cur && cur.id ? S.cafe(cur.id).name : "Any partner café";
       const expires = Date.now() + rules().giftExpiryDays * 24 * 60 * 60 * 1000;
       return html`<div class="gift-card" aria-label="Gift preview">
-        <div class="gift-card__top"><span class="mcard__brand">Lahore Coffee Club</span><span class="t-micro">A gift</span></div>
+        <div class="gift-card__top"><span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span><span class="t-micro">A gift</span></div>
         <p class="gift-card__cups"><span class="num" data-preview-cups>${gift.cups}</span> <span data-preview-word>${gift.cups === 1 ? "cup" : "cups"}</span> of coffee</p>
         <p class="gift-card__to">For <span data-preview-name>${gift.name.trim() || "your friend"}</span>, from ${m.firstName}</p>
         <p class="gift-card__msg" data-preview-msg ${gift.message.trim() ? "" : raw("hidden")}>“${gift.message.trim()}”</p>

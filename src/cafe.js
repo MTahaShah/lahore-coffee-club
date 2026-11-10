@@ -43,7 +43,10 @@
             <header class="cafe-header">
               <div class="stack" style="--stack-gap:var(--space-2)">
                 <p class="eyebrow">Partner view</p>
-                <h1 class="t-h1">${c.name}</h1>
+                <div class="cafe-title">
+                  ${ui.logo("ring", { label: null, cls: "cafe-title__ring" })}
+                  <h1 class="t-h1">${c.name}</h1>
+                </div>
                 <p class="t-small t-muted">${area.name} · ${fmt.date(Date.now())}</p>
               </div>
               <div class="cafe-header__aside">

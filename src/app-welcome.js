@@ -72,7 +72,7 @@
       const inviter = ob.invite && S.inviter(ob.invite);
       if (ob.step === "intro") {
         return html`<div class="welcome-intro enter">
-          <p class="eyebrow">Lahore Coffee Club</p>
+          <div class="welcome-intro__mark">${ui.logo("wordmark")}</div>
           <h1 class="t-display welcome-intro__title">A membership for the city’s best cafés.</h1>
           <p class="t-body t-muted">One monthly pass, eight independent cafés, and a club that meets once a month.</p>
           ${inviter ? html`<p class="welcome-invite">${icon("gift", { size: 18 })}<span>${inviter.firstName} invited you. You’ll both get a free cup when you join.</span></p>` : ""}

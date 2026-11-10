@@ -139,6 +139,7 @@
       }
       note.textContent = text;
       note.classList.toggle("is-warn", warn);
+      note.classList.toggle("is-save", ok);
       btn.disabled = !ok;
     }
 

@@ -216,7 +216,7 @@
       el.innerHTML = html`
         <div class="surface landing lp">
           <header class="container landing-nav">
-            <a class="wordmark" href="#/">Lahore Coffee Club</a>
+            <a class="wordmark" href="#/" aria-label="Lahore Coffee Club, home">${ui.logo("wordmark", { label: null })}</a>
             <nav class="landing-nav__links" aria-label="Main">
               ${scrollLink("how", "How it works", "landing-nav__link")}
               ${scrollLink("plans", "Plans", "landing-nav__link")}
@@ -227,6 +227,7 @@
 
           <div class="container">
             <section class="lp-hero" aria-labelledby="hero-h">
+              <div class="lp-hero__mark">${ui.logo("wordmark")}</div>
               <h1 class="t-display lp-hero__title" id="hero-h">Every café you love. One monthly pass.</h1>
               <p class="t-body t-muted lp-hero__sub">Pick your places, pick your cups. Pay once, drink well all month.</p>
               <div class="lp-hero__actions">
@@ -334,7 +335,7 @@
 
           <footer class="lp-footer">
             <div class="container lp-footer__inner">
-              <span class="wordmark">Lahore Coffee Club</span>
+              <span class="wordmark">${ui.logo("wordmark")}</span>
               <p class="t-small t-muted">Prototype: prices and cafés are for demonstration.</p>
               <nav class="lp-footer__links t-small" aria-label="Prototype">
                 <a href="#/app">Member app</a><a href="#/cafe">Café view</a>
@@ -352,6 +353,7 @@
         cupsEl.textContent = fmt.cups(p.cups);
         if (animate) ui.animateNumber(priceEl, p.price, { format: fmt.rs });
         else { priceEl.textContent = fmt.rs(p.price); priceEl.dataset.value = p.price; }
+        $("[data-teaser-note]", el).classList.toggle("is-save", p.meetsMinimum);
         $("[data-teaser-note]", el).textContent = p.meetsMinimum
           ? `You save ${fmt.rs(p.savings)} vs paying at the counter.`
           : `Add ${fmt.cups(p.cupsShort)}: plans start at ${store.getState().rules.minCupsTotal} cups a month.`;

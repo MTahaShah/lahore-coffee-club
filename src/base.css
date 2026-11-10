@@ -4,36 +4,76 @@
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
-   1. Tokens (light)
+   0. Brand fonts. Glacial Indifference for all Latin text; 29LT Bukra
+   for Urdu (licensed; Noto Sans Arabic until its files are added).
+   build.sh inlines the font files as base64.
+   --------------------------------------------------------------------- */
+@font-face {
+  font-family: "Glacial Indifference";
+  src: url("fonts/GlacialIndifference-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Glacial Indifference";
+  src: url("fonts/GlacialIndifference-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------------------------------------------------------------------
+   1. Tokens (light): docs/BRAND.md. The base is black, white and cream in
+   both modes. The coffee palette is for small accents only (the brick
+   ring, the QR ring, the monogram's bricks, the active tab, the savings
+   line, eyebrows, one highlight per screen), never for large surfaces.
    --------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  /* Color */
-  --bg: #F6F1EA;
-  --surface: #FBF8F3;
-  --surface-2: #EFE8DD;
-  --ink: #1C1612;
-  --ink-2: #5E554C;
-  --ink-3: #70655A;          /* tertiary text; nudged from #968B7F for AA */
-  --ink-4: #968B7F;          /* placeholders, disabled, decoration only */
-  --line: #E3DACD;
-  --line-strong: #D2C7B7;
-  --accent: #2F4A3A;
-  --accent-hover: #263E30;
-  --accent-soft: #E4EAE2;
-  --on-accent: #F6F1EA;
-  --danger: #9E4330;          /* validation text, not a status */
+  /* Fixed in both modes */
+  --black: #0B0B0B;
+  --white: #FFFFFF;
+  --cream: #FFF7E8;
+  --accent: #CFAB71;         /* caramel */
+  --accent-deep: #713105;    /* cinnamon */
+  --espresso: #341100;
+  --mocha: #7F5E35;
+  --roast: #4F351C;
+
+  /* Neutrals */
+  --bg: #FFF7E8;
+  --surface: #FFFFFF;
+  --surface-2: #F4EFE6;
+  --ink: #0B0B0B;
+  --ink-2: #4D4A45;
+  --ink-3: #8A857D;
+  --ink-4: #B5AFA5;          /* placeholders and decoration only */
+  --line: #E6E0D6;
+  --line-strong: #D3CCC0;
+  --primary: #0B0B0B;        /* buttons, selected states: black on light */
+  --primary-hover: #2A2927;
+  --on-primary: #FFFFFF;
+  --primary-soft: #F4EFE6;   /* selected chips, earned badges (neutral) */
+  --accent-text: #713105;    /* the only coffee colour for text on light */
+  --danger: #A33D24;         /* validation text, not a status */
   --status-quiet: #4E7D5B;
   --status-moderate: #C9962B;
   --status-packed: #B5503C;
-  --bezel: #1C1612;
-  --scrim: rgba(28, 22, 18, 0.32);
-  --shadow-float: 0 24px 48px -24px rgba(28, 22, 18, 0.22), 0 2px 6px -2px rgba(28, 22, 18, 0.06);
+  --bezel: #0B0B0B;
+  --scrim: rgba(11, 11, 11, 0.32);
+  --shadow-float: none;      /* hairlines, no shadows */
+
+  /* Logos: wordmark and LCC in ink; the ring's bricks keep coffee tones */
+  --logo-ink: var(--ink);
+  --logo-face: #4F351C;
+  --logo-side: #341100;
+  --logo-top: #7F5E35;
 
   /* Type */
-  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --font-sans: "Inter Tight", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Glacial Indifference", "Century Gothic", Futura, system-ui, sans-serif;
+  --font-urdu: "29LT Bukra", "Noto Sans Arabic", sans-serif;
   --fs-12: 12px;
   --fs-14: 14px;
   --fs-16: 16px;
@@ -45,6 +85,7 @@
   --lh-tight: 1.08;
   --lh-snug: 1.15;
   --measure: 60ch;
+  --track-caps: 0.3em;
 
   /* Spacing (8px grid) */
   --space-1: 4px;
@@ -70,7 +111,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-1: 200ms;
   --dur-2: 260ms;
-  --dur-3: 320ms;
+  --dur-3: 300ms;
 
   /* Layout */
   --proto-h: 40px;
@@ -79,57 +120,70 @@
 }
 
 /* ---------------------------------------------------------------------
-   2. Tokens (dark): system preference, unless forced light
+   2. Tokens (dark): black background, cream text, the same small accents.
+   System preference unless forced light; also forced by the toggle, and
+   used on surfaces that are always dark (.theme-dark, the pass screen).
    --------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #14100D;
-    --surface: #1B1612;
-    --surface-2: #241E19;
-    --ink: #F2EBE0;
-    --ink-2: #C2B7A9;
-    --ink-3: #9A8F82;
-    --ink-4: #6E655B;
-    --line: #2C251F;
-    --line-strong: #3B332B;
-    --accent: #9DBFA6;
-    --accent-hover: #B0CDB7;
-    --accent-soft: #1F2A23;
-    --on-accent: #12100D;
-    --danger: #E08A74;
+    --bg: #0B0B0B;
+    --surface: #151515;
+    --surface-2: #1E1D1B;
+    --ink: #FFF7E8;
+    --ink-2: #BDB7AD;
+    --ink-3: #807B74;
+    --ink-4: #5E5A54;
+    --line: #2A2927;
+    --line-strong: #3A3835;
+    --hairline: 1px solid var(--line);
+    --primary: #FFF7E8;          /* buttons: cream on dark */
+    --primary-hover: #F4EFE6;
+    --on-primary: #0B0B0B;
+    --primary-soft: #1E1D1B;
+    --accent-text: #CFAB71;
+    --danger: #E9A08A;
     --status-quiet: #79A784;
     --status-moderate: #D4A548;
     --status-packed: #D27560;
-    --bezel: #2A231E;
-    --scrim: rgba(0, 0, 0, 0.55);
-    --shadow-float: 0 24px 48px -24px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
-  }
+    --bezel: #2A2927;
+    --scrim: rgba(0, 0, 0, 0.6);
+    /* Logo on dark */
+    --logo-ink: var(--ink);
+    --logo-face: #CFAB71;
+    --logo-side: #7F5E35;
+    --logo-top: #4F351C;
+}
 }
 
-/* Same dark tokens, forced by the theme toggle */
-:root[data-theme="dark"] {
+:root[data-theme="dark"], .theme-dark {
   color-scheme: dark;
-  --bg: #14100D;
-  --surface: #1B1612;
-  --surface-2: #241E19;
-  --ink: #F2EBE0;
-  --ink-2: #C2B7A9;
-  --ink-3: #9A8F82;
-  --ink-4: #6E655B;
-  --line: #2C251F;
-  --line-strong: #3B332B;
-  --accent: #9DBFA6;
-  --accent-hover: #B0CDB7;
-  --accent-soft: #1F2A23;
-  --on-accent: #12100D;
-  --danger: #E08A74;
+  --bg: #0B0B0B;
+  --surface: #151515;
+  --surface-2: #1E1D1B;
+  --ink: #FFF7E8;
+  --ink-2: #BDB7AD;
+  --ink-3: #807B74;
+  --ink-4: #5E5A54;
+  --line: #2A2927;
+  --line-strong: #3A3835;
+  --hairline: 1px solid var(--line);
+  --primary: #FFF7E8;          /* buttons: cream on dark */
+  --primary-hover: #F4EFE6;
+  --on-primary: #0B0B0B;
+  --primary-soft: #1E1D1B;
+  --accent-text: #CFAB71;
+  --danger: #E9A08A;
   --status-quiet: #79A784;
   --status-moderate: #D4A548;
   --status-packed: #D27560;
-  --bezel: #2A231E;
-  --scrim: rgba(0, 0, 0, 0.55);
-  --shadow-float: 0 24px 48px -24px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  --bezel: #2A2927;
+  --scrim: rgba(0, 0, 0, 0.6);
+  /* Logo on dark */
+  --logo-ink: var(--ink);
+  --logo-face: #CFAB71;
+  --logo-side: #7F5E35;
+  --logo-top: #4F351C;
 }
 
 /* ---------------------------------------------------------------------
@@ -162,11 +216,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
 a { color: inherit; }
 ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
-::selection { background: var(--accent-soft); color: var(--ink); }
+::selection { background: var(--primary-soft); color: var(--ink); }
 
 :focus { outline: none; }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -198,20 +252,18 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
    4. Typography
    --------------------------------------------------------------------- */
 .t-display, .t-h1, .t-h2 {
-  font-family: var(--font-serif);
-  font-weight: 300;
-  font-optical-sizing: auto;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   line-height: var(--lh-tight);
   text-wrap: balance;
 }
-.t-display { font-size: var(--fs-64); letter-spacing: -0.03em; line-height: 1.04; }
+.t-display { font-size: var(--fs-64); letter-spacing: -0.015em; line-height: 1.04; }
 .t-h1 { font-size: var(--fs-40); }
-.t-h2 { font-size: var(--fs-28); font-weight: 350; line-height: var(--lh-snug); }
+.t-h2 { font-size: var(--fs-28); line-height: var(--lh-snug); }
 .t-h3 {
   font-size: var(--fs-20);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: 0;
   line-height: 1.3;
 }
 .t-body { font-size: var(--fs-16); line-height: var(--lh-body); }
@@ -222,22 +274,18 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 .eyebrow {
   font-size: var(--fs-12);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--accent-text);   /* accent: small uppercase labels */
   line-height: 1.4;
 }
+[lang="ur"], .urdu { font-family: var(--font-urdu); }
 .num, .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on, "lnum" on; }
 .measure { max-width: var(--measure); }
-.wordmark {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: var(--fs-20);
-  letter-spacing: -0.015em;
-  line-height: 1;
-  white-space: nowrap;
-  text-decoration: none;
-}
+/* Logos are inline SVGs (ui.logo); colours come from --logo-* */
+.logo { display: block; height: auto; flex: none; }
+.logo svg { display: block; width: 100%; height: auto; }
+.wordmark { display: inline-block; width: 128px; line-height: 0; text-decoration: none; color: inherit; }
 
 @media (max-width: 640px) {
   .t-display { font-size: 44px; }
@@ -293,8 +341,8 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 .btn:focus-visible { border-radius: var(--radius-pill); outline-offset: 3px; }
 .btn svg { width: 20px; height: 20px; flex: none; }
 
-.btn--primary { background: var(--accent); color: var(--on-accent); }
-.btn--primary:hover { background: var(--accent-hover); }
+.btn--primary { background: var(--primary); color: var(--on-primary); }
+.btn--primary:hover { background: var(--primary-hover); }
 
 .btn--secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
 .btn--secondary:hover { border-color: var(--ink-3); background: var(--surface); }
@@ -361,7 +409,7 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 }
 .input::placeholder { color: var(--ink-4); }
 .input:hover { border-color: var(--ink-4); }
-.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-height: var(--lh-body); resize: vertical; }
 
 .select { position: relative; }
@@ -397,8 +445,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .card--interactive:hover { border-color: var(--line-strong); }
 .card--interactive:active { transform: scale(0.99); }
 .card[aria-pressed="true"], .card[aria-checked="true"], .card.is-selected {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 
 /* List row ----------------------------------------------------------- */
@@ -501,7 +549,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .chip::before { content: ""; position: absolute; inset: -4px 0; } /* 44px hit area */
 .chip:hover { border-color: var(--ink-4); color: var(--ink); }
 .chip:active { transform: scale(0.97); }
-.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
 .chip svg { width: 14px; height: 14px; }
 
 /* Toggle (switch) ---------------------------------------------------- */
@@ -522,10 +570,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   width: 22px; height: 22px;
   border-radius: 50%;
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(28, 22, 18, 0.2);
+  
   transition: transform var(--dur-2) var(--ease);
 }
-.toggle[aria-checked="true"] { background: var(--accent); }
+.toggle[aria-checked="true"] { background: var(--primary); }
 .toggle[aria-checked="true"]::after { transform: translateX(20px); }
 
 /* Badge -------------------------------------------------------------- */
@@ -542,7 +590,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.badge--accent { background: var(--accent-soft); color: var(--accent); }
+.badge--accent { background: var(--primary-soft); color: var(--primary); }
 
 /* Status pill -------------------------------------------------------- */
 .status {
@@ -734,7 +782,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   font-size: var(--fs-12);
   color: var(--ink-3);
 }
-.proto-bar__label { font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+.proto-bar__label { font-weight: 400; letter-spacing: var(--track-caps); text-transform: uppercase; }
 .proto-bar__nav { display: flex; gap: 2px; }
 .proto-bar__link {
   position: relative;
@@ -925,7 +973,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   content: "";
   width: 10px; height: 10px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
 }
 .cafe-grid {
   display: grid;
@@ -950,7 +998,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 /* Live sync indicator (sync.js) --------------------------------------- */
 .sync-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); }
 .sync-pill__dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-4); }
-.sync-pill[data-state="online"] .sync-pill__dot { background: var(--accent); border-color: var(--accent); }
+.sync-pill[data-state="online"] .sync-pill__dot { background: var(--primary); border-color: var(--primary); }
 .sync-pill[data-state="connecting"] .sync-pill__dot { animation: sync-pulse 1.2s var(--ease) infinite alternate; }
 @keyframes sync-pulse { to { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .sync-pill__dot { animation: none !important; } }

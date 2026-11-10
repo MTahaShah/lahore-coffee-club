@@ -10,7 +10,7 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$ } = ui;
 
-  const swatches = ["--bg", "--surface", "--surface-2", "--ink", "--ink-2", "--ink-3", "--line", "--accent", "--accent-soft", "--status-quiet", "--status-moderate", "--status-packed"];
+  const swatches = ["--bg", "--surface", "--surface-2", "--ink", "--ink-2", "--ink-3", "--line", "--primary", "--primary-soft", "--accent-text", "--accent", "--accent-deep", "--espresso", "--mocha", "--roast", "--status-quiet", "--status-moderate", "--status-packed"];
 
   LCC.router.register("kit", {
     title: "Component kit",
@@ -38,9 +38,10 @@
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
               <h2 class="eyebrow">Type</h2>
-              <p class="t-h1">Fraunces 40</p>
-              <p class="t-h2">Fraunces 28, for titles</p>
-              <p class="t-h3">Inter Tight 20, medium</p>
+              <p class="t-h1">Glacial Indifference 40</p>
+              <p class="t-h2">Glacial Indifference 28, for titles</p>
+              <p class="t-h3">Glacial 20, regular</p>
+              <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
               <p class="t-micro t-faint num">Micro 12 · Rs 6,500 · 11 of 16</p>
@@ -123,7 +124,7 @@
                 <div style="padding:var(--space-5)" class="stack">
                   <button class="btn btn--secondary btn--block" type="button" data-sheet-open="kit-sheet">Open café sheet</button>
                   <button class="btn btn--ghost btn--block" type="button" data-kit-toast="Cup redeemed. 10 left.">Show toast</button>
-                  <svg class="check-draw" data-kit-check viewBox="0 0 48 48" width="48" height="48" style="color:var(--accent);margin:var(--space-2) auto 0" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+                  <svg class="check-draw" data-kit-check viewBox="0 0 48 48" width="48" height="48" style="color:var(--primary);margin:var(--space-2) auto 0" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
                 </div>
                 <div class="sheet" id="kit-sheet" role="dialog" aria-modal="true" aria-labelledby="kit-sheet-title" aria-hidden="true">
                   <div class="sheet__scrim" data-sheet-close></div>

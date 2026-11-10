@@ -161,6 +161,8 @@
         });
         // Plan and payment are a focused flow: no tab bar
         $(".phone__screen", el).classList.toggle("is-flow", !!r.flow);
+        // The pass is the moment at the counter: a black screen (BRAND.md)
+        $(".phone__screen", el).classList.toggle("theme-dark", r.tab === "pass");
         view.setAttribute("aria-labelledby", `tab-${r.tab}`);
         view.scrollTop = 0;
         view.innerHTML = `<div class="enter">${screen.html}</div>`;
@@ -219,13 +221,13 @@
       };
 
       /* Home ------------------------------------------------------------ */
-      const RING_C = 2 * Math.PI * 96;
       function homeScreen() {
         const m = member();
         const near = S.cafes().slice().sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 4);
         return {
           html: html`
             <div class="app-screen">
+              <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
               <div class="app-head">
                 <div>
                   <p class="t-small t-muted">${fmt.date(Date.now())}</p>
@@ -236,10 +238,7 @@
 
               <div class="ring-wrap">
                 <div class="ring" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
-                  <svg viewBox="0 0 208 208" aria-hidden="true">
-                    <circle class="track" cx="104" cy="104" r="96"/>
-                    <circle class="bar" cx="104" cy="104" r="96" stroke-dasharray="${RING_C.toFixed(2)}" stroke-dashoffset="${RING_C.toFixed(2)}"/>
-                  </svg>
+                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 208, radius: 86, length: 24, stagger: true })}</div>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
                     <span class="t-small t-muted">of <span class="num" data-ring-total>${S.balance().total}</span> cups left</span>
@@ -329,9 +328,12 @@
         const ring = $("[data-ring]", view);
         if (!ring) return;
         // Total cups across the plan, either type; read from the ledger
+        // One brick per cup; used cups outlined (the brick ring, BRAND.md)
         const b = S.balance();
-        const frac = b.total ? Math.max(0, Math.min(1, b.left / b.total)) : 0;
-        $(".bar", ring).setAttribute("stroke-dashoffset", (RING_C * (1 - frac)).toFixed(2));
+        const key = `${b.total}:${b.left}`;
+        const bricks = $("[data-bricks]", ring);
+        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 208, radius: 86, length: 24 }).s;
+        bricks.dataset.key = key;
         ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
         $("[data-ring-total]", ring).textContent = b.total;
         ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
@@ -371,7 +373,10 @@
           const plan = S.memberPlan(m2);
           const card = $("[data-pass-card]", view);
           card.innerHTML = html`
-            <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            <div class="pass-ring">
+              <div class="pass-ring__bricks" data-pass-ring>${passRing()}</div>
+              <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            </div>
             <div class="countdown" aria-hidden="true">
               <svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" data-cd-bar cx="10" cy="10" r="8" stroke-dasharray="${CD_C.toFixed(2)}"/></svg>
               <span data-cd-text></span>
@@ -386,6 +391,12 @@
           lastCode = null;
           paintCode();
           tickCountdown();
+        }
+
+        /** Caramel bricks around the QR: one per cup, used ones outlined. */
+        function passRing() {
+          const b = S.balance();
+          return ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 330, radius: 150, length: 26, twist: 12 });
         }
 
         /** Explorer: cafés used this month (“Kiln & Bean 2 of 2”).
@@ -416,6 +427,8 @@
           set("[data-pass-type]", p.typeName);
           const list = $("[data-pass-cafes]", view);
           if (list) list.innerHTML = passCafes().s;
+          const ringEl = $("[data-pass-ring]", view);
+          if (ringEl) ringEl.innerHTML = passRing().s;
         }
 
         function paintCode() {

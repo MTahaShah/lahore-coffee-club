@@ -5,7 +5,39 @@ Lahore cafés. It is shown to café owners and potential members. There is no
 backend: all data is fictional and all state is in memory. One approved
 exception: live sync between devices over Supabase Realtime Broadcast
 (Pass 4.5; messages only, nothing stored).
-Full spec: `docs/spec.md` (verbatim; the source of truth).
+Full spec: `docs/spec.md` (verbatim; the source of truth for product and
+behaviour).
+
+## Design
+
+**`docs/BRAND.md` is the design source of truth** and replaces the spec's
+design system (colours, type, logos). Visual reference:
+`docs/LCC-Brand-Book.pdf` (pages 15–19: brick ring, app screens, café
+counter screen).
+
+- Colour: black, white and cream are the base in both modes; the coffee
+  palette is for small accents only (see "Where accents are allowed" in
+  BRAND.md: the cups-left bricks, the QR ring, the monogram's bricks, the
+  active tab, the savings line, eyebrows, one highlight per screen). Tokens
+  live in `src/base.css`: neutrals (`--bg`, `--surface`, `--ink`, `--line`,
+  `--primary` = black on light, cream on dark), `--accent-text` (the only
+  coffee colour for text), and fixed `--accent`, `--accent-deep`,
+  `--espresso`, `--mocha`, `--roast`, plus `--black`, `--white`, `--cream`.
+  No espresso or brown backgrounds anywhere.
+- Dark mode is black with cream text (`prefers-color-scheme`, the theme
+  toggle, and `.theme-dark` for surfaces that are always dark, such as the
+  pass screen).
+- Type: Glacial Indifference (`src/fonts/`, inlined by `build.sh`) for all
+  Latin text; Urdu uses `--font-urdu` ("29LT Bukra", then "Noto Sans
+  Arabic"). Small caps labels are tracked 0.3em.
+- Logos: the SVGs in `src/logos/`, never retyped. `build.sh` inlines them
+  as `<template id="logo-NAME">`; render with `ui.logo(name)`. Colours come
+  from `--logo-ink` (= `--ink`), and `--logo-face`, `--logo-side`,
+  `--logo-top` (coffee tones, so the bricks are the colour pop).
+- Brick ring: `ui.brickRing()`, one brick per cup, gap at 3 o'clock, used
+  cups outlined (Home ring in `--accent-text`, caramel around the QR on the
+  black pass screen).
+- Hairlines, no shadows. Status colours only for busy status, with text.
 
 ## Build and preview
 
@@ -23,13 +55,18 @@ view's "Pair a phone" QR always points here (`LIVE_URL` in `sync.js`), with
 Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
 `#/kit` component sheet (not in the switcher; for review).
 Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
-`index.html` is generated. Edit `src/`, never `index.html`.
+`index.html` is generated (one self-contained file: fonts, logos and
+favicon are inlined). Edit `src/`, never `index.html`.
 
 ## src/ layout
 
 - `index.template.html` — page skeleton; `build.sh` replaces its
-  `<!-- @styles -->` and `<!-- @scripts -->` markers
-- `base.css` — tokens, light/dark themes, typography, components, shells
+  `<!-- @favicon -->`, `<!-- @styles -->`, `<!-- @logos -->` and
+  `<!-- @scripts -->` markers
+- `base.css` — brand tokens, light/dark themes, `@font-face`,
+  typography, components, shells
+- `fonts/` — Glacial Indifference Regular and Bold (woff2)
+- `logos/` — wordmark, horizontal monogram, ring, app icons, favicon
 - `data.js` — fictional seed: 8 cafés, 3 tiers, members with plans and
   member numbers, the ledger (Mumtaz's earlier months, and a month generated
   under the real rules), club rules (levels, badges, perks, gatherings)
@@ -37,7 +74,8 @@ Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
   ledger and derived balances, pricing, pass codes, redemption rules, the
   club (`select.club`, gatherings, RSVPs), gifts, presenter sessions,
   `LCC.fmt` formatting
-- `ui.js` — templating, icons, toast, bottom sheet, steppers, live pills
+- `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
+  (`ui.brickRing`), toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher (with the presenter Demo menu),
   theme toggle, Pass 1 shells
 - `sync.js` — live sync per room: BroadcastChannel (same computer) and
@@ -143,8 +181,6 @@ next pass until asked.**
 
 ## Decisions
 
-- `--ink-3` is `#70655A` for AA contrast; the spec's `#968B7F` is `--ink-4`,
-  used for placeholders only.
 - Max 2 redemptions per café per member per day (`rules.dailyLimitPerCafe`).
 - Pass codes stay valid for one extra 30s window after rotating.
 - The demo member is Mumtaz Begum (initials MB), not the spec's "Ayesha".
@@ -155,7 +191,6 @@ next pass until asked.**
   daily limit at Kiln & Bean), Hamza 730215 (no cups left).
 - Mumtaz: Explorer Regular, 11 of 16, 1 cup at Kiln & Bean this month (so one
   more works there, then the cap refuses).
-- Design polish comes later; the current palette and fonts stay for now.
 - Payout today = cups today × the café's payout rate. The café's "This month"
   block (calendar month) reads the ledger: cups reserved here and by how many
   My cafés members, cups redeemed so far, payout so far = redeemed × rate.
