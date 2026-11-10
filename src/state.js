@@ -218,6 +218,12 @@
       };
     },
 
+    /** Typical status at an hour, from busyByHour (8:00–23:00). Used by the map’s “Usually at 6 pm”. */
+    usualStatus(cafe, hour = 18) {
+      const v = cafe.busyByHour[hour - 8] ?? 0;
+      return { level: v, status: v >= 0.7 ? "packed" : v >= 0.4 ? "moderate" : "quiet" };
+    },
+
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
       const visits = state.members[memberId]?.visits?.[cafeId] || 0;

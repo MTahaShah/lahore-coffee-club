@@ -29,6 +29,9 @@ Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
 - `ui.js` — templating, icons, toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher, theme toggle, Pass 1 shells
 - `kit.js` — `#/kit` component sheet wired to the real store
+- `cafe.css`, `cafe.js` — café partner view (`#/cafe`): redeem, busy status, today
+- `app.css`, `app.js` — member app (`#/app/…`): tab bar, Pass, Home, Map,
+  café sheet
 
 Script order matters: data → state → ui → router → surfaces. New files must
 be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
@@ -38,8 +41,8 @@ be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
 This order overrides any order implied by the spec.
 
 1. [x] Design system, data, state, router
-2. [ ] Café partner view (`#/cafe`)
-3. [ ] Member app: Pass (QR), Home, Map
+2. [x] Café partner view (`#/cafe`)
+3. [x] Member app: Pass (QR), Home, Map
 4. [ ] Member app: Cafés, plan builder, payment
 5. [ ] Member app: gifting, rewards, onboarding
 6. [ ] Landing page and waitlist
@@ -56,3 +59,10 @@ next pass until asked.**
 - Demo members Bilal, Sana, Omar, Zara and Hamza exist for the café view
   (Zara hits the daily limit; Hamza has no cups left).
 - Design polish comes later; the current palette and fonts stay for now.
+- Payout today = cups today × the café's payout rate. "This month so far" is
+  a separate line based on `avgDailyCups`.
+- 14 background "regulars" fill each café's day; they have no codes.
+- Busy status uses the cup-level icon (`ui.cupIcon`) everywhere, in ink.
+- Live sync works between windows on the same computer only.
+- QR library: qrcode-generator 1.4.4 from cdnjs; falls back to the 6-digit
+  code offline.

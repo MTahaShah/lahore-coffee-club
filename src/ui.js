@@ -37,6 +37,15 @@
     chevronDown: '<path d="M6 9.5l6 6 6-6"/>',
     arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    // Tab bar
+    home: '<path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5z"/>',
+    store: '<path d="M4 9.5L5.5 4h13L20 9.5M4 9.5h16M4 9.5a2.67 2.67 0 0 0 5.33 0 2.67 2.67 0 0 0 5.34 0A2.67 2.67 0 0 0 20 9.5M5.5 12.5V20h13v-7.5M10 20v-4.5h4V20"/>',
+    qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 20h1M20 14v1"/>',
+    map: '<path d="M9 5L4 7v12l5-2 6 2 5-2V5l-5 2-6-2zM9 5v12M15 7v12"/>',
+    award: '<circle cx="12" cy="9" r="5"/><path d="M9 13.2L7.5 20l4.5-2.5 4.5 2.5-1.5-6.8"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    pin: '<path d="M12 20.5s6-5.6 6-10.5a6 6 0 0 0-12 0c0 4.9 6 10.5 6 10.5z"/><circle cx="12" cy="10" r="2"/>',
+    sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
   };
   function icon(name, { size = 24, label } = {}) {
     const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true" focusable="false"';
