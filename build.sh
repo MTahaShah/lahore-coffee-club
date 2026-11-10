@@ -15,6 +15,7 @@ TEMPLATE="$SRC/index.template.html"
 
 CSS_FILES=(
   base.css
+  cafe.css
 )
 
 # Order matters: data -> state -> ui -> router -> surfaces
@@ -24,6 +25,7 @@ JS_FILES=(
   ui.js
   router.js
   kit.js
+  cafe.js
 )
 
 build() {

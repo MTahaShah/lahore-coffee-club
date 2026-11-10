@@ -9,8 +9,8 @@
      store.actions.setCafeStatus("kiln", "packed");
      store.select.cafe("kiln").status;
 
-   Events: cafe:status, redeem, pass, member, plan, builder, gift,
-           waitlist, partner, tick (every 30s, for relative times)
+   Events: cafe:status, cafe:viewing, redeem, pass, member, plan, builder,
+           gift, waitlist, partner, tick (every 30s, for relative times)
 
    No storage. If two windows of the prototype are open on the same
    machine (e.g. café view on one screen, member app on another), café
@@ -192,6 +192,28 @@
       };
     },
 
+    /** Plan name for any member. Demo members carry no planId, so match by cups. */
+    memberPlan(member) {
+      const tier = (member.planId && select.tier(member.planId)) || state.tiers.find((t) => t.cups === member.cupsTotal);
+      return tier ? { name: tier.name, cups: tier.cups } : { name: "Build your own", cups: member.cupsTotal };
+    },
+
+    /** Open or closed right now, from the café’s hours. Handles closing after midnight. */
+    openState(cafe, at = Date.now()) {
+      const toMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+      const open = toMin(cafe.hours.open);
+      let close = toMin(cafe.hours.close);
+      if (close <= open) close += 1440;
+      const d = new Date(at);
+      let nowMin = d.getHours() * 60 + d.getMinutes();
+      if (nowMin < open && nowMin + 1440 < close) nowMin += 1440; // early hours, still open from yesterday
+      const isOpen = nowMin >= open && nowMin < close;
+      return {
+        open: isOpen,
+        label: isOpen ? `Open until ${fmt.clock(close)}` : `Closed, opens at ${fmt.clock(open)}`,
+      };
+    },
+
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
       const visits = state.members[memberId]?.visits?.[cafeId] || 0;
@@ -203,22 +225,29 @@
      Code lookup and redemption (café view)
      ------------------------------------------------------------------- */
   const MESSAGES = {
-    "not-found": () => "That code didn’t match a member. Ask them to refresh their pass and read it again.",
+    "not-found": () => "That code didn’t match a member. Check the six digits and try again.",
+    "expired": (m) => `That code has expired. Ask ${m.firstName} for the new one on the pass screen.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
     "not-enough": (m, need) => `That drink uses ${need} cups and ${m.firstName} has ${m.cupsLeft} left. Try a one-cup drink.`,
     "daily-limit": (m, _n, limit) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
   };
 
+  /** Returns { member, expired } or null. */
   function findMemberByCode(raw) {
     const code = String(raw || "").replace(/\D/g, "");
     if (code.length !== 6) return null;
     const now = Date.now();
     const period = state.rules.passRotateSeconds * 1000;
+    const EXPIRED_LOOKBACK = 20; // windows (10 min) checked to tell “expired” from “wrong”
     for (const m of Object.values(state.members)) {
-      if (m.staticCode === code) return m;
+      if (m.staticCode === code) return { member: m, expired: false };
+      if (m.staticCode) continue;
       // Accept the current and previous window, so a code read out at
       // 0:01 still works a moment later.
-      if (!m.staticCode && (select.pass(m.id, now).code === code || select.pass(m.id, now - period).code === code)) return m;
+      if (select.pass(m.id, now).code === code || select.pass(m.id, now - period).code === code) return { member: m, expired: false };
+      for (let i = 2; i <= EXPIRED_LOOKBACK; i++) {
+        if (select.pass(m.id, now - i * period).code === code) return { member: m, expired: true };
+      }
     }
     return null;
   }
@@ -226,8 +255,10 @@
   /** Check a code before redeeming. Never mutates. */
   function lookupCode(code, cafeId = state.partnerCafeId, credits = 1) {
     // BACKEND: GET /passes/:code?cafe=:cafeId
-    const member = findMemberByCode(code);
-    if (!member) return { ok: false, reason: "not-found", message: MESSAGES["not-found"]() };
+    const found = findMemberByCode(code);
+    if (!found) return { ok: false, reason: "not-found", message: MESSAGES["not-found"]() };
+    if (found.expired) return { ok: false, reason: "expired", member: found.member, message: MESSAGES.expired(found.member) };
+    const member = found.member;
     const limit = state.rules.dailyLimitPerCafe;
     const usedToday = select.usedToday(member.id, cafeId);
     const base = { member, cupsLeft: member.cupsLeft, usedToday, dailyLimit: limit };
@@ -285,6 +316,13 @@
       };
       commitRedemption(entry);
       return { ...check, ok: true, entry, cupsLeft: member.cupsLeft };
+    },
+
+    /** Which café the partner view is showing (demo picker). */
+    setPartnerCafe(cafeId) {
+      if (!state.cafes[cafeId] || state.partnerCafeId === cafeId) return;
+      state.partnerCafeId = cafeId;
+      emit("cafe:viewing", { cafeId });
     },
 
     choosePlan(plan) {
@@ -403,6 +441,15 @@
       new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(/\s?([AP])M/, (_, x) => `${NBSP}${x.toLowerCase()}m`),
     date: (ts) => new Date(ts).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
     shortDate: (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+    /** Minutes after midnight -> “11 pm”, “7:30 am”, “midnight”. Wraps past 24h. */
+    clock(mins) {
+      const m = ((mins % 1440) + 1440) % 1440;
+      if (m === 0) return "midnight";
+      if (m === 720) return "noon";
+      const h = Math.floor(m / 60), mm = m % 60;
+      const h12 = h % 12 || 12;
+      return `${h12}${mm ? `:${String(mm).padStart(2, "0")}` : ""}${NBSP}${h < 12 ? "am" : "pm"}`;
+    },
     countdown: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`,
   };
 

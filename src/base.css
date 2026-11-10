@@ -558,24 +558,15 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   line-height: 1;
   white-space: nowrap;
 }
-.status__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ink-4);
-  flex: none;
-  transition: background-color var(--dur-2) var(--ease);
-}
+/* Cup-level icon (ui.cupIcon) in ink; status is never colour-coded. */
+.status__icon { width: 16px; height: 16px; flex: none; color: var(--ink); margin-right: -2px; }
 .status__label { font-weight: 500; color: var(--ink); }
 .status__time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .status--bare { height: auto; padding: 0; border: 0; background: none; }
-[data-status="quiet"] > .status__dot { background: var(--status-quiet); }
-[data-status="moderate"] > .status__dot { background: var(--status-moderate); }
-[data-status="packed"] > .status__dot { background: var(--status-packed); }
-.status.is-changed .status__dot { animation: status-settle 600ms var(--ease); }
+.status.is-changed .status__icon { animation: status-settle 600ms var(--ease); }
 @keyframes status-settle {
   0% { transform: scale(1); }
-  40% { transform: scale(1.6); }
+  40% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
 
@@ -923,7 +914,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   margin-top: var(--space-5);
   grid-template-columns: 1fr;
 }
-@media (min-width: 900px) {
+@media (min-width: 768px) and (orientation: landscape) {
   .cafe-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
   .cafe-grid__side { display: grid; gap: var(--space-5); }
 }

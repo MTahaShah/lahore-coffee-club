@@ -108,6 +108,7 @@
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
+              <div class="row"><div class="row__main"><div class="row__title">Ayesha</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -184,6 +185,10 @@
 
       const offs = [
         store.on("builder", () => paintPrice(true)),
+        store.on("redeem", ({ member }) => {
+          const a = store.select.member();
+          if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+        }),
         store.on("cafe:status", ({ cafeId, status }) => {
           if (cafeId !== "kiln") return;
           $$("[data-kit-status]", el).forEach((b) => b.setAttribute("aria-pressed", b.dataset.kitStatus === status));

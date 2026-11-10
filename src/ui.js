@@ -45,12 +45,28 @@
     );
   }
 
+  /* Cup-level icon: how full the café is ---------------------------------
+     Outline cup = quiet, half full = moderate, full = packed. Fill uses
+     currentColor, so it inverts inside a selected (ink) segment.        */
+  const CUP_BODY = "M5 8h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8z";
+  const CUP_FILL = {
+    quiet: "",
+    moderate: '<path d="M5 13.25h12V14a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5v-.75z" fill="currentColor" stroke="none"/>',
+    packed: `<path d="${CUP_BODY}" fill="currentColor" stroke="none"/>`,
+  };
+  function cupIcon(status, { size = 16, cls = "status__icon" } = {}) {
+    return raw(
+      `<svg class="${cls}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">` +
+        `${CUP_FILL[status] || ""}<path d="${CUP_BODY}"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg>`
+    );
+  }
+
   /* Status pill --------------------------------------------------------- */
   /** Renders a pill bound to a café; it updates itself on store changes. */
   function statusPill(cafeId, { bare = false, time = true } = {}) {
     const cafe = store.select.cafe(cafeId);
     return html`<span class="status${bare ? " status--bare" : ""}" data-status="${cafe.status}" data-live-status="${cafeId}" data-live-time="${time ? "1" : "0"}">
-      <span class="status__dot" aria-hidden="true"></span>
+      ${cupIcon(cafe.status)}
       <span class="status__label">${fmt.statusLabel(cafe.status)}</span>
       ${time ? html`<span class="status__time" data-rel-time="${cafe.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(cafe.statusUpdatedAt)}</span>` : ""}
     </span>`;
@@ -60,6 +76,8 @@
     const cafe = store.select.cafe(cafeId);
     $$(`[data-live-status="${cafeId}"]`).forEach((el) => {
       el.dataset.status = cafe.status;
+      const ic = el.querySelector(".status__icon");
+      if (ic) ic.outerHTML = cupIcon(cafe.status).s;
       const label = el.querySelector(".status__label");
       if (label) label.textContent = fmt.statusLabel(cafe.status);
       const t = el.querySelector("[data-rel-time]");
@@ -71,7 +89,8 @@
   function refreshRelativeTimes() {
     $$("[data-rel-time]").forEach((el) => {
       const ts = Number(el.dataset.relTime);
-      el.textContent = el.dataset.relPrefix === "updated" ? fmt.updated(ts) : fmt.ago(ts);
+      const prefix = el.dataset.relPrefix;
+      el.textContent = prefix ? `${prefix} ${fmt.ago(ts)}` : fmt.ago(ts);
     });
   }
 
@@ -243,7 +262,7 @@
 
   LCC.ui = {
     html, raw, esc, $, $$, icon,
-    statusPill, refreshStatusPills, refreshRelativeTimes,
+    cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet,
     stepper, setStepper, segmented, selectSegment,
     reducedMotion,
