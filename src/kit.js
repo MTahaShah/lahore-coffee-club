@@ -16,6 +16,10 @@
     title: "Component kit",
     mount(el) {
       const cafes = store.select.cafes();
+      const planMeta = () => {
+        const a = store.select.member();
+        return `${store.select.memberPlan(a).name} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+      };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`
         <div class="surface container kit">
@@ -108,7 +112,7 @@
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -184,7 +188,15 @@
       });
 
       const offs = [
-        store.on("builder", () => paintPrice(true)),
+        store.on("builder", () => {
+          paintPrice(true);
+          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0));
+        }),
+        store.on("member", () => {
+          const a = store.select.member();
+          $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          $("[data-kit-plan]", el).textContent = planMeta();
+        }),
         store.on("redeem", ({ member }) => {
           const a = store.select.member();
           if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;

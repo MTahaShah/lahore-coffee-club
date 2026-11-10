@@ -2,8 +2,12 @@
    Lahore Coffee Club — app.js
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
-   Routes:  #/app (Home) · #/app/cafes · #/app/pass · #/app/map · #/app/rewards
-   Pass 3 builds Pass, Home and Map. Cafés and Rewards are placeholders.
+   Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
+            #/app/map · #/app/rewards · #/app/plan · #/app/plan/pay
+   This file owns the shell, tabs, Home, Pass and Map. Cafés live in
+   app-cafes.js, the plan picker and payment in app-plan.js; they add
+   screen factories to LCC.appScreens and get a small ctx object.
+   Rewards is still a placeholder (Pass 5).
 
    Everything reads the shared store, so a redemption or status change
    in the café view (same window or another one) shows up here live.
@@ -14,6 +18,8 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+  // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
+  const REG = (LCC.appScreens = LCC.appScreens || {});
 
   const TABS = [
     { id: "home",    label: "Home",    icon: "home" },
@@ -63,10 +69,13 @@
 
   LCC.router.register("app", {
     title: "Member app",
-    update(path) { if (api) api.show(tabFromPath(path)); },
+    update(path) { if (api) api.show(path); },
     mount(el, path) {
       const member = () => S.member();
-      let active = { id: null, cleanup: null, on: {} };
+      let active = { key: null, tab: null, cleanup: null, on: {} };
+      // Screens visited in this app session, so Back knows whether history.back() stays in the app
+      const trail = [];
+      let replacing = false;
       let mapMode = "now";
 
       // Fit the 844px frame on short laptop screens
@@ -112,22 +121,54 @@
 
       const view = $("#app-view", el);
 
-      /* ---------------- Tabs ---------------- */
-      function show(id) {
-        if (active.id === id) return;
+      /* ---------------- Routing inside the app ---------------- */
+      function resolve(path) {
+        const [a = "home", b] = path;
+        if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
+        if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
+        if (a === "plan" && REG.plan) return { key: "plan", tab: "home", flow: true, make: () => REG.plan(ctx) };
+        const tab = tabFromPath(path);
+        return { key: tab, tab, make: SCREENS[tab] };
+      }
+
+      function show(path, { force = false } = {}) {
+        const r = resolve(Array.isArray(path) ? path : [path]);
+        if (active.key === r.key && !force) return;
+        const screen = r.make();
+        if (screen.redirect) { history.replaceState(null, "", screen.redirect); LCC.router.render(); return; }
+        if (active.key !== r.key) {
+          if (replacing && trail.length) trail[trail.length - 1] = r.key;
+          else if (trail[trail.length - 2] === r.key) trail.pop();
+          else trail.push(r.key);
+        }
+        replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
-        $$("[data-tab]", el).forEach((b) => {
-          const on = b.dataset.tab === id;
-          b.setAttribute("aria-selected", on);
-          b.tabIndex = on ? 0 : -1;
+        $$("[data-tab]", el).forEach((btn) => {
+          const on = btn.dataset.tab === r.tab;
+          btn.setAttribute("aria-selected", on);
+          btn.tabIndex = on ? 0 : -1;
         });
-        view.setAttribute("aria-labelledby", `tab-${id}`);
+        // Plan and payment are a focused flow: no tab bar
+        $(".phone__screen", el).classList.toggle("is-flow", !!r.flow);
+        view.setAttribute("aria-labelledby", `tab-${r.tab}`);
         view.scrollTop = 0;
-        const screen = SCREENS[id]();
         view.innerHTML = `<div class="enter">${screen.html}</div>`;
-        active = { id, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
+        active = { key: r.key, tab: r.tab, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
       }
+
+      /** Navigate inside the app. replace: swap the history entry (after payment, redirects). */
+      function go(hash, { replace = false } = {}) {
+        if (replace) { replacing = true; history.replaceState(null, "", hash); LCC.router.render(); }
+        else location.hash = hash;
+      }
+      /** Back button: step back if we got here inside the app, otherwise go to the fallback. */
+      function back(fallback) {
+        if (trail.length > 1) history.back();
+        else go(fallback, { replace: true });
+      }
+      const ctx = { el, view, go, back, member, openCafe: (id) => openCafe(id), toast: ui.toast, rerender: () => show(LCC.router.parse().path, { force: true }) };
 
       /* ---------------- Café sheet ---------------- */
       function openCafe(cafeId) {
@@ -152,7 +193,10 @@
                 ${c.drinks.map((d) => html`<li class="row"><div class="row__main"><div class="row__title">${d.name}</div></div><span class="badge">${fmt.cups(d.credits)}</span></li>`)}
               </ul>
             </div>
-            <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+            <div class="cafe-sheet__actions">
+              <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+              <a class="btn btn--secondary btn--block" href="#/app/cafes/${c.id}">More about ${c.name}</a>
+            </div>
           </div>`;
         ui.openSheet($("#cafe-sheet", el));
       }
@@ -162,7 +206,6 @@
         home: homeScreen,
         pass: passScreen,
         map: mapScreen,
-        cafes: () => soon("Cafés", "Browse every partner café, filter by area and how busy it is.", 4),
         rewards: () => soon("Rewards", "Streaks, badges, referrals, and free cups from cafés.", 5),
       };
 
@@ -174,7 +217,6 @@
       const RING_C = 2 * Math.PI * 96;
       function homeScreen() {
         const m = member();
-        const plan = S.memberPlan(m);
         const near = S.cafes().slice().sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 4);
         return {
           html: html`
@@ -198,7 +240,8 @@
                     <span class="t-small t-muted">of <span class="num" data-ring-total>${m.cupsTotal}</span> cups left</span>
                   </div>
                 </div>
-                <p class="t-small t-muted">${plan.name} plan · renews on ${fmt.shortDate(m.renewsAt)}</p>
+                <p class="t-small t-muted" data-plan-line>${planLine()}</p>
+                <button type="button" class="btn btn--link" data-start-plan>Change plan</button>
               </div>
 
               <section class="app-section" aria-labelledby="near-h">
@@ -230,9 +273,14 @@
               paintRing();
               $("[data-recent]", view).innerHTML = recentRows(entry.id).s;
             },
-            member: () => paintRing(),
+            member: () => { paintRing(); const l = $("[data-plan-line]", view); if (l) l.textContent = planLine(); },
           },
         };
+      }
+
+      function planLine() {
+        const m = member();
+        return `${S.memberPlan(m).name} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
       }
 
       function recentRows(newId) {
@@ -285,6 +333,7 @@
           on: {
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
+            member: () => paintMeta(),
           },
         };
 
@@ -301,12 +350,21 @@
             <p class="pass__code" data-code></p>
             <p class="t-small t-muted">Show this to the barista, or read them the code.</p>
             <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of ${m2.cupsTotal}</p></div>
-              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3">${plan.name}</p></div>
+              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of <span data-pass-total>${m2.cupsTotal}</span></p></div>
+              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
             </div>`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
+        }
+
+        // Plan change or gift while the pass is open
+        function paintMeta() {
+          const m2 = member();
+          const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
+          set("[data-pass-cups]", m2.cupsLeft);
+          set("[data-pass-total]", m2.cupsTotal);
+          set("[data-pass-plan]", S.memberPlan(m2).name);
         }
 
         function paintCode() {
@@ -457,7 +515,11 @@
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
-        if (t.closest("[data-pass-back]")) { active.cleanup?.(); const id = active.id; active.id = null; show(id); return; }
+        if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
+        const start = t.closest("[data-start-plan]");
+        if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
+        const backBtn = t.closest("[data-back]");
+        if (backBtn) { back(backBtn.dataset.back); return; }
         const dir = t.closest("[data-directions]");
         if (dir) {
           // BACKEND: deep link to the phone's maps app with the café's coordinates
@@ -486,15 +548,15 @@
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
-      const offs = ["redeem", "member", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
-        if (who.id !== member().id || active.id === "pass") return;
+        if (who.id !== member().id || active.key === "pass") return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);
       }));
 
       api = { show };
-      show(tabFromPath(path));
+      show(path);
 
       return () => {
         if (typeof active.cleanup === "function") active.cleanup();

@@ -1063,7 +1063,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 /* ---- src/app.css ---- */
 /* =====================================================================
    Lahore Coffee Club — app.css
-   Member app (#/app): tab bar, Pass, Home, Map, café sheet.
+   Member app (#/app): tab bar, Pass, Home, Map, café sheet,
+   Cafés, café detail, plan picker and payment.
    Builds on base.css; the phone frame itself lives there.
    ===================================================================== */
 
@@ -1249,6 +1250,184 @@ li:last-child > .near-row { border-bottom: 0; }
 
 /* Coming-soon tabs ---------------------------------------------------- */
 .soon { display: grid; gap: var(--space-3); padding-top: var(--space-7); }
+
+/* =====================================================================
+   Pass 4: Cafés, café detail, plan picker, payment
+   ===================================================================== */
+
+/* Focused flows (plan, payment) hide the tab bar */
+.phone__screen.is-flow .tabbar { display: none; }
+/* Keep focused rows clear of the sticky top bar and summary bar */
+.phone__screen.is-flow .app-view { scroll-padding-block: 64px 220px; }
+.app-view:has(.sticky-action) { scroll-padding-block: 64px 120px; }
+
+.cafe-sheet__actions { display: grid; gap: var(--space-3); }
+
+/* Shared top bar with a back button; sticks while the screen scrolls */
+.screen-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-1) var(--space-3);
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-1) var(--ease);
+}
+.screen-bar__title {
+  font-size: var(--fs-16);
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.screen-bar.is-titled { border-bottom-color: var(--line); }
+.screen-bar [hidden] { display: none; }
+.screen-bar.is-titled .screen-bar__title { opacity: 1; transform: none; }
+.screen-bar + .app-screen { padding-top: var(--space-2); }
+
+/* Cafés list ---------------------------------------------------------- */
+.cafes { display: grid; gap: var(--space-4); }
+.search { position: relative; }
+.search > svg { position: absolute; left: var(--space-4); top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+.search__input { padding-left: 48px; padding-right: 52px; border-radius: var(--radius-pill); -webkit-appearance: none; appearance: none; }
+.search__input::-webkit-search-cancel-button { display: none; }
+.search__clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+.search__clear[hidden] { display: none; }
+
+.chip-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-inline: calc(-1 * var(--space-5));
+  padding: 4px var(--space-5);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.chip-row .chip { flex: none; }
+.chip-row__rule { flex: none; width: 1px; margin-block: 8px; background: var(--line-strong); }
+
+.cafe-list { margin-top: calc(-1 * var(--space-2)); }
+.cafe-row { width: 100%; text-decoration: none; color: inherit; border-bottom: var(--hairline); }
+.cafe-list li:last-child > .cafe-row { border-bottom: 0; }
+.cafe-row .row__main { display: grid; gap: 6px; }
+.cafe-row:hover .row__title { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.cafe-row__pills { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.cafes-empty { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-6) 0; }
+
+/* Café detail --------------------------------------------------------- */
+.cafe-detail { min-height: 100%; display: flex; flex-direction: column; }
+.cafe-detail__body { flex: 1; display: grid; align-content: start; gap: var(--space-5); padding-bottom: var(--space-5); }
+.cafe-detail__body .app-section { margin-top: var(--space-2); }
+.cafe-detail__status .status { justify-self: start; }
+.facts { display: grid; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-2); }
+.facts > div { display: flex; align-items: center; gap: var(--space-3); }
+.facts dt { display: grid; place-items: center; color: var(--ink-3); }
+.facts dd { margin: 0; }
+
+.visits { display: grid; gap: var(--space-5); }
+.visits__item { display: grid; gap: var(--space-2); }
+.visits__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+.meter { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.meter__seg { height: 6px; border-radius: var(--radius-pill); background: var(--line); }
+.meter__seg.is-on { background: var(--accent); }
+
+/* Bottom actions that stay on screen while content scrolls */
+.sticky-action, .summary-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background: var(--surface);
+  border-top: var(--hairline);
+}
+
+/* Plan picker --------------------------------------------------------- */
+.flow { min-height: 100%; display: flex; flex-direction: column; }
+.flow__body { flex: 1; display: grid; align-content: start; gap: var(--space-5); }
+.plan-intro { margin-bottom: var(--space-1); }
+.tier-list { display: grid; gap: var(--space-3); border: 0; padding: 0; min-width: 0; }
+.tier { display: grid; gap: var(--space-1); cursor: pointer; transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+.tier:hover { border-color: var(--line-strong); }
+.tier:active { transform: scale(0.99); }
+.tier:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tier:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tier__head { display: flex; align-items: center; gap: var(--space-2); }
+.tier__price { margin-left: auto; }
+
+.builder-row .row__meta { transition: color var(--dur-1) var(--ease); }
+.builder-row.is-new { background: var(--accent-soft); margin-inline: calc(-1 * var(--space-3)); padding-inline: var(--space-3); border-radius: var(--radius-sm); }
+
+.summary-bar { gap: var(--space-2); box-shadow: var(--shadow-float); }
+.summary-bar__nums { display: flex; justify-content: space-between; align-items: baseline; }
+.summary-bar__cups { font-weight: 500; }
+.summary-bar__note { min-height: 2.9em; }
+.summary-bar__note.is-warn { color: var(--danger); }
+.summary-bar .btn { margin-top: var(--space-1); }
+
+/* Payment ------------------------------------------------------------- */
+.pay-summary { display: grid; gap: var(--space-1); }
+.pay-summary__row { display: flex; justify-content: space-between; align-items: baseline; }
+.pay-form { display: grid; gap: var(--space-5); }
+.method-list { display: grid; gap: var(--space-2); border: 0; padding: 0; min-width: 0; }
+.method-list legend { margin-bottom: var(--space-2); padding: 0; }
+.method {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+.method:hover { border-color: var(--line-strong); }
+.method:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.method:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.method__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); }
+.method__text { flex: 1; display: grid; }
+.method__tick { color: var(--accent); opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+.method:has(input:checked) .method__tick { opacity: 1; }
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.field-pair .field + .field { margin-top: 0; }
+
+.proto-note {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.proto-note svg { flex: none; margin-top: 1px; color: var(--ink-3); }
+.proto-note strong { font-weight: 500; color: var(--ink); }
+
+.pay-state { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding: var(--space-6) var(--space-2) var(--space-5); }
+.pay-state .check-draw { width: 72px; height: 72px; color: var(--accent); }
+.pay-state__mark { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 1.5px solid var(--line-strong); color: var(--ink-2); }
+.pay-state__actions { display: grid; gap: var(--space-3); width: 100%; margin-top: var(--space-3); }
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 900ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
 
 </style>
 </head>
@@ -1743,6 +1922,15 @@ li:last-child > .near-row { border-bottom: 0; }
   const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
   const uid = (p) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const roundTo = (n, step) => Math.round(n / step) * step;
+  /** Same day next month; clamps 31 Jan to 28/29 Feb. */
+  function addMonths(ts, n) {
+    const d = new Date(ts);
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+    return d.getTime();
+  }
 
   // Small, stable hash so every open window derives the same pass code.
   function fnv1a(str) {
@@ -1844,6 +2032,7 @@ li:last-child > .near-row { border-bottom: 0; }
 
     /** Plan name for any member. Demo members carry no planId, so match by cups. */
     memberPlan(member) {
+      if (member.planId === "custom") return { name: "Build your own", cups: member.cupsTotal };
       const tier = (member.planId && select.tier(member.planId)) || state.tiers.find((t) => t.cups === member.cupsTotal);
       return tier ? { name: tier.name, cups: tier.cups } : { name: "Build your own", cups: member.cupsTotal };
     },
@@ -1868,6 +2057,43 @@ li:last-child > .near-row { border-bottom: 0; }
     usualStatus(cafe, hour = 18) {
       const v = cafe.busyByHour[hour - 8] ?? 0;
       return { level: v, status: v >= 0.7 ? "packed" : v >= 0.4 ? "moderate" : "quiet" };
+    },
+
+    /** Cafés tab: text search (name, area, drink) combined with filters.
+        Every filter narrows the list (AND); area is a single choice.    */
+    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false } = {}, at = Date.now()) {
+      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet
+      const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      const words = norm(query).split(/\s+/).filter(Boolean);
+      return select.cafes().filter((c) => {
+        if (areaId && c.area !== areaId) return false;
+        if (openNow && !select.openState(c, at).open) return false;
+        if (quietNow && c.status !== "quiet") return false;
+        if (!words.length) return true;
+        const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
+        return words.every((w) => hay.includes(w));
+      });
+    },
+
+    /** Price and cups for a plan the member might buy.
+        plan: { type: "fixed", tierId } | { type: "custom", allocation } */
+    quote(plan) {
+      // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
+      if (plan.type === "fixed") {
+        const t = select.tier(plan.tierId);
+        return { name: t.name, cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
+      }
+      return { name: "Build your own", ...select.customPrice(plan.allocation || state.builder) };
+    },
+
+    /** Is this the plan the member is on now? */
+    isCurrentPlan(plan) {
+      const cur = state.plan;
+      if (plan.type !== cur.type) return false;
+      if (plan.type === "fixed") return plan.tierId === cur.tierId;
+      const a = plan.allocation || state.builder, b = cur.allocation || {};
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
     },
 
     loyalty(cafeId, memberId = state.memberId) {
@@ -1981,10 +2207,15 @@ li:last-child > .near-row { border-bottom: 0; }
       emit("cafe:viewing", { cafeId });
     },
 
-    choosePlan(plan) {
+    /** Switch plan now: cups start fresh and the month restarts today. */
+    choosePlan(plan, { payment } = {}) {
       // plan: { type: "fixed", tierId } | { type: "custom", allocation }
-      // BACKEND: POST /subscriptions
+      // BACKEND: POST /subscriptions { plan, paymentId }
       const member = select.member();
+      const now = Date.now();
+      member.cycleStartedAt = now;
+      member.renewsAt = addMonths(now, 1);
+      if (payment) member.payment = payment;
       if (plan.type === "fixed") {
         const tier = select.tier(plan.tierId);
         state.plan = { type: "fixed", tierId: tier.id, allocation: null };
@@ -2003,12 +2234,43 @@ li:last-child > .near-row { border-bottom: 0; }
       emit("member", { member });
     },
 
+    /** Simulated payment, then the plan applies. Resolves { ok, message? }.
+        A wallet number ending in 0000 fails, so the error path can be shown. */
+    checkout({ plan, method, account = "" }) {
+      const q = select.quote(plan);
+      if (!q.meetsMinimum) return Promise.resolve({ ok: false, reason: "minimum", message: `Plans start at ${state.rules.minCupsTotal} cups.` });
+      const digits = String(account).replace(/\D/g, "");
+      // BACKEND: POST /payments { method, account, amount: q.price } -> wallet or card provider
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (method !== "card" && digits.endsWith("0000")) {
+            resolve({ ok: false, reason: "declined", message: "The payment didn’t go through. Nothing was taken." });
+            return;
+          }
+          const labels = { jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card" };
+          actions.choosePlan(plan, { payment: { method: labels[method] || method, last4: digits.slice(-4) } });
+          resolve({ ok: true, quote: q, member: select.member() });
+        }, 1600);
+      });
+    },
+
     setBuilderCups(cafeId, cups) {
       if (!state.cafes[cafeId]) return;
       const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
       if (n === 0) delete state.builder[cafeId];
       else state.builder[cafeId] = n;
       emit("builder", { cafeId, cups: n, price: select.customPrice() });
+    },
+
+    /** Replace the whole builder draft (e.g. start from the current plan). */
+    setBuilder(allocation) {
+      const max = state.rules.maxCupsPerCafe;
+      state.builder = {};
+      Object.entries(allocation || {}).forEach(([id, n]) => {
+        const v = Math.max(0, Math.min(max, Math.round(n)));
+        if (state.cafes[id] && v) state.builder[id] = v;
+      });
+      emit("builder", { price: select.customPrice() });
     },
 
     updateMember(patch) {
@@ -2110,7 +2372,7 @@ li:last-child > .near-row { border-bottom: 0; }
   };
 
   LCC.fmt = fmt;
-  LCC.store = { on, subscribe, emit, select, actions, lookupCode, statuses: STATUSES, getState: () => state };
+  LCC.store = { on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state };
 })();
 
 </script>
@@ -2163,6 +2425,9 @@ li:last-child > .near-row { border-bottom: 0; }
     award: '<circle cx="12" cy="9" r="5"/><path d="M9 13.2L7.5 20l4.5-2.5 4.5 2.5-1.5-6.8"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     pin: '<path d="M12 20.5s6-5.6 6-10.5a6 6 0 0 0-12 0c0 4.9 6 10.5 6 10.5z"/><circle cx="12" cy="10" r="2"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+    wallet: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6H18v3"/><rect x="4" y="9" width="16" height="10" rx="1.5"/><path d="M16 14h.01"/>',
+    card: '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><path d="M3.5 10h17M7 15h3"/>',
     sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
   };
   function icon(name, { size = 24, label } = {}) {
@@ -2673,6 +2938,10 @@ li:last-child > .near-row { border-bottom: 0; }
     title: "Component kit",
     mount(el) {
       const cafes = store.select.cafes();
+      const planMeta = () => {
+        const a = store.select.member();
+        return `${store.select.memberPlan(a).name} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+      };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`
         <div class="surface container kit">
@@ -2765,7 +3034,7 @@ li:last-child > .near-row { border-bottom: 0; }
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -2841,7 +3110,15 @@ li:last-child > .near-row { border-bottom: 0; }
       });
 
       const offs = [
-        store.on("builder", () => paintPrice(true)),
+        store.on("builder", () => {
+          paintPrice(true);
+          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0));
+        }),
+        store.on("member", () => {
+          const a = store.select.member();
+          $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          $("[data-kit-plan]", el).textContent = planMeta();
+        }),
         store.on("redeem", ({ member }) => {
           const a = store.select.member();
           if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
@@ -3273,8 +3550,12 @@ li:last-child > .near-row { border-bottom: 0; }
    Lahore Coffee Club — app.js
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
-   Routes:  #/app (Home) · #/app/cafes · #/app/pass · #/app/map · #/app/rewards
-   Pass 3 builds Pass, Home and Map. Cafés and Rewards are placeholders.
+   Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
+            #/app/map · #/app/rewards · #/app/plan · #/app/plan/pay
+   This file owns the shell, tabs, Home, Pass and Map. Cafés live in
+   app-cafes.js, the plan picker and payment in app-plan.js; they add
+   screen factories to LCC.appScreens and get a small ctx object.
+   Rewards is still a placeholder (Pass 5).
 
    Everything reads the shared store, so a redemption or status change
    in the café view (same window or another one) shows up here live.
@@ -3285,6 +3566,8 @@ li:last-child > .near-row { border-bottom: 0; }
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+  // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
+  const REG = (LCC.appScreens = LCC.appScreens || {});
 
   const TABS = [
     { id: "home",    label: "Home",    icon: "home" },
@@ -3334,10 +3617,13 @@ li:last-child > .near-row { border-bottom: 0; }
 
   LCC.router.register("app", {
     title: "Member app",
-    update(path) { if (api) api.show(tabFromPath(path)); },
+    update(path) { if (api) api.show(path); },
     mount(el, path) {
       const member = () => S.member();
-      let active = { id: null, cleanup: null, on: {} };
+      let active = { key: null, tab: null, cleanup: null, on: {} };
+      // Screens visited in this app session, so Back knows whether history.back() stays in the app
+      const trail = [];
+      let replacing = false;
       let mapMode = "now";
 
       // Fit the 844px frame on short laptop screens
@@ -3383,22 +3669,54 @@ li:last-child > .near-row { border-bottom: 0; }
 
       const view = $("#app-view", el);
 
-      /* ---------------- Tabs ---------------- */
-      function show(id) {
-        if (active.id === id) return;
+      /* ---------------- Routing inside the app ---------------- */
+      function resolve(path) {
+        const [a = "home", b] = path;
+        if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
+        if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
+        if (a === "plan" && REG.plan) return { key: "plan", tab: "home", flow: true, make: () => REG.plan(ctx) };
+        const tab = tabFromPath(path);
+        return { key: tab, tab, make: SCREENS[tab] };
+      }
+
+      function show(path, { force = false } = {}) {
+        const r = resolve(Array.isArray(path) ? path : [path]);
+        if (active.key === r.key && !force) return;
+        const screen = r.make();
+        if (screen.redirect) { history.replaceState(null, "", screen.redirect); LCC.router.render(); return; }
+        if (active.key !== r.key) {
+          if (replacing && trail.length) trail[trail.length - 1] = r.key;
+          else if (trail[trail.length - 2] === r.key) trail.pop();
+          else trail.push(r.key);
+        }
+        replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
-        $$("[data-tab]", el).forEach((b) => {
-          const on = b.dataset.tab === id;
-          b.setAttribute("aria-selected", on);
-          b.tabIndex = on ? 0 : -1;
+        $$("[data-tab]", el).forEach((btn) => {
+          const on = btn.dataset.tab === r.tab;
+          btn.setAttribute("aria-selected", on);
+          btn.tabIndex = on ? 0 : -1;
         });
-        view.setAttribute("aria-labelledby", `tab-${id}`);
+        // Plan and payment are a focused flow: no tab bar
+        $(".phone__screen", el).classList.toggle("is-flow", !!r.flow);
+        view.setAttribute("aria-labelledby", `tab-${r.tab}`);
         view.scrollTop = 0;
-        const screen = SCREENS[id]();
         view.innerHTML = `<div class="enter">${screen.html}</div>`;
-        active = { id, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
+        active = { key: r.key, tab: r.tab, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
       }
+
+      /** Navigate inside the app. replace: swap the history entry (after payment, redirects). */
+      function go(hash, { replace = false } = {}) {
+        if (replace) { replacing = true; history.replaceState(null, "", hash); LCC.router.render(); }
+        else location.hash = hash;
+      }
+      /** Back button: step back if we got here inside the app, otherwise go to the fallback. */
+      function back(fallback) {
+        if (trail.length > 1) history.back();
+        else go(fallback, { replace: true });
+      }
+      const ctx = { el, view, go, back, member, openCafe: (id) => openCafe(id), toast: ui.toast, rerender: () => show(LCC.router.parse().path, { force: true }) };
 
       /* ---------------- Café sheet ---------------- */
       function openCafe(cafeId) {
@@ -3423,7 +3741,10 @@ li:last-child > .near-row { border-bottom: 0; }
                 ${c.drinks.map((d) => html`<li class="row"><div class="row__main"><div class="row__title">${d.name}</div></div><span class="badge">${fmt.cups(d.credits)}</span></li>`)}
               </ul>
             </div>
-            <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+            <div class="cafe-sheet__actions">
+              <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+              <a class="btn btn--secondary btn--block" href="#/app/cafes/${c.id}">More about ${c.name}</a>
+            </div>
           </div>`;
         ui.openSheet($("#cafe-sheet", el));
       }
@@ -3433,7 +3754,6 @@ li:last-child > .near-row { border-bottom: 0; }
         home: homeScreen,
         pass: passScreen,
         map: mapScreen,
-        cafes: () => soon("Cafés", "Browse every partner café, filter by area and how busy it is.", 4),
         rewards: () => soon("Rewards", "Streaks, badges, referrals, and free cups from cafés.", 5),
       };
 
@@ -3445,7 +3765,6 @@ li:last-child > .near-row { border-bottom: 0; }
       const RING_C = 2 * Math.PI * 96;
       function homeScreen() {
         const m = member();
-        const plan = S.memberPlan(m);
         const near = S.cafes().slice().sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 4);
         return {
           html: html`
@@ -3469,7 +3788,8 @@ li:last-child > .near-row { border-bottom: 0; }
                     <span class="t-small t-muted">of <span class="num" data-ring-total>${m.cupsTotal}</span> cups left</span>
                   </div>
                 </div>
-                <p class="t-small t-muted">${plan.name} plan · renews on ${fmt.shortDate(m.renewsAt)}</p>
+                <p class="t-small t-muted" data-plan-line>${planLine()}</p>
+                <button type="button" class="btn btn--link" data-start-plan>Change plan</button>
               </div>
 
               <section class="app-section" aria-labelledby="near-h">
@@ -3501,9 +3821,14 @@ li:last-child > .near-row { border-bottom: 0; }
               paintRing();
               $("[data-recent]", view).innerHTML = recentRows(entry.id).s;
             },
-            member: () => paintRing(),
+            member: () => { paintRing(); const l = $("[data-plan-line]", view); if (l) l.textContent = planLine(); },
           },
         };
+      }
+
+      function planLine() {
+        const m = member();
+        return `${S.memberPlan(m).name} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
       }
 
       function recentRows(newId) {
@@ -3556,6 +3881,7 @@ li:last-child > .near-row { border-bottom: 0; }
           on: {
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
+            member: () => paintMeta(),
           },
         };
 
@@ -3572,12 +3898,21 @@ li:last-child > .near-row { border-bottom: 0; }
             <p class="pass__code" data-code></p>
             <p class="t-small t-muted">Show this to the barista, or read them the code.</p>
             <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of ${m2.cupsTotal}</p></div>
-              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3">${plan.name}</p></div>
+              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of <span data-pass-total>${m2.cupsTotal}</span></p></div>
+              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
             </div>`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
+        }
+
+        // Plan change or gift while the pass is open
+        function paintMeta() {
+          const m2 = member();
+          const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
+          set("[data-pass-cups]", m2.cupsLeft);
+          set("[data-pass-total]", m2.cupsTotal);
+          set("[data-pass-plan]", S.memberPlan(m2).name);
         }
 
         function paintCode() {
@@ -3728,7 +4063,11 @@ li:last-child > .near-row { border-bottom: 0; }
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
-        if (t.closest("[data-pass-back]")) { active.cleanup?.(); const id = active.id; active.id = null; show(id); return; }
+        if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
+        const start = t.closest("[data-start-plan]");
+        if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
+        const backBtn = t.closest("[data-back]");
+        if (backBtn) { back(backBtn.dataset.back); return; }
         const dir = t.closest("[data-directions]");
         if (dir) {
           // BACKEND: deep link to the phone's maps app with the café's coordinates
@@ -3757,15 +4096,15 @@ li:last-child > .near-row { border-bottom: 0; }
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
-      const offs = ["redeem", "member", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
-        if (who.id !== member().id || active.id === "pass") return;
+        if (who.id !== member().id || active.key === "pass") return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);
       }));
 
       api = { show };
-      show(tabFromPath(path));
+      show(path);
 
       return () => {
         if (typeof active.cleanup === "function") active.cleanup();
@@ -3777,6 +4116,720 @@ li:last-child > .near-row { border-bottom: 0; }
       };
     },
   });
+})();
+
+</script>
+<script>
+/* ---- src/app-cafes.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — app-cafes.js
+   Member app: Cafés tab (#/app/cafes) and café detail (#/app/cafes/:id).
+   Registers screen factories on LCC.appScreens; app.js mounts them.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, $, $$, icon } = ui;
+  const S = store.select;
+  const REG = (LCC.appScreens = LCC.appScreens || {});
+  const USUAL_HOUR = 18;
+  const EXPLORER_GOAL = 5;
+
+  // Search and filters survive a trip into a café and back
+  const filters = { query: "", areaId: null, openNow: false, quietNow: false };
+  let listScroll = 0;
+
+  /** Cups at this café in the member's own plan (Build your own only). */
+  function planCups(cafeId) {
+    const plan = store.getState().plan;
+    return plan.type === "custom" ? (plan.allocation || {})[cafeId] || 0 : 0;
+  }
+
+  /* -------------------------------------------------------------------
+     Cafés list
+     ------------------------------------------------------------------- */
+  REG.cafes = (ctx) => {
+    const { view } = ctx;
+    const areas = store.getState().areas;
+
+    function chip(label, attrs, pressed) {
+      return html`<button type="button" class="chip" ${ui.raw(attrs)} aria-pressed="${pressed}">${label}</button>`;
+    }
+
+    function rowHtml(c, i) {
+      const open = S.openState(c);
+      const inPlan = planCups(c.id);
+      return html`<li class="enter" style="--i:${Math.min(i, 8)}">
+        <a class="row cafe-row" href="#/app/cafes/${c.id}">
+          <span class="row__main">
+            <span class="row__title">${c.name}</span>
+            <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup${open.open ? "" : " · Closed now"}</span>
+            <span class="cafe-row__pills">
+              ${ui.statusPill(c.id)}
+              ${inPlan ? html`<span class="badge badge--accent">${fmt.cups(inPlan)} in your plan</span>` : ""}
+            </span>
+          </span>
+          <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+        </a>
+      </li>`;
+    }
+
+    function emptyHtml() {
+      // e.g. “Nothing open and quiet in DHA right now.” / “Nothing in Liberty matches “mocha”.”
+      const adj = [filters.openNow && "open", filters.quietNow && "quiet"].filter(Boolean).join(" and ");
+      const where = filters.areaId ? ` in ${S.area(filters.areaId).name}` : "";
+      const q = filters.query.trim();
+      const line = `Nothing${adj ? ` ${adj}` : ""}${where}${q ? ` matches “${q}”` : ""}${adj ? " right now" : ""}.`;
+      return html`<li class="cafes-empty enter">
+        <p class="t-h3">${line}</p>
+        <p class="t-small t-muted">Lahore has more good coffee than this list. Try fewer filters, or a drink like “latte”.</p>
+        <button type="button" class="btn btn--secondary btn--compact" data-clear-filters>Clear filters</button>
+      </li>`;
+    }
+
+    function paintList() {
+      const list = $("[data-cafe-list]", view);
+      if (!list) return;
+      const results = S.searchCafes(filters);
+      list.innerHTML = results.length ? html`${results.map(rowHtml)}`.s : emptyHtml().s;
+      const any = filters.query || filters.areaId || filters.openNow || filters.quietNow;
+      $("[data-cafe-count]", view).textContent = any ? `${results.length} of ${S.cafes().length} cafés` : `${S.cafes().length} partner cafés`;
+      $$("[data-filter]", view).forEach((b) => b.setAttribute("aria-pressed", String(!!filters[b.dataset.filter])));
+      $$("[data-area]", view).forEach((b) => b.setAttribute("aria-pressed", String(filters.areaId === b.dataset.area)));
+      $("[data-clear-search]", view).hidden = !filters.query;
+    }
+
+    function onInput(e) {
+      if (!e.target.matches("[data-cafe-q]")) return;
+      filters.query = e.target.value;
+      paintList();
+    }
+
+    function onClick(e) {
+      const t = e.target;
+      const f = t.closest("[data-filter]");
+      if (f) { filters[f.dataset.filter] = !filters[f.dataset.filter]; paintList(); return; }
+      const a = t.closest("[data-area]");
+      if (a) { filters.areaId = filters.areaId === a.dataset.area ? null : a.dataset.area; paintList(); return; }
+      if (t.closest("[data-clear-search]")) { filters.query = ""; $("[data-cafe-q]", view).value = ""; paintList(); $("[data-cafe-q]", view).focus(); return; }
+      if (t.closest("[data-clear-filters]")) {
+        Object.assign(filters, { query: "", areaId: null, openNow: false, quietNow: false });
+        $("[data-cafe-q]", view).value = "";
+        paintList();
+        $("[data-cafe-q]", view).focus();
+      }
+    }
+
+    return {
+      html: html`
+        <div class="app-screen cafes">
+          <h1 class="t-h2">Cafés</h1>
+          <div class="search">
+            <label class="sr-only" for="cafe-q">Search by café, area or drink</label>
+            ${icon("search", { size: 20 })}
+            <input class="input search__input" id="cafe-q" type="search" data-cafe-q placeholder="Café, area or drink" autocomplete="off" enterkeyhint="search" value="${filters.query}">
+            <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
+          </div>
+          <div class="chip-row" role="group" aria-label="Filters">
+            ${chip("Open now", 'data-filter="openNow"', filters.openNow)}
+            ${chip("Quiet now", 'data-filter="quietNow"', filters.quietNow)}
+            <span class="chip-row__rule" aria-hidden="true"></span>
+            ${areas.map((a) => chip(a.name, `data-area="${a.id}"`, filters.areaId === a.id))}
+          </div>
+          <p class="t-small t-faint" data-cafe-count aria-live="polite"></p>
+          <ul role="list" class="cafe-list" data-cafe-list></ul>
+        </div>`.s,
+      mount() {
+        paintList();
+        view.scrollTop = listScroll;
+        view.addEventListener("input", onInput);
+        view.addEventListener("click", onClick);
+        return () => {
+          listScroll = view.scrollTop;
+          view.removeEventListener("input", onInput);
+          view.removeEventListener("click", onClick);
+        };
+      },
+      on: {
+        // Pills update themselves; the list only changes when a filter depends on it
+        "cafe:status": () => { if (filters.quietNow) paintList(); },
+        tick: () => { if (filters.openNow) paintList(); },
+        plan: () => paintList(),
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
+     Café detail
+     ------------------------------------------------------------------- */
+  REG.cafeDetail = (ctx, cafeId) => {
+    const { view } = ctx;
+    const c = S.cafe(cafeId);
+    const area = S.area(c.area);
+
+    function visitsHtml() {
+      const m = ctx.member();
+      const total = (m.visits || {})[c.id] || 0;
+      const loyal = S.loyalty(c.id);
+      const tried = m.cafesTried || [];
+      const beenHere = tried.includes(c.id);
+      let explorer;
+      if (tried.length >= EXPLORER_GOAL) explorer = "You’ve earned Explorer: five cafés tried.";
+      else if (beenHere) explorer = `One of the ${tried.length} cafés you’ve tried. ${EXPLORER_GOAL - tried.length} more for the Explorer badge.`;
+      else explorer = `New to you. A cup here makes ${tried.length + 1} of ${EXPLORER_GOAL} cafés for the Explorer badge.`;
+      const exploredNow = Math.min(EXPLORER_GOAL, tried.length);
+      return html`
+        <div class="visits">
+          <div class="visits__item">
+            <div class="visits__head">
+              <span class="row__title">${total ? `${total} ${total === 1 ? "visit" : "visits"} here` : "You haven’t been yet"}</span>
+              <span class="t-small t-muted num">${loyal.visits} of ${loyal.goal} to a free cup</span>
+            </div>
+            ${meter(loyal.visits, loyal.goal, `${loyal.visits} of ${loyal.goal} visits to a free cup`)}
+            ${loyal.freeCupsEarned ? html`<p class="t-micro t-faint">${fmt.cups(loyal.freeCupsEarned)} on the house so far.</p>` : ""}
+          </div>
+          <div class="visits__item">
+            <div class="visits__head">
+              <span class="row__title">Explorer</span>
+              <span class="t-small t-muted num">${exploredNow} of ${EXPLORER_GOAL} cafés</span>
+            </div>
+            ${meter(exploredNow, EXPLORER_GOAL, `${exploredNow} of ${EXPLORER_GOAL} cafés tried`)}
+            <p class="t-small t-muted">${explorer}</p>
+          </div>
+        </div>`;
+    }
+
+    function meter(value, goal, label) {
+      return html`<div class="meter" role="img" aria-label="${label}">
+        ${Array.from({ length: goal }, (_, i) => html`<span class="meter__seg${i < value ? " is-on" : ""}"></span>`)}
+      </div>`;
+    }
+
+    function actionHtml() {
+      const cups = planCups(c.id);
+      return cups
+        ? html`<p class="t-small t-muted"><span class="num">${fmt.cups(cups)}</span> a month here in your plan.</p>
+            <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Change my cups</button>`
+        : html`<button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+    }
+
+    function paintOpen() {
+      const n = $("[data-open-state]", view);
+      if (n) n.textContent = S.openState(c).label;
+    }
+
+    let onScroll = null;
+    return {
+      html: html`
+        <div class="cafe-detail">
+          <div class="screen-bar" data-screen-bar>
+            <button type="button" class="icon-btn" data-back="#/app/cafes" aria-label="Back">${icon("arrowLeft")}</button>
+            <span class="screen-bar__title" aria-hidden="true">${c.name}</span>
+          </div>
+          <div class="app-screen cafe-detail__body">
+            <div class="stack" style="--stack-gap:var(--space-2)">
+              <p class="eyebrow">${area.name} · ${c.distanceKm} km</p>
+              <h1 class="t-h1" data-detail-title>${c.name}</h1>
+              <p class="t-body t-muted">${c.blurb}</p>
+            </div>
+            <div class="cafe-detail__status">${ui.statusPill(c.id)}</div>
+
+            <dl class="facts">
+              <div><dt>${icon("clock", { size: 18 })}<span class="sr-only">Hours</span></dt><dd>${c.hours.label}<span class="t-faint"> · <span data-open-state>${S.openState(c).label}</span></span></dd></div>
+              <div><dt>${ui.cupIcon(S.usualStatus(c, USUAL_HOUR).status, { size: 18, cls: "" })}<span class="sr-only">Typical</span></dt><dd>Usually ${fmt.statusLabel(S.usualStatus(c, USUAL_HOUR).status).toLowerCase()} at 6 pm</dd></div>
+              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">${fmt.rs(c.price)} a cup at the counter</dd></div>
+            </dl>
+            <div class="cluster" style="--cluster-gap:var(--space-2)">${c.tags.map((t) => html`<span class="badge">${t}</span>`)}</div>
+
+            <section class="app-section" aria-labelledby="drinks-h">
+              <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
+              <ul role="list">
+                ${c.drinks.map((d) => html`<li class="row">
+                  <div class="row__main"><div class="row__title">${d.name}</div><div class="row__meta num">${fmt.rs(d.price)} at the counter</div></div>
+                  <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                </li>`)}
+              </ul>
+            </section>
+
+            <section class="app-section" aria-labelledby="visits-h">
+              <h2 class="eyebrow app-section__title" id="visits-h">Your visits</h2>
+              <div data-visits>${visitsHtml()}</div>
+            </section>
+          </div>
+          <div class="sticky-action" data-detail-action>${actionHtml()}</div>
+        </div>`.s,
+      mount() {
+        // The bar shows the name once the big title scrolls away
+        const bar = $("[data-screen-bar]", view);
+        const title = $("[data-detail-title]", view);
+        onScroll = () => bar.classList.toggle("is-titled", title.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom);
+        view.addEventListener("scroll", onScroll, { passive: true });
+        return () => view.removeEventListener("scroll", onScroll);
+      },
+      on: {
+        redeem: ({ entry }) => { if (entry.memberId === ctx.member().id) $("[data-visits]", view).innerHTML = visitsHtml().s; },
+        plan: () => { $("[data-detail-action]", view).innerHTML = actionHtml().s; },
+        tick: paintOpen,
+      },
+    };
+  };
+})();
+
+</script>
+<script>
+/* ---- src/app-plan.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — app-plan.js
+   Member app: plan picker (#/app/plan) and simulated payment
+   (#/app/plan/pay). Prices always come from store.select.quote(), which
+   uses select.customPrice() for Build your own: one source of truth for
+   this screen, the landing teaser and #/kit.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, raw, $, $$, icon } = ui;
+  const S = store.select;
+  const A = store.actions;
+  const REG = (LCC.appScreens = LCC.appScreens || {});
+  const rules = () => store.getState().rules;
+
+  /* -------------------------------------------------------------------
+     Draft: what the member is about to buy. The custom allocation is the
+     store's builder, so the kit's builder shows the same numbers.
+     ------------------------------------------------------------------- */
+  const draft = { started: false, mode: "fixed", tierId: "regular", highlight: null };
+  const DEFAULT_ADD = 2; // cups added for a café chosen from its detail page
+
+  const pay = {
+    method: "jazzcash",
+    phone: "",
+    card: { number: "", exp: "", cvc: "" },
+    phase: "form", // form | processing | success | failed
+    result: null,
+  };
+
+  function start({ addCafe = null } = {}) {
+    const st = store.getState();
+    draft.started = true;
+    draft.mode = addCafe ? "custom" : st.plan.type;
+    draft.tierId = st.plan.tierId || "regular";
+    draft.highlight = addCafe;
+    if (st.plan.type === "custom") A.setBuilder(st.plan.allocation);
+    if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
+    pay.phase = "form";
+    if (!pay.phone) pay.phone = formatPhone(S.member().phone.replace(/^\+92\s?/, "0"));
+  }
+  LCC.appPlan = { start, draft };
+
+  const draftPlan = () =>
+    draft.mode === "fixed"
+      ? { type: "fixed", tierId: draft.tierId }
+      : { type: "custom", allocation: { ...store.getState().builder } };
+
+  const isCurrent = () => S.isCurrentPlan(draftPlan());
+  const whyMinimum = () =>
+    `Plans start at ${rules().minCupsTotal} cups a month, so every café can count on you as a regular.`;
+
+  /* -------------------------------------------------------------------
+     Plan picker
+     ------------------------------------------------------------------- */
+  REG.plan = (ctx) => {
+    const { view } = ctx;
+    if (!draft.started) start();
+    const m = ctx.member();
+
+    function tiersHtml() {
+      const cur = store.getState().plan;
+      return html`
+        <fieldset class="tier-list">
+          <legend class="sr-only">Fixed plans</legend>
+          ${store.getState().tiers.map((t) => html`
+            <label class="card tier">
+              <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""}>
+              <span class="tier__head">
+                <span class="t-h3">${t.name}</span>
+                ${cur.type === "fixed" && cur.tierId === t.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+                <span class="tier__price t-h3 num">${fmt.rs(t.price)}</span>
+              </span>
+              <span class="tier__meta t-small t-muted num">${fmt.cups(t.cups)} a month · ${t.line}</span>
+              <span class="t-micro t-faint num">About ${fmt.rs(t.price / t.cups)} a cup, at any partner café</span>
+            </label>`)}
+        </fieldset>`;
+    }
+
+    function builderRowHtml(c) {
+      const n = store.getState().builder[c.id] || 0;
+      const max = rules().maxCupsPerCafe;
+      return html`<li class="row builder-row${draft.highlight === c.id ? " is-new" : ""}" data-builder-row="${c.id}">
+        <div class="row__main">
+          <div class="row__title">${c.name}</div>
+          <div class="row__meta num" data-row-meta>${rowMeta(c, n)}</div>
+        </div>
+        ${ui.stepper({ id: c.id, value: n, min: 0, max, label: `Cups a month at ${c.name}` })}
+      </li>`;
+    }
+
+    function rowMeta(c, n) {
+      const per = c.price * rules().customDiscount;
+      if (n >= rules().maxCupsPerCafe) return `${n} a month, the most at one café`;
+      return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, ${fmt.rs(c.price)} at the counter`;
+    }
+
+    function builderHtml() {
+      return html`
+        <p class="t-small t-muted plan-intro">Choose cups at each café, up to ${rules().maxCupsPerCafe} a month at one place. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
+        <ul role="list" class="builder-list">${S.cafes().map(builderRowHtml)}</ul>`;
+    }
+
+    function paintBody() {
+      $("[data-plan-body]", view).innerHTML = (draft.mode === "fixed" ? tiersHtml() : builderHtml()).s;
+    }
+
+    function paintSummary(animate = true) {
+      const q = S.quote(draftPlan());
+      const cupsEl = $("[data-sum-cups]", view);
+      const priceEl = $("[data-sum-price]", view);
+      if (animate) { ui.animateNumber(cupsEl, q.cups); ui.animateNumber(priceEl, q.price, { format: fmt.rs }); }
+      else { cupsEl.textContent = q.cups; cupsEl.dataset.value = q.cups; priceEl.textContent = fmt.rs(q.price); priceEl.dataset.value = q.price; }
+      $("[data-sum-cups-word]", view).textContent = q.cups === 1 ? "cup a month" : "cups a month";
+
+      const note = $("[data-sum-note]", view);
+      const btn = $("[data-continue]", view);
+      let text, warn = false, ok = true;
+      if (!q.meetsMinimum) {
+        text = `Add ${fmt.cups(q.cupsShort)} to continue. ${whyMinimum()}`;
+        warn = true; ok = false;
+      } else if (isCurrent()) {
+        text = `You’re on this plan. It renews on ${fmt.shortDate(m.renewsAt)}.`;
+        ok = false;
+      } else {
+        text = `You save ${draft.mode === "fixed" ? "about " : ""}${fmt.rs(q.savings)} vs paying at the counter`;
+      }
+      note.textContent = text;
+      note.classList.toggle("is-warn", warn);
+      btn.disabled = !ok;
+    }
+
+    function onClick(e) {
+      const seg = e.target.closest('[data-segmented="plantype"] .segmented__option');
+      if (seg) {
+        if (draft.mode === seg.dataset.value) return;
+        ui.selectSegment(seg.parentElement, seg.dataset.value);
+        draft.mode = seg.dataset.value;
+        paintBody();
+        paintSummary();
+        return;
+      }
+      const step = e.target.closest("[data-step]");
+      if (step) {
+        const id = step.closest("[data-stepper]").dataset.stepper;
+        A.setBuilderCups(id, (store.getState().builder[id] || 0) + Number(step.dataset.step));
+        return;
+      }
+      if (e.target.closest("[data-continue]")) {
+        pay.phase = "form";
+        ctx.go("#/app/plan/pay");
+      }
+    }
+
+    function onChange(e) {
+      if (e.target.name !== "tier") return;
+      draft.tierId = e.target.value;
+      paintSummary();
+    }
+
+    return {
+      html: html`
+        <div class="flow">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app" aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen flow__body">
+            <div class="stack" style="--stack-gap:var(--space-2)">
+              <h1 class="t-h2">Choose your plan</h1>
+              <p class="t-small t-muted num">You’re on ${S.memberPlan(m).name}, ${m.cupsLeft} of ${m.cupsTotal} cups left. A new plan starts fresh today.</p>
+            </div>
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "fixed", label: "Fixed" }, { value: "custom", label: "Build your own" }] })}
+            <div data-plan-body></div>
+          </div>
+          <div class="summary-bar" role="region" aria-label="Plan summary">
+            <div class="summary-bar__nums">
+              <p class="t-small"><span class="num summary-bar__cups" data-sum-cups>0</span> <span data-sum-cups-word>cups a month</span></p>
+              <p class="t-h2 num" data-sum-price aria-live="polite">Rs 0</p>
+            </div>
+            <p class="t-small t-muted summary-bar__note" data-sum-note aria-live="polite"></p>
+            <button type="button" class="btn btn--primary btn--block" data-continue>Continue to payment</button>
+          </div>
+        </div>`.s,
+      mount() {
+        paintBody();
+        paintSummary(false);
+        if (draft.highlight && draft.mode === "custom") {
+          const row = $(`[data-builder-row="${draft.highlight}"]`, view);
+          requestAnimationFrame(() => row?.scrollIntoView({ block: "center", behavior: ui.reducedMotion() ? "auto" : "smooth" }));
+        }
+        view.addEventListener("click", onClick);
+        view.addEventListener("change", onChange);
+        return () => { view.removeEventListener("click", onClick); view.removeEventListener("change", onChange); };
+      },
+      on: {
+        builder: () => {
+          if (draft.mode !== "custom") return;
+          const b = store.getState().builder;
+          $$("[data-builder-row]", view).forEach((row) => {
+            const id = row.dataset.builderRow;
+            ui.setStepper($("[data-stepper]", row), b[id] || 0);
+            $("[data-row-meta]", row).textContent = rowMeta(S.cafe(id), b[id] || 0);
+          });
+          paintSummary();
+        },
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
+     Payment (simulated)
+     ------------------------------------------------------------------- */
+  const METHODS = [
+    { id: "jazzcash",  label: "JazzCash",  line: "Mobile wallet",  icon: "wallet" },
+    { id: "easypaisa", label: "Easypaisa", line: "Mobile wallet",  icon: "wallet" },
+    { id: "card",      label: "Card",      line: "Debit or credit", icon: "card" },
+  ];
+  const methodLabel = (id) => METHODS.find((x) => x.id === id).label;
+
+  /* Formatting and checks: format only, no real validation ------------ */
+  const digits = (s) => String(s).replace(/\D/g, "");
+  function formatPhone(s) { const d = digits(s).slice(0, 11); return d.length > 4 ? `${d.slice(0, 4)} ${d.slice(4)}` : d; }
+  function formatCard(s) { return digits(s).slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 "); }
+  /** “0828” -> “08/28”. Typing “4” gives “04/”. While deleting, the slash isn’t re-added. */
+  function formatExp(s, deleting = false) {
+    let d = digits(s).slice(0, 4);
+    if (!deleting && d.length === 1 && Number(d) > 1) d = `0${d}`;
+    if (d.length > 2 || (d.length === 2 && !deleting)) return `${d.slice(0, 2)}/${d.slice(2)}`;
+    return d;
+  }
+  const CHECKS = {
+    phone: (v) => (/^03\d{9}$/.test(digits(v)) ? "" : "Enter an 11-digit number starting with 03, like 0300 1234567."),
+    number: (v) => (digits(v).length === 16 ? "" : "Enter the 16 digits on the front of your card."),
+    exp(v) {
+      const mt = /^(\d{2})\/(\d{2})$/.exec(v.trim());
+      if (!mt || +mt[1] < 1 || +mt[1] > 12) return "Use MM/YY, like 08/28.";
+      const now = new Date();
+      const y = 2000 + +mt[2], mo = +mt[1];
+      if (y < now.getFullYear() || (y === now.getFullYear() && mo < now.getMonth() + 1)) return "That card has expired. Try another one.";
+      return "";
+    },
+    cvc: (v) => (/^\d{3,4}$/.test(v.trim()) ? "" : "The 3 digits on the back of your card."),
+  };
+
+  REG.pay = (ctx) => {
+    const { view } = ctx;
+    if (!draft.started) return { redirect: "#/app/plan" };
+    const plan = draftPlan();
+    const q = S.quote(plan);
+    if (!q.meetsMinimum) return { redirect: "#/app/plan" };
+    let alive = true;
+    const renewal = store.addMonths(Date.now(), 1);
+    const longDate = (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+
+    function field({ id, label, value, placeholder, inputmode = "numeric", autocomplete, hint }) {
+      return html`<div class="field" data-field="${id}">
+        <label class="field__label" for="pay-${id}">${label}</label>
+        <input class="input num" id="pay-${id}" name="${id}" value="${value}" placeholder="${placeholder}" inputmode="${inputmode}" autocomplete="${autocomplete}" aria-describedby="pay-${id}-err${hint ? ` pay-${id}-hint` : ""}">
+        ${hint ? html`<p class="field__hint" id="pay-${id}-hint">${hint}</p>` : ""}
+        <p class="field__error" id="pay-${id}-err"></p>
+      </div>`;
+    }
+
+    function fieldsHtml() {
+      if (pay.method === "card") {
+        return html`
+          ${field({ id: "number", label: "Card number", value: pay.card.number, placeholder: "1234 5678 9012 3456", autocomplete: "cc-number" })}
+          <div class="field-pair">
+            ${field({ id: "exp", label: "Expiry", value: pay.card.exp, placeholder: "MM/YY", autocomplete: "cc-exp" })}
+            ${field({ id: "cvc", label: "CVC", value: pay.card.cvc, placeholder: "123", autocomplete: "cc-csc" })}
+          </div>`;
+      }
+      return field({
+        id: "phone", label: `${methodLabel(pay.method)} mobile number`, value: pay.phone, placeholder: "03XX XXXXXXX", inputmode: "tel", autocomplete: "tel-national",
+        hint: `You’ll approve the payment in the ${methodLabel(pay.method)} app.`,
+      });
+    }
+
+    function formHtml() {
+      return html`
+        <form class="pay-form" data-pay-form novalidate>
+          <fieldset class="method-list">
+            <legend class="field__label">Pay with</legend>
+            ${METHODS.map((x) => html`
+              <label class="method">
+                <input class="sr-only" type="radio" name="method" value="${x.id}" ${pay.method === x.id ? raw("checked") : ""}>
+                <span class="method__icon">${icon(x.icon, { size: 22 })}</span>
+                <span class="method__text"><span class="row__title">${x.label}</span><span class="row__meta">${x.line}</span></span>
+                <span class="method__tick" aria-hidden="true">${icon("check", { size: 18 })}</span>
+              </label>`)}
+          </fieldset>
+          <div class="stack" style="--stack-gap:var(--space-4)" data-pay-fields>${fieldsHtml()}</div>
+          <div class="proto-note">
+            ${icon("info", { size: 18 })}
+            <p><strong>Prototype: no payment is taken.</strong></p>
+          </div>
+          <button type="submit" class="btn btn--primary btn--block num">Pay ${fmt.rs(q.price)}</button>
+        </form>`;
+    }
+
+    function stateHtml() {
+      if (pay.phase === "processing") {
+        const who = pay.method === "card" ? "Checking your card" : `Waiting for ${methodLabel(pay.method)}`;
+        const line = pay.method === "card" ? "This takes a few seconds." : `Approve the request sent to ${pay.phone}.`;
+        return html`<div class="pay-state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p class="t-h3">${who}</p>
+          <p class="t-small t-muted num">${line}</p>
+        </div>`;
+      }
+      if (pay.phase === "success") {
+        const mem = ctx.member();
+        const title = plan.type === "fixed" ? `You’re on ${q.name}.` : "Your plan is set.";
+        return html`<div class="pay-state" role="status">
+          <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+          <h2 class="t-h2">${title}</h2>
+          <p class="t-body t-muted num">${fmt.cups(mem.cupsTotal)}, fresh from today. Renews on ${longDate(mem.renewsAt)}.</p>
+          <div class="pay-state__actions">
+            <button type="button" class="btn btn--primary btn--block" data-done="#/app/pass">Show my pass</button>
+            <button type="button" class="btn btn--secondary btn--block" data-done="#/app">Back to home</button>
+          </div>
+        </div>`;
+      }
+      if (pay.phase === "failed") {
+        return html`<div class="pay-state" role="alert">
+          <span class="pay-state__mark" aria-hidden="true">${icon("info", { size: 28 })}</span>
+          <h2 class="t-h2">Payment didn’t go through.</h2>
+          <p class="t-body t-muted">${methodLabel(pay.method)} couldn’t confirm it, and nothing was taken. Check the number, or try another way to pay.</p>
+          <div class="pay-state__actions">
+            <button type="button" class="btn btn--primary btn--block" data-try-again>Try again</button>
+          </div>
+        </div>`;
+      }
+      return formHtml();
+    }
+
+    function paint() {
+      $("[data-pay-body]", view).innerHTML = stateHtml().s;
+      const back = $("[data-pay-back]", view);
+      back.disabled = pay.phase === "processing";
+      back.hidden = pay.phase === "success";
+      if (pay.phase !== "form") $("[data-pay-body]", view).querySelector("button, [role]")?.focus?.({ preventScroll: true });
+    }
+
+    function showError(id, msg) {
+      const f = $(`[data-field="${id}"]`, view);
+      if (!f) return;
+      f.dataset.invalid = String(!!msg);
+      $(".field__error", f).textContent = msg;
+      $("input", f).setAttribute("aria-invalid", String(!!msg));
+    }
+
+    const fieldIds = () => (pay.method === "card" ? ["number", "exp", "cvc"] : ["phone"]);
+    const valueOf = (id) => (id === "phone" ? pay.phone : pay.card[id]);
+
+    function onInput(e) {
+      const inp = e.target;
+      if (!inp.matches("[data-pay-fields] input")) return;
+      const id = inp.name;
+      const deleting = (e.inputType || "").startsWith("delete");
+      let v = inp.value;
+      if (id === "phone") v = formatPhone(v);
+      else if (id === "number") v = formatCard(v);
+      else if (id === "exp") v = formatExp(v, deleting);
+      else if (id === "cvc") v = digits(v).slice(0, 4);
+      if (v !== inp.value) inp.value = v;
+      if (id === "phone") pay.phone = v; else pay.card[id] = v;
+      // Clear an error as soon as the value is fixed
+      if (inp.closest(".field").dataset.invalid === "true") showError(id, CHECKS[id](v));
+    }
+
+    function onFocusOut(e) {
+      const inp = e.target;
+      if (!inp.matches?.("[data-pay-fields] input") || !inp.value) return;
+      showError(inp.name, CHECKS[inp.name](inp.value));
+    }
+
+    function onChange(e) {
+      if (e.target.name !== "method") return;
+      pay.method = e.target.value;
+      $("[data-pay-fields]", view).innerHTML = fieldsHtml().s;
+    }
+
+    function onSubmit(e) {
+      if (!e.target.matches("[data-pay-form]")) return;
+      e.preventDefault();
+      const bad = fieldIds().map((id) => [id, CHECKS[id](valueOf(id))]).filter(([, msg]) => msg);
+      fieldIds().forEach((id) => showError(id, CHECKS[id](valueOf(id))));
+      if (bad.length) { $(`#pay-${bad[0][0]}`, view).focus(); return; }
+      pay.phase = "processing";
+      paint();
+      const account = pay.method === "card" ? pay.card.number : pay.phone;
+      A.checkout({ plan, method: pay.method, account }).then((res) => {
+        pay.phase = res.ok ? "success" : "failed";
+        pay.result = res;
+        if (res.ok) { draft.started = false; draft.highlight = null; }
+        if (alive) paint();
+        else if (res.ok) ctx.toast(`You’re on ${q.name}. ${fmt.cups(q.cups)} to enjoy.`);
+      });
+    }
+
+    function onClick(e) {
+      if (e.target.closest("[data-try-again]")) {
+        pay.phase = "form";
+        paint();
+        $("[data-pay-fields] input", view)?.focus();
+        return;
+      }
+      const done = e.target.closest("[data-done]");
+      if (done) { pay.phase = "form"; ctx.go(done.dataset.done, { replace: true }); }
+    }
+
+    return {
+      html: html`
+        <div class="flow">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app/plan" data-pay-back aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen flow__body">
+            <h1 class="t-h2">Payment</h1>
+            <div class="card pay-summary">
+              <div class="pay-summary__row">
+                <span class="t-h3">${q.name}</span>
+                <span class="t-h3 num">${fmt.rs(q.price)}</span>
+              </div>
+              <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
+              ${plan.type === "custom" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
+            </div>
+            <div data-pay-body></div>
+          </div>
+        </div>`.s,
+      mount() {
+        paint();
+        view.addEventListener("input", onInput);
+        view.addEventListener("focusout", onFocusOut);
+        view.addEventListener("change", onChange);
+        view.addEventListener("submit", onSubmit);
+        view.addEventListener("click", onClick);
+        return () => {
+          alive = false;
+          view.removeEventListener("input", onInput);
+          view.removeEventListener("focusout", onFocusOut);
+          view.removeEventListener("change", onChange);
+          view.removeEventListener("submit", onSubmit);
+          view.removeEventListener("click", onClick);
+        };
+      },
+    };
+  };
 })();
 
 </script>

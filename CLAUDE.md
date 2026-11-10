@@ -30,8 +30,11 @@ Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
 - `router.js` — hash router, top switcher, theme toggle, Pass 1 shells
 - `kit.js` — `#/kit` component sheet wired to the real store
 - `cafe.css`, `cafe.js` — café partner view (`#/cafe`): redeem, busy status, today
-- `app.css`, `app.js` — member app (`#/app/…`): tab bar, Pass, Home, Map,
-  café sheet
+- `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
+  bar, Pass, Home, Map, café sheet
+- `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
+- `app-plan.js` — plan picker, Build your own, simulated payment
+  (`#/app/plan`, `#/app/plan/pay`)
 
 Script order matters: data → state → ui → router → surfaces. New files must
 be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
@@ -43,7 +46,7 @@ This order overrides any order implied by the spec.
 1. [x] Design system, data, state, router
 2. [x] Café partner view (`#/cafe`)
 3. [x] Member app: Pass (QR), Home, Map
-4. [ ] Member app: Cafés, plan builder, payment
+4. [x] Member app: Cafés, plan builder, payment
 5. [ ] Member app: gifting, rewards, onboarding
 6. [ ] Landing page and waitlist
 
@@ -68,3 +71,9 @@ next pass until asked.**
 - Live sync works between windows on the same computer only.
 - QR library: qrcode-generator 1.4.4 from cdnjs; falls back to the 6-digit
   code offline.
+- Plan changes apply immediately: cups start fresh, renewal = one month from
+  today.
+- Wallet numbers ending in 0000 simulate a failed payment (presenter
+  knowledge only, not shown on screen).
+- "Add to my plan" adds the café with 2 cups.
+- Plan changes don't sync across windows; status and redemptions do.

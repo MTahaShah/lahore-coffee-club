@@ -97,6 +97,15 @@
   const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
   const uid = (p) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const roundTo = (n, step) => Math.round(n / step) * step;
+  /** Same day next month; clamps 31 Jan to 28/29 Feb. */
+  function addMonths(ts, n) {
+    const d = new Date(ts);
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+    return d.getTime();
+  }
 
   // Small, stable hash so every open window derives the same pass code.
   function fnv1a(str) {
@@ -198,6 +207,7 @@
 
     /** Plan name for any member. Demo members carry no planId, so match by cups. */
     memberPlan(member) {
+      if (member.planId === "custom") return { name: "Build your own", cups: member.cupsTotal };
       const tier = (member.planId && select.tier(member.planId)) || state.tiers.find((t) => t.cups === member.cupsTotal);
       return tier ? { name: tier.name, cups: tier.cups } : { name: "Build your own", cups: member.cupsTotal };
     },
@@ -222,6 +232,43 @@
     usualStatus(cafe, hour = 18) {
       const v = cafe.busyByHour[hour - 8] ?? 0;
       return { level: v, status: v >= 0.7 ? "packed" : v >= 0.4 ? "moderate" : "quiet" };
+    },
+
+    /** Cafés tab: text search (name, area, drink) combined with filters.
+        Every filter narrows the list (AND); area is a single choice.    */
+    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false } = {}, at = Date.now()) {
+      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet
+      const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      const words = norm(query).split(/\s+/).filter(Boolean);
+      return select.cafes().filter((c) => {
+        if (areaId && c.area !== areaId) return false;
+        if (openNow && !select.openState(c, at).open) return false;
+        if (quietNow && c.status !== "quiet") return false;
+        if (!words.length) return true;
+        const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
+        return words.every((w) => hay.includes(w));
+      });
+    },
+
+    /** Price and cups for a plan the member might buy.
+        plan: { type: "fixed", tierId } | { type: "custom", allocation } */
+    quote(plan) {
+      // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
+      if (plan.type === "fixed") {
+        const t = select.tier(plan.tierId);
+        return { name: t.name, cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
+      }
+      return { name: "Build your own", ...select.customPrice(plan.allocation || state.builder) };
+    },
+
+    /** Is this the plan the member is on now? */
+    isCurrentPlan(plan) {
+      const cur = state.plan;
+      if (plan.type !== cur.type) return false;
+      if (plan.type === "fixed") return plan.tierId === cur.tierId;
+      const a = plan.allocation || state.builder, b = cur.allocation || {};
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
     },
 
     loyalty(cafeId, memberId = state.memberId) {
@@ -335,10 +382,15 @@
       emit("cafe:viewing", { cafeId });
     },
 
-    choosePlan(plan) {
+    /** Switch plan now: cups start fresh and the month restarts today. */
+    choosePlan(plan, { payment } = {}) {
       // plan: { type: "fixed", tierId } | { type: "custom", allocation }
-      // BACKEND: POST /subscriptions
+      // BACKEND: POST /subscriptions { plan, paymentId }
       const member = select.member();
+      const now = Date.now();
+      member.cycleStartedAt = now;
+      member.renewsAt = addMonths(now, 1);
+      if (payment) member.payment = payment;
       if (plan.type === "fixed") {
         const tier = select.tier(plan.tierId);
         state.plan = { type: "fixed", tierId: tier.id, allocation: null };
@@ -357,12 +409,43 @@
       emit("member", { member });
     },
 
+    /** Simulated payment, then the plan applies. Resolves { ok, message? }.
+        A wallet number ending in 0000 fails, so the error path can be shown. */
+    checkout({ plan, method, account = "" }) {
+      const q = select.quote(plan);
+      if (!q.meetsMinimum) return Promise.resolve({ ok: false, reason: "minimum", message: `Plans start at ${state.rules.minCupsTotal} cups.` });
+      const digits = String(account).replace(/\D/g, "");
+      // BACKEND: POST /payments { method, account, amount: q.price } -> wallet or card provider
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (method !== "card" && digits.endsWith("0000")) {
+            resolve({ ok: false, reason: "declined", message: "The payment didn’t go through. Nothing was taken." });
+            return;
+          }
+          const labels = { jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card" };
+          actions.choosePlan(plan, { payment: { method: labels[method] || method, last4: digits.slice(-4) } });
+          resolve({ ok: true, quote: q, member: select.member() });
+        }, 1600);
+      });
+    },
+
     setBuilderCups(cafeId, cups) {
       if (!state.cafes[cafeId]) return;
       const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
       if (n === 0) delete state.builder[cafeId];
       else state.builder[cafeId] = n;
       emit("builder", { cafeId, cups: n, price: select.customPrice() });
+    },
+
+    /** Replace the whole builder draft (e.g. start from the current plan). */
+    setBuilder(allocation) {
+      const max = state.rules.maxCupsPerCafe;
+      state.builder = {};
+      Object.entries(allocation || {}).forEach(([id, n]) => {
+        const v = Math.max(0, Math.min(max, Math.round(n)));
+        if (state.cafes[id] && v) state.builder[id] = v;
+      });
+      emit("builder", { price: select.customPrice() });
     },
 
     updateMember(patch) {
@@ -464,5 +547,5 @@
   };
 
   LCC.fmt = fmt;
-  LCC.store = { on, subscribe, emit, select, actions, lookupCode, statuses: STATUSES, getState: () => state };
+  LCC.store = { on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state };
 })();

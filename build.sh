@@ -28,6 +28,8 @@ JS_FILES=(
   kit.js
   cafe.js
   app.js
+  app-cafes.js
+  app-plan.js
 )
 
 build() {
