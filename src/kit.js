@@ -18,7 +18,8 @@
       const cafes = store.select.cafes();
       const planMeta = () => {
         const a = store.select.member();
-        return `${store.select.memberPlan(a).name} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+        const p = store.select.memberPlan(a);
+        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`
@@ -81,7 +82,7 @@
               <div class="cluster" style="--cluster-gap:var(--space-2)">
                 ${["Area", "Quiet now", "Roastery", "Pastries"].map((c, i) => html`<button type="button" class="chip" aria-pressed="${i === 1}" data-kit-chip>${c}</button>`)}
               </div>
-              ${ui.segmented({ name: "plan", label: "Plan type", value: "fixed", options: [{ value: "fixed", label: "Fixed" }, { value: "custom", label: "Build your own" }] })}
+              ${ui.segmented({ name: "plan", label: "Plan type", value: "explorer", options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
               <div class="row">
                 <div class="row__main"><div class="row__title">Renewal reminders</div><div class="row__meta">Two days before, on WhatsApp</div></div>
                 <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="Renewal reminders" data-kit-toggle></button>
@@ -112,7 +113,7 @@
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.balance().left} of ${store.select.balance().total}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -194,12 +195,12 @@
         }),
         store.on("member", () => {
           const a = store.select.member();
-          $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
           $("[data-kit-plan]", el).textContent = planMeta();
         }),
         store.on("redeem", ({ member }) => {
           const a = store.select.member();
-          if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
         }),
         store.on("cafe:status", ({ cafeId, status }) => {
           if (cafeId !== "kiln") return;

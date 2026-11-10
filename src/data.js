@@ -13,6 +13,7 @@
   const DAY = 24 * 60 * MIN;
   const minsAgo = (m) => now - m * MIN;
   const daysAgo = (d, m = 0) => now - d * DAY - m * MIN;
+  const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
   /* Pricing rules, shared by the builder and the landing teaser ------- */
   const rules = {
@@ -21,6 +22,8 @@
     maxCupsPerCafe: 10,
     minCupsTotal: 6,
     dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
+    explorerCapPerCafe: 2,     // Explorer plans: cups at one café per plan cycle (month)
+    reservedPayoutShare: 0,    // share of unused reserved cups paid to cafés. PENDING business decision; not shown in the UI
     passRotateSeconds: 30,
     giftExpiryDays: 60,
     giftMaxCups: 3,
@@ -46,7 +49,7 @@
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
      payoutPerCup: the rate the café set; what we pay them per cup.
-     avgDailyCups: a typical day’s cups; drives today’s seed and month-to-date.
+     avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
   const cafes = [
     {
@@ -68,7 +71,7 @@
         { id: "kiln-pour",   name: "Single-origin pour-over", price: 900, credits: 2 },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
-      avgDailyCups: 22,
+      avgDailyCups: 9,
     },
     {
       id: "maple",
@@ -89,7 +92,7 @@
         { id: "maple-filter",   name: "Ethiopian filter",     price: 950, credits: 2 },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 18,
+      avgDailyCups: 5,
     },
     {
       id: "ember",
@@ -110,7 +113,7 @@
         { id: "ember-cold",   name: "Cold brew tonic",      price: 650, credits: 1 },
       ],
       busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
-      avgDailyCups: 26,
+      avgDailyCups: 7,
     },
     {
       id: "thirdfloor",
@@ -131,7 +134,7 @@
         { id: "tf-affogato",  name: "Affogato",             price: 650, credits: 1 },
       ],
       busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
-      avgDailyCups: 15,
+      avgDailyCups: 4,
     },
     {
       id: "quiethours",
@@ -152,7 +155,7 @@
         { id: "qh-cortado",  name: "Brown butter cortado", price: 650, credits: 1 },
       ],
       busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
-      avgDailyCups: 16,
+      avgDailyCups: 4,
     },
     {
       id: "slowpour",
@@ -173,7 +176,7 @@
         { id: "sp-flight",  name: "Tasting flight",       price: 1300, credits: 2 },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
-      avgDailyCups: 24,
+      avgDailyCups: 7,
     },
     {
       id: "noon",
@@ -194,7 +197,7 @@
         { id: "noon-iced",   name: "Iced long black",      price: 450, credits: 1 },
       ],
       busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
-      avgDailyCups: 20,
+      avgDailyCups: 6,
     },
     {
       id: "grind",
@@ -215,76 +218,59 @@
         { id: "gg-dirty",    name: "Dirty chai",           price: 600, credits: 1 },
       ],
       busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 19,
+      avgDailyCups: 5,
     },
   ];
 
   /* Members --------------------------------------------------------------
-     Mumtaz is the demo member. The others exist so the café view can show
-     a realistic day, and so error states can be demonstrated:
-       Zara  — has already had 2 cups at Kiln & Bean today (daily limit)
-       Hamza — no cups left this month                                  */
-  const ayesha = {
-    id: "m_ayesha",
+     Two plan types:
+       explorer  one pool of cups for any café, at most 2 a cycle at each
+       mycafes   cups reserved per café, usable only there
+     Nobody stores a cups-left number: balances come from the ledger below.
+
+     Mumtaz is the demo member. The others exist so the café view (Kiln &
+     Bean) can show a realistic month and every rule:
+       Bilal  — Explorer, already 2 cups at Kiln & Bean this month (cap)
+       Sana   — My cafés: Kiln & Bean 6, Maple Roastery 4 (3 + 3 left)
+       Omar   — Explorer Starter, first visit to Kiln & Bean today
+       Zara   — My cafés, 2 cups at Kiln & Bean today (daily limit)
+       Hamza  — Explorer Starter, no cups left                          */
+  const cycleStart = startOfDay(now) - 9 * DAY; // seeded members’ month started 9 days ago
+  const cycleOf = (id) => `c_${id}_seed`;
+
+  const mumtaz = {
+    id: "m_ayesha",            // internal id kept from an earlier name
     firstName: "Mumtaz",
     lastName: "Begum",
     initials: "MB",
+    pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    planId: "regular",
-    cupsTotal: 16,
-    cupsLeft: 11,
+    plan: { type: "explorer", tierId: "regular" },
+    cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
     payment: { method: "JazzCash", last4: "4567" },
     streakWeeks: 4,
     cafesTried: ["kiln", "slowpour", "noon"],
-    visits: { kiln: 3, slowpour: 1, noon: 1 },   // loyalty: visits per café
+    visits: { kiln: 3, slowpour: 2, noon: 2 },   // lifetime visits per café (loyalty)
     referralCode: "MUMTAZ-K7",
     onboarded: false,
   };
 
+  const demo = (id, firstName, pronoun, plan, staticCode, visits) => ({
+    id, firstName, pronoun, plan, staticCode, visits,
+    cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY,
+  });
   const demoMembers = [
-    { id: "m_bilal", firstName: "Bilal", cupsTotal: 16, cupsLeft: 7,  staticCode: "615028", visits: { kiln: 6 } },
-    { id: "m_sana",  firstName: "Sana",  cupsTotal: 30, cupsLeft: 19, staticCode: "207341", visits: { kiln: 2 } },
-    { id: "m_omar",  firstName: "Omar",  cupsTotal: 8,  cupsLeft: 2,  staticCode: "558190", visits: { kiln: 1 } },
-    { id: "m_zara",  firstName: "Zara",  cupsTotal: 16, cupsLeft: 9,  staticCode: "482913", visits: { kiln: 4 } },
-    { id: "m_hamza", firstName: "Hamza", cupsTotal: 8,  cupsLeft: 0,  staticCode: "730215", visits: { kiln: 2 } },
+    demo("m_bilal", "Bilal", "him",  { type: "explorer", tierId: "regular" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }),
+    demo("m_sana",  "Sana",  "her",  { type: "mycafes", allocation: { kiln: 6, maple: 4 } }, "207341", { kiln: 5, maple: 2 }),
+    demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }),
+    demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }),
+    demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }),
   ];
 
-  /* Regulars: background members who fill out each café’s day. They have
-     no codes, so they can’t be redeemed in the demo; they only appear in
-     the café view’s lists and totals.                                  */
-  const regulars = ["Fatima", "Usman", "Hira", "Ali", "Mahnoor", "Saad", "Iqra", "Danish", "Noor", "Ahmed", "Rida", "Faraz", "Amna", "Hassan"]
-    .map((n) => ({ id: `m_${n.toLowerCase()}`, firstName: n, cupsTotal: 16, cupsLeft: 8, background: true, visits: {} }));
-
-  const members = [ayesha, ...demoMembers, ...regulars];
-
-  /* Redemption log ------------------------------------------------------
-     History: Mumtaz’s earlier cups this cycle. With her one cup at Kiln &
-     Bean today that makes 5 used (16 − 11).
-     Today: generated below, about avgDailyCups per café.               */
-  const history = [
-    { id: "r1", at: daysAgo(14, 30), cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat", credits: 1, firstVisit: false },
-    { id: "r2", at: daysAgo(10, 90), cafeId: "slowpour", memberId: "m_ayesha", drinkId: "sp-v60",    credits: 1, firstVisit: true  },
-    { id: "r3", at: daysAgo(6, 40),  cafeId: "noon",     memberId: "m_ayesha", drinkId: "noon-capp", credits: 1, firstVisit: true  },
-    { id: "r4", at: daysAgo(2, 15),  cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-cort", credits: 1, firstVisit: false },
-  ];
-
-  /* Today’s hand-written rows. They set up the café-view demo cases:
-     Mumtaz has 1 cup left of her daily limit here, Zara has none.     */
-  const handToday = {
-    kiln: [
-      { memberId: "m_ayesha", drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-cort" },
-      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
-      { memberId: "m_bilal",  drinkId: "kiln-flat" },
-      { memberId: "m_sana",   drinkId: "kiln-pour", firstVisit: true },
-    ],
-  };
-
-  // Small seeded PRNG. Seeded by date, so every open window builds the same day.
+  // Small seeded PRNG. Seeded by date, so every open window builds the same month.
   function mulberry32(a) {
     return function () {
       a |= 0; a = (a + 0x6d2b79f5) | 0;
@@ -293,23 +279,104 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
-  const startOfToday = midnight.getTime();
-  const rand = mulberry32(midnight.getFullYear() * 10000 + (midnight.getMonth() + 1) * 100 + midnight.getDate());
+  const startOfToday = startOfDay(now);
+  const today = new Date(startOfToday);
+  const rand = mulberry32(today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate());
   const pick = (list) => list[Math.floor(rand() * list.length)];
 
-  /** n timestamps across today’s open hours so far, weighted by busyByHour.
-      Counts stay fixed so the demo looks the same at any hour; early in the
-      day they bunch into the hours that have passed.                     */
-  function todayTimes(cafe, n) {
-    const at = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return startOfToday + (h * 60 + (m || 0)) * MIN; };
+  /* Background regulars: they fill each café’s month. No codes, so they
+     can’t be redeemed in the demo; they appear in the café view’s lists
+     and totals. A mix of plans gives every café some reserved cups.   */
+  const REGULAR_NAMES = ["Fatima", "Usman", "Hira", "Ali", "Mahnoor", "Saad", "Iqra", "Danish", "Noor", "Ahmed", "Rida", "Faraz", "Amna", "Hassan", "Areeba", "Hamid", "Maryam", "Taimur", "Sara", "Bilquis"];
+  const INITIALS = "ABCDFGHJKMNRSTWZ";
+  const REGULAR_COUNT = 80;
+  // Popularity weights for My cafés reservations
+  const POPULAR = ["kiln", "kiln", "slowpour", "slowpour", "ember", "ember", "noon", "noon", "maple", "grind", "quiethours", "thirdfloor"];
+  const regulars = Array.from({ length: REGULAR_COUNT }, (_, i) => {
+    const firstName = REGULAR_NAMES[i % REGULAR_NAMES.length];
+    const id = `m_r${i}_${firstName.toLowerCase()}`;
+    let plan;
+    if (rand() < 0.55) {
+      const u = rand();
+      plan = { type: "explorer", tierId: u < 0.3 ? "starter" : u < 0.8 ? "regular" : "enthusiast" };
+    } else {
+      const allocation = {};
+      const n = 1 + Math.floor(rand() * 3);
+      while (Object.keys(allocation).length < n) allocation[pick(POPULAR)] = 2 + Math.floor(rand() * 5);
+      let total = Object.values(allocation).reduce((a, b) => a + b, 0);
+      const first = Object.keys(allocation)[0];
+      if (total < rules.minCupsTotal) allocation[first] += rules.minCupsTotal - total;
+      plan = { type: "mycafes", allocation };
+    }
+    return {
+      id, firstName, lastName: `${INITIALS[i % INITIALS.length]}.`, pronoun: "them", plan, background: true, visits: {},
+      cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY,
+    };
+  });
+
+  const members = [mumtaz, ...demoMembers, ...regulars];
+
+  /* Ledger ----------------------------------------------------------------
+     Append-only. Every change to a member’s cups is one entry:
+       { id, type: purchase|redeem|gift|expire, memberId, cafeId|null,
+         cups (signed: purchase +, everything else −), at, cycle }
+     Redeem entries also carry drinkId, credits and firstVisit, so the
+     café’s redemption list is read straight from the ledger.
+     // BACKEND: this becomes a Supabase table (ledger), insert-only.   */
+  const ledger = [];
+  let seq = 0;
+  const tierCups = (id) => tiers.find((t) => t.id === id).cups;
+  function purchase(m) {
+    const at = m.cycleStartedAt;
+    if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
+    else Object.entries(m.plan.allocation).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId, cups: n, at, cycle: m.cycle }));
+  }
+  members.forEach(purchase);
+
+  const cafeById = Object.fromEntries(cafes.map((c) => [c.id, c]));
+  const drinkCredits = (cafeId, drinkId) => cafeById[cafeId].drinks.find((d) => d.id === drinkId).credits;
+  function redeem(m, cafeId, drinkId, at, firstVisit = false) {
+    const credits = drinkCredits(cafeId, drinkId);
+    ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit, at, cycle: m.cycle });
+  }
+
+  /* Hand-written history: earlier this cycle, before today ----------- */
+  const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
+  const byId = Object.fromEntries(members.map((m) => [m.id, m]));
+  const HISTORY = {
+    m_ayesha: [["noon", "noon-capp", daysAgo(14, 30)], ["slowpour", "sp-v60", daysAgo(10, 90)], ["noon", "noon-latte", daysAgo(6, 40)], ["slowpour", "sp-gibraltar", daysAgo(2, 15)]],
+    m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
+    m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
+    m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
+    m_zara:   [["ember", "ember-latte"], ["ember", "ember-mocha"], ["kiln", "kiln-flat"]],
+    m_hamza:  [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["grind", "gg-latte"], ["grind", "gg-macch"]],
+  };
+  Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
+
+  /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
+     Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
+  const handToday = {
+    kiln: [
+      { memberId: "m_ayesha", drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-cort" },
+      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
+      { memberId: "m_bilal",  drinkId: "kiln-flat" },
+      { memberId: "m_sana",   drinkId: "kiln-flat" },
+    ],
+  };
+
+  /** n timestamps across a day’s open hours, weighted by busyByHour.
+      Today: only the hours that have passed (counts stay fixed, so the
+      demo looks the same at any hour; early on they bunch up).        */
+  function dayTimes(cafe, dayStart, n, isToday) {
+    const at = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return dayStart + (h * 60 + (m || 0)) * MIN; };
     let start = at(cafe.hours.open);
     let close = at(cafe.hours.close);
     if (close <= start) close += DAY;
-    let end = Math.min(now - 2 * MIN, close);
-    if (end - start < 60 * MIN) { start = Math.max(startOfToday, now - 3 * 60 * MIN); end = now - 2 * MIN; }
+    let end = isToday ? Math.min(now - 2 * MIN, close) : close;
+    if (isToday && end - start < 60 * MIN) { start = Math.max(dayStart, now - 3 * 60 * MIN); end = now - 2 * MIN; }
     if (end <= start) start = end - 30 * MIN;
-
     const slots = [];
     let total = 0;
     for (let t = start; t < end; ) {
@@ -325,32 +392,58 @@
     }).sort((a, b) => a - b);
   }
 
-  function seedToday() {
-    const out = [];
-    cafes.forEach((cafe) => {
-      const specs = (handToday[cafe.id] || []).map((s) => ({ firstVisit: false, ...s }));
-      const credits = (s) => cafe.drinks.find((d) => d.id === s.drinkId).credits;
-      const cups = () => specs.reduce((n, s) => n + credits(s), 0);
-      const perMember = {};
-      const oneCup = cafe.drinks.filter((d) => d.credits === 1);
-      const twoCup = cafe.drinks.filter((d) => d.credits > 1);
-      let guard = 0;
-      while (cups() < cafe.avgDailyCups && guard++ < 200) {
-        const m = pick(regulars);
-        if ((perMember[m.id] || 0) >= rules.dailyLimitPerCafe) continue;
-        perMember[m.id] = (perMember[m.id] || 0) + 1;
-        const drink = twoCup.length && rand() < 0.08 ? pick(twoCup) : pick(oneCup);
-        specs.push({ memberId: m.id, drinkId: drink.id, firstVisit: perMember[m.id] === 1 && rand() < 0.12 });
-      }
-      // Shuffle, then lay the rows over the day in time order
-      for (let i = specs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [specs[i], specs[j]] = [specs[j], specs[i]]; }
-      const times = todayTimes(cafe, specs.length);
-      specs.forEach((s, i) => out.push({ id: `t-${cafe.id}-${i}`, at: times[i], cafeId: cafe.id, credits: credits(s), ...s }));
+  /* Regulars’ month so far, generated under the real rules: balance,
+     2 a day per café, Explorer 2 a cycle per café, My cafés only where
+     reserved.                                                         */
+  (function generateMonth() {
+    const left = {};      // memberId -> pool left (explorer) or { cafeId: left } (mycafes)
+    const usedHere = {};  // memberId -> { cafeId: cups this cycle }
+    regulars.forEach((m) => {
+      left[m.id] = m.plan.type === "explorer" ? tierCups(m.plan.tierId) : { ...m.plan.allocation };
+      usedHere[m.id] = {};
     });
-    return out;
-  }
-
-  const redemptions = [...history, ...seedToday()];
+    const canUse = (m, cafeId, credits, today) => {
+      if ((today[m.id]?.[cafeId] || 0) + credits > rules.dailyLimitPerCafe) return false;
+      if (m.plan.type === "mycafes") return (left[m.id][cafeId] || 0) >= credits;
+      return left[m.id] >= credits && (usedHere[m.id][cafeId] || 0) + credits <= rules.explorerCapPerCafe;
+    };
+    const use = (m, cafeId, credits, today) => {
+      if (m.plan.type === "mycafes") left[m.id][cafeId] -= credits; else left[m.id] -= credits;
+      usedHere[m.id][cafeId] = (usedHere[m.id][cafeId] || 0) + credits;
+      today[m.id] = today[m.id] || {};
+      today[m.id][cafeId] = (today[m.id][cafeId] || 0) + credits;
+    };
+    for (let d = 9; d >= 0; d--) {
+      const dayStart = startOfToday - d * DAY;
+      const isToday = d === 0;
+      const todayUse = {};
+      cafes.forEach((cafe) => {
+        const hand = isToday ? (handToday[cafe.id] || []) : [];
+        const handCups = hand.reduce((n, s) => n + drinkCredits(cafe.id, s.drinkId), 0);
+        // A normal day wobbles around the café’s average
+        let target = Math.max(0, Math.round(cafe.avgDailyCups * (0.75 + rand() * 0.5)) - handCups);
+        if (isToday) target = Math.max(0, cafe.avgDailyCups - handCups); // fixed, so today looks the same all day
+        const oneCup = cafe.drinks.filter((x) => x.credits === 1);
+        const twoCup = cafe.drinks.filter((x) => x.credits > 1);
+        const rows = hand.map((s) => ({ m: byId[s.memberId], drinkId: s.drinkId, firstVisit: !!s.firstVisit }));
+        let cups = 0, guard = 0;
+        while (cups < target && guard++ < 400) {
+          const m = pick(regulars);
+          const drink = twoCup.length && rand() < 0.08 ? pick(twoCup) : pick(oneCup);
+          if (!canUse(m, cafe.id, drink.credits, todayUse)) continue;
+          use(m, cafe.id, drink.credits, todayUse);
+          const first = !(m.visits[cafe.id] > 0) && rand() < 0.35;
+          m.visits[cafe.id] = (m.visits[cafe.id] || 0) + 1;
+          rows.push({ m, drinkId: drink.id, firstVisit: first });
+          cups += drink.credits;
+        }
+        for (let i = rows.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [rows[i], rows[j]] = [rows[j], rows[i]]; }
+        const times = dayTimes(cafe, dayStart, rows.length, isToday);
+        rows.forEach((r, i) => redeem(r.m, cafe.id, r.drinkId, times[i], r.firstVisit));
+      });
+    }
+  })();
+  ledger.sort((a, b) => a.at - b.at);
 
   /* Rewards ------------------------------------------------------------- */
   const badges = [
@@ -368,11 +461,11 @@
     areas,
     cafes,
     members,
-    memberId: ayesha.id,
+    memberId: mumtaz.id,
     partnerCafeId: "kiln",       // the café shown in the partner view
-    redemptions,
+    ledger,
     badges,
-    // Builder default for the “Build your own” plan
+    // Builder default for the “My cafés” plan
     builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
   };
 })();

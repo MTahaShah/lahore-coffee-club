@@ -365,3 +365,10 @@ li:last-child > .near-row { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation-duration: 2.4s; }
 }
+
+/* Plan types (Pass 7): per-café cups on the pass ----------------------- */
+.pass__cafes { width: 100%; display: grid; gap: var(--space-2); text-align: left; }
+.pass__cafes ul { display: grid; }
+.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: 6px; border-top: var(--hairline); font-size: var(--fs-14); }
+.pass__cafes li .num { color: var(--ink-2); }
+[data-here-line] strong { color: var(--ink); font-weight: 500; }

@@ -118,8 +118,8 @@
 
   function plansTable() {
     return html`<table class="lp-table">
-      <caption class="sr-only">Fixed monthly plans</caption>
-      <thead><tr><th scope="col">Plan</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
+      <caption class="sr-only">Explorer plans</caption>
+      <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
           <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · ${t.line}</span></th>
@@ -135,8 +135,8 @@
     const max = store.getState().rules.maxCupsPerCafe;
     return html`<div class="card lp-teaser">
       <div class="lp-teaser__head">
-        <h3 class="t-h3">Build your own</h3>
-        <p class="t-small t-muted">Choose cafés and cups. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
+        <h3 class="t-h3">My cafés</h3>
+        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
       </div>
       <ul role="list">
         ${TEASER_CAFES.map((id) => {
@@ -238,14 +238,18 @@
             <section class="landing-section lp-section" id="how" aria-labelledby="how-h">
               ${sectionHead(1, "how", "How it works")}
               <ol class="lp-steps" role="list">
-                <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Take a fixed number of cups, or build your own from the cafés you already like. Plans start at six cups a month.</p></div></li>
+                <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Explore with one pool of cups for any café, or reserve cups at the cafés you already like. Plans start at six cups a month.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, open the app and show your QR code, or read out the six-digit code. It changes every 30 seconds.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">03</span><div><h3 class="t-h3">Enjoy your coffee</h3><p class="t-body t-muted">The barista taps once and the cup comes off your month. Nothing to pay at the till.</p></div></li>
               </ol>
             </section>
 
             <section class="landing-section lp-section" id="plans" aria-labelledby="plans-h">
-              ${sectionHead(2, "plans", "Plans", "One price a month, any partner café. Or choose your cafés and cups, and pay less per cup.")}
+              ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
+              <dl class="lp-types">
+                <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsPerCafe} at each, and pay less per cup. They’re only for those cafés.</dd></div>
+              </dl>
               <div class="lp-plans">
                 ${plansTable()}
                 ${teaserHtml()}
@@ -400,7 +404,7 @@
         }
         if (t.closest("[data-teaser-go]")) {
           // Open the app's builder with these cups already in it
-          LCC.appPlan?.start({ mode: "custom", keepBuilder: true });
+          LCC.appPlan?.start({ mode: "mycafes", keepBuilder: true });
           return; // the link itself navigates to #/app/plan
         }
         const faq = t.closest("[data-faq]");

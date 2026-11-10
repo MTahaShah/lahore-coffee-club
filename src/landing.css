@@ -140,3 +140,9 @@
 .lp-footer__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom)); }
 .lp-footer__links { display: flex; gap: var(--space-4); }
 .lp-footer__links a { color: var(--ink-2); }
+
+/* Plan types (Pass 7) */
+.lp-types { display: grid; gap: var(--space-4); margin: 0; }
+.lp-types > div { display: grid; gap: var(--space-1); }
+.lp-types dd { margin: 0; }
+@media (min-width: 720px) { .lp-types { grid-template-columns: 1fr 1fr; column-gap: var(--space-6); } }

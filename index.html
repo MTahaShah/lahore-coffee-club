@@ -1092,6 +1092,14 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .pair__url { max-width: 100%; overflow-wrap: anywhere; }
 .pair__note { max-width: 40ch; }
 
+/* Plan types (Pass 7) -------------------------------------------------- */
+.member-stats__wide { grid-column: 1 / -1; }
+.member-stats__wide dd .t-small { margin-left: var(--space-2); font-family: var(--font-sans); }
+.month-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: var(--space-3) 0 0; }
+.month-stats dt { font-size: var(--fs-14); color: var(--ink-3); }
+.month-stats dd { margin: 0; }
+.month-stats__wide { grid-column: 1 / -1; }
+
 /* ---- src/app.css ---- */
 /* =====================================================================
    Lahore Coffee Club — app.css
@@ -1461,6 +1469,13 @@ li:last-child > .near-row { border-bottom: 0; }
   .spinner { animation-duration: 2.4s; }
 }
 
+/* Plan types (Pass 7): per-café cups on the pass ----------------------- */
+.pass__cafes { width: 100%; display: grid; gap: var(--space-2); text-align: left; }
+.pass__cafes ul { display: grid; }
+.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: 6px; border-top: var(--hairline); font-size: var(--fs-14); }
+.pass__cafes li .num { color: var(--ink-2); }
+[data-here-line] strong { color: var(--ink); font-weight: 500; }
+
 /* ---- src/landing.css ---- */
 /* =====================================================================
    Lahore Coffee Club — landing.css
@@ -1605,6 +1620,12 @@ li:last-child > .near-row { border-bottom: 0; }
 .lp-footer__links { display: flex; gap: var(--space-4); }
 .lp-footer__links a { color: var(--ink-2); }
 
+/* Plan types (Pass 7) */
+.lp-types { display: grid; gap: var(--space-4); margin: 0; }
+.lp-types > div { display: grid; gap: var(--space-1); }
+.lp-types dd { margin: 0; }
+@media (min-width: 720px) { .lp-types { grid-template-columns: 1fr 1fr; column-gap: var(--space-6); } }
+
 </style>
 </head>
 <body>
@@ -1634,6 +1655,7 @@ li:last-child > .near-row { border-bottom: 0; }
   const DAY = 24 * 60 * MIN;
   const minsAgo = (m) => now - m * MIN;
   const daysAgo = (d, m = 0) => now - d * DAY - m * MIN;
+  const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
   /* Pricing rules, shared by the builder and the landing teaser ------- */
   const rules = {
@@ -1642,6 +1664,8 @@ li:last-child > .near-row { border-bottom: 0; }
     maxCupsPerCafe: 10,
     minCupsTotal: 6,
     dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
+    explorerCapPerCafe: 2,     // Explorer plans: cups at one café per plan cycle (month)
+    reservedPayoutShare: 0,    // share of unused reserved cups paid to cafés. PENDING business decision; not shown in the UI
     passRotateSeconds: 30,
     giftExpiryDays: 60,
     giftMaxCups: 3,
@@ -1667,7 +1691,7 @@ li:last-child > .near-row { border-bottom: 0; }
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
      payoutPerCup: the rate the café set; what we pay them per cup.
-     avgDailyCups: a typical day’s cups; drives today’s seed and month-to-date.
+     avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
   const cafes = [
     {
@@ -1689,7 +1713,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "kiln-pour",   name: "Single-origin pour-over", price: 900, credits: 2 },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
-      avgDailyCups: 22,
+      avgDailyCups: 9,
     },
     {
       id: "maple",
@@ -1710,7 +1734,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "maple-filter",   name: "Ethiopian filter",     price: 950, credits: 2 },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 18,
+      avgDailyCups: 5,
     },
     {
       id: "ember",
@@ -1731,7 +1755,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "ember-cold",   name: "Cold brew tonic",      price: 650, credits: 1 },
       ],
       busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
-      avgDailyCups: 26,
+      avgDailyCups: 7,
     },
     {
       id: "thirdfloor",
@@ -1752,7 +1776,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "tf-affogato",  name: "Affogato",             price: 650, credits: 1 },
       ],
       busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
-      avgDailyCups: 15,
+      avgDailyCups: 4,
     },
     {
       id: "quiethours",
@@ -1773,7 +1797,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "qh-cortado",  name: "Brown butter cortado", price: 650, credits: 1 },
       ],
       busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
-      avgDailyCups: 16,
+      avgDailyCups: 4,
     },
     {
       id: "slowpour",
@@ -1794,7 +1818,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "sp-flight",  name: "Tasting flight",       price: 1300, credits: 2 },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
-      avgDailyCups: 24,
+      avgDailyCups: 7,
     },
     {
       id: "noon",
@@ -1815,7 +1839,7 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "noon-iced",   name: "Iced long black",      price: 450, credits: 1 },
       ],
       busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
-      avgDailyCups: 20,
+      avgDailyCups: 6,
     },
     {
       id: "grind",
@@ -1836,76 +1860,59 @@ li:last-child > .near-row { border-bottom: 0; }
         { id: "gg-dirty",    name: "Dirty chai",           price: 600, credits: 1 },
       ],
       busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 19,
+      avgDailyCups: 5,
     },
   ];
 
   /* Members --------------------------------------------------------------
-     Mumtaz is the demo member. The others exist so the café view can show
-     a realistic day, and so error states can be demonstrated:
-       Zara  — has already had 2 cups at Kiln & Bean today (daily limit)
-       Hamza — no cups left this month                                  */
-  const ayesha = {
-    id: "m_ayesha",
+     Two plan types:
+       explorer  one pool of cups for any café, at most 2 a cycle at each
+       mycafes   cups reserved per café, usable only there
+     Nobody stores a cups-left number: balances come from the ledger below.
+
+     Mumtaz is the demo member. The others exist so the café view (Kiln &
+     Bean) can show a realistic month and every rule:
+       Bilal  — Explorer, already 2 cups at Kiln & Bean this month (cap)
+       Sana   — My cafés: Kiln & Bean 6, Maple Roastery 4 (3 + 3 left)
+       Omar   — Explorer Starter, first visit to Kiln & Bean today
+       Zara   — My cafés, 2 cups at Kiln & Bean today (daily limit)
+       Hamza  — Explorer Starter, no cups left                          */
+  const cycleStart = startOfDay(now) - 9 * DAY; // seeded members’ month started 9 days ago
+  const cycleOf = (id) => `c_${id}_seed`;
+
+  const mumtaz = {
+    id: "m_ayesha",            // internal id kept from an earlier name
     firstName: "Mumtaz",
     lastName: "Begum",
     initials: "MB",
+    pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    planId: "regular",
-    cupsTotal: 16,
-    cupsLeft: 11,
+    plan: { type: "explorer", tierId: "regular" },
+    cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
     payment: { method: "JazzCash", last4: "4567" },
     streakWeeks: 4,
     cafesTried: ["kiln", "slowpour", "noon"],
-    visits: { kiln: 3, slowpour: 1, noon: 1 },   // loyalty: visits per café
+    visits: { kiln: 3, slowpour: 2, noon: 2 },   // lifetime visits per café (loyalty)
     referralCode: "MUMTAZ-K7",
     onboarded: false,
   };
 
+  const demo = (id, firstName, pronoun, plan, staticCode, visits) => ({
+    id, firstName, pronoun, plan, staticCode, visits,
+    cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY,
+  });
   const demoMembers = [
-    { id: "m_bilal", firstName: "Bilal", cupsTotal: 16, cupsLeft: 7,  staticCode: "615028", visits: { kiln: 6 } },
-    { id: "m_sana",  firstName: "Sana",  cupsTotal: 30, cupsLeft: 19, staticCode: "207341", visits: { kiln: 2 } },
-    { id: "m_omar",  firstName: "Omar",  cupsTotal: 8,  cupsLeft: 2,  staticCode: "558190", visits: { kiln: 1 } },
-    { id: "m_zara",  firstName: "Zara",  cupsTotal: 16, cupsLeft: 9,  staticCode: "482913", visits: { kiln: 4 } },
-    { id: "m_hamza", firstName: "Hamza", cupsTotal: 8,  cupsLeft: 0,  staticCode: "730215", visits: { kiln: 2 } },
+    demo("m_bilal", "Bilal", "him",  { type: "explorer", tierId: "regular" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }),
+    demo("m_sana",  "Sana",  "her",  { type: "mycafes", allocation: { kiln: 6, maple: 4 } }, "207341", { kiln: 5, maple: 2 }),
+    demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }),
+    demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }),
+    demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }),
   ];
 
-  /* Regulars: background members who fill out each café’s day. They have
-     no codes, so they can’t be redeemed in the demo; they only appear in
-     the café view’s lists and totals.                                  */
-  const regulars = ["Fatima", "Usman", "Hira", "Ali", "Mahnoor", "Saad", "Iqra", "Danish", "Noor", "Ahmed", "Rida", "Faraz", "Amna", "Hassan"]
-    .map((n) => ({ id: `m_${n.toLowerCase()}`, firstName: n, cupsTotal: 16, cupsLeft: 8, background: true, visits: {} }));
-
-  const members = [ayesha, ...demoMembers, ...regulars];
-
-  /* Redemption log ------------------------------------------------------
-     History: Mumtaz’s earlier cups this cycle. With her one cup at Kiln &
-     Bean today that makes 5 used (16 − 11).
-     Today: generated below, about avgDailyCups per café.               */
-  const history = [
-    { id: "r1", at: daysAgo(14, 30), cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat", credits: 1, firstVisit: false },
-    { id: "r2", at: daysAgo(10, 90), cafeId: "slowpour", memberId: "m_ayesha", drinkId: "sp-v60",    credits: 1, firstVisit: true  },
-    { id: "r3", at: daysAgo(6, 40),  cafeId: "noon",     memberId: "m_ayesha", drinkId: "noon-capp", credits: 1, firstVisit: true  },
-    { id: "r4", at: daysAgo(2, 15),  cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-cort", credits: 1, firstVisit: false },
-  ];
-
-  /* Today’s hand-written rows. They set up the café-view demo cases:
-     Mumtaz has 1 cup left of her daily limit here, Zara has none.     */
-  const handToday = {
-    kiln: [
-      { memberId: "m_ayesha", drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-cort" },
-      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
-      { memberId: "m_bilal",  drinkId: "kiln-flat" },
-      { memberId: "m_sana",   drinkId: "kiln-pour", firstVisit: true },
-    ],
-  };
-
-  // Small seeded PRNG. Seeded by date, so every open window builds the same day.
+  // Small seeded PRNG. Seeded by date, so every open window builds the same month.
   function mulberry32(a) {
     return function () {
       a |= 0; a = (a + 0x6d2b79f5) | 0;
@@ -1914,23 +1921,104 @@ li:last-child > .near-row { border-bottom: 0; }
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
-  const startOfToday = midnight.getTime();
-  const rand = mulberry32(midnight.getFullYear() * 10000 + (midnight.getMonth() + 1) * 100 + midnight.getDate());
+  const startOfToday = startOfDay(now);
+  const today = new Date(startOfToday);
+  const rand = mulberry32(today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate());
   const pick = (list) => list[Math.floor(rand() * list.length)];
 
-  /** n timestamps across today’s open hours so far, weighted by busyByHour.
-      Counts stay fixed so the demo looks the same at any hour; early in the
-      day they bunch into the hours that have passed.                     */
-  function todayTimes(cafe, n) {
-    const at = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return startOfToday + (h * 60 + (m || 0)) * MIN; };
+  /* Background regulars: they fill each café’s month. No codes, so they
+     can’t be redeemed in the demo; they appear in the café view’s lists
+     and totals. A mix of plans gives every café some reserved cups.   */
+  const REGULAR_NAMES = ["Fatima", "Usman", "Hira", "Ali", "Mahnoor", "Saad", "Iqra", "Danish", "Noor", "Ahmed", "Rida", "Faraz", "Amna", "Hassan", "Areeba", "Hamid", "Maryam", "Taimur", "Sara", "Bilquis"];
+  const INITIALS = "ABCDFGHJKMNRSTWZ";
+  const REGULAR_COUNT = 80;
+  // Popularity weights for My cafés reservations
+  const POPULAR = ["kiln", "kiln", "slowpour", "slowpour", "ember", "ember", "noon", "noon", "maple", "grind", "quiethours", "thirdfloor"];
+  const regulars = Array.from({ length: REGULAR_COUNT }, (_, i) => {
+    const firstName = REGULAR_NAMES[i % REGULAR_NAMES.length];
+    const id = `m_r${i}_${firstName.toLowerCase()}`;
+    let plan;
+    if (rand() < 0.55) {
+      const u = rand();
+      plan = { type: "explorer", tierId: u < 0.3 ? "starter" : u < 0.8 ? "regular" : "enthusiast" };
+    } else {
+      const allocation = {};
+      const n = 1 + Math.floor(rand() * 3);
+      while (Object.keys(allocation).length < n) allocation[pick(POPULAR)] = 2 + Math.floor(rand() * 5);
+      let total = Object.values(allocation).reduce((a, b) => a + b, 0);
+      const first = Object.keys(allocation)[0];
+      if (total < rules.minCupsTotal) allocation[first] += rules.minCupsTotal - total;
+      plan = { type: "mycafes", allocation };
+    }
+    return {
+      id, firstName, lastName: `${INITIALS[i % INITIALS.length]}.`, pronoun: "them", plan, background: true, visits: {},
+      cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY,
+    };
+  });
+
+  const members = [mumtaz, ...demoMembers, ...regulars];
+
+  /* Ledger ----------------------------------------------------------------
+     Append-only. Every change to a member’s cups is one entry:
+       { id, type: purchase|redeem|gift|expire, memberId, cafeId|null,
+         cups (signed: purchase +, everything else −), at, cycle }
+     Redeem entries also carry drinkId, credits and firstVisit, so the
+     café’s redemption list is read straight from the ledger.
+     // BACKEND: this becomes a Supabase table (ledger), insert-only.   */
+  const ledger = [];
+  let seq = 0;
+  const tierCups = (id) => tiers.find((t) => t.id === id).cups;
+  function purchase(m) {
+    const at = m.cycleStartedAt;
+    if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
+    else Object.entries(m.plan.allocation).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId, cups: n, at, cycle: m.cycle }));
+  }
+  members.forEach(purchase);
+
+  const cafeById = Object.fromEntries(cafes.map((c) => [c.id, c]));
+  const drinkCredits = (cafeId, drinkId) => cafeById[cafeId].drinks.find((d) => d.id === drinkId).credits;
+  function redeem(m, cafeId, drinkId, at, firstVisit = false) {
+    const credits = drinkCredits(cafeId, drinkId);
+    ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit, at, cycle: m.cycle });
+  }
+
+  /* Hand-written history: earlier this cycle, before today ----------- */
+  const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
+  const byId = Object.fromEntries(members.map((m) => [m.id, m]));
+  const HISTORY = {
+    m_ayesha: [["noon", "noon-capp", daysAgo(14, 30)], ["slowpour", "sp-v60", daysAgo(10, 90)], ["noon", "noon-latte", daysAgo(6, 40)], ["slowpour", "sp-gibraltar", daysAgo(2, 15)]],
+    m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
+    m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
+    m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
+    m_zara:   [["ember", "ember-latte"], ["ember", "ember-mocha"], ["kiln", "kiln-flat"]],
+    m_hamza:  [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["grind", "gg-latte"], ["grind", "gg-macch"]],
+  };
+  Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
+
+  /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
+     Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
+  const handToday = {
+    kiln: [
+      { memberId: "m_ayesha", drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-cort" },
+      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
+      { memberId: "m_bilal",  drinkId: "kiln-flat" },
+      { memberId: "m_sana",   drinkId: "kiln-flat" },
+    ],
+  };
+
+  /** n timestamps across a day’s open hours, weighted by busyByHour.
+      Today: only the hours that have passed (counts stay fixed, so the
+      demo looks the same at any hour; early on they bunch up).        */
+  function dayTimes(cafe, dayStart, n, isToday) {
+    const at = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return dayStart + (h * 60 + (m || 0)) * MIN; };
     let start = at(cafe.hours.open);
     let close = at(cafe.hours.close);
     if (close <= start) close += DAY;
-    let end = Math.min(now - 2 * MIN, close);
-    if (end - start < 60 * MIN) { start = Math.max(startOfToday, now - 3 * 60 * MIN); end = now - 2 * MIN; }
+    let end = isToday ? Math.min(now - 2 * MIN, close) : close;
+    if (isToday && end - start < 60 * MIN) { start = Math.max(dayStart, now - 3 * 60 * MIN); end = now - 2 * MIN; }
     if (end <= start) start = end - 30 * MIN;
-
     const slots = [];
     let total = 0;
     for (let t = start; t < end; ) {
@@ -1946,32 +2034,58 @@ li:last-child > .near-row { border-bottom: 0; }
     }).sort((a, b) => a - b);
   }
 
-  function seedToday() {
-    const out = [];
-    cafes.forEach((cafe) => {
-      const specs = (handToday[cafe.id] || []).map((s) => ({ firstVisit: false, ...s }));
-      const credits = (s) => cafe.drinks.find((d) => d.id === s.drinkId).credits;
-      const cups = () => specs.reduce((n, s) => n + credits(s), 0);
-      const perMember = {};
-      const oneCup = cafe.drinks.filter((d) => d.credits === 1);
-      const twoCup = cafe.drinks.filter((d) => d.credits > 1);
-      let guard = 0;
-      while (cups() < cafe.avgDailyCups && guard++ < 200) {
-        const m = pick(regulars);
-        if ((perMember[m.id] || 0) >= rules.dailyLimitPerCafe) continue;
-        perMember[m.id] = (perMember[m.id] || 0) + 1;
-        const drink = twoCup.length && rand() < 0.08 ? pick(twoCup) : pick(oneCup);
-        specs.push({ memberId: m.id, drinkId: drink.id, firstVisit: perMember[m.id] === 1 && rand() < 0.12 });
-      }
-      // Shuffle, then lay the rows over the day in time order
-      for (let i = specs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [specs[i], specs[j]] = [specs[j], specs[i]]; }
-      const times = todayTimes(cafe, specs.length);
-      specs.forEach((s, i) => out.push({ id: `t-${cafe.id}-${i}`, at: times[i], cafeId: cafe.id, credits: credits(s), ...s }));
+  /* Regulars’ month so far, generated under the real rules: balance,
+     2 a day per café, Explorer 2 a cycle per café, My cafés only where
+     reserved.                                                         */
+  (function generateMonth() {
+    const left = {};      // memberId -> pool left (explorer) or { cafeId: left } (mycafes)
+    const usedHere = {};  // memberId -> { cafeId: cups this cycle }
+    regulars.forEach((m) => {
+      left[m.id] = m.plan.type === "explorer" ? tierCups(m.plan.tierId) : { ...m.plan.allocation };
+      usedHere[m.id] = {};
     });
-    return out;
-  }
-
-  const redemptions = [...history, ...seedToday()];
+    const canUse = (m, cafeId, credits, today) => {
+      if ((today[m.id]?.[cafeId] || 0) + credits > rules.dailyLimitPerCafe) return false;
+      if (m.plan.type === "mycafes") return (left[m.id][cafeId] || 0) >= credits;
+      return left[m.id] >= credits && (usedHere[m.id][cafeId] || 0) + credits <= rules.explorerCapPerCafe;
+    };
+    const use = (m, cafeId, credits, today) => {
+      if (m.plan.type === "mycafes") left[m.id][cafeId] -= credits; else left[m.id] -= credits;
+      usedHere[m.id][cafeId] = (usedHere[m.id][cafeId] || 0) + credits;
+      today[m.id] = today[m.id] || {};
+      today[m.id][cafeId] = (today[m.id][cafeId] || 0) + credits;
+    };
+    for (let d = 9; d >= 0; d--) {
+      const dayStart = startOfToday - d * DAY;
+      const isToday = d === 0;
+      const todayUse = {};
+      cafes.forEach((cafe) => {
+        const hand = isToday ? (handToday[cafe.id] || []) : [];
+        const handCups = hand.reduce((n, s) => n + drinkCredits(cafe.id, s.drinkId), 0);
+        // A normal day wobbles around the café’s average
+        let target = Math.max(0, Math.round(cafe.avgDailyCups * (0.75 + rand() * 0.5)) - handCups);
+        if (isToday) target = Math.max(0, cafe.avgDailyCups - handCups); // fixed, so today looks the same all day
+        const oneCup = cafe.drinks.filter((x) => x.credits === 1);
+        const twoCup = cafe.drinks.filter((x) => x.credits > 1);
+        const rows = hand.map((s) => ({ m: byId[s.memberId], drinkId: s.drinkId, firstVisit: !!s.firstVisit }));
+        let cups = 0, guard = 0;
+        while (cups < target && guard++ < 400) {
+          const m = pick(regulars);
+          const drink = twoCup.length && rand() < 0.08 ? pick(twoCup) : pick(oneCup);
+          if (!canUse(m, cafe.id, drink.credits, todayUse)) continue;
+          use(m, cafe.id, drink.credits, todayUse);
+          const first = !(m.visits[cafe.id] > 0) && rand() < 0.35;
+          m.visits[cafe.id] = (m.visits[cafe.id] || 0) + 1;
+          rows.push({ m, drinkId: drink.id, firstVisit: first });
+          cups += drink.credits;
+        }
+        for (let i = rows.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [rows[i], rows[j]] = [rows[j], rows[i]]; }
+        const times = dayTimes(cafe, dayStart, rows.length, isToday);
+        rows.forEach((r, i) => redeem(r.m, cafe.id, r.drinkId, times[i], r.firstVisit));
+      });
+    }
+  })();
+  ledger.sort((a, b) => a.at - b.at);
 
   /* Rewards ------------------------------------------------------------- */
   const badges = [
@@ -1989,11 +2103,11 @@ li:last-child > .near-row { border-bottom: 0; }
     areas,
     cafes,
     members,
-    memberId: ayesha.id,
+    memberId: mumtaz.id,
     partnerCafeId: "kiln",       // the café shown in the partner view
-    redemptions,
+    ledger,
     badges,
-    // Builder default for the “Build your own” plan
+    // Builder default for the “My cafés” plan
     builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
   };
 })();
@@ -2012,11 +2126,16 @@ li:last-child > .near-row { border-bottom: 0; }
      store.actions.setCafeStatus("kiln", "packed");
      store.select.cafe("kiln").status;
 
-   Events: cafe:status, cafe:viewing, redeem, pass, member, plan, builder,
-           gift, waitlist, partner, snapshot, tick (every 30s, for relative times)
+   Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
+           builder, gift, waitlist, partner, snapshot, tick (every 30s)
 
-   No storage. Café status, redemptions and the demo member’s plan/cups
-   are handed to "transports" (store.addTransport); sync.js registers two:
+   Cups live in one append-only ledger (state.ledger). Balances are always
+   derived from it by the selectors below, never stored. Plan types:
+     explorer  one pool, any café, at most rules.explorerCapPerCafe a cycle
+     mycafes   cups reserved per café, usable only there
+
+   No storage. Café status, ledger entries and plan changes are handed to
+   "transports" (store.addTransport); sync.js registers two:
    BroadcastChannel (same computer) and Supabase Realtime (other devices).
    Incoming messages come back through store.applyRemote(), which uses the
    same internals as local actions but never re-sends (no echo loops).
@@ -2044,9 +2163,8 @@ li:last-child > .near-row { border-bottom: 0; }
     members: byId(clone(seed.members)),
     memberId: seed.memberId,
     partnerCafeId: seed.partnerCafeId,
-    plan: { type: "fixed", tierId: "regular", allocation: null },
     builder: clone(seed.builderDraft),
-    redemptions: clone(seed.redemptions),
+    ledger: clone(seed.ledger), // append-only; see appendEntries()
     badges: clone(seed.badges),
     gifts: [],
     waitlist: [],
@@ -2084,52 +2202,36 @@ li:last-child > .near-row { border-bottom: 0; }
     transports.forEach((fn) => { try { fn(type, data); } catch (err) { console.warn("[LCC] sync send failed", err); } });
   }
 
-  /** Local events worth sharing, reduced to plain data. */
+  /** Local events worth sharing, reduced to plain data. Cups travel only as ledger entries. */
   function outgoing(type, payload) {
     if (type === "cafe:status") send(type, { cafeId: payload.cafeId, status: payload.status, at: payload.at });
-    else if (type === "redeem") send(type, { entry: payload.entry });
-    else if (type === "member" && payload.member?.id === state.memberId) {
-      payload.member.syncAt = Date.now();
-      send("member", { snapshot: memberSnapshot() });
-    }
+    else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
   }
 
-  /** The demo member’s plan and cups. syncAt decides which copy is newer. */
-  function memberSnapshot() {
-    const m = state.members[state.memberId];
-    return {
-      at: m.syncAt || 0,
-      plan: clone(state.plan),
-      member: clone({
-        planId: m.planId, cupsTotal: m.cupsTotal, cupsLeft: m.cupsLeft, renewsAt: m.renewsAt,
-        cycleStartedAt: m.cycleStartedAt, payment: m.payment, visits: m.visits, cafesTried: m.cafesTried,
-      }),
-    };
+  /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
+  function planMeta(m) {
+    return { memberId: m.id, plan: clone(m.plan), cycle: m.cycle, cycleStartedAt: m.cycleStartedAt, renewsAt: m.renewsAt, payment: clone(m.payment || null), changedAt: m.planChangedAt || 0 };
   }
-
-  /** Newest wins; equal stamps (both still on the seed) leave things alone. */
-  function applyMemberSnapshot(snap) {
-    const m = state.members[state.memberId];
-    if (!snap || !snap.member || (snap.at || 0) <= (m.syncAt || 0)) return false;
-    Object.assign(m, clone(snap.member));
-    m.syncAt = snap.at;
-    if (snap.plan) state.plan = clone(snap.plan);
-    emit("plan", { plan: state.plan }, { remote: true });
-    emit("member", { member: m }, { remote: true });
+  /** Newest plan change wins; a seed plan (changedAt 0) never overwrites a live one. */
+  function applyPlanMeta(meta) {
+    const m = state.members[meta?.memberId];
+    if (!m || (meta.changedAt || 0) <= (m.planChangedAt || 0)) return false;
+    Object.assign(m, { plan: clone(meta.plan), cycle: meta.cycle, cycleStartedAt: meta.cycleStartedAt, renewsAt: meta.renewsAt, planChangedAt: meta.changedAt });
+    if (meta.payment) m.payment = clone(meta.payment);
     return true;
   }
 
-  /** What a café device sends to a device that just joined the room. */
-  function roomSnapshot() {
-    // BACKEND: this becomes reads of cafe_status, redemptions (today) and subscriptions
-    const since = startOfToday();
+  /** What a device sends to one that just joined the room. Seeded entries
+      have the same ids everywhere, so only this session's ones travel. */
+  function roomSnapshot({ statuses = true } = {}) {
+    // BACKEND: this becomes reads of cafe_status, the ledger (this cycle) and subscriptions
     return {
-      statuses: Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])),
-      // Seeded rows have the same ids on every device; only live ones need sending
-      redemptions: state.redemptions.filter((r) => r.at >= since && r.live),
-      member: memberSnapshot(),
+      statuses: statuses ? Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])) : null,
+      entries: state.ledger.filter((e) => e.live),
+      plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
     };
   }
+  const hasLiveData = () => state.ledger.some((e) => e.live);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -2137,20 +2239,25 @@ li:last-child > .near-row { border-bottom: 0; }
       const c = state.cafes[cafeId];
       if (c && (c.status !== status || c.statusUpdatedAt !== at)) applyStatus({ cafeId, status, at }, { remote: true });
     });
-    // Cups and visits come with the member snapshot, so these rows only join the log
-    (snap.redemptions || []).forEach((entry) => {
-      if (!state.redemptions.some((r) => r.id === entry.id)) state.redemptions.push(entry);
-    });
-    applyMemberSnapshot(snap.member);
+    applyLedgerMessage(snap, { catchUp: true });
     emit("snapshot", {}, { remote: true });
+  }
+
+  function applyLedgerMessage({ entries = [], plans = [] }, { catchUp = false } = {}) {
+    const changed = plans.filter(applyPlanMeta);
+    appendEntries(entries, { remote: true, catchUp });
+    changed.forEach((meta) => {
+      const m = state.members[meta.memberId];
+      emit("plan", { member: m, plan: m.plan }, { remote: true });
+      emit("member", { member: m }, { remote: true });
+    });
   }
 
   /** Entry point for messages from another window or device. */
   function applyRemote(type, data) {
     if (!data) return;
     if (type === "cafe:status") applyStatus(data, { remote: true });
-    else if (type === "redeem" && data.entry) commitRedemption(data.entry, { remote: true });
-    else if (type === "member") applyMemberSnapshot(data.snapshot);
+    else if (type === "ledger") applyLedgerMessage(data);
     else if (type === "snapshot") applyRoomSnapshot(data);
   }
 
@@ -2178,6 +2285,50 @@ li:last-child > .near-row { border-bottom: 0; }
   }
 
   /* -------------------------------------------------------------------
+     Ledger: the only record of cups. Append-only; entries are never edited.
+     ------------------------------------------------------------------- */
+  const ledgerIds = new Set(state.ledger.map((e) => e.id));
+  const byMember = new Map(); // memberId -> entries (an index, rebuilt from the ledger)
+  state.ledger.forEach((e) => { if (!byMember.has(e.memberId)) byMember.set(e.memberId, []); byMember.get(e.memberId).push(e); });
+
+  /** Add entries (idempotent by id, so a message that arrives twice counts once).
+      catchUp: entries from a join snapshot. They update balances quietly,
+      without "redeem" events (no success screens or toasts for old cups). */
+  function appendEntries(entries, { remote = false, catchUp = false } = {}) {
+    // BACKEND: INSERT INTO ledger … (one transaction per action)
+    const added = [];
+    entries.forEach((e) => {
+      if (!e || ledgerIds.has(e.id) || !state.members[e.memberId]) return;
+      ledgerIds.add(e.id);
+      state.ledger.push(e);
+      if (!byMember.has(e.memberId)) byMember.set(e.memberId, []);
+      byMember.get(e.memberId).push(e);
+      added.push(e);
+      if (e.type === "redeem") {
+        const m = state.members[e.memberId];
+        m.visits = m.visits || {};
+        m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
+        if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
+      }
+    });
+    if (!added.length) return added;
+    emit("ledger", { entries: added, plans: remote ? [] : added.filter((e) => e.type === "purchase").map((e) => e.memberId).filter((id, i, a) => a.indexOf(id) === i).map((id) => planMeta(state.members[id])) }, { remote });
+    if (!catchUp) added.filter((e) => e.type === "redeem").forEach((entry) => emit("redeem", { entry, member: state.members[entry.memberId] }, { remote }));
+    return added;
+  }
+
+  /** This cycle's entries for a member. */
+  function cycleEntries(memberId) {
+    const m = state.members[memberId];
+    return m ? (byMember.get(memberId) || []).filter((e) => e.cycle === m.cycle) : [];
+  }
+  const sumCups = (list) => list.reduce((n, e) => n + e.cups, 0);
+  const listNames = (ids) => {
+    const names = ids.map((id) => state.cafes[id].name);
+    return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  };
+
+  /* -------------------------------------------------------------------
      Selectors (read-only views of state)
      ------------------------------------------------------------------- */
   const select = {
@@ -2190,37 +2341,120 @@ li:last-child > .near-row { border-bottom: 0; }
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
 
-    /** Mumtaz’s activity, newest first. */
+    ledger: () => state.ledger,
+    /** Every redemption, read from the ledger. */
+    redemptions: () => state.ledger.filter((e) => e.type === "redeem"),
+
+    /** A member's redemptions, newest first. */
     activity(memberId = state.memberId) {
-      return state.redemptions.filter((r) => r.memberId === memberId).sort((a, b) => b.at - a.at);
+      return (byMember.get(memberId) || []).filter((e) => e.type === "redeem").sort((a, b) => b.at - a.at);
     },
 
     usedToday(memberId, cafeId) {
       const since = startOfToday();
-      return state.redemptions
-        .filter((r) => r.memberId === memberId && r.cafeId === cafeId && r.at >= since)
-        .reduce((n, r) => n + r.credits, 0);
+      return (byMember.get(memberId) || [])
+        .filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since)
+        .reduce((n, e) => n + e.credits, 0);
     },
 
-    /** What the café dashboard shows for today and this month. */
+    /** Cups a member has redeemed at a café this plan cycle. */
+    usedHereThisCycle(memberId, cafeId) {
+      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0);
+    },
+
+    /** Balances for this cycle, all derived from the ledger.
+        total: cups bought; left: ledger sum; perCafe (My cafés): reserved/left/used;
+        usedAt: cups redeemed at each café (both types).                     */
+    balance(memberId = state.memberId) {
+      // BACKEND: SELECT … FROM ledger WHERE member_id = :id AND cycle = :cycle
+      const m = state.members[memberId];
+      const es = cycleEntries(memberId);
+      const total = sumCups(es.filter((e) => e.type === "purchase"));
+      const left = sumCups(es);
+      const usedAt = {};
+      es.filter((e) => e.type === "redeem").forEach((e) => { usedAt[e.cafeId] = (usedAt[e.cafeId] || 0) + e.credits; });
+      const perCafe = {};
+      if (m.plan.type === "mycafes") {
+        es.filter((e) => e.cafeId).forEach((e) => {
+          const b = (perCafe[e.cafeId] = perCafe[e.cafeId] || { reserved: 0, left: 0, used: 0 });
+          if (e.type === "purchase") b.reserved += e.cups;
+          b.left += e.cups;
+          if (e.type === "redeem") b.used += e.credits;
+        });
+      }
+      return { type: m.plan.type, total, left, used: total - left, usedAt, perCafe };
+    },
+
+    /** Explorer: cups left in the shared pool. My cafés members have no pool (null). */
+    poolBalance(memberId = state.memberId) {
+      const m = state.members[memberId];
+      return m.plan.type === "explorer" ? sumCups(cycleEntries(memberId)) : null;
+    },
+
+    /** What a member can still use at one café this cycle, and how to say it. */
+    cafeBalance(memberId, cafeId) {
+      const m = state.members[memberId];
+      const cap = state.rules.explorerCapPerCafe;
+      if (m.plan.type === "mycafes") {
+        const b = select.balance(memberId).perCafe[cafeId];
+        if (!b || !b.reserved) return { type: "mycafes", reserved: 0, left: 0, of: 0, label: "Not in their plan" };
+        return { type: "mycafes", reserved: b.reserved, left: b.left, of: b.reserved, label: `${b.left} of ${b.reserved} reserved here` };
+      }
+      const used = select.usedHereThisCycle(memberId, cafeId);
+      const pool = select.poolBalance(memberId);
+      const left = Math.max(0, Math.min(cap - used, pool));
+      return { type: "explorer", used, cap, left, of: cap, pool, label: `${Math.max(0, cap - used)} of ${cap} left here this month` };
+    },
+
+    /** Can this member redeem `credits` cups at this café now? Never mutates.
+        Checks, in order: cups at all, plan rules here, daily limit, drink size. */
+    canRedeemHere(memberId, cafeId, credits = 1) {
+      const m = state.members[memberId];
+      const bal = select.balance(memberId);
+      const here = select.cafeBalance(memberId, cafeId);
+      const usedToday = select.usedToday(memberId, cafeId);
+      const limit = state.rules.dailyLimitPerCafe;
+      const base = { member: m, left: bal.left, total: bal.total, here, usedToday, dailyLimit: limit };
+      const no = (reason) => ({ ...base, ok: false, reason, message: MESSAGES[reason](m, { here, credits, limit, bal }) });
+      if (bal.left <= 0) return no("no-cups");
+      if (here.type === "mycafes" && !here.reserved) return no("not-reserved");
+      if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
+      if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
+      if (usedToday >= limit) return no("daily-limit");
+      if (here.left < credits || usedToday + credits > limit) return no("not-enough");
+      return { ...base, ok: true };
+    },
+
+    /** The café's month: today, this calendar month, and reserved cups. */
     cafeSummary(cafeId = state.partnerCafeId) {
+      // BACKEND: the café's monthly statement: GET /cafes/:id/statement?month=… (ledger + subscriptions)
       const cafe = state.cafes[cafeId];
       const since = startOfToday();
-      const today = state.redemptions.filter((r) => r.cafeId === cafeId && r.at >= since).sort((a, b) => b.at - a.at);
+      const monthStart = new Date(since); monthStart.setDate(1);
+      const here = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === cafeId);
+      const today = here.filter((e) => e.at >= since).sort((a, b) => b.at - a.at);
       // Paid per cup, so a two-cup drink counts twice.
-      const cupsToday = today.reduce((n, r) => n + r.credits, 0);
-      // Month to date: a typical day for each earlier day this month, plus today.
-      const daysBefore = new Date().getDate() - 1;
-      const monthCups = daysBefore * cafe.avgDailyCups + cupsToday;
+      const cupsToday = today.reduce((n, e) => n + e.credits, 0);
+      const monthCups = here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + e.credits, 0);
+      // Reserved here: My cafés members' purchases for this café in their current cycle
+      const reservers = Object.values(state.members).filter((m) => m.plan.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
+      const reservedCups = reservers.reduce((n, m) => n + sumCups(cycleEntries(m.id).filter((e) => e.type === "purchase" && e.cafeId === cafeId)), 0);
+      const reservedLeft = reservers.reduce((n, m) => n + Math.max(0, sumCups(cycleEntries(m.id).filter((e) => e.cafeId === cafeId))), 0);
+      // Pending business decision: pay cafés a share of reserved cups that go unused (0 for now, not shown)
+      const reservedPayout = Math.round(reservedLeft * cafe.payoutPerCup * state.rules.reservedPayoutShare);
       return {
         today,
         redemptionsToday: today.length,
         cupsToday,
-        newCustomersToday: today.filter((r) => r.firstVisit).length,
+        newCustomersToday: today.filter((e) => e.firstVisit).length,
         payoutPerCup: cafe.payoutPerCup,
         payoutToday: cupsToday * cafe.payoutPerCup,
         monthCups,
         payoutMonth: monthCups * cafe.payoutPerCup,
+        reservedCups,
+        reservedMembers: reservers.length,
+        reservedLeft,
+        reservedPayout,
       };
     },
 
@@ -2268,11 +2502,11 @@ li:last-child > .near-row { border-bottom: 0; }
       };
     },
 
-    /** Plan name for any member. Demo members carry no planId, so match by cups. */
+    /** Plan name and size for any member. */
     memberPlan(member) {
-      if (member.planId === "custom") return { name: "Build your own", cups: member.cupsTotal };
-      const tier = (member.planId && select.tier(member.planId)) || state.tiers.find((t) => t.cups === member.cupsTotal);
-      return tier ? { name: tier.name, cups: tier.cups } : { name: "Build your own", cups: member.cupsTotal };
+      const cups = select.balance(member.id).total;
+      if (member.plan.type === "mycafes") return { type: "mycafes", typeName: "My cafés", name: "My cafés", cups };
+      return { type: "explorer", typeName: "Explorer", name: select.tier(member.plan.tierId).name, cups };
     },
 
     /** Open or closed right now, from the café’s hours. Handles closing after midnight. */
@@ -2314,21 +2548,21 @@ li:last-child > .near-row { border-bottom: 0; }
     },
 
     /** Price and cups for a plan the member might buy.
-        plan: { type: "fixed", tierId } | { type: "custom", allocation } */
+        plan: { type: "explorer", tierId } | { type: "mycafes", allocation } */
     quote(plan) {
       // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
-      if (plan.type === "fixed") {
+      if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
-        return { name: t.name, cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
+        return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
       }
-      return { name: "Build your own", ...select.customPrice(plan.allocation || state.builder) };
+      return { name: "My cafés", typeName: "My cafés", ...select.customPrice(plan.allocation || state.builder) };
     },
 
     /** Is this the plan the member is on now? */
-    isCurrentPlan(plan) {
-      const cur = state.plan;
+    isCurrentPlan(plan, memberId = state.memberId) {
+      const cur = state.members[memberId].plan;
       if (plan.type !== cur.type) return false;
-      if (plan.type === "fixed") return plan.tierId === cur.tierId;
+      if (plan.type === "explorer") return plan.tierId === cur.tierId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
       const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
       return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
@@ -2344,12 +2578,19 @@ li:last-child > .near-row { border-bottom: 0; }
   /* -------------------------------------------------------------------
      Code lookup and redemption (café view)
      ------------------------------------------------------------------- */
+  const reservedCafes = (m) => Object.entries(select.balance(m.id).perCafe).filter(([, b]) => b.reserved).map(([id]) => id);
   const MESSAGES = {
     "not-found": () => "That code didn’t match a member. Check the six digits and try again.",
     "expired": (m) => `That code has expired. Ask ${m.firstName} for the new one on the pass screen.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
-    "not-enough": (m, need) => `That drink uses ${need} cups and ${m.firstName} has ${m.cupsLeft} left. Try a one-cup drink.`,
-    "daily-limit": (m, _n, limit) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+    "not-reserved": (m) => `${m.firstName}’s cups are reserved for ${listNames(reservedCafes(m))}.`,
+    "reserved-used": (m, { here }) => {
+      const others = reservedCafes(m).filter((id) => select.balance(m.id).perCafe[id].left > 0);
+      return `${m.firstName} has used the ${fmt.cups(here.reserved)} reserved here this month.${others.length ? ` There are still cups for ${m.pronoun || "them"} at ${listNames(others)}.` : ""}`;
+    },
+    "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
+    "daily-limit": (m, { limit }) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+    "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
   };
 
   /** Returns { member, expired } or null. */
@@ -2378,27 +2619,8 @@ li:last-child > .near-row { border-bottom: 0; }
     const found = findMemberByCode(code);
     if (!found) return { ok: false, reason: "not-found", message: MESSAGES["not-found"]() };
     if (found.expired) return { ok: false, reason: "expired", member: found.member, message: MESSAGES.expired(found.member) };
-    const member = found.member;
-    const limit = state.rules.dailyLimitPerCafe;
-    const usedToday = select.usedToday(member.id, cafeId);
-    const base = { member, cupsLeft: member.cupsLeft, usedToday, dailyLimit: limit };
-    if (member.cupsLeft <= 0) return { ...base, ok: false, reason: "no-cups", message: MESSAGES["no-cups"](member) };
-    if (usedToday >= limit) return { ...base, ok: false, reason: "daily-limit", message: MESSAGES["daily-limit"](member, 0, limit) };
-    if (member.cupsLeft < credits) return { ...base, ok: false, reason: "not-enough", message: MESSAGES["not-enough"](member, credits) };
-    return { ...base, ok: true };
-  }
-
-  function commitRedemption(entry, { remote = false } = {}) {
-    if (state.redemptions.some((r) => r.id === entry.id)) return; // idempotent across windows and transports
-    const member = state.members[entry.memberId];
-    if (!member) return;
-    member.cupsLeft = Math.max(0, member.cupsLeft - entry.credits);
-    member.syncAt = Math.max(member.syncAt || 0, entry.at); // a cup used counts as a change to the member
-    member.visits = member.visits || {};
-    member.visits[entry.cafeId] = (member.visits[entry.cafeId] || 0) + 1;
-    if (member.cafesTried && !member.cafesTried.includes(entry.cafeId)) member.cafesTried.push(entry.cafeId);
-    state.redemptions.push(entry);
-    emit("redeem", { entry, member }, { remote });
+    // BACKEND: balance reads come from the ledger table for this member and cycle
+    return select.canRedeemHere(found.member.id, cafeId, credits);
   }
 
   /* -------------------------------------------------------------------
@@ -2425,19 +2647,22 @@ li:last-child > .near-row { border-bottom: 0; }
       const check = lookupCode(code, cafeId, drink.credits);
       if (!check.ok) return check;
       const member = check.member;
-      // BACKEND: POST /redeem { code, cafeId, drinkId } -> { entry, member }
+      // BACKEND: POST /redeem { code, cafeId, drinkId } -> inserts one ledger row, returns it
       const entry = {
-        id: uid("r"),
-        at: Date.now(),
-        cafeId,
+        id: uid("l"),
+        type: "redeem",
         memberId: member.id,
-        drinkId: drink.id,
+        cafeId,
+        cups: -drink.credits,
         credits: drink.credits,
+        drinkId: drink.id,
         firstVisit: !(member.visits && member.visits[cafeId] > 0),
+        at: Date.now(),
+        cycle: member.cycle,
         live: true, // made in this session, not seeded
       };
-      commitRedemption(entry);
-      return { ...check, ok: true, entry, cupsLeft: member.cupsLeft };
+      appendEntries([entry]);
+      return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -2447,30 +2672,38 @@ li:last-child > .near-row { border-bottom: 0; }
       emit("cafe:viewing", { cafeId });
     },
 
-    /** Switch plan now: cups start fresh and the month restarts today. */
-    choosePlan(plan, { payment } = {}) {
-      // plan: { type: "fixed", tierId } | { type: "custom", allocation }
-      // BACKEND: POST /subscriptions { plan, paymentId }
-      const member = select.member();
+    /** Switch plan now: whatever is left expires, the new cups start fresh,
+        and the month restarts today. Works in both directions.            */
+    choosePlan(plan, { payment, memberId = state.memberId } = {}) {
+      // plan: { type: "explorer", tierId } | { type: "mycafes", allocation }
+      // BACKEND: POST /subscriptions { plan, paymentId } -> expire + purchase ledger rows
+      const member = state.members[memberId];
       const now = Date.now();
+      const entries = [];
+      // Close the old cycle: one expire entry per bucket that still has cups
+      const old = select.balance(member.id);
+      if (old.type === "mycafes") {
+        Object.entries(old.perCafe).forEach(([cafeId, b]) => { if (b.left > 0) entries.push({ id: uid("l"), type: "expire", memberId: member.id, cafeId, cups: -b.left, at: now, cycle: member.cycle, live: true }); });
+      } else if (old.left > 0) {
+        entries.push({ id: uid("l"), type: "expire", memberId: member.id, cafeId: null, cups: -old.left, at: now, cycle: member.cycle, live: true });
+      }
+      // New cycle
+      const cycle = uid("c");
+      member.plan = plan.type === "explorer"
+        ? { type: "explorer", tierId: select.tier(plan.tierId).id }
+        : { type: "mycafes", allocation: Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0)) };
+      member.cycle = cycle;
       member.cycleStartedAt = now;
       member.renewsAt = addMonths(now, 1);
+      member.planChangedAt = now;
       if (payment) member.payment = payment;
-      if (plan.type === "fixed") {
-        const tier = select.tier(plan.tierId);
-        state.plan = { type: "fixed", tierId: tier.id, allocation: null };
-        member.planId = tier.id;
-        member.cupsTotal = tier.cups;
-        member.cupsLeft = tier.cups;
+      if (member.plan.type === "explorer") {
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, at: now, cycle, live: true });
       } else {
-        const allocation = clone(plan.allocation || state.builder);
-        const { cups } = select.customPrice(allocation);
-        state.plan = { type: "custom", tierId: null, allocation };
-        member.planId = "custom";
-        member.cupsTotal = cups;
-        member.cupsLeft = cups;
+        Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
       }
-      emit("plan", { plan: state.plan });
+      appendEntries(entries);
+      emit("plan", { member, plan: member.plan });
       emit("member", { member });
     },
 
@@ -2522,7 +2755,10 @@ li:last-child > .near-row { border-bottom: 0; }
     sendGift({ toName, toPhone, cups, cafeId = null, message = "" }) {
       const member = select.member();
       const n = Math.max(1, Math.min(state.rules.giftMaxCups, cups | 0));
-      if (member.cupsLeft < n) return { ok: false, message: `You have ${member.cupsLeft} cups left, so you can gift up to ${member.cupsLeft}.` };
+      // My cafés gifts come out of one café's reserved cups; Explorer gifts out of the pool
+      const from = member.plan.type === "mycafes" ? cafeId : null;
+      const have = from ? (select.balance(member.id).perCafe[from]?.left || 0) : select.balance(member.id).left;
+      if (have < n) return { ok: false, message: `You have ${fmt.cups(have)} to give${from ? ` at ${state.cafes[from].name}` : ""}, so you can gift up to ${have}.` };
       // BACKEND: POST /gifts
       const sentAt = Date.now();
       const gift = {
@@ -2533,7 +2769,8 @@ li:last-child > .near-row { border-bottom: 0; }
         expiresAt: sentAt + state.rules.giftExpiryDays * 24 * 60 * MIN,
         link: `lahorecoffee.club/g/${Math.random().toString(36).slice(2, 8)}`,
       };
-      member.cupsLeft -= n;
+      // BACKEND: ledger insert (type gift) in the same transaction as the gift
+      appendEntries([{ id: uid("l"), type: "gift", memberId: member.id, cafeId: from, cups: -n, at: sentAt, cycle: member.cycle, live: true }]);
       state.gifts.push(gift);
       emit("gift", { gift });
       emit("member", { member });
@@ -2614,7 +2851,7 @@ li:last-child > .near-row { border-bottom: 0; }
   LCC.fmt = fmt;
   LCC.store = {
     on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state,
-    addTransport, applyRemote, roomSnapshot, memberSnapshot,
+    addTransport, applyRemote, roomSnapshot, hasLiveData,
   };
 })();
 
@@ -3120,7 +3357,7 @@ li:last-child > .near-row { border-bottom: 0; }
                   <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
                   <div class="placeholder">
                     <span>Built in Passes 3 to 5.</span>
-                    <span>Store check: <span class="num" data-bind="cups">${m.cupsLeft} of ${m.cupsTotal}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
+                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
                   </div>
                 </div>
               </div>
@@ -3129,8 +3366,9 @@ li:last-child > .near-row { border-bottom: 0; }
           </div>
         </div>`;
       const cups = $('[data-bind="cups"]', el);
-      const off = store.on("member", ({ member }) => { cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
-      const off2 = store.on("redeem", ({ member }) => { if (member.id === m.id) cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
+      const paint = () => { cups.textContent = `${store.select.balance().left} of ${store.select.balance().total}`; };
+      const off = store.on("member", paint);
+      const off2 = store.on("ledger", paint);
       return () => { off(); off2(); };
     },
   });
@@ -3200,15 +3438,19 @@ li:last-child > .near-row { border-bottom: 0; }
    that arrives over both transports. Incoming data goes through
    store.applyRemote(), which never re-sends, so there are no echo loops.
 
+   What travels: café status, and ledger entries (redeem, purchase, expire,
+   gift) with the plan header of any member whose plan changed. Entries are
+   append-only with stable ids, so applying one twice is harmless.
+
    Join handshake: a window that joins says “hello”. A café window answers
-   with a snapshot (statuses, today’s live redemptions, the member’s cups
-   and plan). Any window whose member data changed answers with that, and
-   the newest copy wins.
+   with statuses plus this session’s ledger entries and plan changes; any
+   other window that has live entries answers with those (newest plan wins).
 
    Approved exception to “no backend” (see CLAUDE.md).
    // BACKEND: replace Broadcast with Supabase tables + Postgres Changes:
-   //   cafe_status (cafe_id, status, updated_at), redemptions (…),
-   //   subscriptions (member_id, plan, cups_left, renews_at). Rooms go away.
+   //   cafe_status (cafe_id, status, updated_at), ledger (insert-only:
+   //   purchase/redeem/gift/expire), subscriptions (member_id, plan, cycle,
+   //   renews_at). Balances stay derived from the ledger. Rooms go away.
    ===================================================================== */
 (function () {
   "use strict";
@@ -3290,11 +3532,8 @@ li:last-child > .near-row { border-bottom: 0; }
 
   const isCafeDevice = () => LCC.router?.parse().name === "cafe";
   function answerHello() {
-    if (isCafeDevice()) post("snapshot", store.roomSnapshot());
-    else {
-      const snap = store.memberSnapshot();
-      if (snap.at > 0) post("member", { snapshot: snap }); // only if something changed here
-    }
+    if (isCafeDevice()) post("snapshot", store.roomSnapshot({ statuses: true }));
+    else if (store.hasLiveData()) post("snapshot", store.roomSnapshot({ statuses: false }));
   }
 
   // Everything the store wants shared goes out on both transports
@@ -3394,7 +3633,8 @@ li:last-child > .near-row { border-bottom: 0; }
       const cafes = store.select.cafes();
       const planMeta = () => {
         const a = store.select.member();
-        return `${store.select.memberPlan(a).name} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+        const p = store.select.memberPlan(a);
+        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`
@@ -3457,7 +3697,7 @@ li:last-child > .near-row { border-bottom: 0; }
               <div class="cluster" style="--cluster-gap:var(--space-2)">
                 ${["Area", "Quiet now", "Roastery", "Pastries"].map((c, i) => html`<button type="button" class="chip" aria-pressed="${i === 1}" data-kit-chip>${c}</button>`)}
               </div>
-              ${ui.segmented({ name: "plan", label: "Plan type", value: "fixed", options: [{ value: "fixed", label: "Fixed" }, { value: "custom", label: "Build your own" }] })}
+              ${ui.segmented({ name: "plan", label: "Plan type", value: "explorer", options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
               <div class="row">
                 <div class="row__main"><div class="row__title">Renewal reminders</div><div class="row__meta">Two days before, on WhatsApp</div></div>
                 <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="Renewal reminders" data-kit-toggle></button>
@@ -3488,7 +3728,7 @@ li:last-child > .near-row { border-bottom: 0; }
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.balance().left} of ${store.select.balance().total}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -3570,12 +3810,12 @@ li:last-child > .near-row { border-bottom: 0; }
         }),
         store.on("member", () => {
           const a = store.select.member();
-          $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
           $("[data-kit-plan]", el).textContent = planMeta();
         }),
         store.on("redeem", ({ member }) => {
           const a = store.select.member();
-          if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${a.cupsLeft} of ${a.cupsTotal}`;
+          if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
         }),
         store.on("cafe:status", ({ cafeId, status }) => {
           if (cafeId !== "kiln") return;
@@ -3676,13 +3916,13 @@ li:last-child > .near-row { border-bottom: 0; }
                       <dd class="t-small t-faint num" data-payout-meta></dd>
                     </div>
                   </dl>
-                  <div class="row" style="margin-top:var(--space-4);border-top:var(--hairline)">
-                    <div class="row__main">
-                      <div class="row__title">This month so far</div>
-                      <div class="row__meta num" data-month-meta></div>
-                    </div>
-                    <span class="row__trail num" style="color:var(--ink);font-size:var(--fs-16)" data-stat="month" data-value="0">${fmt.rs(0)}</span>
-                  </div>
+                  <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
+                  <h3 class="eyebrow">This month</h3>
+                  <dl class="month-stats" data-month>
+                    <div><dt>Cups reserved here</dt><dd class="t-h3 num" data-month-stat="reserved">0</dd><dd class="t-small t-faint num" data-month-stat="reservers"></dd></div>
+                    <div><dt>Cups redeemed so far</dt><dd class="t-h3 num" data-month-stat="redeemed">0</dd></div>
+                    <div class="month-stats__wide"><dt>Payout so far</dt><dd class="t-h3 num" data-stat="month" data-value="0">${fmt.rs(0)}</dd><dd class="t-small t-faint num" data-month-meta></dd></div>
+                  </dl>
                   <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
                   <h3 class="eyebrow">Recent redemptions</h3>
                   <ol class="recent" role="list" data-recent aria-live="polite"></ol>
@@ -3762,21 +4002,26 @@ li:last-child > .near-row { border-bottom: 0; }
         }
 
         if (r.state === "found") {
-          const { member, usedToday, dailyLimit } = r.lookup;
+          const { member, usedToday, dailyLimit, here, left } = r.lookup;
           const plan = store.select.memberPlan(member);
+          // What they can have HERE, and why: Explorer cap or My cafés reservation
+          const hereWhy = here.type === "mycafes"
+            ? `${here.left} of ${here.reserved} reserved here`
+            : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
           const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
           body.innerHTML = html`
             <div class="stack enter" style="--stack-gap:var(--space-5)">
               <div class="member-head">
                 <div class="stack" style="--stack-gap:var(--space-1)">
                   <p class="t-h2" id="member-name">${name}</p>
-                  <p class="t-small t-muted">${plan.name} plan · ${fmt.cups(plan.cups)} a month</p>
+                  <p class="t-small t-muted">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"} · ${fmt.cups(plan.cups)} a month</p>
                 </div>
                 <span class="badge badge--accent">Valid pass</span>
               </div>
               <dl class="member-stats">
-                <div><dt>Cups left</dt><dd class="t-h1 num">${member.cupsLeft}</dd></div>
-                <div><dt>Here today</dt><dd class="t-h1 num">${usedToday} <span class="t-small t-faint">of ${dailyLimit}</span></dd></div>
+                <div class="member-stats__wide"><dt>Can have here</dt><dd class="t-h1 num" data-here>${here.left} <span class="t-small t-muted">${hereWhy}</span></dd></div>
+                <div><dt>Cups left in plan</dt><dd class="t-h3 num">${left}</dd></div>
+                <div><dt>Here today</dt><dd class="t-h3 num">${usedToday} <span class="t-small t-faint">of ${dailyLimit}</span></dd></div>
               </dl>
               <fieldset style="border:0;padding:0">
                 <legend class="field__label" style="margin-bottom:var(--space-3)">Drink</legend>
@@ -3792,21 +4037,24 @@ li:last-child > .near-row { border-bottom: 0; }
         }
 
         if (r.state === "success") {
-          const { member, entry, before } = r.result;
+          const { member, entry, before, here } = r.result;
+          const left = store.select.balance(member.id).left;
+          const hereLine = here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here are left.` : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month.`;
           const drink = store.select.drink(cafeId, entry.drinkId);
           body.innerHTML = html`
             <div class="redeem-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Cup redeemed.</p>
               <p class="t-body t-muted">${member.firstName} has <span class="num" style="color:var(--ink);font-weight:500" data-cups-left data-value="${before}">${before}</span> ${raw(`<span data-cups-word>${before === 1 ? "cup" : "cups"}</span>`)} left this month.</p>
+              <p class="t-small t-muted num" data-success-here>${hereLine}</p>
               <p class="t-small t-faint">${drink ? drink.name : "1 cup"} · ${fmt.time(entry.at)}</p>
               <button type="button" class="btn btn--secondary" data-reset style="margin-top:var(--space-3)">Next customer</button>
             </div>`;
           const cups = $("[data-cups-left]", body);
           const word = $("[data-cups-word]", body);
           setTimeout(() => {
-            ui.animateNumber(cups, member.cupsLeft, { duration: 600 });
-            word.textContent = member.cupsLeft === 1 ? "cup" : "cups";
+            ui.animateNumber(cups, left, { duration: 600 });
+            word.textContent = left === 1 ? "cup" : "cups";
           }, ui.reducedMotion() ? 0 : 450);
           if (focus) $("[data-reset]", body).focus({ preventScroll: true });
         }
@@ -3824,7 +4072,7 @@ li:last-child > .near-row { border-bottom: 0; }
       }
 
       function redeemNow() {
-        const before = r.lookup.member.cupsLeft;
+        const before = r.lookup.left;
         const res = store.actions.redeem({ code: r.code, cafeId, drinkId: r.drinkId });
         if (!res.ok) {
           // e.g. the code expired while the barista was choosing a drink
@@ -3832,7 +4080,7 @@ li:last-child > .near-row { border-bottom: 0; }
           paintRedeem({ focus: true });
           return;
         }
-        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry, before } };
+        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry, before, here: res.here } };
         paintRedeem({ focus: true });
         clearTimeout(resetTimer);
         resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
@@ -3903,7 +4151,11 @@ li:last-child > .near-row { border-bottom: 0; }
         ui.animateNumber($('[data-stat="payout"]', el), s.payoutToday, { format: fmt.rs, duration: 700 });
         ui.animateNumber($('[data-stat="month"]', el), s.payoutMonth, { format: fmt.rs, duration: 700 });
         $("[data-payout-meta]", el).textContent = `${fmt.cups(s.cupsToday)} × ${fmt.rs(s.payoutPerCup)}, your rate per cup`;
-        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)}, paid on the 1st`;
+        // BACKEND: the monthly statement (reserved cups from subscriptions, redeemed cups from the ledger)
+        $('[data-month-stat="reserved"]', el).textContent = fmt.num(s.reservedCups);
+        $('[data-month-stat="reservers"]', el).textContent = s.reservedMembers ? `by ${s.reservedMembers} My cafés ${s.reservedMembers === 1 ? "member" : "members"}` : "No My cafés members yet";
+        $('[data-month-stat="redeemed"]', el).textContent = fmt.num(s.monthCups);
+        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)} × ${fmt.rs(s.payoutPerCup)}, paid on the 1st`;
 
         const list = $("[data-recent]", el);
         const shown = s.today.slice(0, RECENT_LIMIT);
@@ -4017,6 +4269,8 @@ li:last-child > .near-row { border-bottom: 0; }
           $("[data-viewing]", el)?.focus();
         }),
         store.on("tick", paintOpen),
+        // A plan bought or switched (here or on a phone) changes reserved cups
+        store.on("plan", () => { paintToday(); if (r.state === "found") check(r.code, { focus: false }); }),
         // A device that joined the room was filled in by another café window
         store.on("snapshot", () => { renderAll(); }),
       ];
@@ -4276,14 +4530,14 @@ li:last-child > .near-row { border-bottom: 0; }
               </div>
 
               <div class="ring-wrap">
-                <div class="ring" data-ring role="img" aria-label="${m.cupsLeft} of ${m.cupsTotal} cups left this month">
+                <div class="ring" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
                   <svg viewBox="0 0 208 208" aria-hidden="true">
                     <circle class="track" cx="104" cy="104" r="96"/>
                     <circle class="bar" cx="104" cy="104" r="96" stroke-dasharray="${RING_C.toFixed(2)}" stroke-dashoffset="${RING_C.toFixed(2)}"/>
                   </svg>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="t-small t-muted">of <span class="num" data-ring-total>${m.cupsTotal}</span> cups left</span>
+                    <span class="t-small t-muted">of <span class="num" data-ring-total>${S.balance().total}</span> cups left</span>
                   </div>
                 </div>
                 <p class="t-small t-muted" data-plan-line>${planLine()}</p>
@@ -4326,7 +4580,8 @@ li:last-child > .near-row { border-bottom: 0; }
 
       function planLine() {
         const m = member();
-        return `${S.memberPlan(m).name} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
+        const p = S.memberPlan(m);
+        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
       }
 
       function recentRows(newId) {
@@ -4348,12 +4603,13 @@ li:last-child > .near-row { border-bottom: 0; }
       function paintRing() {
         const ring = $("[data-ring]", view);
         if (!ring) return;
-        const m = member();
-        const frac = m.cupsTotal ? Math.max(0, Math.min(1, m.cupsLeft / m.cupsTotal)) : 0;
+        // Total cups across the plan, either type; read from the ledger
+        const b = S.balance();
+        const frac = b.total ? Math.max(0, Math.min(1, b.left / b.total)) : 0;
         $(".bar", ring).setAttribute("stroke-dashoffset", (RING_C * (1 - frac)).toFixed(2));
-        ui.animateNumber($("[data-ring-num]", ring), m.cupsLeft, { duration: 700 });
-        $("[data-ring-total]", ring).textContent = m.cupsTotal;
-        ring.setAttribute("aria-label", `${m.cupsLeft} of ${m.cupsTotal} cups left this month`);
+        ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
+        $("[data-ring-total]", ring).textContent = b.total;
+        ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
       }
 
       /* Pass ------------------------------------------------------------ */
@@ -4381,6 +4637,7 @@ li:last-child > .near-row { border-bottom: 0; }
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
             member: () => paintMeta(),
+            ledger: () => paintMeta(),
           },
         };
 
@@ -4397,21 +4654,43 @@ li:last-child > .near-row { border-bottom: 0; }
             <p class="pass__code" data-code></p>
             <p class="t-small t-muted">Show this to the barista, or read them the code.</p>
             <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of <span data-pass-total>${m2.cupsTotal}</span></p></div>
-              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
-            </div>`.s;
+              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${S.balance().left}</span> of <span data-pass-total>${S.balance().total}</span></p></div>
+              <div style="text-align:right"><p class="t-micro t-faint" data-pass-type>${plan.typeName}</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
+            </div>
+            <div class="pass__cafes" data-pass-cafes>${passCafes()}</div>`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
         }
 
-        // Plan change or gift while the pass is open
+        /** Explorer: cafés used this month (“Kiln & Bean 2 of 2”).
+            My cafés: each café's balance (“Kiln & Bean 3 of 6”).        */
+        function passCafes() {
+          const b = S.balance();
+          const cap = store.getState().rules.explorerCapPerCafe;
+          if (b.type === "mycafes") {
+            return html`<p class="t-micro t-faint">Reserved at</p>
+              <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
+          }
+          const used = Object.entries(b.usedAt);
+          return html`<p class="t-micro t-faint">Used this month · up to ${cap} at each café</p>
+            ${used.length
+              ? html`<ul role="list">${used.map(([id, n]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
+              : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
+        }
+
+        // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
           const m2 = member();
+          const b = S.balance();
+          const p = S.memberPlan(m2);
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
-          set("[data-pass-cups]", m2.cupsLeft);
-          set("[data-pass-total]", m2.cupsTotal);
-          set("[data-pass-plan]", S.memberPlan(m2).name);
+          set("[data-pass-cups]", b.left);
+          set("[data-pass-total]", b.total);
+          set("[data-pass-plan]", p.name);
+          set("[data-pass-type]", p.typeName);
+          const list = $("[data-pass-cafes]", view);
+          if (list) list.innerHTML = passCafes().s;
         }
 
         function paintCode() {
@@ -4449,15 +4728,21 @@ li:last-child > .near-row { border-bottom: 0; }
           const m2 = member();
           const cafe = S.cafe(entry.cafeId);
           const drink = S.drink(entry.cafeId, entry.drinkId);
-          const before = m2.cupsLeft + entry.credits;
+          const b = S.balance();
+          const before = b.left + entry.credits;
+          const here = S.cafeBalance(m2.id, entry.cafeId);
+          const hereLine = here.type === "mycafes"
+            ? `${here.left} of ${here.reserved} left at ${cafe.name}`
+            : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
           card.innerHTML = html`
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${cafe.name}.</p>
-              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${m2.cupsTotal} cups left</p>
+              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
+              <p class="t-small t-faint num" data-success-here>${hereLine}</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
-          setTimeout(() => ui.animateNumber($("[data-success-cups]", view), m2.cupsLeft, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
+          setTimeout(() => ui.animateNumber($("[data-success-cups]", view), b.left, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
           clearTimeout(backTimer);
           backTimer = setTimeout(paintQrCard, 8000);
         }
@@ -4577,11 +4862,11 @@ li:last-child > .near-row { border-bottom: 0; }
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
-      const offs = ["redeem", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.key === "pass") return;
-        ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);
+        ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(S.balance(who.id).left)} left.`);
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase
@@ -4626,10 +4911,11 @@ li:last-child > .near-row { border-bottom: 0; }
   const filters = { query: "", areaId: null, openNow: false, quietNow: false };
   let listScroll = 0;
 
-  /** Cups at this café in the member's own plan (Build your own only). */
-  function planCups(cafeId) {
-    const plan = store.getState().plan;
-    return plan.type === "custom" ? (plan.allocation || {})[cafeId] || 0 : 0;
+  /** A short badge for list rows: what this member's plan means here. */
+  function hereBadge(cafeId) {
+    const here = S.cafeBalance(S.member().id, cafeId);
+    if (here.type === "mycafes") return here.reserved ? html`<span class="badge badge--accent">${here.left} of ${here.reserved} reserved</span>` : "";
+    return here.used >= here.cap ? html`<span class="badge">${here.cap} of ${here.cap} this month</span>` : "";
   }
 
   /* -------------------------------------------------------------------
@@ -4645,7 +4931,6 @@ li:last-child > .near-row { border-bottom: 0; }
 
     function rowHtml(c, i) {
       const open = S.openState(c);
-      const inPlan = planCups(c.id);
       return html`<li class="enter" style="--i:${Math.min(i, 8)}">
         <a class="row cafe-row" href="#/app/cafes/${c.id}">
           <span class="row__main">
@@ -4653,7 +4938,7 @@ li:last-child > .near-row { border-bottom: 0; }
             <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup${open.open ? "" : " · Closed now"}</span>
             <span class="cafe-row__pills">
               ${ui.statusPill(c.id)}
-              ${inPlan ? html`<span class="badge badge--accent">${fmt.cups(inPlan)} in your plan</span>` : ""}
+              ${hereBadge(c.id)}
             </span>
           </span>
           <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
@@ -4742,6 +5027,7 @@ li:last-child > .near-row { border-bottom: 0; }
         "cafe:status": () => { if (filters.quietNow) paintList(); },
         tick: () => { if (filters.openNow) paintList(); },
         plan: () => paintList(),
+        ledger: () => paintList(),
       },
     };
   };
@@ -4792,12 +5078,23 @@ li:last-child > .near-row { border-bottom: 0; }
       </div>`;
     }
 
+    /** What the member can use here, from the ledger, and the next step. */
     function actionHtml() {
-      const cups = planCups(c.id);
-      return cups
-        ? html`<p class="t-small t-muted"><span class="num">${fmt.cups(cups)}</span> a month here in your plan.</p>
-            <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Change my cups</button>`
-        : html`<button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+      const here = S.cafeBalance(ctx.member().id, c.id);
+      if (here.type === "mycafes") {
+        return here.reserved
+          ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
+              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Change my cups</button>`
+          : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
+              <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+      }
+      const line = here.left > 0
+        ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
+        : here.used >= here.cap
+          ? html`<strong>You’ve had your ${here.cap} here this month.</strong> Every other partner café is still open to you.`
+          : html`<strong>No cups left this month.</strong> Your plan renews on ${fmt.shortDate(ctx.member().renewsAt)}.`;
+      return html`<p class="t-small t-muted num" data-here-line>${line}</p>
+        <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Reserve cups here with My cafés</button>`;
     }
 
     function paintOpen() {
@@ -4856,6 +5153,7 @@ li:last-child > .near-row { border-bottom: 0; }
       on: {
         redeem: ({ entry }) => { if (entry.memberId === ctx.member().id) $("[data-visits]", view).innerHTML = visitsHtml().s; },
         plan: () => { $("[data-detail-action]", view).innerHTML = actionHtml().s; },
+        ledger: () => { $("[data-detail-action]", view).innerHTML = actionHtml().s; },
         tick: paintOpen,
       },
     };
@@ -4869,7 +5167,7 @@ li:last-child > .near-row { border-bottom: 0; }
    Lahore Coffee Club — app-plan.js
    Member app: plan picker (#/app/plan) and simulated payment
    (#/app/plan/pay). Prices always come from store.select.quote(), which
-   uses select.customPrice() for Build your own: one source of truth for
+   uses select.customPrice() for My cafés: one source of truth for
    this screen, the landing teaser and #/kit.
    ===================================================================== */
 (function () {
@@ -4886,7 +5184,8 @@ li:last-child > .near-row { border-bottom: 0; }
      Draft: what the member is about to buy. The custom allocation is the
      store's builder, so the kit's builder shows the same numbers.
      ------------------------------------------------------------------- */
-  const draft = { started: false, mode: "fixed", tierId: "regular", highlight: null };
+  // mode: "explorer" (fixed tiers, one pool) or "mycafes" (cups reserved per café)
+  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null };
   const DEFAULT_ADD = 2; // cups added for a café chosen from its detail page
 
   const pay = {
@@ -4897,15 +5196,16 @@ li:last-child > .near-row { border-bottom: 0; }
     result: null,
   };
 
-  /** mode: open on "fixed" or "custom". keepBuilder: keep the builder as it is
+  /** mode: open on "explorer" or "mycafes". keepBuilder: keep the builder as it is
       (the landing teaser hands over its cups) instead of loading the current plan. */
   function start({ addCafe = null, mode = null, keepBuilder = false } = {}) {
     const st = store.getState();
+    const cur = S.member().plan;
     draft.started = true;
-    draft.mode = mode || (addCafe ? "custom" : st.plan.type);
-    draft.tierId = st.plan.tierId || "regular";
+    draft.mode = mode || (addCafe ? "mycafes" : cur.type);
+    draft.tierId = cur.tierId || "regular";
     draft.highlight = addCafe;
-    if (st.plan.type === "custom" && !keepBuilder) A.setBuilder(st.plan.allocation);
+    if (cur.type === "mycafes" && !keepBuilder) A.setBuilder(cur.allocation);
     if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
     pay.phase = "form";
     if (!pay.phone) pay.phone = formatPhone(S.member().phone.replace(/^\+92\s?/, "0"));
@@ -4913,9 +5213,9 @@ li:last-child > .near-row { border-bottom: 0; }
   LCC.appPlan = { start, draft };
 
   const draftPlan = () =>
-    draft.mode === "fixed"
-      ? { type: "fixed", tierId: draft.tierId }
-      : { type: "custom", allocation: { ...store.getState().builder } };
+    draft.mode === "explorer"
+      ? { type: "explorer", tierId: draft.tierId }
+      : { type: "mycafes", allocation: { ...store.getState().builder } };
 
   const isCurrent = () => S.isCurrentPlan(draftPlan());
   const whyMinimum = () =>
@@ -4930,16 +5230,17 @@ li:last-child > .near-row { border-bottom: 0; }
     const m = ctx.member();
 
     function tiersHtml() {
-      const cur = store.getState().plan;
+      const cur = S.member().plan;
       return html`
+        <p class="t-small t-muted plan-intro">One pool of cups for any partner café, up to ${rules().explorerCapPerCafe} a month at each. Good for trying new places.</p>
         <fieldset class="tier-list">
-          <legend class="sr-only">Fixed plans</legend>
+          <legend class="sr-only">Explorer plans</legend>
           ${store.getState().tiers.map((t) => html`
             <label class="card tier">
               <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""}>
               <span class="tier__head">
                 <span class="t-h3">${t.name}</span>
-                ${cur.type === "fixed" && cur.tierId === t.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+                ${cur.type === "explorer" && cur.tierId === t.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
                 <span class="tier__price t-h3 num">${fmt.rs(t.price)}</span>
               </span>
               <span class="tier__meta t-small t-muted num">${fmt.cups(t.cups)} a month · ${t.line}</span>
@@ -4968,12 +5269,12 @@ li:last-child > .near-row { border-bottom: 0; }
 
     function builderHtml() {
       return html`
-        <p class="t-small t-muted plan-intro">Choose cups at each café, up to ${rules().maxCupsPerCafe} a month at one place. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
+        <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
         <ul role="list" class="builder-list">${S.cafes().map(builderRowHtml)}</ul>`;
     }
 
     function paintBody() {
-      $("[data-plan-body]", view).innerHTML = (draft.mode === "fixed" ? tiersHtml() : builderHtml()).s;
+      $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
     }
 
     function paintSummary(animate = true) {
@@ -4994,7 +5295,7 @@ li:last-child > .near-row { border-bottom: 0; }
         text = `You’re on this plan. It renews on ${fmt.shortDate(m.renewsAt)}.`;
         ok = false;
       } else {
-        text = `You save ${draft.mode === "fixed" ? "about " : ""}${fmt.rs(q.savings)} vs paying at the counter`;
+        text = `You save ${draft.mode === "explorer" ? "about " : ""}${fmt.rs(q.savings)} vs paying at the counter`;
       }
       note.textContent = text;
       note.classList.toggle("is-warn", warn);
@@ -5038,9 +5339,9 @@ li:last-child > .near-row { border-bottom: 0; }
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
-              <p class="t-small t-muted num">You’re on ${S.memberPlan(m).name}, ${m.cupsLeft} of ${m.cupsTotal} cups left. A new plan starts fresh today.</p>
+              <p class="t-small t-muted num">You’re on ${S.memberPlan(m).type === "explorer" ? `Explorer ${S.memberPlan(m).name}` : "My cafés"}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "fixed", label: "Fixed" }, { value: "custom", label: "Build your own" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
             <div data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -5055,7 +5356,7 @@ li:last-child > .near-row { border-bottom: 0; }
       mount() {
         paintBody();
         paintSummary(false);
-        if (draft.highlight && draft.mode === "custom") {
+        if (draft.highlight && draft.mode === "mycafes") {
           const row = $(`[data-builder-row="${draft.highlight}"]`, view);
           requestAnimationFrame(() => row?.scrollIntoView({ block: "center", behavior: ui.reducedMotion() ? "auto" : "smooth" }));
         }
@@ -5065,7 +5366,7 @@ li:last-child > .near-row { border-bottom: 0; }
       },
       on: {
         builder: () => {
-          if (draft.mode !== "custom") return;
+          if (draft.mode !== "mycafes") return;
           const b = store.getState().builder;
           $$("[data-builder-row]", view).forEach((row) => {
             const id = row.dataset.builderRow;
@@ -5181,11 +5482,11 @@ li:last-child > .near-row { border-bottom: 0; }
       }
       if (pay.phase === "success") {
         const mem = ctx.member();
-        const title = plan.type === "fixed" ? `You’re on ${q.name}.` : "Your plan is set.";
+        const title = plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <h2 class="t-h2">${title}</h2>
-          <p class="t-body t-muted num">${fmt.cups(mem.cupsTotal)}, fresh from today. Renews on ${longDate(mem.renewsAt)}.</p>
+          <p class="t-body t-muted num">${fmt.cups(S.balance(mem.id).total)}, fresh from today. Renews on ${longDate(mem.renewsAt)}.</p>
           <div class="pay-state__actions">
             <button type="button" class="btn btn--primary btn--block" data-done="#/app/pass">Show my pass</button>
             <button type="button" class="btn btn--secondary btn--block" data-done="#/app">Back to home</button>
@@ -5291,11 +5592,11 @@ li:last-child > .near-row { border-bottom: 0; }
             <h1 class="t-h2">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
-                <span class="t-h3">${q.name}</span>
+                <span class="t-h3">${plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
               <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
-              ${plan.type === "custom" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
+              ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
           </div>
@@ -5443,8 +5744,8 @@ li:last-child > .near-row { border-bottom: 0; }
 
   function plansTable() {
     return html`<table class="lp-table">
-      <caption class="sr-only">Fixed monthly plans</caption>
-      <thead><tr><th scope="col">Plan</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
+      <caption class="sr-only">Explorer plans</caption>
+      <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
           <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · ${t.line}</span></th>
@@ -5460,8 +5761,8 @@ li:last-child > .near-row { border-bottom: 0; }
     const max = store.getState().rules.maxCupsPerCafe;
     return html`<div class="card lp-teaser">
       <div class="lp-teaser__head">
-        <h3 class="t-h3">Build your own</h3>
-        <p class="t-small t-muted">Choose cafés and cups. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
+        <h3 class="t-h3">My cafés</h3>
+        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
       </div>
       <ul role="list">
         ${TEASER_CAFES.map((id) => {
@@ -5563,14 +5864,18 @@ li:last-child > .near-row { border-bottom: 0; }
             <section class="landing-section lp-section" id="how" aria-labelledby="how-h">
               ${sectionHead(1, "how", "How it works")}
               <ol class="lp-steps" role="list">
-                <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Take a fixed number of cups, or build your own from the cafés you already like. Plans start at six cups a month.</p></div></li>
+                <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Explore with one pool of cups for any café, or reserve cups at the cafés you already like. Plans start at six cups a month.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, open the app and show your QR code, or read out the six-digit code. It changes every 30 seconds.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">03</span><div><h3 class="t-h3">Enjoy your coffee</h3><p class="t-body t-muted">The barista taps once and the cup comes off your month. Nothing to pay at the till.</p></div></li>
               </ol>
             </section>
 
             <section class="landing-section lp-section" id="plans" aria-labelledby="plans-h">
-              ${sectionHead(2, "plans", "Plans", "One price a month, any partner café. Or choose your cafés and cups, and pay less per cup.")}
+              ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
+              <dl class="lp-types">
+                <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsPerCafe} at each, and pay less per cup. They’re only for those cafés.</dd></div>
+              </dl>
               <div class="lp-plans">
                 ${plansTable()}
                 ${teaserHtml()}
@@ -5725,7 +6030,7 @@ li:last-child > .near-row { border-bottom: 0; }
         }
         if (t.closest("[data-teaser-go]")) {
           // Open the app's builder with these cups already in it
-          LCC.appPlan?.start({ mode: "custom", keepBuilder: true });
+          LCC.appPlan?.start({ mode: "mycafes", keepBuilder: true });
           return; // the link itself navigates to #/app/plan
         }
         const faq = t.closest("[data-faq]");

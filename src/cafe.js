@@ -84,13 +84,13 @@
                       <dd class="t-small t-faint num" data-payout-meta></dd>
                     </div>
                   </dl>
-                  <div class="row" style="margin-top:var(--space-4);border-top:var(--hairline)">
-                    <div class="row__main">
-                      <div class="row__title">This month so far</div>
-                      <div class="row__meta num" data-month-meta></div>
-                    </div>
-                    <span class="row__trail num" style="color:var(--ink);font-size:var(--fs-16)" data-stat="month" data-value="0">${fmt.rs(0)}</span>
-                  </div>
+                  <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
+                  <h3 class="eyebrow">This month</h3>
+                  <dl class="month-stats" data-month>
+                    <div><dt>Cups reserved here</dt><dd class="t-h3 num" data-month-stat="reserved">0</dd><dd class="t-small t-faint num" data-month-stat="reservers"></dd></div>
+                    <div><dt>Cups redeemed so far</dt><dd class="t-h3 num" data-month-stat="redeemed">0</dd></div>
+                    <div class="month-stats__wide"><dt>Payout so far</dt><dd class="t-h3 num" data-stat="month" data-value="0">${fmt.rs(0)}</dd><dd class="t-small t-faint num" data-month-meta></dd></div>
+                  </dl>
                   <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
                   <h3 class="eyebrow">Recent redemptions</h3>
                   <ol class="recent" role="list" data-recent aria-live="polite"></ol>
@@ -170,21 +170,26 @@
         }
 
         if (r.state === "found") {
-          const { member, usedToday, dailyLimit } = r.lookup;
+          const { member, usedToday, dailyLimit, here, left } = r.lookup;
           const plan = store.select.memberPlan(member);
+          // What they can have HERE, and why: Explorer cap or My cafés reservation
+          const hereWhy = here.type === "mycafes"
+            ? `${here.left} of ${here.reserved} reserved here`
+            : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
           const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
           body.innerHTML = html`
             <div class="stack enter" style="--stack-gap:var(--space-5)">
               <div class="member-head">
                 <div class="stack" style="--stack-gap:var(--space-1)">
                   <p class="t-h2" id="member-name">${name}</p>
-                  <p class="t-small t-muted">${plan.name} plan · ${fmt.cups(plan.cups)} a month</p>
+                  <p class="t-small t-muted">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"} · ${fmt.cups(plan.cups)} a month</p>
                 </div>
                 <span class="badge badge--accent">Valid pass</span>
               </div>
               <dl class="member-stats">
-                <div><dt>Cups left</dt><dd class="t-h1 num">${member.cupsLeft}</dd></div>
-                <div><dt>Here today</dt><dd class="t-h1 num">${usedToday} <span class="t-small t-faint">of ${dailyLimit}</span></dd></div>
+                <div class="member-stats__wide"><dt>Can have here</dt><dd class="t-h1 num" data-here>${here.left} <span class="t-small t-muted">${hereWhy}</span></dd></div>
+                <div><dt>Cups left in plan</dt><dd class="t-h3 num">${left}</dd></div>
+                <div><dt>Here today</dt><dd class="t-h3 num">${usedToday} <span class="t-small t-faint">of ${dailyLimit}</span></dd></div>
               </dl>
               <fieldset style="border:0;padding:0">
                 <legend class="field__label" style="margin-bottom:var(--space-3)">Drink</legend>
@@ -200,21 +205,24 @@
         }
 
         if (r.state === "success") {
-          const { member, entry, before } = r.result;
+          const { member, entry, before, here } = r.result;
+          const left = store.select.balance(member.id).left;
+          const hereLine = here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here are left.` : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month.`;
           const drink = store.select.drink(cafeId, entry.drinkId);
           body.innerHTML = html`
             <div class="redeem-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Cup redeemed.</p>
               <p class="t-body t-muted">${member.firstName} has <span class="num" style="color:var(--ink);font-weight:500" data-cups-left data-value="${before}">${before}</span> ${raw(`<span data-cups-word>${before === 1 ? "cup" : "cups"}</span>`)} left this month.</p>
+              <p class="t-small t-muted num" data-success-here>${hereLine}</p>
               <p class="t-small t-faint">${drink ? drink.name : "1 cup"} · ${fmt.time(entry.at)}</p>
               <button type="button" class="btn btn--secondary" data-reset style="margin-top:var(--space-3)">Next customer</button>
             </div>`;
           const cups = $("[data-cups-left]", body);
           const word = $("[data-cups-word]", body);
           setTimeout(() => {
-            ui.animateNumber(cups, member.cupsLeft, { duration: 600 });
-            word.textContent = member.cupsLeft === 1 ? "cup" : "cups";
+            ui.animateNumber(cups, left, { duration: 600 });
+            word.textContent = left === 1 ? "cup" : "cups";
           }, ui.reducedMotion() ? 0 : 450);
           if (focus) $("[data-reset]", body).focus({ preventScroll: true });
         }
@@ -232,7 +240,7 @@
       }
 
       function redeemNow() {
-        const before = r.lookup.member.cupsLeft;
+        const before = r.lookup.left;
         const res = store.actions.redeem({ code: r.code, cafeId, drinkId: r.drinkId });
         if (!res.ok) {
           // e.g. the code expired while the barista was choosing a drink
@@ -240,7 +248,7 @@
           paintRedeem({ focus: true });
           return;
         }
-        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry, before } };
+        r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry, before, here: res.here } };
         paintRedeem({ focus: true });
         clearTimeout(resetTimer);
         resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
@@ -311,7 +319,11 @@
         ui.animateNumber($('[data-stat="payout"]', el), s.payoutToday, { format: fmt.rs, duration: 700 });
         ui.animateNumber($('[data-stat="month"]', el), s.payoutMonth, { format: fmt.rs, duration: 700 });
         $("[data-payout-meta]", el).textContent = `${fmt.cups(s.cupsToday)} × ${fmt.rs(s.payoutPerCup)}, your rate per cup`;
-        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)}, paid on the 1st`;
+        // BACKEND: the monthly statement (reserved cups from subscriptions, redeemed cups from the ledger)
+        $('[data-month-stat="reserved"]', el).textContent = fmt.num(s.reservedCups);
+        $('[data-month-stat="reservers"]', el).textContent = s.reservedMembers ? `by ${s.reservedMembers} My cafés ${s.reservedMembers === 1 ? "member" : "members"}` : "No My cafés members yet";
+        $('[data-month-stat="redeemed"]', el).textContent = fmt.num(s.monthCups);
+        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)} × ${fmt.rs(s.payoutPerCup)}, paid on the 1st`;
 
         const list = $("[data-recent]", el);
         const shown = s.today.slice(0, RECENT_LIMIT);
@@ -425,6 +437,8 @@
           $("[data-viewing]", el)?.focus();
         }),
         store.on("tick", paintOpen),
+        // A plan bought or switched (here or on a phone) changes reserved cups
+        store.on("plan", () => { paintToday(); if (r.state === "found") check(r.code, { focus: false }); }),
         // A device that joined the room was filled in by another café window
         store.on("snapshot", () => { renderAll(); }),
       ];

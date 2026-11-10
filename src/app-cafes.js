@@ -17,10 +17,11 @@
   const filters = { query: "", areaId: null, openNow: false, quietNow: false };
   let listScroll = 0;
 
-  /** Cups at this café in the member's own plan (Build your own only). */
-  function planCups(cafeId) {
-    const plan = store.getState().plan;
-    return plan.type === "custom" ? (plan.allocation || {})[cafeId] || 0 : 0;
+  /** A short badge for list rows: what this member's plan means here. */
+  function hereBadge(cafeId) {
+    const here = S.cafeBalance(S.member().id, cafeId);
+    if (here.type === "mycafes") return here.reserved ? html`<span class="badge badge--accent">${here.left} of ${here.reserved} reserved</span>` : "";
+    return here.used >= here.cap ? html`<span class="badge">${here.cap} of ${here.cap} this month</span>` : "";
   }
 
   /* -------------------------------------------------------------------
@@ -36,7 +37,6 @@
 
     function rowHtml(c, i) {
       const open = S.openState(c);
-      const inPlan = planCups(c.id);
       return html`<li class="enter" style="--i:${Math.min(i, 8)}">
         <a class="row cafe-row" href="#/app/cafes/${c.id}">
           <span class="row__main">
@@ -44,7 +44,7 @@
             <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup${open.open ? "" : " · Closed now"}</span>
             <span class="cafe-row__pills">
               ${ui.statusPill(c.id)}
-              ${inPlan ? html`<span class="badge badge--accent">${fmt.cups(inPlan)} in your plan</span>` : ""}
+              ${hereBadge(c.id)}
             </span>
           </span>
           <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
@@ -133,6 +133,7 @@
         "cafe:status": () => { if (filters.quietNow) paintList(); },
         tick: () => { if (filters.openNow) paintList(); },
         plan: () => paintList(),
+        ledger: () => paintList(),
       },
     };
   };
@@ -183,12 +184,23 @@
       </div>`;
     }
 
+    /** What the member can use here, from the ledger, and the next step. */
     function actionHtml() {
-      const cups = planCups(c.id);
-      return cups
-        ? html`<p class="t-small t-muted"><span class="num">${fmt.cups(cups)}</span> a month here in your plan.</p>
-            <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Change my cups</button>`
-        : html`<button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+      const here = S.cafeBalance(ctx.member().id, c.id);
+      if (here.type === "mycafes") {
+        return here.reserved
+          ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
+              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Change my cups</button>`
+          : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
+              <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+      }
+      const line = here.left > 0
+        ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
+        : here.used >= here.cap
+          ? html`<strong>You’ve had your ${here.cap} here this month.</strong> Every other partner café is still open to you.`
+          : html`<strong>No cups left this month.</strong> Your plan renews on ${fmt.shortDate(ctx.member().renewsAt)}.`;
+      return html`<p class="t-small t-muted num" data-here-line>${line}</p>
+        <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Reserve cups here with My cafés</button>`;
     }
 
     function paintOpen() {
@@ -247,6 +259,7 @@
       on: {
         redeem: ({ entry }) => { if (entry.memberId === ctx.member().id) $("[data-visits]", view).innerHTML = visitsHtml().s; },
         plan: () => { $("[data-detail-action]", view).innerHTML = actionHtml().s; },
+        ledger: () => { $("[data-detail-action]", view).innerHTML = actionHtml().s; },
         tick: paintOpen,
       },
     };

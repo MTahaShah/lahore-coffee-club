@@ -9,11 +9,16 @@
      store.actions.setCafeStatus("kiln", "packed");
      store.select.cafe("kiln").status;
 
-   Events: cafe:status, cafe:viewing, redeem, pass, member, plan, builder,
-           gift, waitlist, partner, snapshot, tick (every 30s, for relative times)
+   Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
+           builder, gift, waitlist, partner, snapshot, tick (every 30s)
 
-   No storage. Café status, redemptions and the demo member’s plan/cups
-   are handed to "transports" (store.addTransport); sync.js registers two:
+   Cups live in one append-only ledger (state.ledger). Balances are always
+   derived from it by the selectors below, never stored. Plan types:
+     explorer  one pool, any café, at most rules.explorerCapPerCafe a cycle
+     mycafes   cups reserved per café, usable only there
+
+   No storage. Café status, ledger entries and plan changes are handed to
+   "transports" (store.addTransport); sync.js registers two:
    BroadcastChannel (same computer) and Supabase Realtime (other devices).
    Incoming messages come back through store.applyRemote(), which uses the
    same internals as local actions but never re-sends (no echo loops).
@@ -41,9 +46,8 @@
     members: byId(clone(seed.members)),
     memberId: seed.memberId,
     partnerCafeId: seed.partnerCafeId,
-    plan: { type: "fixed", tierId: "regular", allocation: null },
     builder: clone(seed.builderDraft),
-    redemptions: clone(seed.redemptions),
+    ledger: clone(seed.ledger), // append-only; see appendEntries()
     badges: clone(seed.badges),
     gifts: [],
     waitlist: [],
@@ -81,52 +85,36 @@
     transports.forEach((fn) => { try { fn(type, data); } catch (err) { console.warn("[LCC] sync send failed", err); } });
   }
 
-  /** Local events worth sharing, reduced to plain data. */
+  /** Local events worth sharing, reduced to plain data. Cups travel only as ledger entries. */
   function outgoing(type, payload) {
     if (type === "cafe:status") send(type, { cafeId: payload.cafeId, status: payload.status, at: payload.at });
-    else if (type === "redeem") send(type, { entry: payload.entry });
-    else if (type === "member" && payload.member?.id === state.memberId) {
-      payload.member.syncAt = Date.now();
-      send("member", { snapshot: memberSnapshot() });
-    }
+    else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
   }
 
-  /** The demo member’s plan and cups. syncAt decides which copy is newer. */
-  function memberSnapshot() {
-    const m = state.members[state.memberId];
-    return {
-      at: m.syncAt || 0,
-      plan: clone(state.plan),
-      member: clone({
-        planId: m.planId, cupsTotal: m.cupsTotal, cupsLeft: m.cupsLeft, renewsAt: m.renewsAt,
-        cycleStartedAt: m.cycleStartedAt, payment: m.payment, visits: m.visits, cafesTried: m.cafesTried,
-      }),
-    };
+  /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
+  function planMeta(m) {
+    return { memberId: m.id, plan: clone(m.plan), cycle: m.cycle, cycleStartedAt: m.cycleStartedAt, renewsAt: m.renewsAt, payment: clone(m.payment || null), changedAt: m.planChangedAt || 0 };
   }
-
-  /** Newest wins; equal stamps (both still on the seed) leave things alone. */
-  function applyMemberSnapshot(snap) {
-    const m = state.members[state.memberId];
-    if (!snap || !snap.member || (snap.at || 0) <= (m.syncAt || 0)) return false;
-    Object.assign(m, clone(snap.member));
-    m.syncAt = snap.at;
-    if (snap.plan) state.plan = clone(snap.plan);
-    emit("plan", { plan: state.plan }, { remote: true });
-    emit("member", { member: m }, { remote: true });
+  /** Newest plan change wins; a seed plan (changedAt 0) never overwrites a live one. */
+  function applyPlanMeta(meta) {
+    const m = state.members[meta?.memberId];
+    if (!m || (meta.changedAt || 0) <= (m.planChangedAt || 0)) return false;
+    Object.assign(m, { plan: clone(meta.plan), cycle: meta.cycle, cycleStartedAt: meta.cycleStartedAt, renewsAt: meta.renewsAt, planChangedAt: meta.changedAt });
+    if (meta.payment) m.payment = clone(meta.payment);
     return true;
   }
 
-  /** What a café device sends to a device that just joined the room. */
-  function roomSnapshot() {
-    // BACKEND: this becomes reads of cafe_status, redemptions (today) and subscriptions
-    const since = startOfToday();
+  /** What a device sends to one that just joined the room. Seeded entries
+      have the same ids everywhere, so only this session's ones travel. */
+  function roomSnapshot({ statuses = true } = {}) {
+    // BACKEND: this becomes reads of cafe_status, the ledger (this cycle) and subscriptions
     return {
-      statuses: Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])),
-      // Seeded rows have the same ids on every device; only live ones need sending
-      redemptions: state.redemptions.filter((r) => r.at >= since && r.live),
-      member: memberSnapshot(),
+      statuses: statuses ? Object.fromEntries(state.cafeOrder.map((id) => [id, { status: state.cafes[id].status, at: state.cafes[id].statusUpdatedAt }])) : null,
+      entries: state.ledger.filter((e) => e.live),
+      plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
     };
   }
+  const hasLiveData = () => state.ledger.some((e) => e.live);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -134,20 +122,25 @@
       const c = state.cafes[cafeId];
       if (c && (c.status !== status || c.statusUpdatedAt !== at)) applyStatus({ cafeId, status, at }, { remote: true });
     });
-    // Cups and visits come with the member snapshot, so these rows only join the log
-    (snap.redemptions || []).forEach((entry) => {
-      if (!state.redemptions.some((r) => r.id === entry.id)) state.redemptions.push(entry);
-    });
-    applyMemberSnapshot(snap.member);
+    applyLedgerMessage(snap, { catchUp: true });
     emit("snapshot", {}, { remote: true });
+  }
+
+  function applyLedgerMessage({ entries = [], plans = [] }, { catchUp = false } = {}) {
+    const changed = plans.filter(applyPlanMeta);
+    appendEntries(entries, { remote: true, catchUp });
+    changed.forEach((meta) => {
+      const m = state.members[meta.memberId];
+      emit("plan", { member: m, plan: m.plan }, { remote: true });
+      emit("member", { member: m }, { remote: true });
+    });
   }
 
   /** Entry point for messages from another window or device. */
   function applyRemote(type, data) {
     if (!data) return;
     if (type === "cafe:status") applyStatus(data, { remote: true });
-    else if (type === "redeem" && data.entry) commitRedemption(data.entry, { remote: true });
-    else if (type === "member") applyMemberSnapshot(data.snapshot);
+    else if (type === "ledger") applyLedgerMessage(data);
     else if (type === "snapshot") applyRoomSnapshot(data);
   }
 
@@ -175,6 +168,50 @@
   }
 
   /* -------------------------------------------------------------------
+     Ledger: the only record of cups. Append-only; entries are never edited.
+     ------------------------------------------------------------------- */
+  const ledgerIds = new Set(state.ledger.map((e) => e.id));
+  const byMember = new Map(); // memberId -> entries (an index, rebuilt from the ledger)
+  state.ledger.forEach((e) => { if (!byMember.has(e.memberId)) byMember.set(e.memberId, []); byMember.get(e.memberId).push(e); });
+
+  /** Add entries (idempotent by id, so a message that arrives twice counts once).
+      catchUp: entries from a join snapshot. They update balances quietly,
+      without "redeem" events (no success screens or toasts for old cups). */
+  function appendEntries(entries, { remote = false, catchUp = false } = {}) {
+    // BACKEND: INSERT INTO ledger … (one transaction per action)
+    const added = [];
+    entries.forEach((e) => {
+      if (!e || ledgerIds.has(e.id) || !state.members[e.memberId]) return;
+      ledgerIds.add(e.id);
+      state.ledger.push(e);
+      if (!byMember.has(e.memberId)) byMember.set(e.memberId, []);
+      byMember.get(e.memberId).push(e);
+      added.push(e);
+      if (e.type === "redeem") {
+        const m = state.members[e.memberId];
+        m.visits = m.visits || {};
+        m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
+        if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
+      }
+    });
+    if (!added.length) return added;
+    emit("ledger", { entries: added, plans: remote ? [] : added.filter((e) => e.type === "purchase").map((e) => e.memberId).filter((id, i, a) => a.indexOf(id) === i).map((id) => planMeta(state.members[id])) }, { remote });
+    if (!catchUp) added.filter((e) => e.type === "redeem").forEach((entry) => emit("redeem", { entry, member: state.members[entry.memberId] }, { remote }));
+    return added;
+  }
+
+  /** This cycle's entries for a member. */
+  function cycleEntries(memberId) {
+    const m = state.members[memberId];
+    return m ? (byMember.get(memberId) || []).filter((e) => e.cycle === m.cycle) : [];
+  }
+  const sumCups = (list) => list.reduce((n, e) => n + e.cups, 0);
+  const listNames = (ids) => {
+    const names = ids.map((id) => state.cafes[id].name);
+    return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  };
+
+  /* -------------------------------------------------------------------
      Selectors (read-only views of state)
      ------------------------------------------------------------------- */
   const select = {
@@ -187,37 +224,120 @@
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
 
-    /** Mumtaz’s activity, newest first. */
+    ledger: () => state.ledger,
+    /** Every redemption, read from the ledger. */
+    redemptions: () => state.ledger.filter((e) => e.type === "redeem"),
+
+    /** A member's redemptions, newest first. */
     activity(memberId = state.memberId) {
-      return state.redemptions.filter((r) => r.memberId === memberId).sort((a, b) => b.at - a.at);
+      return (byMember.get(memberId) || []).filter((e) => e.type === "redeem").sort((a, b) => b.at - a.at);
     },
 
     usedToday(memberId, cafeId) {
       const since = startOfToday();
-      return state.redemptions
-        .filter((r) => r.memberId === memberId && r.cafeId === cafeId && r.at >= since)
-        .reduce((n, r) => n + r.credits, 0);
+      return (byMember.get(memberId) || [])
+        .filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since)
+        .reduce((n, e) => n + e.credits, 0);
     },
 
-    /** What the café dashboard shows for today and this month. */
+    /** Cups a member has redeemed at a café this plan cycle. */
+    usedHereThisCycle(memberId, cafeId) {
+      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0);
+    },
+
+    /** Balances for this cycle, all derived from the ledger.
+        total: cups bought; left: ledger sum; perCafe (My cafés): reserved/left/used;
+        usedAt: cups redeemed at each café (both types).                     */
+    balance(memberId = state.memberId) {
+      // BACKEND: SELECT … FROM ledger WHERE member_id = :id AND cycle = :cycle
+      const m = state.members[memberId];
+      const es = cycleEntries(memberId);
+      const total = sumCups(es.filter((e) => e.type === "purchase"));
+      const left = sumCups(es);
+      const usedAt = {};
+      es.filter((e) => e.type === "redeem").forEach((e) => { usedAt[e.cafeId] = (usedAt[e.cafeId] || 0) + e.credits; });
+      const perCafe = {};
+      if (m.plan.type === "mycafes") {
+        es.filter((e) => e.cafeId).forEach((e) => {
+          const b = (perCafe[e.cafeId] = perCafe[e.cafeId] || { reserved: 0, left: 0, used: 0 });
+          if (e.type === "purchase") b.reserved += e.cups;
+          b.left += e.cups;
+          if (e.type === "redeem") b.used += e.credits;
+        });
+      }
+      return { type: m.plan.type, total, left, used: total - left, usedAt, perCafe };
+    },
+
+    /** Explorer: cups left in the shared pool. My cafés members have no pool (null). */
+    poolBalance(memberId = state.memberId) {
+      const m = state.members[memberId];
+      return m.plan.type === "explorer" ? sumCups(cycleEntries(memberId)) : null;
+    },
+
+    /** What a member can still use at one café this cycle, and how to say it. */
+    cafeBalance(memberId, cafeId) {
+      const m = state.members[memberId];
+      const cap = state.rules.explorerCapPerCafe;
+      if (m.plan.type === "mycafes") {
+        const b = select.balance(memberId).perCafe[cafeId];
+        if (!b || !b.reserved) return { type: "mycafes", reserved: 0, left: 0, of: 0, label: "Not in their plan" };
+        return { type: "mycafes", reserved: b.reserved, left: b.left, of: b.reserved, label: `${b.left} of ${b.reserved} reserved here` };
+      }
+      const used = select.usedHereThisCycle(memberId, cafeId);
+      const pool = select.poolBalance(memberId);
+      const left = Math.max(0, Math.min(cap - used, pool));
+      return { type: "explorer", used, cap, left, of: cap, pool, label: `${Math.max(0, cap - used)} of ${cap} left here this month` };
+    },
+
+    /** Can this member redeem `credits` cups at this café now? Never mutates.
+        Checks, in order: cups at all, plan rules here, daily limit, drink size. */
+    canRedeemHere(memberId, cafeId, credits = 1) {
+      const m = state.members[memberId];
+      const bal = select.balance(memberId);
+      const here = select.cafeBalance(memberId, cafeId);
+      const usedToday = select.usedToday(memberId, cafeId);
+      const limit = state.rules.dailyLimitPerCafe;
+      const base = { member: m, left: bal.left, total: bal.total, here, usedToday, dailyLimit: limit };
+      const no = (reason) => ({ ...base, ok: false, reason, message: MESSAGES[reason](m, { here, credits, limit, bal }) });
+      if (bal.left <= 0) return no("no-cups");
+      if (here.type === "mycafes" && !here.reserved) return no("not-reserved");
+      if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
+      if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
+      if (usedToday >= limit) return no("daily-limit");
+      if (here.left < credits || usedToday + credits > limit) return no("not-enough");
+      return { ...base, ok: true };
+    },
+
+    /** The café's month: today, this calendar month, and reserved cups. */
     cafeSummary(cafeId = state.partnerCafeId) {
+      // BACKEND: the café's monthly statement: GET /cafes/:id/statement?month=… (ledger + subscriptions)
       const cafe = state.cafes[cafeId];
       const since = startOfToday();
-      const today = state.redemptions.filter((r) => r.cafeId === cafeId && r.at >= since).sort((a, b) => b.at - a.at);
+      const monthStart = new Date(since); monthStart.setDate(1);
+      const here = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === cafeId);
+      const today = here.filter((e) => e.at >= since).sort((a, b) => b.at - a.at);
       // Paid per cup, so a two-cup drink counts twice.
-      const cupsToday = today.reduce((n, r) => n + r.credits, 0);
-      // Month to date: a typical day for each earlier day this month, plus today.
-      const daysBefore = new Date().getDate() - 1;
-      const monthCups = daysBefore * cafe.avgDailyCups + cupsToday;
+      const cupsToday = today.reduce((n, e) => n + e.credits, 0);
+      const monthCups = here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + e.credits, 0);
+      // Reserved here: My cafés members' purchases for this café in their current cycle
+      const reservers = Object.values(state.members).filter((m) => m.plan.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
+      const reservedCups = reservers.reduce((n, m) => n + sumCups(cycleEntries(m.id).filter((e) => e.type === "purchase" && e.cafeId === cafeId)), 0);
+      const reservedLeft = reservers.reduce((n, m) => n + Math.max(0, sumCups(cycleEntries(m.id).filter((e) => e.cafeId === cafeId))), 0);
+      // Pending business decision: pay cafés a share of reserved cups that go unused (0 for now, not shown)
+      const reservedPayout = Math.round(reservedLeft * cafe.payoutPerCup * state.rules.reservedPayoutShare);
       return {
         today,
         redemptionsToday: today.length,
         cupsToday,
-        newCustomersToday: today.filter((r) => r.firstVisit).length,
+        newCustomersToday: today.filter((e) => e.firstVisit).length,
         payoutPerCup: cafe.payoutPerCup,
         payoutToday: cupsToday * cafe.payoutPerCup,
         monthCups,
         payoutMonth: monthCups * cafe.payoutPerCup,
+        reservedCups,
+        reservedMembers: reservers.length,
+        reservedLeft,
+        reservedPayout,
       };
     },
 
@@ -265,11 +385,11 @@
       };
     },
 
-    /** Plan name for any member. Demo members carry no planId, so match by cups. */
+    /** Plan name and size for any member. */
     memberPlan(member) {
-      if (member.planId === "custom") return { name: "Build your own", cups: member.cupsTotal };
-      const tier = (member.planId && select.tier(member.planId)) || state.tiers.find((t) => t.cups === member.cupsTotal);
-      return tier ? { name: tier.name, cups: tier.cups } : { name: "Build your own", cups: member.cupsTotal };
+      const cups = select.balance(member.id).total;
+      if (member.plan.type === "mycafes") return { type: "mycafes", typeName: "My cafés", name: "My cafés", cups };
+      return { type: "explorer", typeName: "Explorer", name: select.tier(member.plan.tierId).name, cups };
     },
 
     /** Open or closed right now, from the café’s hours. Handles closing after midnight. */
@@ -311,21 +431,21 @@
     },
 
     /** Price and cups for a plan the member might buy.
-        plan: { type: "fixed", tierId } | { type: "custom", allocation } */
+        plan: { type: "explorer", tierId } | { type: "mycafes", allocation } */
     quote(plan) {
       // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
-      if (plan.type === "fixed") {
+      if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
-        return { name: t.name, cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
+        return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
       }
-      return { name: "Build your own", ...select.customPrice(plan.allocation || state.builder) };
+      return { name: "My cafés", typeName: "My cafés", ...select.customPrice(plan.allocation || state.builder) };
     },
 
     /** Is this the plan the member is on now? */
-    isCurrentPlan(plan) {
-      const cur = state.plan;
+    isCurrentPlan(plan, memberId = state.memberId) {
+      const cur = state.members[memberId].plan;
       if (plan.type !== cur.type) return false;
-      if (plan.type === "fixed") return plan.tierId === cur.tierId;
+      if (plan.type === "explorer") return plan.tierId === cur.tierId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
       const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
       return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
@@ -341,12 +461,19 @@
   /* -------------------------------------------------------------------
      Code lookup and redemption (café view)
      ------------------------------------------------------------------- */
+  const reservedCafes = (m) => Object.entries(select.balance(m.id).perCafe).filter(([, b]) => b.reserved).map(([id]) => id);
   const MESSAGES = {
     "not-found": () => "That code didn’t match a member. Check the six digits and try again.",
     "expired": (m) => `That code has expired. Ask ${m.firstName} for the new one on the pass screen.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
-    "not-enough": (m, need) => `That drink uses ${need} cups and ${m.firstName} has ${m.cupsLeft} left. Try a one-cup drink.`,
-    "daily-limit": (m, _n, limit) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+    "not-reserved": (m) => `${m.firstName}’s cups are reserved for ${listNames(reservedCafes(m))}.`,
+    "reserved-used": (m, { here }) => {
+      const others = reservedCafes(m).filter((id) => select.balance(m.id).perCafe[id].left > 0);
+      return `${m.firstName} has used the ${fmt.cups(here.reserved)} reserved here this month.${others.length ? ` There are still cups for ${m.pronoun || "them"} at ${listNames(others)}.` : ""}`;
+    },
+    "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
+    "daily-limit": (m, { limit }) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+    "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
   };
 
   /** Returns { member, expired } or null. */
@@ -375,27 +502,8 @@
     const found = findMemberByCode(code);
     if (!found) return { ok: false, reason: "not-found", message: MESSAGES["not-found"]() };
     if (found.expired) return { ok: false, reason: "expired", member: found.member, message: MESSAGES.expired(found.member) };
-    const member = found.member;
-    const limit = state.rules.dailyLimitPerCafe;
-    const usedToday = select.usedToday(member.id, cafeId);
-    const base = { member, cupsLeft: member.cupsLeft, usedToday, dailyLimit: limit };
-    if (member.cupsLeft <= 0) return { ...base, ok: false, reason: "no-cups", message: MESSAGES["no-cups"](member) };
-    if (usedToday >= limit) return { ...base, ok: false, reason: "daily-limit", message: MESSAGES["daily-limit"](member, 0, limit) };
-    if (member.cupsLeft < credits) return { ...base, ok: false, reason: "not-enough", message: MESSAGES["not-enough"](member, credits) };
-    return { ...base, ok: true };
-  }
-
-  function commitRedemption(entry, { remote = false } = {}) {
-    if (state.redemptions.some((r) => r.id === entry.id)) return; // idempotent across windows and transports
-    const member = state.members[entry.memberId];
-    if (!member) return;
-    member.cupsLeft = Math.max(0, member.cupsLeft - entry.credits);
-    member.syncAt = Math.max(member.syncAt || 0, entry.at); // a cup used counts as a change to the member
-    member.visits = member.visits || {};
-    member.visits[entry.cafeId] = (member.visits[entry.cafeId] || 0) + 1;
-    if (member.cafesTried && !member.cafesTried.includes(entry.cafeId)) member.cafesTried.push(entry.cafeId);
-    state.redemptions.push(entry);
-    emit("redeem", { entry, member }, { remote });
+    // BACKEND: balance reads come from the ledger table for this member and cycle
+    return select.canRedeemHere(found.member.id, cafeId, credits);
   }
 
   /* -------------------------------------------------------------------
@@ -422,19 +530,22 @@
       const check = lookupCode(code, cafeId, drink.credits);
       if (!check.ok) return check;
       const member = check.member;
-      // BACKEND: POST /redeem { code, cafeId, drinkId } -> { entry, member }
+      // BACKEND: POST /redeem { code, cafeId, drinkId } -> inserts one ledger row, returns it
       const entry = {
-        id: uid("r"),
-        at: Date.now(),
-        cafeId,
+        id: uid("l"),
+        type: "redeem",
         memberId: member.id,
-        drinkId: drink.id,
+        cafeId,
+        cups: -drink.credits,
         credits: drink.credits,
+        drinkId: drink.id,
         firstVisit: !(member.visits && member.visits[cafeId] > 0),
+        at: Date.now(),
+        cycle: member.cycle,
         live: true, // made in this session, not seeded
       };
-      commitRedemption(entry);
-      return { ...check, ok: true, entry, cupsLeft: member.cupsLeft };
+      appendEntries([entry]);
+      return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -444,30 +555,38 @@
       emit("cafe:viewing", { cafeId });
     },
 
-    /** Switch plan now: cups start fresh and the month restarts today. */
-    choosePlan(plan, { payment } = {}) {
-      // plan: { type: "fixed", tierId } | { type: "custom", allocation }
-      // BACKEND: POST /subscriptions { plan, paymentId }
-      const member = select.member();
+    /** Switch plan now: whatever is left expires, the new cups start fresh,
+        and the month restarts today. Works in both directions.            */
+    choosePlan(plan, { payment, memberId = state.memberId } = {}) {
+      // plan: { type: "explorer", tierId } | { type: "mycafes", allocation }
+      // BACKEND: POST /subscriptions { plan, paymentId } -> expire + purchase ledger rows
+      const member = state.members[memberId];
       const now = Date.now();
+      const entries = [];
+      // Close the old cycle: one expire entry per bucket that still has cups
+      const old = select.balance(member.id);
+      if (old.type === "mycafes") {
+        Object.entries(old.perCafe).forEach(([cafeId, b]) => { if (b.left > 0) entries.push({ id: uid("l"), type: "expire", memberId: member.id, cafeId, cups: -b.left, at: now, cycle: member.cycle, live: true }); });
+      } else if (old.left > 0) {
+        entries.push({ id: uid("l"), type: "expire", memberId: member.id, cafeId: null, cups: -old.left, at: now, cycle: member.cycle, live: true });
+      }
+      // New cycle
+      const cycle = uid("c");
+      member.plan = plan.type === "explorer"
+        ? { type: "explorer", tierId: select.tier(plan.tierId).id }
+        : { type: "mycafes", allocation: Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0)) };
+      member.cycle = cycle;
       member.cycleStartedAt = now;
       member.renewsAt = addMonths(now, 1);
+      member.planChangedAt = now;
       if (payment) member.payment = payment;
-      if (plan.type === "fixed") {
-        const tier = select.tier(plan.tierId);
-        state.plan = { type: "fixed", tierId: tier.id, allocation: null };
-        member.planId = tier.id;
-        member.cupsTotal = tier.cups;
-        member.cupsLeft = tier.cups;
+      if (member.plan.type === "explorer") {
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, at: now, cycle, live: true });
       } else {
-        const allocation = clone(plan.allocation || state.builder);
-        const { cups } = select.customPrice(allocation);
-        state.plan = { type: "custom", tierId: null, allocation };
-        member.planId = "custom";
-        member.cupsTotal = cups;
-        member.cupsLeft = cups;
+        Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
       }
-      emit("plan", { plan: state.plan });
+      appendEntries(entries);
+      emit("plan", { member, plan: member.plan });
       emit("member", { member });
     },
 
@@ -519,7 +638,10 @@
     sendGift({ toName, toPhone, cups, cafeId = null, message = "" }) {
       const member = select.member();
       const n = Math.max(1, Math.min(state.rules.giftMaxCups, cups | 0));
-      if (member.cupsLeft < n) return { ok: false, message: `You have ${member.cupsLeft} cups left, so you can gift up to ${member.cupsLeft}.` };
+      // My cafés gifts come out of one café's reserved cups; Explorer gifts out of the pool
+      const from = member.plan.type === "mycafes" ? cafeId : null;
+      const have = from ? (select.balance(member.id).perCafe[from]?.left || 0) : select.balance(member.id).left;
+      if (have < n) return { ok: false, message: `You have ${fmt.cups(have)} to give${from ? ` at ${state.cafes[from].name}` : ""}, so you can gift up to ${have}.` };
       // BACKEND: POST /gifts
       const sentAt = Date.now();
       const gift = {
@@ -530,7 +652,8 @@
         expiresAt: sentAt + state.rules.giftExpiryDays * 24 * 60 * MIN,
         link: `lahorecoffee.club/g/${Math.random().toString(36).slice(2, 8)}`,
       };
-      member.cupsLeft -= n;
+      // BACKEND: ledger insert (type gift) in the same transaction as the gift
+      appendEntries([{ id: uid("l"), type: "gift", memberId: member.id, cafeId: from, cups: -n, at: sentAt, cycle: member.cycle, live: true }]);
       state.gifts.push(gift);
       emit("gift", { gift });
       emit("member", { member });
@@ -611,6 +734,6 @@
   LCC.fmt = fmt;
   LCC.store = {
     on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state,
-    addTransport, applyRemote, roomSnapshot, memberSnapshot,
+    addTransport, applyRemote, roomSnapshot, hasLiveData,
   };
 })();

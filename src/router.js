@@ -193,7 +193,7 @@
                   <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
                   <div class="placeholder">
                     <span>Built in Passes 3 to 5.</span>
-                    <span>Store check: <span class="num" data-bind="cups">${m.cupsLeft} of ${m.cupsTotal}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
+                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
                   </div>
                 </div>
               </div>
@@ -202,8 +202,9 @@
           </div>
         </div>`;
       const cups = $('[data-bind="cups"]', el);
-      const off = store.on("member", ({ member }) => { cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
-      const off2 = store.on("redeem", ({ member }) => { if (member.id === m.id) cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
+      const paint = () => { cups.textContent = `${store.select.balance().left} of ${store.select.balance().total}`; };
+      const off = store.on("member", paint);
+      const off2 = store.on("ledger", paint);
       return () => { off(); off2(); };
     },
   });

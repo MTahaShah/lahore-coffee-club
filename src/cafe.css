@@ -122,3 +122,11 @@
 .pair__room .num { font-family: var(--font-serif); font-size: var(--fs-40); font-weight: 300; line-height: 1; letter-spacing: 0.08em; }
 .pair__url { max-width: 100%; overflow-wrap: anywhere; }
 .pair__note { max-width: 40ch; }
+
+/* Plan types (Pass 7) -------------------------------------------------- */
+.member-stats__wide { grid-column: 1 / -1; }
+.member-stats__wide dd .t-small { margin-left: var(--space-2); font-family: var(--font-sans); }
+.month-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: var(--space-3) 0 0; }
+.month-stats dt { font-size: var(--fs-14); color: var(--ink-3); }
+.month-stats dd { margin: 0; }
+.month-stats__wide { grid-column: 1 / -1; }

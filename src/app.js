@@ -234,14 +234,14 @@
               </div>
 
               <div class="ring-wrap">
-                <div class="ring" data-ring role="img" aria-label="${m.cupsLeft} of ${m.cupsTotal} cups left this month">
+                <div class="ring" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
                   <svg viewBox="0 0 208 208" aria-hidden="true">
                     <circle class="track" cx="104" cy="104" r="96"/>
                     <circle class="bar" cx="104" cy="104" r="96" stroke-dasharray="${RING_C.toFixed(2)}" stroke-dashoffset="${RING_C.toFixed(2)}"/>
                   </svg>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="t-small t-muted">of <span class="num" data-ring-total>${m.cupsTotal}</span> cups left</span>
+                    <span class="t-small t-muted">of <span class="num" data-ring-total>${S.balance().total}</span> cups left</span>
                   </div>
                 </div>
                 <p class="t-small t-muted" data-plan-line>${planLine()}</p>
@@ -284,7 +284,8 @@
 
       function planLine() {
         const m = member();
-        return `${S.memberPlan(m).name} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
+        const p = S.memberPlan(m);
+        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
       }
 
       function recentRows(newId) {
@@ -306,12 +307,13 @@
       function paintRing() {
         const ring = $("[data-ring]", view);
         if (!ring) return;
-        const m = member();
-        const frac = m.cupsTotal ? Math.max(0, Math.min(1, m.cupsLeft / m.cupsTotal)) : 0;
+        // Total cups across the plan, either type; read from the ledger
+        const b = S.balance();
+        const frac = b.total ? Math.max(0, Math.min(1, b.left / b.total)) : 0;
         $(".bar", ring).setAttribute("stroke-dashoffset", (RING_C * (1 - frac)).toFixed(2));
-        ui.animateNumber($("[data-ring-num]", ring), m.cupsLeft, { duration: 700 });
-        $("[data-ring-total]", ring).textContent = m.cupsTotal;
-        ring.setAttribute("aria-label", `${m.cupsLeft} of ${m.cupsTotal} cups left this month`);
+        ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
+        $("[data-ring-total]", ring).textContent = b.total;
+        ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
       }
 
       /* Pass ------------------------------------------------------------ */
@@ -339,6 +341,7 @@
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
             member: () => paintMeta(),
+            ledger: () => paintMeta(),
           },
         };
 
@@ -355,21 +358,43 @@
             <p class="pass__code" data-code></p>
             <p class="t-small t-muted">Show this to the barista, or read them the code.</p>
             <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${m2.cupsLeft}</span> of <span data-pass-total>${m2.cupsTotal}</span></p></div>
-              <div style="text-align:right"><p class="t-micro t-faint">Plan</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
-            </div>`.s;
+              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${S.balance().left}</span> of <span data-pass-total>${S.balance().total}</span></p></div>
+              <div style="text-align:right"><p class="t-micro t-faint" data-pass-type>${plan.typeName}</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
+            </div>
+            <div class="pass__cafes" data-pass-cafes>${passCafes()}</div>`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
         }
 
-        // Plan change or gift while the pass is open
+        /** Explorer: cafés used this month (“Kiln & Bean 2 of 2”).
+            My cafés: each café's balance (“Kiln & Bean 3 of 6”).        */
+        function passCafes() {
+          const b = S.balance();
+          const cap = store.getState().rules.explorerCapPerCafe;
+          if (b.type === "mycafes") {
+            return html`<p class="t-micro t-faint">Reserved at</p>
+              <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
+          }
+          const used = Object.entries(b.usedAt);
+          return html`<p class="t-micro t-faint">Used this month · up to ${cap} at each café</p>
+            ${used.length
+              ? html`<ul role="list">${used.map(([id, n]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
+              : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
+        }
+
+        // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
           const m2 = member();
+          const b = S.balance();
+          const p = S.memberPlan(m2);
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
-          set("[data-pass-cups]", m2.cupsLeft);
-          set("[data-pass-total]", m2.cupsTotal);
-          set("[data-pass-plan]", S.memberPlan(m2).name);
+          set("[data-pass-cups]", b.left);
+          set("[data-pass-total]", b.total);
+          set("[data-pass-plan]", p.name);
+          set("[data-pass-type]", p.typeName);
+          const list = $("[data-pass-cafes]", view);
+          if (list) list.innerHTML = passCafes().s;
         }
 
         function paintCode() {
@@ -407,15 +432,21 @@
           const m2 = member();
           const cafe = S.cafe(entry.cafeId);
           const drink = S.drink(entry.cafeId, entry.drinkId);
-          const before = m2.cupsLeft + entry.credits;
+          const b = S.balance();
+          const before = b.left + entry.credits;
+          const here = S.cafeBalance(m2.id, entry.cafeId);
+          const hereLine = here.type === "mycafes"
+            ? `${here.left} of ${here.reserved} left at ${cafe.name}`
+            : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
           card.innerHTML = html`
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${cafe.name}.</p>
-              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${m2.cupsTotal} cups left</p>
+              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
+              <p class="t-small t-faint num" data-success-here>${hereLine}</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
-          setTimeout(() => ui.animateNumber($("[data-success-cups]", view), m2.cupsLeft, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
+          setTimeout(() => ui.animateNumber($("[data-success-cups]", view), b.left, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
           clearTimeout(backTimer);
           backTimer = setTimeout(paintQrCard, 8000);
         }
@@ -535,11 +566,11 @@
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
-      const offs = ["redeem", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.key === "pass") return;
-        ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);
+        ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(S.balance(who.id).left)} left.`);
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase

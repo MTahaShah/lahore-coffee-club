@@ -16,15 +16,19 @@
    that arrives over both transports. Incoming data goes through
    store.applyRemote(), which never re-sends, so there are no echo loops.
 
+   What travels: café status, and ledger entries (redeem, purchase, expire,
+   gift) with the plan header of any member whose plan changed. Entries are
+   append-only with stable ids, so applying one twice is harmless.
+
    Join handshake: a window that joins says “hello”. A café window answers
-   with a snapshot (statuses, today’s live redemptions, the member’s cups
-   and plan). Any window whose member data changed answers with that, and
-   the newest copy wins.
+   with statuses plus this session’s ledger entries and plan changes; any
+   other window that has live entries answers with those (newest plan wins).
 
    Approved exception to “no backend” (see CLAUDE.md).
    // BACKEND: replace Broadcast with Supabase tables + Postgres Changes:
-   //   cafe_status (cafe_id, status, updated_at), redemptions (…),
-   //   subscriptions (member_id, plan, cups_left, renews_at). Rooms go away.
+   //   cafe_status (cafe_id, status, updated_at), ledger (insert-only:
+   //   purchase/redeem/gift/expire), subscriptions (member_id, plan, cycle,
+   //   renews_at). Balances stay derived from the ledger. Rooms go away.
    ===================================================================== */
 (function () {
   "use strict";
@@ -106,11 +110,8 @@
 
   const isCafeDevice = () => LCC.router?.parse().name === "cafe";
   function answerHello() {
-    if (isCafeDevice()) post("snapshot", store.roomSnapshot());
-    else {
-      const snap = store.memberSnapshot();
-      if (snap.at > 0) post("member", { snapshot: snap }); // only if something changed here
-    }
+    if (isCafeDevice()) post("snapshot", store.roomSnapshot({ statuses: true }));
+    else if (store.hasLiveData()) post("snapshot", store.roomSnapshot({ statuses: false }));
   }
 
   // Everything the store wants shared goes out on both transports
