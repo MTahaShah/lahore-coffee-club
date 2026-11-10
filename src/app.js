@@ -62,6 +62,9 @@
     </svg>`;
   }
 
+  // The landing page's busy-map teaser draws the same map
+  LCC.memberMap = { svg: mapSvg, project, labelSide: LABEL_SIDE, width: MAP_W, height: MAP_H };
+
   /* -------------------------------------------------------------------
      Surface
      ------------------------------------------------------------------- */

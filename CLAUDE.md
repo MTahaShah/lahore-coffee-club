@@ -44,6 +44,11 @@ Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
 - `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
 - `app-plan.js` — plan picker, Build your own, simulated payment
   (`#/app/plan`, `#/app/plan/pay`)
+- `landing.css`, `landing.js` — landing page (`#/`): hero, plans with a live
+  Build-your-own teaser, busy map teaser, café estimator, waitlist and
+  partner forms, FAQ
+- `og.png` (repo root) — 1200×630 link-preview image, rendered with
+  headless Chrome; referenced by absolute URL in the template's OG tags
 
 Script order matters: data → state → ui → router → surfaces. New files must
 be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
@@ -58,7 +63,7 @@ This order overrides any order implied by the spec.
 4. [x] Member app: Cafés, plan builder, payment
 4.5. [ ] Cross-device live sync (Supabase Realtime Broadcast)
 5. [ ] Member app: gifting, rewards, onboarding
-6. [ ] Landing page and waitlist
+6. [x] Landing page and waitlist
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
@@ -97,3 +102,16 @@ next pass until asked.**
   knowledge only, not shown on screen).
 - "Add to my plan" adds the café with 2 cups.
 - Plan changes now sync too (Pass 4.5), across windows and devices.
+- Landing forms (waitlist, café partner) open WhatsApp to 923100008242 via
+  `wa.me` with the details pre-filled, then show a thank-you. Button label:
+  "Send on WhatsApp". Mobile numbers must be 03XX XXXXXXX. Favourite café
+  is optional; areas include "Somewhere else".
+- The landing teaser prices with `select.customPrice` and shares the store's
+  builder; "Build your plan in the app" opens `#/app/plan` on Build your own
+  with the same cups.
+- The café estimator is members × visits × rate (10–200, 1–8, Rs 300–700),
+  showing only what the café enters.
+- FAQ product answers (to confirm): unused cups don't roll over; cancel any
+  time and keep cups until the month ends; billing on the day you joined.
+- Pass 5 (gifting, rewards, onboarding) is still to do; Pass 6 was built
+  first on request.

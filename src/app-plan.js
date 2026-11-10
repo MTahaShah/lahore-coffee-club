@@ -30,13 +30,15 @@
     result: null,
   };
 
-  function start({ addCafe = null } = {}) {
+  /** mode: open on "fixed" or "custom". keepBuilder: keep the builder as it is
+      (the landing teaser hands over its cups) instead of loading the current plan. */
+  function start({ addCafe = null, mode = null, keepBuilder = false } = {}) {
     const st = store.getState();
     draft.started = true;
-    draft.mode = addCafe ? "custom" : st.plan.type;
+    draft.mode = mode || (addCafe ? "custom" : st.plan.type);
     draft.tierId = st.plan.tierId || "regular";
     draft.highlight = addCafe;
-    if (st.plan.type === "custom") A.setBuilder(st.plan.allocation);
+    if (st.plan.type === "custom" && !keepBuilder) A.setBuilder(st.plan.allocation);
     if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
     pay.phase = "form";
     if (!pay.phone) pay.phone = formatPhone(S.member().phone.replace(/^\+92\s?/, "0"));

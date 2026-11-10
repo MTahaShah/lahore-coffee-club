@@ -17,6 +17,7 @@ CSS_FILES=(
   base.css
   cafe.css
   app.css
+  landing.css
 )
 
 # Order matters: data -> state -> ui -> router -> surfaces
@@ -31,6 +32,7 @@ JS_FILES=(
   app.js
   app-cafes.js
   app-plan.js
+  landing.js
 )
 
 build() {

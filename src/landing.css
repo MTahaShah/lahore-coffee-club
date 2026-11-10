@@ -1,0 +1,142 @@
+/* =====================================================================
+   Lahore Coffee Club — landing.css
+   Landing page (#/). Layout and the few new pieces only; buttons,
+   inputs, cards, rows, steppers, pills and pins come from base.css
+   and app.css.
+   ===================================================================== */
+
+.lp { padding-bottom: 0; }
+.lp a:not(.btn):not(.wordmark):not(.landing-nav__link) { color: var(--ink); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.lp .landing-nav { gap: var(--space-4); }
+.lp .landing-nav__links { gap: var(--space-5); }
+@media (max-width: 400px) {
+  .lp .wordmark { font-size: var(--fs-16); }
+  .lp .landing-nav .btn--compact { padding: 0 var(--space-3); }
+}
+
+/* Hero ------------------------------------------------------------- */
+.lp-hero { display: grid; gap: var(--space-5); padding-block: var(--space-8) var(--space-9); }
+.lp-hero__title { max-width: 13ch; font-size: clamp(44px, 8vw, 88px); }
+.lp-hero__sub { max-width: 40ch; font-size: clamp(16px, 2vw, 20px); }
+.lp-hero__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+@media (max-width: 480px) {
+  .lp-hero { padding-block: var(--space-7) var(--space-8); }
+  .lp-hero__actions .btn { flex: 1 1 100%; }
+}
+
+/* Sections: head on the left, content on the right (desktop) ------- */
+.lp-section { display: grid; gap: var(--space-6); }
+@media (min-width: 960px) {
+  .lp-section { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: var(--space-7); align-items: start; }
+  .lp-section > :not(.lp-head) { grid-column: 2; }
+  .lp-section > .lp-head { grid-row: 1 / span 6; position: sticky; top: calc(var(--proto-h) + var(--space-5)); }
+}
+.lp-head { display: grid; gap: var(--space-3); }
+.lp-head .t-h1 { font-size: clamp(32px, 4vw, 40px); }
+
+/* How it works ---------------------------------------------------- */
+.lp-steps { display: grid; }
+.lp-steps li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-4); padding-block: var(--space-5); border-top: var(--hairline); }
+.lp-steps li:first-child { border-top: 0; padding-top: 0; }
+.lp-steps li > div { display: grid; gap: var(--space-2); }
+.lp-steps__n { font-family: var(--font-serif); font-weight: 300; font-size: var(--fs-28); line-height: 1; color: var(--ink-3); }
+
+/* Plans ------------------------------------------------------------ */
+.lp-plans { display: grid; gap: var(--space-6); }
+@media (min-width: 1200px) { .lp-plans { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
+.lp-table { width: 100%; border-collapse: collapse; }
+.lp-table th, .lp-table td { padding: var(--space-4) 0; border-bottom: var(--hairline); text-align: left; vertical-align: baseline; }
+.lp-table td, .lp-table thead th:not(:first-child) { text-align: right; padding-left: var(--space-4); }
+.lp-table thead th { font-size: var(--fs-12); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding-top: 0; }
+.lp-table tbody th { font-weight: 400; }
+.lp-table tbody th > span { display: block; }
+.lp-table tbody th > span + span { margin-top: 2px; }
+.lp-table td.t-h3 { white-space: nowrap; }
+@media (max-width: 480px) { .lp-table__per { display: none; } }
+
+.lp-teaser { display: grid; gap: var(--space-3); }
+.lp-teaser__head { display: grid; gap: var(--space-1); }
+.lp-teaser__sum { display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--space-3); border-top: var(--hairline); }
+.lp-teaser [data-teaser-note] { min-height: 1.45em; }
+
+/* Busy map ----------------------------------------------------------- */
+.lp-map { display: grid; gap: var(--space-5); }
+@media (min-width: 720px) { .lp-map { grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; } }
+.lp-map__map { border: var(--hairline); border-radius: var(--radius-card); max-width: 420px; }
+.lp-map__map .pin { pointer-events: none; }
+.lp-map__list .row { min-height: 52px; padding-block: var(--space-2); }
+.lp-caption { margin-top: calc(-1 * var(--space-3)); }
+
+/* Two short columns ---------------------------------------------- */
+.lp-two { display: grid; gap: var(--space-6); }
+.lp-two > div { display: grid; gap: var(--space-2); align-content: start; }
+@media (min-width: 720px) { .lp-two { grid-template-columns: 1fr 1fr; } }
+
+/* For cafés ------------------------------------------------------------ */
+.lp-points { display: grid; gap: 0; margin: 0; }
+.lp-points > div { display: grid; gap: var(--space-1); padding-block: var(--space-4); border-top: var(--hairline); }
+.lp-points > div:first-child { border-top: 0; padding-top: 0; }
+.lp-points dd { margin: 0; }
+@media (min-width: 720px) {
+  .lp-points { grid-template-columns: 1fr 1fr; column-gap: var(--space-6); }
+  .lp-points > div:nth-child(2) { border-top: 0; padding-top: 0; }
+}
+
+.lp-partner { display: grid; gap: var(--space-7); }
+@media (min-width: 1200px) { .lp-partner { grid-template-columns: 1fr 1fr; gap: var(--space-6); align-items: start; } }
+
+.lp-est { display: grid; gap: var(--space-5); }
+.lp-est > p.t-small { margin-top: calc(-1 * var(--space-4)); }
+.lp-est__out { display: grid; gap: var(--space-1); padding-top: var(--space-4); border-top: var(--hairline); }
+.lp-est__total { font-size: clamp(40px, 6vw, 56px); color: var(--accent); }
+
+.lp-slider { display: grid; gap: var(--space-2); }
+.lp-slider__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+.lp-slider__top output { font-size: var(--fs-14); color: var(--ink-2); }
+.lp-slider__ends { display: flex; justify-content: space-between; }
+.lp-slider input[type="range"] {
+  width: 100%;
+  height: var(--tap);
+  margin: 0;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Forms -------------------------------------------------------------- */
+.lp-form-wrap { display: grid; gap: var(--space-5); align-content: start; }
+.lp-form-wrap--narrow { max-width: 560px; }
+.lp-form { display: grid; gap: var(--space-4); }
+.lp-form__send { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.lp-thanks { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-6); background: var(--surface); border: var(--hairline); border-radius: var(--radius-card); }
+.lp-thanks .check-draw { width: 56px; height: 56px; color: var(--accent); }
+.lp-thanks .btn--link { padding-inline: 0; }
+
+/* FAQ accordion ----------------------------------------------------- */
+.lp-faq { border-top: var(--hairline); }
+.lp-faq__item { border-bottom: var(--hairline); }
+.lp-faq__q { font: inherit; }
+.lp-faq__q button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: 64px;
+  padding-block: var(--space-4);
+  text-align: left;
+  font-size: var(--fs-16);
+  font-weight: 500;
+  color: var(--ink);
+}
+.lp-faq__q svg { flex: none; color: var(--ink-3); transition: transform var(--dur-2) var(--ease); }
+.lp-faq__q button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.lp-faq__q button:hover span { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.lp-faq__a { padding-bottom: var(--space-5); }
+.lp-faq__a:not([hidden]) { animation: enter var(--dur-2) var(--ease) both; }
+
+/* Footer ------------------------------------------------------------- */
+.lp-footer { margin-top: var(--space-8); border-top: var(--hairline); background: var(--surface); }
+.lp-footer__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom)); }
+.lp-footer__links { display: flex; gap: var(--space-4); }
+.lp-footer__links a { color: var(--ink-2); }
