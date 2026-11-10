@@ -82,9 +82,42 @@
       <nav class="proto-bar__nav" aria-label="Surfaces">
         ${SWITCH.map((s) => html`<a class="proto-bar__link" href="${s.href}" ${s.name === active ? raw('aria-current="page"') : ""}>${s.label}</a>`)}
       </nav>
-      <button type="button" class="proto-bar__theme" data-theme-toggle aria-label="Colour theme: ${theme}. Change theme">
-        ${theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark"}
-      </button>`;
+      <div class="proto-bar__end">
+        <div class="proto-demo">
+          <button type="button" class="proto-bar__theme" data-demo-toggle aria-expanded="false" aria-controls="proto-demo-menu">Demo</button>
+          <div class="proto-demo__menu" id="proto-demo-menu" role="menu" aria-label="Presenter" hidden>
+            <button type="button" role="menuitem" data-demo="new">Start as a new member</button>
+            <button type="button" role="menuitem" data-demo="mumtaz">Back to Mumtaz’s demo</button>
+          </div>
+        </div>
+        <button type="button" class="proto-bar__theme" data-theme-toggle aria-label="Colour theme: ${theme}. Change theme">
+          ${theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark"}
+        </button>
+      </div>`;
+  }
+
+  /* Presenter menu: start onboarding as a new member, or go back to Mumtaz */
+  function demoMenu(open) {
+    const btn = $("[data-demo-toggle]"), menu = $("#proto-demo-menu");
+    if (!btn || !menu) return;
+    btn.setAttribute("aria-expanded", String(open));
+    menu.hidden = !open;
+    if (open) menu.querySelector("[role=menuitem]").focus();
+  }
+  const withRoom = (h) => (LCC.sync ? LCC.sync.withRoom(h) : h);
+  function demoAction(which) {
+    demoMenu(false);
+    if (which === "new") {
+      LCC.onboarding?.restart();
+      const already = current.name === "app" && parse().path[0] === "welcome" && !parse().path[1];
+      location.hash = withRoom("#/app/welcome");
+      // Already on the first step's screen: no hashchange, so redraw from the top
+      if (already) surfaces.app.update(["welcome"], { force: true });
+    } else {
+      LCC.onboarding?.reset();
+      store.actions.restoreDemo();
+      location.hash = withRoom("#/app");
+    }
   }
 
   function cycleTheme() {
@@ -96,11 +129,24 @@
     $("[data-theme-toggle]")?.focus();
   }
 
+  document.addEventListener("keydown", (e) => {
+    const menu = $("#proto-demo-menu");
+    if (!menu || menu.hidden) return;
+    const items = [...menu.querySelectorAll("[role=menuitem]")];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { e.preventDefault(); demoMenu(false); $("[data-demo-toggle]").focus(); }
+    else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus(); }
+  });
+
   /* -------------------------------------------------------------------
      Global behaviour
      ------------------------------------------------------------------- */
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-theme-toggle]")) return cycleTheme();
+    if (e.target.closest("[data-demo-toggle]")) return demoMenu($("#proto-demo-menu")?.hidden);
+    const demo = e.target.closest("[data-demo]");
+    if (demo) return demoAction(demo.dataset.demo);
+    if (!e.target.closest(".proto-demo")) demoMenu(false);
 
     // In-page scroll links (hash is taken by the router)
     const scroller = e.target.closest("[data-scroll]");

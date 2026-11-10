@@ -3,11 +3,12 @@
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
-            #/app/map · #/app/rewards · #/app/plan · #/app/plan/pay
+            #/app/map · #/app/club · #/app/gift · #/app/plan
+            #/app/plan/pay · #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
-   app-cafes.js, the plan picker and payment in app-plan.js; they add
+   app-cafes.js, the plan picker and payment in app-plan.js, the Club
+   and gifting in app-club.js, onboarding in app-welcome.js; they add
    screen factories to LCC.appScreens and get a small ctx object.
-   Rewards is still a placeholder (Pass 5).
 
    Everything reads the shared store, so a redemption or status change
    in the café view (same window or another one) shows up here live.
@@ -26,7 +27,7 @@
     { id: "cafes",   label: "Cafés",   icon: "store" },
     { id: "pass",    label: "Pass",    icon: "qr" },
     { id: "map",     label: "Map",     icon: "map" },
-    { id: "rewards", label: "Rewards", icon: "award" },
+    { id: "club",    label: "Club",    icon: "award" },
   ];
   const tabFromPath = (path) => (TABS.some((t) => t.id === path[0]) ? path[0] : "home");
   const hrefFor = (id) => (id === "home" ? "#/app" : `#/app/${id}`);
@@ -72,7 +73,7 @@
 
   LCC.router.register("app", {
     title: "Member app",
-    update(path) { if (api) api.show(path); },
+    update(path, opts) { if (api) api.show(path, opts); },
     mount(el, path) {
       const member = () => S.member();
       let active = { key: null, tab: null, cleanup: null, on: {} };
@@ -131,6 +132,11 @@
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
         if (a === "plan" && REG.plan) return { key: "plan", tab: "home", flow: true, make: () => REG.plan(ctx) };
+        if (a === "club" && REG.club) return { key: "club", tab: "club", make: () => REG.club(ctx) };
+        if (a === "rewards") return { key: "rewards", tab: "club", make: () => ({ redirect: "#/app/club" }) };
+        if (a === "gift" && REG.gift) return { key: "gift", tab: "home", flow: true, make: () => REG.gift(ctx) };
+        if (a === "welcome" && b === "card" && REG.issued) return { key: "welcome/card", tab: "home", flow: true, make: () => REG.issued(ctx) };
+        if (a === "welcome" && REG.welcome) return { key: "welcome", tab: "home", flow: true, make: () => REG.welcome(ctx) };
         const tab = tabFromPath(path);
         return { key: tab, tab, make: SCREENS[tab] };
       }
@@ -210,12 +216,7 @@
         home: homeScreen,
         pass: passScreen,
         map: mapScreen,
-        rewards: () => soon("Rewards", "Streaks, badges, referrals, and free cups from cafés.", 5),
       };
-
-      function soon(title, line, pass) {
-        return { html: html`<div class="app-screen"><div class="soon"><p class="eyebrow">${title}</p><h1 class="t-h2">${line}</h1><p class="t-body t-muted">Coming in Pass ${pass}.</p></div></div>`.s };
-      }
 
       /* Home ------------------------------------------------------------ */
       const RING_C = 2 * Math.PI * 96;
@@ -245,7 +246,10 @@
                   </div>
                 </div>
                 <p class="t-small t-muted" data-plan-line>${planLine()}</p>
-                <button type="button" class="btn btn--link" data-start-plan>Change plan</button>
+                <div class="ring-actions">
+                  <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                  <a class="btn btn--link" href="#/app/gift">${icon("gift", { size: 18 })}Send a gift</a>
+                </div>
               </div>
 
               <section class="app-section" aria-labelledby="near-h">
@@ -265,7 +269,7 @@
               </section>
 
               <section class="app-section" aria-labelledby="recent-h">
-                <h2 class="eyebrow app-section__title" id="recent-h">Recent cups</h2>
+                <h2 class="eyebrow app-section__title" id="recent-h">Recent activity</h2>
                 <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
               </section>
             </div>`.s,
@@ -273,9 +277,12 @@
             requestAnimationFrame(() => paintRing());
           },
           on: {
-            redeem: ({ entry }) => {
+            // Redemptions, gifts and free cups, from this window or another device
+            ledger: ({ entries }) => {
+              const mine = entries.filter((e) => e.memberId === member().id);
+              if (!mine.length) return;
               paintRing();
-              $("[data-recent]", view).innerHTML = recentRows(entry.id).s;
+              $("[data-recent]", view).innerHTML = recentRows(mine[mine.length - 1].id).s;
             },
             member: () => { paintRing(); const l = $("[data-plan-line]", view); if (l) l.textContent = planLine(); },
           },
@@ -285,14 +292,28 @@
       function planLine() {
         const m = member();
         const p = S.memberPlan(m);
-        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews on ${fmt.shortDate(m.renewsAt)}`;
+        if (!p.type) return "No plan yet";
+        const bonus = S.balance().total - (p.type === "explorer" ? S.tier(m.plan.tierId).cups : Object.values(m.plan.allocation).reduce((a, b) => a + b, 0));
+        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan${bonus > 0 ? `, plus ${bonus} free` : ""} · renews on ${fmt.shortDate(m.renewsAt)}`;
       }
 
+      const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend" };
       function recentRows(newId) {
         const rows = S.activity().slice(0, 3);
         if (!rows.length) return html`<li class="row"><div class="row__main row__meta">No cups used yet. Your first one is waiting.</div></li>`;
         return html`${rows.map((r) => {
           const c = S.cafe(r.cafeId);
+          if (r.type !== "redeem") {
+            const title = r.type === "gift" ? `Gift to ${r.toName || "a friend"}` : `Free cup: ${REWARD_LINES[r.reason] || "from the club"}`;
+            const where = r.type === "gift" ? (c ? `For ${c.name}` : "For any partner café") : "Any partner café";
+            return html`<li class="row${r.id === newId ? " enter" : ""}">
+              <div class="row__main">
+                <div class="row__title">${title}</div>
+                <div class="row__meta">${where} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              </div>
+              <span class="badge${r.type === "reward" ? " badge--accent" : ""}">${r.type === "reward" ? "+" : "−"}${fmt.cups(Math.abs(r.cups))}</span>
+            </li>`;
+          }
           const d = S.drink(r.cafeId, r.drinkId);
           return html`<li class="row${r.id === newId ? " enter" : ""}">
             <div class="row__main">
@@ -435,7 +456,8 @@
           const b = S.balance();
           const before = b.left + entry.credits;
           const here = S.cafeBalance(m2.id, entry.cafeId);
-          const hereLine = here.type === "mycafes"
+          const hereLine = entry.bonus ? "That was a free cup from the club"
+            : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
             : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
           card.innerHTML = html`
@@ -566,7 +588,34 @@
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp"].map((type) => store.on(type, dispatch(type)));
+
+      // Club milestones: a free cup, a new badge, a new status. Same words on every device.
+      const REWARD_TOASTS = {
+        "passport-5": "Fifth café on your passport. A free cup is on us.",
+        "passport-all": "Every partner café on your passport. A free cup is on us.",
+        invite: "A friend joined with your code. A free cup is on us.",
+      };
+      const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
+      let earned = earnedNow();
+      offs.push(store.on("ledger", ({ entries, catchUp }) => {
+        const mine = entries.filter((e) => e.memberId === member().id);
+        if (!mine.length) return;
+        const before = earned;
+        earned = earnedNow();
+        if (catchUp) return; // a join snapshot: no replayed news
+        mine.filter((e) => e.type === "reward" && REWARD_TOASTS[e.reason]).forEach((e) => ui.toast(REWARD_TOASTS[e.reason], { iconName: "gift", duration: 4200 }));
+        const club = S.club();
+        const news = earned.badges.filter((id) => !before.badges.includes(id)).map((id) => `Badge earned: ${club.badges.find((x) => x.id === id).name}.`);
+        if (earned.level !== before.level) news.push(`You’re a ${club.level.name} now.`);
+        // After the “cup redeemed” and free-cup notes, not before
+        if (news.length) setTimeout(() => news.forEach((t) => ui.toast(t, { iconName: "award", duration: 4200 })), 700);
+      }));
+      // Presenter switched member (new member, or back to Mumtaz): redraw
+      offs.push(store.on("session", () => {
+        earned = earnedNow();
+        show(LCC.router.parse().path, { force: true });
+      }));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.key === "pass") return;

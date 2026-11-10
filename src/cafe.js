@@ -173,19 +173,29 @@
           const { member, usedToday, dailyLimit, here, left } = r.lookup;
           const plan = store.select.memberPlan(member);
           // What they can have HERE, and why: Explorer cap or My cafés reservation
-          const hereWhy = here.type === "mycafes"
+          const hereWhy = here.bonus ? "free, from the club"
+            : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} reserved here`
             : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
           const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
+          // Who they are in the club, so the barista can greet them properly
+          const club = member.memberNo != null ? store.select.club(member.id) : null;
+          const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
+          const perks = club ? store.select.perksAt(member.id, cafeId) : [];
           body.innerHTML = html`
             <div class="stack enter" style="--stack-gap:var(--space-5)">
               <div class="member-head">
                 <div class="stack" style="--stack-gap:var(--space-1)">
+                  ${clubLine ? html`<p class="member-club num">${clubLine}</p>` : ""}
                   <p class="t-h2" id="member-name">${name}</p>
                   <p class="t-small t-muted">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"} · ${fmt.cups(plan.cups)} a month</p>
                 </div>
                 <span class="badge badge--accent">Valid pass</span>
               </div>
+              ${perks.length ? html`<div class="member-perks" role="note" aria-label="Perks to offer">
+                <p class="eyebrow">Perk to offer</p>
+                <ul role="list">${perks.map((p) => html`<li>${p.text}<span class="t-faint"> · for ${p.audience}</span></li>`)}</ul>
+              </div>` : ""}
               <dl class="member-stats">
                 <div class="member-stats__wide"><dt>Can have here</dt><dd class="t-h1 num" data-here>${here.left} <span class="t-small t-muted">${hereWhy}</span></dd></div>
                 <div><dt>Cups left in plan</dt><dd class="t-h3 num">${left}</dd></div>
@@ -207,7 +217,7 @@
         if (r.state === "success") {
           const { member, entry, before, here } = r.result;
           const left = store.select.balance(member.id).left;
-          const hereLine = here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here are left.` : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month.`;
+          const hereLine = entry.bonus ? "That was a free cup from the club." : here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here are left.` : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month.`;
           const drink = store.select.drink(cafeId, entry.drinkId);
           body.innerHTML = html`
             <div class="redeem-success" role="status">

@@ -150,7 +150,8 @@
       const m = ctx.member();
       const total = (m.visits || {})[c.id] || 0;
       const loyal = S.loyalty(c.id);
-      const tried = m.cafesTried || [];
+      // Same source as the Club tab's passport and Explorer badge: the ledger
+      const tried = S.club(m.id).passport.stamps.filter((x) => x.visited).map((x) => x.cafe.id);
       const beenHere = tried.includes(c.id);
       let explorer;
       if (tried.length >= EXPLORER_GOAL) explorer = "You’ve earned Explorer: five cafés tried.";

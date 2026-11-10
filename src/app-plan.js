@@ -29,7 +29,9 @@
     card: { number: "", exp: "", cvc: "" },
     phase: "form", // form | processing | success | failed
     result: null,
+    forMember: null, // whose number pre-fills the wallet field
   };
+  const onboarding = () => !!LCC.onboarding?.active();
 
   /** mode: open on "explorer" or "mycafes". keepBuilder: keep the builder as it is
       (the landing teaser hands over its cups) instead of loading the current plan. */
@@ -37,13 +39,16 @@
     const st = store.getState();
     const cur = S.member().plan;
     draft.started = true;
-    draft.mode = mode || (addCafe ? "mycafes" : cur.type);
-    draft.tierId = cur.tierId || "regular";
+    draft.mode = mode || (addCafe ? "mycafes" : cur?.type || "explorer");
+    draft.tierId = cur?.tierId || "regular";
     draft.highlight = addCafe;
-    if (cur.type === "mycafes" && !keepBuilder) A.setBuilder(cur.allocation);
+    if (cur?.type === "mycafes" && !keepBuilder) A.setBuilder(cur.allocation);
     if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
     pay.phase = "form";
-    if (!pay.phone) pay.phone = formatPhone(S.member().phone.replace(/^\+92\s?/, "0"));
+    if (pay.forMember !== S.member().id) {
+      pay.forMember = S.member().id;
+      pay.phone = formatPhone(String(S.member().phone || "").replace(/^\+92\s?/, "0"));
+    }
   }
   LCC.appPlan = { start, draft };
 
@@ -75,7 +80,7 @@
               <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""}>
               <span class="tier__head">
                 <span class="t-h3">${t.name}</span>
-                ${cur.type === "explorer" && cur.tierId === t.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+                ${cur?.type === "explorer" && cur.tierId === t.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
                 <span class="tier__price t-h3 num">${fmt.rs(t.price)}</span>
               </span>
               <span class="tier__meta t-small t-muted num">${fmt.cups(t.cups)} a month · ${t.line}</span>
@@ -169,12 +174,15 @@
       html: html`
         <div class="flow">
           <div class="screen-bar">
-            <button type="button" class="icon-btn" data-back="#/app" aria-label="Back">${icon("arrowLeft")}</button>
+            <button type="button" class="icon-btn" data-back="${onboarding() ? "#/app/welcome" : "#/app"}" aria-label="Back">${icon("arrowLeft")}</button>
+            ${onboarding() ? html`<span class="t-small t-faint">Step 5 of 6</span>` : ""}
           </div>
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
-              <p class="t-small t-muted num">You’re on ${S.memberPlan(m).type === "explorer" ? `Explorer ${S.memberPlan(m).name}` : "My cafés"}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>
+              ${m.plan
+                ? html`<p class="t-small t-muted num">You’re on ${S.memberPlan(m).type === "explorer" ? `Explorer ${S.memberPlan(m).name}` : "My cafés"}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
+                : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
             </div>
             ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
             <div data-plan-body></div>
@@ -401,6 +409,8 @@
         pay.phase = res.ok ? "success" : "failed";
         pay.result = res;
         if (res.ok) { draft.started = false; draft.highlight = null; }
+        // A new member's first plan: their card is issued next
+        if (res.ok && alive && onboarding()) { pay.phase = "form"; ctx.go("#/app/welcome/card", { replace: true }); return; }
         if (alive) paint();
         else if (res.ok) ctx.toast(`You’re on ${q.name}. ${fmt.cups(q.cups)} to enjoy.`);
       });
@@ -422,6 +432,7 @@
         <div class="flow">
           <div class="screen-bar">
             <button type="button" class="icon-btn" data-back="#/app/plan" data-pay-back aria-label="Back">${icon("arrowLeft")}</button>
+            ${onboarding() ? html`<span class="t-small t-faint">Step 6 of 6</span>` : ""}
           </div>
           <div class="app-screen flow__body">
             <h1 class="t-h2">Payment</h1>

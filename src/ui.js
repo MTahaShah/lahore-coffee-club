@@ -48,6 +48,11 @@
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
     wallet: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6H18v3"/><rect x="4" y="9" width="16" height="10" rx="1.5"/><path d="M16 14h.01"/>',
     card: '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><path d="M3.5 10h17M7 15h3"/>',
+    gift: '<rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5V20h14v-7.5M12 8.5V20M12 8.5C10.5 5.5 7 5 7 7.25S10 8.5 12 8.5zM12 8.5c1.5-3 5-3.5 5-1.25S14 8.5 12 8.5z"/>',
+    calendar: '<rect x="4" y="5.5" width="16" height="14" rx="1.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+    copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="1.5"/><path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"/>',
+    share: '<path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/>',
+    users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M3 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5M15.5 5.3a3.5 3.5 0 0 1 0 6.4M17.5 14.8c1.8.7 3 2.3 3.5 4.7"/>',
     sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
   };
   function icon(name, { size = 24, label } = {}) {

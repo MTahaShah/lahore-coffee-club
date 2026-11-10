@@ -27,6 +27,7 @@
     passRotateSeconds: 30,
     giftExpiryDays: 60,
     giftMaxCups: 3,
+    giftMessageMax: 140,
   };
 
   /* Fixed tiers --------------------------------------------------------- */
@@ -251,23 +252,21 @@
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
     payment: { method: "JazzCash", last4: "4567" },
-    streakWeeks: 4,
-    cafesTried: ["kiln", "slowpour", "noon"],
-    visits: { kiln: 3, slowpour: 2, noon: 2 },   // lifetime visits per café (loyalty)
-    referralCode: "MUMTAZ-K7",
-    onboarded: false,
+    // BACKEND: member numbers come from a database sequence, issued once at sign-up
+    memberNo: 42,
+    // visits and cafesTried are filled in from the ledger below
   };
 
-  const demo = (id, firstName, pronoun, plan, staticCode, visits) => ({
-    id, firstName, pronoun, plan, staticCode, visits,
+  const demo = (id, firstName, pronoun, plan, staticCode, visits, memberNo) => ({
+    id, firstName, pronoun, plan, staticCode, visits, memberNo,
     cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY,
   });
   const demoMembers = [
-    demo("m_bilal", "Bilal", "him",  { type: "explorer", tierId: "regular" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }),
-    demo("m_sana",  "Sana",  "her",  { type: "mycafes", allocation: { kiln: 6, maple: 4 } }, "207341", { kiln: 5, maple: 2 }),
-    demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }),
-    demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }),
-    demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }),
+    demo("m_bilal", "Bilal", "him",  { type: "explorer", tierId: "regular" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }, 117),
+    demo("m_sana",  "Sana",  "her",  { type: "mycafes", allocation: { kiln: 6, maple: 4 } }, "207341", { kiln: 5, maple: 2 }, 203),
+    demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356),
+    demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }, 418),
+    demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 529),
   ];
 
   // Small seeded PRNG. Seeded by date, so every open window builds the same month.
@@ -340,11 +339,41 @@
     ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit, at, cycle: m.cycle });
   }
 
+  /* Mumtaz’s earlier months --------------------------------------------
+     She joined three months before this cycle on My cafés (Kiln & Bean 6,
+     Noon Café 4, Slow Pour 3), used 12 of 13 cups each month, then
+     switched to Explorer Regular when this cycle began. The Club tab
+     (status, passport, badges) reads all of it from the ledger.        */
+  const clockAgo = (d, h, m = 0) => startOfToday - d * DAY + (h * 60 + m) * MIN;
+  const monthsBefore = (ts, n) => { const d = new Date(ts); d.setMonth(d.getMonth() - n); return d.getTime(); };
+  (function mumtazHistory() {
+    const plan = { kiln: 6, noon: 4, slowpour: 3 };
+    // [day in cycle, café, drink, hour, minute]; two Noon cups a month before 9 am
+    const MONTH = [
+      [1, "kiln", "kiln-flat", 10, 30], [3, "noon", "noon-capp", 8, 10], [5, "kiln", "kiln-cort", 13, 15],
+      [7, "slowpour", "sp-v60", 18, 20], [9, "kiln", "kiln-flat", 16, 40], [11, "noon", "noon-latte", 8, 35],
+      [13, "kiln", "kiln-cort", 11, 5], [15, "noon", "noon-capp", 12, 30], [18, "slowpour", "sp-gibraltar", 19, 0],
+      [21, "kiln", "kiln-flat", 15, 20], [24, "noon", "noon-iced", 14, 45], [27, "kiln", "kiln-cort", 10, 50],
+    ];
+    for (let k = 3; k >= 1; k--) {
+      const start = startOfDay(monthsBefore(mumtaz.cycleStartedAt, k));
+      const end = k === 1 ? mumtaz.cycleStartedAt : startOfDay(monthsBefore(mumtaz.cycleStartedAt, k - 1));
+      const cycle = `c_m_ayesha_past${k}`;
+      Object.entries(plan).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: mumtaz.id, cafeId, cups: n, at: start + 9 * 60 * MIN, cycle }));
+      MONTH.forEach(([day, cafeId, drinkId, h, m]) => {
+        ledger.push({ id: `s${seq++}`, type: "redeem", memberId: mumtaz.id, cafeId, cups: -1, credits: drinkCredits(cafeId, drinkId), drinkId, firstVisit: k === 3 && day <= 7, at: start + day * DAY + (h * 60 + m) * MIN, cycle });
+      });
+      // The plan ended with one Slow Pour cup unused
+      ledger.push({ id: `s${seq++}`, type: "expire", memberId: mumtaz.id, cafeId: "slowpour", cups: -1, at: end, cycle });
+    }
+    mumtaz.memberSince = startOfDay(monthsBefore(mumtaz.cycleStartedAt, 3));
+  })();
+
   /* Hand-written history: earlier this cycle, before today ----------- */
   const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
   const byId = Object.fromEntries(members.map((m) => [m.id, m]));
   const HISTORY = {
-    m_ayesha: [["noon", "noon-capp", daysAgo(14, 30)], ["slowpour", "sp-v60", daysAgo(10, 90)], ["noon", "noon-latte", daysAgo(6, 40)], ["slowpour", "sp-gibraltar", daysAgo(2, 15)]],
+    m_ayesha: [["noon", "noon-capp", clockAgo(14, 8, 20)], ["slowpour", "sp-v60", clockAgo(10, 17, 40)], ["grind", "gg-latte", clockAgo(6, 11, 10)], ["slowpour", "sp-gibraltar", clockAgo(2, 19, 5)]],
     m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
     m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
     m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
@@ -445,14 +474,69 @@
   })();
   ledger.sort((a, b) => a.at - b.at);
 
-  /* Rewards ------------------------------------------------------------- */
-  const badges = [
-    { id: "first-cup",  name: "First cup",     line: "Your first redemption.",           earned: true  },
-    { id: "four-weeks", name: "Four weeks",    line: "A cup every week for a month.",    earned: true  },
-    { id: "explorer",   name: "Explorer",      line: "Try five different cafés.",        earned: false, progress: 3, goal: 5 },
-    { id: "early",      name: "Early riser",   line: "Three cups before 9 am.",          earned: false, progress: 1, goal: 3 },
-    { id: "generous",   name: "Generous",      line: "Send your first gift.",            earned: false, progress: 0, goal: 1 },
-  ];
+  // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
+  mumtaz.visits = {};
+  ledger.filter((e) => e.memberId === mumtaz.id && e.type === "redeem").forEach((e) => { mumtaz.visits[e.cafeId] = (mumtaz.visits[e.cafeId] || 0) + 1; });
+  mumtaz.cafesTried = Object.keys(mumtaz.visits);
+
+  /* The club ---------------------------------------------------------------
+     Status, passport and badges are earned by use and computed from the
+     ledger in state.js (select.club). Only the rules live here.         */
+  const saturdayFrom = (ts, dir) => { const d = new Date(startOfDay(ts)); while (d.getDay() !== 6) d.setDate(d.getDate() + dir); return d.getTime(); };
+  const club = {
+    foundingLimit: 500,         // the first 500 member numbers are Founding Members
+    membersIssued: 486,         // the next new member gets No. 0487. BACKEND: a sequence
+    // Free cup when the passport reaches these counts ("all" = every partner café)
+    passportRewards: [5, "all"],
+    inviteReward: 1,            // cups each, for the member and the friend they invite
+    levels: [
+      { id: "member",      name: "Member",      plural: "Members",      cups: 0,   cafes: 0,  line: "Everyone starts here." },
+      { id: "local",       name: "Local",       plural: "Locals",       cups: 30,  cafes: 0,  line: "30 cups with the club." },
+      { id: "connoisseur", name: "Connoisseur", plural: "Connoisseurs", cups: 100, cafes: 10, line: null }, // 10 cafés, or every partner café while there are fewer (line is written in select.club)
+    ],
+    // metric: cups | founding | cafes | morning (cups before 9 am) | area:<id>; goal "all" = every partner café
+    badges: [
+      { id: "first-cup",  name: "First cup",       how: "Have your first cup with the club.",   metric: "cups",         goal: 1 },
+      { id: "founding",   name: "Founding Member", how: "One of the first 500 members.",        metric: "founding",     goal: 1 },
+      { id: "explorer",   name: "Explorer",        how: "Have a cup at 5 different cafés.",     metric: "cafes",        goal: 5 },
+      { id: "all-lahore", name: "All of Lahore",   how: "Have a cup at every partner café.",    metric: "cafes",        goal: "all" },
+      { id: "morning",    name: "Morning person",  how: "10 cups before 9 am.",                 metric: "morning",      goal: 10 },
+      { id: "gulberg",    name: "Gulberg local",   how: "10 cups at cafés in Gulberg.",         metric: "area:gulberg", goal: 10 },
+    ],
+    // Funded by each café, not by plans. for: local (Local and up) | connoisseur | founding
+    perks: [
+      { id: "kiln-shot",      cafeId: "kiln",     for: "local",       text: "An extra shot in any drink, on the house" },
+      { id: "kiln-pastry",    cafeId: "kiln",     for: "connoisseur", text: "A free pastry with your coffee, once a week" },
+      { id: "noon-refill",    cafeId: "noon",     for: "local",       text: "A free refill on filter coffee" },
+      { id: "ember-croissant", cafeId: "ember",   for: "local",       text: "Half-price croissants before 10 am" },
+      { id: "slowpour-first", cafeId: "slowpour", for: "connoisseur", text: "The first pour of every new single origin" },
+      { id: "maple-beans",    cafeId: "maple",    for: "founding",    text: "A bag of the house roast on your club anniversary" },
+    ],
+    // BACKEND: gatherings and RSVPs become tables (gatherings, rsvps); seats are enforced server-side
+    gatherings: [
+      {
+        id: "gather-maple-cupping",
+        kind: "Club morning",
+        title: "Cupping at Maple Roastery",
+        cafeId: "maple",
+        at: saturdayFrom(now + 14 * DAY, 1) + 9 * 60 * MIN,
+        seats: 30,
+        taken: 19,                // RSVPs before this session
+        priorityDays: 7,          // Founding Members and Connoisseurs book first; everyone else from a week before
+        line: "Six coffees from three origins, tasted side by side with Maple’s roaster. Tea and something baked after.",
+      },
+      {
+        id: "gather-slowpour-brew",
+        kind: "Club evening",
+        title: "Brew bar at Slow Pour",
+        cafeId: "slowpour",
+        at: saturdayFrom(now - 14 * DAY, -1) + 18 * 60 * MIN,
+        seats: 24,
+        came: 22,
+        line: "Three brew methods, one coffee, and a long argument about which was best.",
+      },
+    ],
+  };
 
   LCC.data = {
     seededAt: now,
@@ -464,7 +548,7 @@
     memberId: mumtaz.id,
     partnerCafeId: "kiln",       // the café shown in the partner view
     ledger,
-    badges,
+    club,
     // Builder default for the “My cafés” plan
     builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
   };

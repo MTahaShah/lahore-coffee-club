@@ -17,6 +17,7 @@ CSS_FILES=(
   base.css
   cafe.css
   app.css
+  club.css
   landing.css
 )
 
@@ -32,6 +33,8 @@ JS_FILES=(
   app.js
   app-cafes.js
   app-plan.js
+  app-club.js
+  app-welcome.js
   landing.js
 )
 

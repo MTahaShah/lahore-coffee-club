@@ -761,6 +761,25 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   font-weight: 500;
 }
 .proto-bar__theme:hover { color: var(--ink); background: var(--surface); }
+.proto-bar__end { justify-self: end; display: flex; align-items: center; gap: 2px; }
+.proto-demo { position: relative; }
+.proto-bar__theme[aria-expanded="true"] { color: var(--ink); background: var(--surface); }
+.proto-demo__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 85;
+  display: grid;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--surface);
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+}
+.proto-demo__menu[hidden] { display: none; }
+.proto-demo__menu button { min-height: var(--tap); padding: 0 var(--space-3); border-radius: var(--radius-sm); text-align: left; font-size: var(--fs-14); font-weight: 500; color: var(--ink); white-space: nowrap; }
+.proto-demo__menu button:hover, .proto-demo__menu button:focus-visible { background: var(--surface-2); }
 @media (max-width: 560px) {
   .proto-bar { grid-template-columns: auto 1fr; }
   .proto-bar__label { display: none; }

@@ -270,8 +270,19 @@
               </div>
             </section>
 
+            <section class="landing-section lp-section" id="club" aria-labelledby="club-h">
+              ${sectionHead(5, "club", "The club", "A membership should feel like one. Here’s what members will have when we open.")}
+              <dl class="lp-points">
+                <div><dt class="t-h3">A member number</dt><dd class="t-body t-muted">Every member gets a number, in the order they join. It’s on your card in the app, and the barista sees it when you show your pass.</dd></div>
+                <div><dt class="t-h3">Founding Members</dt><dd class="t-body t-muted">The first ${store.getState().club.foundingLimit} members are Founding Members. It stays on their card for good, and they book first for gatherings.</dd></div>
+                <div><dt class="t-h3">A gathering every month</dt><dd class="t-body t-muted">Members meet at one of the partner cafés: a cupping, a brew class, a slow Saturday morning. Seats are limited, and you RSVP in the app.</dd></div>
+                <div><dt class="t-h3">Earned by coming back</dt><dd class="t-body t-muted">Status, badges and a passport of the cafés you’ve tried, all from the cups you actually drink. Cafés add their own perks.</dd></div>
+              </dl>
+              <p class="t-small t-faint lp-caption">The first gathering happens once the club opens. <a href="#/app/club">See the Club tab in the app</a>.</p>
+            </section>
+
             <section class="landing-section lp-section" id="partner" aria-labelledby="partner-h">
-              ${sectionHead(5, "partner", "For cafés", "We send you regulars. You serve them coffee. You get paid monthly, per cup, at a rate you set.")}
+              ${sectionHead(6, "partner", "For cafés", "We send you regulars. You serve them coffee. You get paid monthly, per cup, at a rate you set.")}
               <dl class="lp-points">
                 <div><dt class="t-h3">Guaranteed cups</dt><dd class="t-body t-muted">Members who build their own plan commit cups to your café for the month, so you know what to expect.</dd></div>
                 <div><dt class="t-h3">New customers</dt><dd class="t-body t-muted">Members go looking for somewhere new. Your screen tells you when it’s someone’s first visit.</dd></div>
@@ -302,12 +313,12 @@
             </section>
 
             <section class="landing-section lp-section" id="join" aria-labelledby="join-h">
-              ${sectionHead(6, "join", "Join the waitlist", "We’re opening with a small group of members first. Leave your number and we’ll message you on WhatsApp when there’s a place.")}
+              ${sectionHead(7, "join", "Join the waitlist", "We’re opening with a small group of members first. Leave your number and we’ll message you on WhatsApp when there’s a place.")}
               <div class="lp-form-wrap lp-form-wrap--narrow" data-form-slot="waitlist">${formHtml("waitlist")}</div>
             </section>
 
             <section class="landing-section lp-section" id="faq" aria-labelledby="faq-h">
-              ${sectionHead(7, "faq", "Questions")}
+              ${sectionHead(8, "faq", "Questions")}
               <div class="lp-faq" data-accordion>
                 ${FAQ.map(([q, a], i) => html`<div class="lp-faq__item">
                   <h3 class="lp-faq__q">
