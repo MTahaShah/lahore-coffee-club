@@ -135,16 +135,20 @@
       const cafe = state.cafes[cafeId];
       const since = startOfToday();
       const today = state.redemptions.filter((r) => r.cafeId === cafeId && r.at >= since).sort((a, b) => b.at - a.at);
+      // Paid per cup, so a two-cup drink counts twice.
       const cupsToday = today.reduce((n, r) => n + r.credits, 0);
-      const monthCups = cafe.monthRedemptions + cupsToday; // monthRedemptions = cups before today
+      // Month to date: a typical day for each earlier day this month, plus today.
+      const daysBefore = new Date().getDate() - 1;
+      const monthCups = daysBefore * cafe.avgDailyCups + cupsToday;
       return {
         today,
         redemptionsToday: today.length,
         cupsToday,
         newCustomersToday: today.filter((r) => r.firstVisit).length,
-        newCustomersMonth: cafe.newCustomersMonth + today.filter((r) => r.firstVisit).length,
+        payoutPerCup: cafe.payoutPerCup,
+        payoutToday: cupsToday * cafe.payoutPerCup,
         monthCups,
-        payoutEstimate: monthCups * cafe.payoutPerCup,
+        payoutMonth: monthCups * cafe.payoutPerCup,
       };
     },
 
@@ -241,7 +245,7 @@
     const EXPIRED_LOOKBACK = 20; // windows (10 min) checked to tell “expired” from “wrong”
     for (const m of Object.values(state.members)) {
       if (m.staticCode === code) return { member: m, expired: false };
-      if (m.staticCode) continue;
+      if (m.staticCode || m.background) continue;
       // Accept the current and previous window, so a code read out at
       // 0:01 still works a moment later.
       if (select.pass(m.id, now).code === code || select.pass(m.id, now - period).code === code) return { member: m, expired: false };

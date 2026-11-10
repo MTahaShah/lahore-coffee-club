@@ -45,7 +45,8 @@
 
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
-     payoutPerCup: the rate the café set; what we pay them per redemption.
+     payoutPerCup: the rate the café set; what we pay them per cup.
+     avgDailyCups: a typical day’s cups; drives today’s seed and month-to-date.
      credits: how many cups from the plan a drink uses.               */
   const cafes = [
     {
@@ -67,8 +68,7 @@
         { id: "kiln-pour",   name: "Single-origin pour-over", price: 900, credits: 2 },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
-      monthRedemptions: 214,
-      newCustomersMonth: 23,
+      avgDailyCups: 22,
     },
     {
       id: "maple",
@@ -89,8 +89,7 @@
         { id: "maple-filter",   name: "Ethiopian filter",     price: 950, credits: 2 },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
-      monthRedemptions: 176,
-      newCustomersMonth: 18,
+      avgDailyCups: 18,
     },
     {
       id: "ember",
@@ -111,8 +110,7 @@
         { id: "ember-cold",   name: "Cold brew tonic",      price: 650, credits: 1 },
       ],
       busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
-      monthRedemptions: 198,
-      newCustomersMonth: 21,
+      avgDailyCups: 26,
     },
     {
       id: "thirdfloor",
@@ -133,8 +131,7 @@
         { id: "tf-affogato",  name: "Affogato",             price: 650, credits: 1 },
       ],
       busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
-      monthRedemptions: 142,
-      newCustomersMonth: 16,
+      avgDailyCups: 15,
     },
     {
       id: "quiethours",
@@ -155,8 +152,7 @@
         { id: "qh-cortado",  name: "Brown butter cortado", price: 650, credits: 1 },
       ],
       busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
-      monthRedemptions: 131,
-      newCustomersMonth: 14,
+      avgDailyCups: 16,
     },
     {
       id: "slowpour",
@@ -177,8 +173,7 @@
         { id: "sp-flight",  name: "Tasting flight",       price: 1300, credits: 2 },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
-      monthRedemptions: 189,
-      newCustomersMonth: 19,
+      avgDailyCups: 24,
     },
     {
       id: "noon",
@@ -199,8 +194,7 @@
         { id: "noon-iced",   name: "Iced long black",      price: 450, credits: 1 },
       ],
       busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
-      monthRedemptions: 167,
-      newCustomersMonth: 20,
+      avgDailyCups: 20,
     },
     {
       id: "grind",
@@ -221,8 +215,7 @@
         { id: "gg-dirty",    name: "Dirty chai",           price: 600, credits: 1 },
       ],
       busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
-      monthRedemptions: 158,
-      newCustomersMonth: 17,
+      avgDailyCups: 19,
     },
   ];
 
@@ -251,8 +244,7 @@
     onboarded: false,
   };
 
-  const members = [
-    ayesha,
+  const demoMembers = [
     { id: "m_bilal", firstName: "Bilal", cupsTotal: 16, cupsLeft: 7,  staticCode: "615028", visits: { kiln: 6 } },
     { id: "m_sana",  firstName: "Sana",  cupsTotal: 30, cupsLeft: 19, staticCode: "207341", visits: { kiln: 2 } },
     { id: "m_omar",  firstName: "Omar",  cupsTotal: 8,  cupsLeft: 2,  staticCode: "558190", visits: { kiln: 1 } },
@@ -260,22 +252,105 @@
     { id: "m_hamza", firstName: "Hamza", cupsTotal: 8,  cupsLeft: 0,  staticCode: "730215", visits: { kiln: 2 } },
   ];
 
-  /* Redemption log ------------------------------------------------------
-     Ayesha: 5 cups used this cycle (16 − 11).
-     Kiln & Bean: a believable morning so the café view isn’t empty.   */
-  const redemptions = [
-    { id: "r1",  at: daysAgo(14, 30), cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat",   credits: 1, firstVisit: false },
-    { id: "r2",  at: daysAgo(10, 90), cafeId: "slowpour", memberId: "m_ayesha", drinkId: "sp-v60",      credits: 1, firstVisit: true  },
-    { id: "r3",  at: daysAgo(6, 40),  cafeId: "noon",     memberId: "m_ayesha", drinkId: "noon-capp",   credits: 1, firstVisit: true  },
-    { id: "r4",  at: daysAgo(2, 15),  cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-cort",   credits: 1, firstVisit: false },
-    { id: "r5",  at: minsAgo(212),    cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat",   credits: 1, firstVisit: false },
+  /* Regulars: background members who fill out each café’s day. They have
+     no codes, so they can’t be redeemed in the demo; they only appear in
+     the café view’s lists and totals.                                  */
+  const regulars = ["Fatima", "Usman", "Hira", "Ali", "Mahnoor", "Saad", "Iqra", "Danish", "Noor", "Ahmed", "Rida", "Faraz", "Amna", "Hassan"]
+    .map((n) => ({ id: `m_${n.toLowerCase()}`, firstName: n, cupsTotal: 16, cupsLeft: 8, background: true, visits: {} }));
 
-    { id: "r6",  at: minsAgo(188),    cafeId: "kiln",     memberId: "m_zara",   drinkId: "kiln-flat",   credits: 1, firstVisit: false },
-    { id: "r7",  at: minsAgo(151),    cafeId: "kiln",     memberId: "m_omar",   drinkId: "kiln-cort",   credits: 1, firstVisit: true  },
-    { id: "r8",  at: minsAgo(97),     cafeId: "kiln",     memberId: "m_bilal",  drinkId: "kiln-flat",   credits: 1, firstVisit: false },
-    { id: "r9",  at: minsAgo(64),     cafeId: "kiln",     memberId: "m_sana",   drinkId: "kiln-pour",   credits: 2, firstVisit: true  },
-    { id: "r10", at: minsAgo(23),     cafeId: "kiln",     memberId: "m_zara",   drinkId: "kiln-cort",   credits: 1, firstVisit: false },
+  const members = [ayesha, ...demoMembers, ...regulars];
+
+  /* Redemption log ------------------------------------------------------
+     History: Ayesha’s earlier cups this cycle. With her one cup at Kiln &
+     Bean today that makes 5 used (16 − 11).
+     Today: generated below, about avgDailyCups per café.               */
+  const history = [
+    { id: "r1", at: daysAgo(14, 30), cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat", credits: 1, firstVisit: false },
+    { id: "r2", at: daysAgo(10, 90), cafeId: "slowpour", memberId: "m_ayesha", drinkId: "sp-v60",    credits: 1, firstVisit: true  },
+    { id: "r3", at: daysAgo(6, 40),  cafeId: "noon",     memberId: "m_ayesha", drinkId: "noon-capp", credits: 1, firstVisit: true  },
+    { id: "r4", at: daysAgo(2, 15),  cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-cort", credits: 1, firstVisit: false },
   ];
+
+  /* Today’s hand-written rows. They set up the café-view demo cases:
+     Ayesha has 1 cup left of her daily limit here, Zara has none.     */
+  const handToday = {
+    kiln: [
+      { memberId: "m_ayesha", drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-flat" },
+      { memberId: "m_zara",   drinkId: "kiln-cort" },
+      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
+      { memberId: "m_bilal",  drinkId: "kiln-flat" },
+      { memberId: "m_sana",   drinkId: "kiln-pour", firstVisit: true },
+    ],
+  };
+
+  // Small seeded PRNG. Seeded by date, so every open window builds the same day.
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+  const startOfToday = midnight.getTime();
+  const rand = mulberry32(midnight.getFullYear() * 10000 + (midnight.getMonth() + 1) * 100 + midnight.getDate());
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+
+  /** n timestamps across today’s open hours so far, weighted by busyByHour.
+      Counts stay fixed so the demo looks the same at any hour; early in the
+      day they bunch into the hours that have passed.                     */
+  function todayTimes(cafe, n) {
+    const at = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return startOfToday + (h * 60 + (m || 0)) * MIN; };
+    let start = at(cafe.hours.open);
+    let close = at(cafe.hours.close);
+    if (close <= start) close += DAY;
+    let end = Math.min(now - 2 * MIN, close);
+    if (end - start < 60 * MIN) { start = Math.max(startOfToday, now - 3 * 60 * MIN); end = now - 2 * MIN; }
+    if (end <= start) start = end - 30 * MIN;
+
+    const slots = [];
+    let total = 0;
+    for (let t = start; t < end; ) {
+      const next = new Date(t); next.setMinutes(60, 0, 0);
+      const stop = Math.min(end, next.getTime());
+      const w = Math.max(0.08, cafe.busyByHour[new Date(t).getHours() - 8] ?? 0.1) * (stop - t);
+      slots.push({ t, stop, w }); total += w; t = stop;
+    }
+    return Array.from({ length: n }, () => {
+      let u = rand() * total;
+      const slot = slots.find((s) => (u -= s.w) <= 0) || slots[slots.length - 1];
+      return Math.round(slot.t + rand() * (slot.stop - slot.t));
+    }).sort((a, b) => a - b);
+  }
+
+  function seedToday() {
+    const out = [];
+    cafes.forEach((cafe) => {
+      const specs = (handToday[cafe.id] || []).map((s) => ({ firstVisit: false, ...s }));
+      const credits = (s) => cafe.drinks.find((d) => d.id === s.drinkId).credits;
+      const cups = () => specs.reduce((n, s) => n + credits(s), 0);
+      const perMember = {};
+      const oneCup = cafe.drinks.filter((d) => d.credits === 1);
+      const twoCup = cafe.drinks.filter((d) => d.credits > 1);
+      let guard = 0;
+      while (cups() < cafe.avgDailyCups && guard++ < 200) {
+        const m = pick(regulars);
+        if ((perMember[m.id] || 0) >= rules.dailyLimitPerCafe) continue;
+        perMember[m.id] = (perMember[m.id] || 0) + 1;
+        const drink = twoCup.length && rand() < 0.08 ? pick(twoCup) : pick(oneCup);
+        specs.push({ memberId: m.id, drinkId: drink.id, firstVisit: perMember[m.id] === 1 && rand() < 0.12 });
+      }
+      // Shuffle, then lay the rows over the day in time order
+      for (let i = specs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [specs[i], specs[j]] = [specs[j], specs[i]]; }
+      const times = todayTimes(cafe, specs.length);
+      specs.forEach((s, i) => out.push({ id: `t-${cafe.id}-${i}`, at: times[i], cafeId: cafe.id, credits: credits(s), ...s }));
+    });
+    return out;
+  }
+
+  const redemptions = [...history, ...seedToday()];
 
   /* Rewards ------------------------------------------------------------- */
   const badges = [

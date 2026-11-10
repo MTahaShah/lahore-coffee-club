@@ -78,11 +78,18 @@
                     <div><dt>Redemptions</dt><dd class="t-h1 num" data-stat="redemptions" data-value="0">0</dd></div>
                     <div><dt>New customers</dt><dd class="t-h1 num" data-stat="new" data-value="0">0</dd></div>
                     <div class="today-stats__wide">
-                      <dt>Estimated payout this month</dt>
+                      <dt>Payout today</dt>
                       <dd class="t-h1 num" data-stat="payout" data-value="0">${fmt.rs(0)}</dd>
                       <dd class="t-small t-faint num" data-payout-meta></dd>
                     </div>
                   </dl>
+                  <div class="row" style="margin-top:var(--space-4);border-top:var(--hairline)">
+                    <div class="row__main">
+                      <div class="row__title">This month so far</div>
+                      <div class="row__meta num" data-month-meta></div>
+                    </div>
+                    <span class="row__trail num" style="color:var(--ink);font-size:var(--fs-16)" data-stat="month" data-value="0">${fmt.rs(0)}</span>
+                  </div>
                   <hr class="divider" style="margin-block:var(--space-5) var(--space-3)">
                   <h3 class="eyebrow">Recent redemptions</h3>
                   <ol class="recent" role="list" data-recent aria-live="polite"></ol>
@@ -260,13 +267,14 @@
          Today
          --------------------------------------------------------------- */
       function paintToday(newEntryId) {
-        const c = cafe();
         // BACKEND: GET /cafes/:id/summary?date=today
         const s = store.select.cafeSummary(cafeId);
         ui.animateNumber($('[data-stat="redemptions"]', el), s.redemptionsToday);
         ui.animateNumber($('[data-stat="new"]', el), s.newCustomersToday);
-        ui.animateNumber($('[data-stat="payout"]', el), s.payoutEstimate, { format: fmt.rs, duration: 700 });
-        $("[data-payout-meta]", el).textContent = `${fmt.num(s.monthCups)} cups at ${fmt.rs(c.payoutPerCup)} each, paid on the 1st`;
+        ui.animateNumber($('[data-stat="payout"]', el), s.payoutToday, { format: fmt.rs, duration: 700 });
+        ui.animateNumber($('[data-stat="month"]', el), s.payoutMonth, { format: fmt.rs, duration: 700 });
+        $("[data-payout-meta]", el).textContent = `${fmt.cups(s.cupsToday)} × ${fmt.rs(s.payoutPerCup)}, your rate per cup`;
+        $("[data-month-meta]", el).textContent = `${fmt.cups(s.monthCups)}, paid on the 1st`;
 
         const list = $("[data-recent]", el);
         const shown = s.today.slice(0, RECENT_LIMIT);
