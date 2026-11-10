@@ -1484,15 +1484,15 @@ li:last-child > .near-row { border-bottom: 0; }
   ];
 
   /* Members --------------------------------------------------------------
-     Ayesha is the demo member. The others exist so the café view can show
+     Mumtaz is the demo member. The others exist so the café view can show
      a realistic day, and so error states can be demonstrated:
        Zara  — has already had 2 cups at Kiln & Bean today (daily limit)
        Hamza — no cups left this month                                  */
   const ayesha = {
     id: "m_ayesha",
-    firstName: "Ayesha",
-    lastName: "Rahman",
-    initials: "AR",
+    firstName: "Mumtaz",
+    lastName: "Begum",
+    initials: "MB",
     phone: "+92 300 1234567",
     area: "gulberg",
     planId: "regular",
@@ -1504,7 +1504,7 @@ li:last-child > .near-row { border-bottom: 0; }
     streakWeeks: 4,
     cafesTried: ["kiln", "slowpour", "noon"],
     visits: { kiln: 3, slowpour: 1, noon: 1 },   // loyalty: visits per café
-    referralCode: "AYESHA-K7",
+    referralCode: "MUMTAZ-K7",
     onboarded: false,
   };
 
@@ -1525,7 +1525,7 @@ li:last-child > .near-row { border-bottom: 0; }
   const members = [ayesha, ...demoMembers, ...regulars];
 
   /* Redemption log ------------------------------------------------------
-     History: Ayesha’s earlier cups this cycle. With her one cup at Kiln &
+     History: Mumtaz’s earlier cups this cycle. With her one cup at Kiln &
      Bean today that makes 5 used (16 − 11).
      Today: generated below, about avgDailyCups per café.               */
   const history = [
@@ -1536,7 +1536,7 @@ li:last-child > .near-row { border-bottom: 0; }
   ];
 
   /* Today’s hand-written rows. They set up the café-view demo cases:
-     Ayesha has 1 cup left of her daily limit here, Zara has none.     */
+     Mumtaz has 1 cup left of her daily limit here, Zara has none.     */
   const handToday = {
     kiln: [
       { memberId: "m_ayesha", drinkId: "kiln-flat" },
@@ -1764,7 +1764,7 @@ li:last-child > .near-row { border-bottom: 0; }
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
 
-    /** Ayesha’s activity, newest first. */
+    /** Mumtaz’s activity, newest first. */
     activity(memberId = state.memberId) {
       return state.redemptions.filter((r) => r.memberId === memberId).sort((a, b) => b.at - a.at);
     },
@@ -2714,7 +2714,7 @@ li:last-child > .near-row { border-bottom: 0; }
               <form class="stack" style="--stack-gap:var(--space-4)" data-kit-form novalidate>
                 <div class="field">
                   <label class="field__label" for="kit-name">Your name</label>
-                  <input class="input" id="kit-name" name="name" autocomplete="given-name" placeholder="Ayesha" aria-describedby="kit-name-err">
+                  <input class="input" id="kit-name" name="name" autocomplete="given-name" placeholder="Mumtaz" aria-describedby="kit-name-err">
                   <p class="field__error" id="kit-name-err">We’ll need a name to save your spot.</p>
                 </div>
                 <div class="field">
@@ -2765,7 +2765,7 @@ li:last-child > .near-row { border-bottom: 0; }
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Ayesha</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 
@@ -3758,7 +3758,7 @@ li:last-child > .near-row { border-bottom: 0; }
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
       const offs = ["redeem", "member", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
-      // A cup redeemed while Ayesha is on another tab still deserves a word
+      // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.id === "pass") return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);

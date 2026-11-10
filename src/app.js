@@ -487,7 +487,7 @@
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
       const offs = ["redeem", "member", "cafe:status", "pass", "tick"].map((type) => store.on(type, dispatch(type)));
-      // A cup redeemed while Ayesha is on another tab still deserves a word
+      // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || active.id === "pass") return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(who.cupsLeft)} left.`);

@@ -57,7 +57,7 @@
               <form class="stack" style="--stack-gap:var(--space-4)" data-kit-form novalidate>
                 <div class="field">
                   <label class="field__label" for="kit-name">Your name</label>
-                  <input class="input" id="kit-name" name="name" autocomplete="given-name" placeholder="Ayesha" aria-describedby="kit-name-err">
+                  <input class="input" id="kit-name" name="name" autocomplete="given-name" placeholder="Mumtaz" aria-describedby="kit-name-err">
                   <p class="field__error" id="kit-name-err">We’ll need a name to save your spot.</p>
                 </div>
                 <div class="field">
@@ -108,7 +108,7 @@
               <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
                 ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
-              <div class="row"><div class="row__main"><div class="row__title">Ayesha</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
+              <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta">Cups left this month</div></div><span class="row__trail num" data-kit-ayesha>${store.select.member().cupsLeft} of ${store.select.member().cupsTotal}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
             </section>
 

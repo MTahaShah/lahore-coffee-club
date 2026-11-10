@@ -220,15 +220,15 @@
   ];
 
   /* Members --------------------------------------------------------------
-     Ayesha is the demo member. The others exist so the café view can show
+     Mumtaz is the demo member. The others exist so the café view can show
      a realistic day, and so error states can be demonstrated:
        Zara  — has already had 2 cups at Kiln & Bean today (daily limit)
        Hamza — no cups left this month                                  */
   const ayesha = {
     id: "m_ayesha",
-    firstName: "Ayesha",
-    lastName: "Rahman",
-    initials: "AR",
+    firstName: "Mumtaz",
+    lastName: "Begum",
+    initials: "MB",
     phone: "+92 300 1234567",
     area: "gulberg",
     planId: "regular",
@@ -240,7 +240,7 @@
     streakWeeks: 4,
     cafesTried: ["kiln", "slowpour", "noon"],
     visits: { kiln: 3, slowpour: 1, noon: 1 },   // loyalty: visits per café
-    referralCode: "AYESHA-K7",
+    referralCode: "MUMTAZ-K7",
     onboarded: false,
   };
 
@@ -261,7 +261,7 @@
   const members = [ayesha, ...demoMembers, ...regulars];
 
   /* Redemption log ------------------------------------------------------
-     History: Ayesha’s earlier cups this cycle. With her one cup at Kiln &
+     History: Mumtaz’s earlier cups this cycle. With her one cup at Kiln &
      Bean today that makes 5 used (16 − 11).
      Today: generated below, about avgDailyCups per café.               */
   const history = [
@@ -272,7 +272,7 @@
   ];
 
   /* Today’s hand-written rows. They set up the café-view demo cases:
-     Ayesha has 1 cup left of her daily limit here, Zara has none.     */
+     Mumtaz has 1 cup left of her daily limit here, Zara has none.     */
   const handToday = {
     kiln: [
       { memberId: "m_ayesha", drinkId: "kiln-flat" },

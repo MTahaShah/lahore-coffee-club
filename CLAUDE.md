@@ -56,6 +56,8 @@ next pass until asked.**
   used for placeholders only.
 - Max 2 redemptions per café per member per day (`rules.dailyLimitPerCafe`).
 - Pass codes stay valid for one extra 30s window after rotating.
+- The demo member is Mumtaz Begum (initials MB), not the spec's "Ayesha".
+  Her internal id stays `m_ayesha` (and the `ayesha` variable in data.js).
 - Demo members Bilal, Sana, Omar, Zara and Hamza exist for the café view
   (Zara hits the daily limit; Hamza has no cups left).
 - Design polish comes later; the current palette and fonts stay for now.

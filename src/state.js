@@ -118,7 +118,7 @@
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
 
-    /** Ayesha’s activity, newest first. */
+    /** Mumtaz’s activity, newest first. */
     activity(memberId = state.memberId) {
       return state.redemptions.filter((r) => r.memberId === memberId).sort((a, b) => b.at - a.at);
     },
