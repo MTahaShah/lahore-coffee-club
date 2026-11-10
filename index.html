@@ -1,0 +1,2396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#EFE8DD" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#241E19" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Lahore Coffee Club: one monthly pass for the city’s best independent cafés. Prototype.">
+  <title>Lahore Coffee Club</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..500&family=Inter+Tight:wght@400;500;600&display=swap">
+<style>
+/* ---- src/base.css ---- */
+/* =====================================================================
+   Lahore Coffee Club — base.css
+   Tokens, light/dark themes, reset, typography, and reusable components.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Tokens (light)
+   --------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Color */
+  --bg: #F6F1EA;
+  --surface: #FBF8F3;
+  --surface-2: #EFE8DD;
+  --ink: #1C1612;
+  --ink-2: #5E554C;
+  --ink-3: #70655A;          /* tertiary text; nudged from #968B7F for AA */
+  --ink-4: #968B7F;          /* placeholders, disabled, decoration only */
+  --line: #E3DACD;
+  --line-strong: #D2C7B7;
+  --accent: #2F4A3A;
+  --accent-hover: #263E30;
+  --accent-soft: #E4EAE2;
+  --on-accent: #F6F1EA;
+  --danger: #9E4330;          /* validation text, not a status */
+  --status-quiet: #4E7D5B;
+  --status-moderate: #C9962B;
+  --status-packed: #B5503C;
+  --bezel: #1C1612;
+  --scrim: rgba(28, 22, 18, 0.32);
+  --shadow-float: 0 24px 48px -24px rgba(28, 22, 18, 0.22), 0 2px 6px -2px rgba(28, 22, 18, 0.06);
+
+  /* Type */
+  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-sans: "Inter Tight", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+  --fs-40: 40px;
+  --fs-64: 64px;
+  --lh-body: 1.5;
+  --lh-tight: 1.08;
+  --lh-snug: 1.15;
+  --measure: 60ch;
+
+  /* Spacing (8px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* Shape */
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --radius-sheet: 20px;
+  --radius-sm: 8px;
+  --hairline: 1px solid var(--line);
+  --tap: 44px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-1: 200ms;
+  --dur-2: 260ms;
+  --dur-3: 320ms;
+
+  /* Layout */
+  --proto-h: 40px;
+  --gutter: clamp(16px, 4vw, 48px);
+  --container: 1200px;
+}
+
+/* ---------------------------------------------------------------------
+   2. Tokens (dark): system preference, unless forced light
+   --------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #14100D;
+    --surface: #1B1612;
+    --surface-2: #241E19;
+    --ink: #F2EBE0;
+    --ink-2: #C2B7A9;
+    --ink-3: #9A8F82;
+    --ink-4: #6E655B;
+    --line: #2C251F;
+    --line-strong: #3B332B;
+    --accent: #9DBFA6;
+    --accent-hover: #B0CDB7;
+    --accent-soft: #1F2A23;
+    --on-accent: #12100D;
+    --danger: #E08A74;
+    --status-quiet: #79A784;
+    --status-moderate: #D4A548;
+    --status-packed: #D27560;
+    --bezel: #2A231E;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow-float: 0 24px 48px -24px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Same dark tokens, forced by the theme toggle */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14100D;
+  --surface: #1B1612;
+  --surface-2: #241E19;
+  --ink: #F2EBE0;
+  --ink-2: #C2B7A9;
+  --ink-3: #9A8F82;
+  --ink-4: #6E655B;
+  --line: #2C251F;
+  --line-strong: #3B332B;
+  --accent: #9DBFA6;
+  --accent-hover: #B0CDB7;
+  --accent-soft: #1F2A23;
+  --on-accent: #12100D;
+  --danger: #E08A74;
+  --status-quiet: #79A784;
+  --status-moderate: #D4A548;
+  --status-packed: #D27560;
+  --bezel: #2A231E;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-float: 0 24px 48px -24px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------------------------------------------------------------------
+   3. Reset and base
+   --------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01" on, "cv11" on;
+  padding-top: calc(var(--proto-h) + env(safe-area-inset-top));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+img, svg { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; }
+ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
+::selection { background: var(--accent-soft); color: var(--ink); }
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 16px;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-14);
+  transform: translateY(-200%);
+  transition: transform var(--dur-1) var(--ease);
+}
+.skip-link:focus-visible { transform: translateY(0); }
+
+/* ---------------------------------------------------------------------
+   4. Typography
+   --------------------------------------------------------------------- */
+.t-display, .t-h1, .t-h2 {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+.t-display { font-size: var(--fs-64); letter-spacing: -0.03em; line-height: 1.04; }
+.t-h1 { font-size: var(--fs-40); }
+.t-h2 { font-size: var(--fs-28); font-weight: 350; line-height: var(--lh-snug); }
+.t-h3 {
+  font-size: var(--fs-20);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.t-body { font-size: var(--fs-16); line-height: var(--lh-body); }
+.t-small { font-size: var(--fs-14); line-height: 1.45; }
+.t-micro { font-size: var(--fs-12); line-height: 1.4; }
+.t-muted { color: var(--ink-2); }
+.t-faint { color: var(--ink-3); }
+.eyebrow {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+.num, .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on, "lnum" on; }
+.measure { max-width: var(--measure); }
+.wordmark {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-20);
+  letter-spacing: -0.015em;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .t-display { font-size: 44px; }
+  .t-h1 { font-size: 32px; }
+}
+
+/* ---------------------------------------------------------------------
+   5. Layout helpers
+   --------------------------------------------------------------------- */
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+.stack { display: flex; flex-direction: column; }
+.stack > * + * { margin-top: var(--stack-gap, var(--space-4)); }
+.cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cluster-gap, var(--space-3)); }
+.divider { height: 1px; background: var(--line); border: 0; }
+
+/* ---------------------------------------------------------------------
+   6. Components
+   --------------------------------------------------------------------- */
+
+/* Button ------------------------------------------------------------- */
+.btn {
+  --btn-h: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--btn-h);
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-16);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    opacity var(--dur-1) var(--ease);
+}
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible { border-radius: var(--radius-pill); outline-offset: 3px; }
+.btn svg { width: 20px; height: 20px; flex: none; }
+
+.btn--primary { background: var(--accent); color: var(--on-accent); }
+.btn--primary:hover { background: var(--accent-hover); }
+
+.btn--secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.btn--secondary:hover { border-color: var(--ink-3); background: var(--surface); }
+
+.btn--ghost { background: transparent; color: var(--ink); }
+.btn--ghost:hover { background: var(--surface-2); }
+
+.btn--link {
+  --btn-h: var(--tap);
+  padding: 0;
+  border-radius: 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--line-strong);
+}
+.btn--link:hover { text-decoration-color: currentColor; }
+.btn--link:active { transform: none; opacity: 0.7; }
+
+.btn--compact { --btn-h: var(--tap); padding: 0 var(--space-4); font-size: var(--fs-14); }
+.btn--block { width: 100%; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn:active { transform: scale(0.94); }
+.icon-btn svg { width: 22px; height: 22px; }
+
+/* Input -------------------------------------------------------------- */
+.field { display: grid; gap: var(--space-2); }
+.field__label { font-size: var(--fs-14); font-weight: 500; color: var(--ink); }
+.field__hint { font-size: var(--fs-12); color: var(--ink-3); }
+.field__error {
+  display: none;
+  font-size: var(--fs-14);
+  color: var(--danger);
+  line-height: 1.4;
+}
+.field[data-invalid="true"] .field__error { display: block; animation: enter var(--dur-2) var(--ease) both; }
+.field[data-invalid="true"] .input { border-color: var(--danger); }
+.field[data-invalid="true"] .input:focus { box-shadow: 0 0 0 1px var(--danger); }
+
+.input {
+  width: 100%;
+  height: 56px;
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  font-size: var(--fs-16);   /* 16px prevents iOS zoom on focus */
+  color: var(--ink);
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+.input::placeholder { color: var(--ink-4); }
+.input:hover { border-color: var(--ink-4); }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-height: var(--lh-body); resize: vertical; }
+
+.select { position: relative; }
+.select .input { padding-right: var(--space-7); cursor: pointer; }
+.select::after {
+  content: "";
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* Card --------------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+}
+.card--flush { padding: 0; overflow: hidden; }
+.card--interactive {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+.card--interactive:hover { border-color: var(--line-strong); }
+.card--interactive:active { transform: scale(0.99); }
+.card[aria-pressed="true"], .card[aria-checked="true"], .card.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* List row ----------------------------------------------------------- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding: var(--space-3) 0;
+  border-bottom: var(--hairline);
+}
+.row:last-child { border-bottom: 0; }
+.row__main { flex: 1; min-width: 0; }
+.row__title { font-size: var(--fs-16); font-weight: 500; line-height: 1.3; }
+.row__meta { font-size: var(--fs-14); color: var(--ink-3); line-height: 1.4; }
+.row__trail { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: var(--fs-14); }
+
+/* Stepper ------------------------------------------------------------ */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  height: var(--tap);
+  border: var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+.stepper__btn {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease);
+}
+.stepper__btn:hover { background: var(--surface-2); }
+.stepper__btn:active { transform: scale(0.92); }
+.stepper__btn:disabled { opacity: 0.3; pointer-events: none; }
+.stepper__btn svg { width: 16px; height: 16px; }
+.stepper__value {
+  min-width: 28px;
+  text-align: center;
+  font-size: var(--fs-16);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Segmented control -------------------------------------------------- */
+.segmented {
+  --count: 2;
+  --index: 0;
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+}
+.segmented__thumb {
+  position: absolute;
+  top: 4px; bottom: 4px; left: 4px;
+  width: calc((100% - 8px) / var(--count));
+  transform: translateX(calc(var(--index) * 100%));
+  background: var(--surface);
+  border: var(--hairline);
+  border-radius: var(--radius-pill);
+  transition: transform var(--dur-2) var(--ease);
+}
+.segmented__option {
+  position: relative;
+  z-index: 1;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-3);
+  transition: color var(--dur-1) var(--ease);
+}
+.segmented__option[aria-selected="true"], .segmented__option[aria-checked="true"] { color: var(--ink); }
+
+/* Chip --------------------------------------------------------------- */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.chip::before { content: ""; position: absolute; inset: -4px 0; } /* 44px hit area */
+.chip:hover { border-color: var(--ink-4); color: var(--ink); }
+.chip:active { transform: scale(0.97); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip svg { width: 14px; height: 14px; }
+
+/* Toggle (switch) ---------------------------------------------------- */
+.toggle {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+  transition: background-color var(--dur-2) var(--ease);
+}
+.toggle::before { content: ""; position: absolute; inset: -8px -2px; } /* 44px hit area */
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(28, 22, 18, 0.2);
+  transition: transform var(--dur-2) var(--ease);
+}
+.toggle[aria-checked="true"] { background: var(--accent); }
+.toggle[aria-checked="true"]::after { transform: translateX(20px); }
+
+/* Badge -------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.badge--accent { background: var(--accent-soft); color: var(--accent); }
+
+/* Status pill -------------------------------------------------------- */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border: var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--fs-12);
+  line-height: 1;
+  white-space: nowrap;
+}
+.status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  flex: none;
+  transition: background-color var(--dur-2) var(--ease);
+}
+.status__label { font-weight: 500; color: var(--ink); }
+.status__time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.status--bare { height: auto; padding: 0; border: 0; background: none; }
+[data-status="quiet"] > .status__dot { background: var(--status-quiet); }
+[data-status="moderate"] > .status__dot { background: var(--status-moderate); }
+[data-status="packed"] > .status__dot { background: var(--status-packed); }
+.status.is-changed .status__dot { animation: status-settle 600ms var(--ease); }
+@keyframes status-settle {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
+
+/* Bottom sheet ------------------------------------------------------- */
+/* Positioned against its nearest positioned ancestor (the phone frame).
+   Add .sheet--viewport to cover the whole window instead. */
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear var(--dur-3);
+}
+.sheet--viewport { position: fixed; }
+.sheet[data-open="true"] { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease);
+}
+.sheet[data-open="true"] .sheet__scrim { opacity: 1; }
+.sheet__panel {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-top: var(--hairline);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-float);
+  transform: translateY(100%);
+  transition: transform var(--dur-3) var(--ease);
+  will-change: transform;
+}
+.sheet[data-open="true"] .sheet__panel { transform: translateY(var(--drag, 0px)); }
+.sheet.is-dragging .sheet__panel { transition: none; }
+.sheet__handle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 28px;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet__handle::after {
+  content: "";
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+}
+.sheet__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom));
+}
+@media (min-width: 720px) {
+  .sheet--viewport .sheet__panel { left: 50%; right: auto; width: 480px; margin-left: -240px; }
+}
+
+/* Toast -------------------------------------------------------------- */
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+  z-index: 90;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 10px var(--space-4);
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  pointer-events: auto;
+  animation: enter var(--dur-2) var(--ease) both;
+}
+.toast svg { width: 18px; height: 18px; flex: none; }
+.toast.is-leaving { animation: leave var(--dur-1) var(--ease) both; }
+
+/* Placeholder (Pass 1 scaffolding only) ------------------------------ */
+.placeholder {
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  min-height: 160px;
+  padding: var(--space-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card);
+  color: var(--ink-3);
+  font-size: var(--fs-14);
+}
+
+/* ---------------------------------------------------------------------
+   7. Motion
+   --------------------------------------------------------------------- */
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes leave {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px); }
+}
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+
+/* Fade + 8px rise. Set --i on children for a stagger. */
+.enter { animation: enter var(--dur-3) var(--ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
+
+/* Calm check: <svg class="check-draw"><path pathLength="1" d="…"/></svg> */
+.check-draw path, .check-draw circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: check-draw 520ms var(--ease) forwards;
+}
+.check-draw path { animation-delay: 260ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================================
+   8. Surface shells
+   ===================================================================== */
+
+/* Prototype switcher -------------------------------------------------- */
+.proto-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 80;
+  height: calc(var(--proto-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--surface-2);
+  border-bottom: var(--hairline);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+}
+.proto-bar__label { font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+.proto-bar__nav { display: flex; gap: 2px; }
+.proto-bar__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.proto-bar__link::before { content: ""; position: absolute; inset: -8px 0; }
+.proto-bar__link:hover { color: var(--ink); }
+.proto-bar__link[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.proto-bar__theme {
+  justify-self: end;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.proto-bar__theme:hover { color: var(--ink); background: var(--surface); }
+@media (max-width: 560px) {
+  .proto-bar { grid-template-columns: auto 1fr; }
+  .proto-bar__label { display: none; }
+  .proto-bar__nav { justify-self: start; }
+  .proto-bar__link { padding: 0 10px; }
+}
+
+/* Route container ---------------------------------------------------- */
+#main { display: block; min-height: calc(100dvh - var(--proto-h)); }
+#main:focus { outline: none; }
+.surface { animation: enter var(--dur-3) var(--ease) both; }
+
+/* Landing shell ------------------------------------------------------ */
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  height: 80px;
+}
+.landing-nav__links { display: flex; align-items: center; gap: var(--space-6); }
+.landing-nav__link {
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease);
+}
+.landing-nav__link:hover { color: var(--ink); }
+@media (max-width: 760px) { .landing-nav__link { display: none; } }
+.landing-section {
+  padding-block: var(--space-9);
+  border-top: var(--hairline);
+  scroll-margin-top: calc(var(--proto-h) + 16px);
+}
+.landing-section:first-of-type { border-top: 0; padding-top: var(--space-8); }
+.landing-section__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: baseline;
+}
+@media (max-width: 760px) {
+  .landing-section { padding-block: var(--space-8); }
+  .landing-section__head { grid-template-columns: 1fr; gap: var(--space-2); }
+}
+
+/* Member app shell: phone frame -------------------------------------- */
+.stage {
+  min-height: calc(100dvh - var(--proto-h));
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--space-4);
+}
+.phone {
+  zoom: var(--phone-scale, 1);
+  width: 410px;            /* 390 screen + 2 x 10 bezel */
+  height: 864px;           /* 844 screen + 2 x 10 bezel */
+  padding: 10px;
+  border-radius: 58px;
+  background: var(--bezel);
+  box-shadow: var(--shadow-float);
+}
+.phone__screen {
+  position: relative;      /* sheets and toasts anchor here */
+  isolation: isolate;
+  width: 390px;
+  height: 844px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 48px;
+  background: var(--bg);
+}
+.phone__status {
+  flex: none;
+  position: relative;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px 0 40px;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.phone__island {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 120px;
+  height: 34px;
+  margin-left: -60px;
+  border-radius: var(--radius-pill);
+  background: #000;
+}
+.phone__status-icons { display: flex; gap: 6px; align-items: center; }
+.phone__status-icons svg { width: 18px; height: 12px; }
+.app-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.app-view::-webkit-scrollbar { display: none; }
+.app-view__inner { padding: var(--space-5); }
+
+/* On a real phone the frame disappears and the app goes edge to edge */
+@media (max-width: 520px) {
+  .stage { padding: 0; display: block; }
+  .phone { zoom: 1; width: 100%; height: calc(100dvh - var(--proto-h) - env(safe-area-inset-top)); padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  .phone__screen { width: 100%; height: 100%; border-radius: 0; }
+  .phone__status { display: none; }
+}
+
+/* Café partner shell ------------------------------------------------- */
+.cafe {
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: var(--space-5) var(--gutter) calc(var(--space-7) + env(safe-area-inset-bottom));
+}
+.cafe-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--hairline);
+}
+.open-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 var(--space-4) 0 14px;
+  border: var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-weight: 500;
+}
+.open-indicator::before {
+  content: "";
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.cafe-grid {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .cafe-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+  .cafe-grid__side { display: grid; gap: var(--space-5); }
+}
+.panel-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+
+/* Component kit (#/kit) ---------------------------------------------- */
+.kit { padding-block: var(--space-7) var(--space-9); }
+.kit-grid { display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); margin-top: var(--space-6); }
+.kit-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
+.kit-swatch { display: grid; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); }
+.kit-swatch span:first-child { height: 48px; border-radius: var(--radius-sm); border: var(--hairline); }
+.kit-demo-phone { position: relative; height: 320px; overflow: hidden; border-radius: var(--radius-card); border: var(--hairline); background: var(--bg); }
+
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="proto-bar"></header>
+  <main id="main" tabindex="-1"></main>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  <noscript><p style="padding:24px">This prototype needs JavaScript to run.</p></noscript>
+<script>
+/* ---- src/data.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — data.js
+   Fictional seed data. No real brands. Timestamps are relative to page
+   load so “updated 6 min ago” always reads true.
+   // BACKEND: GET /cafes, GET /tiers, GET /me replace this file.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = (window.LCC = window.LCC || {});
+
+  const now = Date.now();
+  const MIN = 60 * 1000;
+  const DAY = 24 * 60 * MIN;
+  const minsAgo = (m) => now - m * MIN;
+  const daysAgo = (d, m = 0) => now - d * DAY - m * MIN;
+
+  /* Pricing rules, shared by the builder and the landing teaser ------- */
+  const rules = {
+    customDiscount: 0.8,       // member pays 80% of list price
+    roundTo: 50,               // round monthly price to nearest Rs 50
+    maxCupsPerCafe: 10,
+    minCupsTotal: 6,
+    dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
+    passRotateSeconds: 30,
+    giftExpiryDays: 60,
+    giftMaxCups: 3,
+  };
+
+  /* Fixed tiers --------------------------------------------------------- */
+  const tiers = [
+    { id: "starter",    name: "Starter",    cups: 8,  price: 3500,  line: "Two good coffees a week." },
+    { id: "regular",    name: "Regular",    cups: 16, price: 6500,  line: "Most weekdays, sorted." },
+    { id: "enthusiast", name: "Enthusiast", cups: 30, price: 11000, line: "One a day, and then some." },
+  ];
+
+  /* Map areas (SVG coordinates in a 1000 x 800 viewBox) ----------------- */
+  const areas = [
+    { id: "gulberg",    name: "Gulberg",    x: 520, y: 360 },
+    { id: "liberty",    name: "Liberty",    x: 430, y: 420 },
+    { id: "fortress",   name: "Fortress",   x: 660, y: 300 },
+    { id: "dha",        name: "DHA",        x: 760, y: 560 },
+    { id: "model-town", name: "Model Town", x: 520, y: 600 },
+    { id: "johar-town", name: "Johar Town", x: 280, y: 640 },
+  ];
+
+  /* Cafés ----------------------------------------------------------------
+     busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
+     payoutPerCup: the rate the café set; what we pay them per redemption.
+     credits: how many cups from the plan a drink uses.               */
+  const cafes = [
+    {
+      id: "kiln",
+      name: "Kiln & Bean",
+      area: "gulberg",
+      price: 650,
+      payoutPerCup: 480,
+      tags: ["Roastery", "Pastries"],
+      status: "moderate",
+      statusUpdatedAt: minsAgo(6),
+      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
+      blurb: "Roasts on site every Tuesday. The window seats go first.",
+      distanceKm: 0.8,
+      x: 545, y: 345,
+      drinks: [
+        { id: "kiln-flat",   name: "Kiln flat white",       price: 650, credits: 1 },
+        { id: "kiln-cort",   name: "Cardamom cortado",      price: 600, credits: 1 },
+        { id: "kiln-pour",   name: "Single-origin pour-over", price: 900, credits: 2 },
+      ],
+      busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
+      monthRedemptions: 214,
+      newCustomersMonth: 23,
+    },
+    {
+      id: "maple",
+      name: "Maple Roastery",
+      area: "dha",
+      price: 750,
+      payoutPerCup: 560,
+      tags: ["Roastery", "Work-friendly"],
+      status: "quiet",
+      statusUpdatedAt: minsAgo(12),
+      hours: { open: "9:00", close: "22:00", label: "9 am – 10 pm" },
+      blurb: "Light roasts, long tables, plugs at every seat.",
+      distanceKm: 6.4,
+      x: 790, y: 545,
+      drinks: [
+        { id: "maple-espresso", name: "Maple house espresso", price: 550, credits: 1 },
+        { id: "maple-latte",    name: "Oat honey latte",      price: 750, credits: 1 },
+        { id: "maple-filter",   name: "Ethiopian filter",     price: 950, credits: 2 },
+      ],
+      busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
+      monthRedemptions: 176,
+      newCustomersMonth: 18,
+    },
+    {
+      id: "ember",
+      name: "Ember Coffee Co.",
+      area: "model-town",
+      price: 550,
+      payoutPerCup: 400,
+      tags: ["Pastries", "Garden"],
+      status: "packed",
+      statusUpdatedAt: minsAgo(3),
+      hours: { open: "7:30", close: "22:00", label: "7:30 am – 10 pm" },
+      blurb: "A garden café off the park. Croissants until they run out.",
+      distanceKm: 5.1,
+      x: 500, y: 615,
+      drinks: [
+        { id: "ember-latte",  name: "Ember latte",          price: 550, credits: 1 },
+        { id: "ember-mocha",  name: "Gur mocha",            price: 600, credits: 1 },
+        { id: "ember-cold",   name: "Cold brew tonic",      price: 650, credits: 1 },
+      ],
+      busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
+      monthRedemptions: 198,
+      newCustomersMonth: 21,
+    },
+    {
+      id: "thirdfloor",
+      name: "Third Floor",
+      area: "johar-town",
+      price: 500,
+      payoutPerCup: 360,
+      tags: ["Work-friendly", "Late hours"],
+      status: "quiet",
+      statusUpdatedAt: minsAgo(18),
+      hours: { open: "10:00", close: "1:00", label: "10 am – 1 am" },
+      blurb: "Up two flights of stairs, and worth it. Open late for exam season.",
+      distanceKm: 9.7,
+      x: 290, y: 625,
+      drinks: [
+        { id: "tf-americano", name: "Americano",            price: 450, credits: 1 },
+        { id: "tf-spanish",   name: "Spanish latte",        price: 550, credits: 1 },
+        { id: "tf-affogato",  name: "Affogato",             price: 650, credits: 1 },
+      ],
+      busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
+      monthRedemptions: 142,
+      newCustomersMonth: 16,
+    },
+    {
+      id: "quiethours",
+      name: "Quiet Hours",
+      area: "fortress",
+      price: 600,
+      payoutPerCup: 440,
+      tags: ["Work-friendly", "Pastries"],
+      status: "moderate",
+      statusUpdatedAt: minsAgo(9),
+      hours: { open: "8:00", close: "21:00", label: "8 am – 9 pm" },
+      blurb: "No music before noon. Ask for the banana bread.",
+      distanceKm: 3.2,
+      x: 670, y: 290,
+      drinks: [
+        { id: "qh-flat",     name: "Flat white",           price: 600, credits: 1 },
+        { id: "qh-chai",     name: "Karak chai latte",     price: 500, credits: 1 },
+        { id: "qh-cortado",  name: "Brown butter cortado", price: 650, credits: 1 },
+      ],
+      busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
+      monthRedemptions: 131,
+      newCustomersMonth: 14,
+    },
+    {
+      id: "slowpour",
+      name: "Slow Pour",
+      area: "liberty",
+      price: 700,
+      payoutPerCup: 520,
+      tags: ["Roastery", "Pour-over"],
+      status: "packed",
+      statusUpdatedAt: minsAgo(4),
+      hours: { open: "9:00", close: "24:00", label: "9 am – midnight" },
+      blurb: "A six-seat bar and a hand grinder. Worth the wait.",
+      distanceKm: 1.6,
+      x: 440, y: 405,
+      drinks: [
+        { id: "sp-v60",     name: "V60 of the week",      price: 800, credits: 1 },
+        { id: "sp-gibraltar", name: "Gibraltar",          price: 650, credits: 1 },
+        { id: "sp-flight",  name: "Tasting flight",       price: 1300, credits: 2 },
+      ],
+      busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
+      monthRedemptions: 189,
+      newCustomersMonth: 19,
+    },
+    {
+      id: "noon",
+      name: "Noon Café",
+      area: "gulberg",
+      price: 450,
+      payoutPerCup: 330,
+      tags: ["Pastries", "Breakfast"],
+      status: "quiet",
+      statusUpdatedAt: minsAgo(22),
+      hours: { open: "7:00", close: "20:00", label: "7 am – 8 pm" },
+      blurb: "Early opener on MM Alam. Eggs, toast, a proper cappuccino.",
+      distanceKm: 1.1,
+      x: 575, y: 395,
+      drinks: [
+        { id: "noon-capp",   name: "Cappuccino",           price: 450, credits: 1 },
+        { id: "noon-latte",  name: "Rose latte",           price: 500, credits: 1 },
+        { id: "noon-iced",   name: "Iced long black",      price: 450, credits: 1 },
+      ],
+      busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
+      monthRedemptions: 167,
+      newCustomersMonth: 20,
+    },
+    {
+      id: "grind",
+      name: "Grind & Grain",
+      area: "dha",
+      price: 550,
+      payoutPerCup: 400,
+      tags: ["Pastries", "Roastery"],
+      status: "moderate",
+      statusUpdatedAt: minsAgo(14),
+      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
+      blurb: "Bakery first, coffee a very close second. Sourdough from 9.",
+      distanceKm: 7.2,
+      x: 735, y: 600,
+      drinks: [
+        { id: "gg-latte",    name: "Grain latte",          price: 550, credits: 1 },
+        { id: "gg-macch",    name: "Macchiato",            price: 450, credits: 1 },
+        { id: "gg-dirty",    name: "Dirty chai",           price: 600, credits: 1 },
+      ],
+      busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
+      monthRedemptions: 158,
+      newCustomersMonth: 17,
+    },
+  ];
+
+  /* Members --------------------------------------------------------------
+     Ayesha is the demo member. The others exist so the café view can show
+     a realistic day, and so error states can be demonstrated:
+       Zara  — has already had 2 cups at Kiln & Bean today (daily limit)
+       Hamza — no cups left this month                                  */
+  const ayesha = {
+    id: "m_ayesha",
+    firstName: "Ayesha",
+    lastName: "Rahman",
+    initials: "AR",
+    phone: "+92 300 1234567",
+    area: "gulberg",
+    planId: "regular",
+    cupsTotal: 16,
+    cupsLeft: 11,
+    cycleStartedAt: daysAgo(18),
+    renewsAt: daysAgo(-12),
+    payment: { method: "JazzCash", last4: "4567" },
+    streakWeeks: 4,
+    cafesTried: ["kiln", "slowpour", "noon"],
+    visits: { kiln: 3, slowpour: 1, noon: 1 },   // loyalty: visits per café
+    referralCode: "AYESHA-K7",
+    onboarded: false,
+  };
+
+  const members = [
+    ayesha,
+    { id: "m_bilal", firstName: "Bilal", cupsTotal: 16, cupsLeft: 7,  staticCode: "615028", visits: { kiln: 6 } },
+    { id: "m_sana",  firstName: "Sana",  cupsTotal: 30, cupsLeft: 19, staticCode: "207341", visits: { kiln: 2 } },
+    { id: "m_omar",  firstName: "Omar",  cupsTotal: 8,  cupsLeft: 2,  staticCode: "558190", visits: { kiln: 1 } },
+    { id: "m_zara",  firstName: "Zara",  cupsTotal: 16, cupsLeft: 9,  staticCode: "482913", visits: { kiln: 4 } },
+    { id: "m_hamza", firstName: "Hamza", cupsTotal: 8,  cupsLeft: 0,  staticCode: "730215", visits: { kiln: 2 } },
+  ];
+
+  /* Redemption log ------------------------------------------------------
+     Ayesha: 5 cups used this cycle (16 − 11).
+     Kiln & Bean: a believable morning so the café view isn’t empty.   */
+  const redemptions = [
+    { id: "r1",  at: daysAgo(14, 30), cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat",   credits: 1, firstVisit: false },
+    { id: "r2",  at: daysAgo(10, 90), cafeId: "slowpour", memberId: "m_ayesha", drinkId: "sp-v60",      credits: 1, firstVisit: true  },
+    { id: "r3",  at: daysAgo(6, 40),  cafeId: "noon",     memberId: "m_ayesha", drinkId: "noon-capp",   credits: 1, firstVisit: true  },
+    { id: "r4",  at: daysAgo(2, 15),  cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-cort",   credits: 1, firstVisit: false },
+    { id: "r5",  at: minsAgo(212),    cafeId: "kiln",     memberId: "m_ayesha", drinkId: "kiln-flat",   credits: 1, firstVisit: false },
+
+    { id: "r6",  at: minsAgo(188),    cafeId: "kiln",     memberId: "m_zara",   drinkId: "kiln-flat",   credits: 1, firstVisit: false },
+    { id: "r7",  at: minsAgo(151),    cafeId: "kiln",     memberId: "m_omar",   drinkId: "kiln-cort",   credits: 1, firstVisit: true  },
+    { id: "r8",  at: minsAgo(97),     cafeId: "kiln",     memberId: "m_bilal",  drinkId: "kiln-flat",   credits: 1, firstVisit: false },
+    { id: "r9",  at: minsAgo(64),     cafeId: "kiln",     memberId: "m_sana",   drinkId: "kiln-pour",   credits: 2, firstVisit: true  },
+    { id: "r10", at: minsAgo(23),     cafeId: "kiln",     memberId: "m_zara",   drinkId: "kiln-cort",   credits: 1, firstVisit: false },
+  ];
+
+  /* Rewards ------------------------------------------------------------- */
+  const badges = [
+    { id: "first-cup",  name: "First cup",     line: "Your first redemption.",           earned: true  },
+    { id: "four-weeks", name: "Four weeks",    line: "A cup every week for a month.",    earned: true  },
+    { id: "explorer",   name: "Explorer",      line: "Try five different cafés.",        earned: false, progress: 3, goal: 5 },
+    { id: "early",      name: "Early riser",   line: "Three cups before 9 am.",          earned: false, progress: 1, goal: 3 },
+    { id: "generous",   name: "Generous",      line: "Send your first gift.",            earned: false, progress: 0, goal: 1 },
+  ];
+
+  LCC.data = {
+    seededAt: now,
+    rules,
+    tiers,
+    areas,
+    cafes,
+    members,
+    memberId: ayesha.id,
+    partnerCafeId: "kiln",       // the café shown in the partner view
+    redemptions,
+    badges,
+    // Builder default for the “Build your own” plan
+    builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
+  };
+})();
+
+</script>
+<script>
+/* ---- src/state.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — state.js
+   One in-memory store shared by every surface, with pub-sub.
+
+   Usage:
+     const { store } = LCC;
+     const off = store.on("cafe:status", ({ cafeId }) => …);  // one event
+     const off = store.subscribe((type, payload) => …);        // every event
+     store.actions.setCafeStatus("kiln", "packed");
+     store.select.cafe("kiln").status;
+
+   Events: cafe:status, redeem, pass, member, plan, builder, gift,
+           waitlist, partner, tick (every 30s, for relative times)
+
+   No storage. If two windows of the prototype are open on the same
+   machine (e.g. café view on one screen, member app on another), café
+   status and redemptions are mirrored between them over BroadcastChannel.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = (window.LCC = window.LCC || {});
+  const seed = LCC.data;
+  if (!seed) throw new Error("state.js: data.js must load first");
+
+  const clone = (v) => (typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)));
+  const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
+  const MIN = 60 * 1000;
+  const STATUSES = ["quiet", "moderate", "packed"];
+
+  /* -------------------------------------------------------------------
+     State
+     ------------------------------------------------------------------- */
+  const state = {
+    rules: clone(seed.rules),
+    tiers: clone(seed.tiers),
+    areas: clone(seed.areas),
+    cafeOrder: seed.cafes.map((c) => c.id),
+    cafes: byId(clone(seed.cafes)),
+    members: byId(clone(seed.members)),
+    memberId: seed.memberId,
+    partnerCafeId: seed.partnerCafeId,
+    plan: { type: "fixed", tierId: "regular", allocation: null },
+    builder: clone(seed.builderDraft),
+    redemptions: clone(seed.redemptions),
+    badges: clone(seed.badges),
+    gifts: [],
+    waitlist: [],
+    partnerRequests: [],
+  };
+
+  /* -------------------------------------------------------------------
+     Pub-sub
+     ------------------------------------------------------------------- */
+  const listeners = new Map(); // type -> Set<fn>
+
+  function on(type, fn) {
+    if (!listeners.has(type)) listeners.set(type, new Set());
+    listeners.get(type).add(fn);
+    return () => listeners.get(type).delete(fn);
+  }
+  const subscribe = (fn) => on("*", fn);
+
+  function emit(type, payload = {}, { remote = false } = {}) {
+    const call = (fn, ...args) => {
+      try { fn(...args); } catch (err) { console.error(`[LCC] listener for “${type}” failed`, err); }
+    };
+    (listeners.get(type) || []).forEach((fn) => call(fn, payload, type));
+    (listeners.get("*") || []).forEach((fn) => call(fn, type, payload));
+    if (!remote && SYNCED.has(type)) broadcast(type, payload);
+  }
+
+  /* -------------------------------------------------------------------
+     Cross-window mirror (optional; silently off if unsupported)
+     ------------------------------------------------------------------- */
+  const SYNCED = new Set(["cafe:status", "redeem"]);
+  const tabId = Math.random().toString(36).slice(2);
+  let channel = null;
+  try {
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel("lahore-coffee-club");
+      channel.onmessage = ({ data }) => {
+        if (!data || data.from === tabId) return;
+        if (data.type === "cafe:status") applyStatus(data.payload, { remote: true });
+        if (data.type === "redeem") commitRedemption(data.payload.entry, { remote: true });
+      };
+    }
+  } catch (_) { channel = null; }
+
+  function broadcast(type, payload) {
+    if (!channel) return;
+    try { channel.postMessage({ from: tabId, type, payload }); } catch (_) { /* ignore */ }
+  }
+
+  /* -------------------------------------------------------------------
+     Helpers
+     ------------------------------------------------------------------- */
+  const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const uid = (p) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const roundTo = (n, step) => Math.round(n / step) * step;
+
+  // Small, stable hash so every open window derives the same pass code.
+  function fnv1a(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return h >>> 0;
+  }
+
+  /* -------------------------------------------------------------------
+     Selectors (read-only views of state)
+     ------------------------------------------------------------------- */
+  const select = {
+    state: () => state,
+    member: (id = state.memberId) => state.members[id],
+    cafe: (id) => state.cafes[id],
+    cafes: () => state.cafeOrder.map((id) => state.cafes[id]),
+    tier: (id) => state.tiers.find((t) => t.id === id),
+    area: (id) => state.areas.find((a) => a.id === id),
+    drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
+    partnerCafe: () => state.cafes[state.partnerCafeId],
+
+    /** Ayesha’s activity, newest first. */
+    activity(memberId = state.memberId) {
+      return state.redemptions.filter((r) => r.memberId === memberId).sort((a, b) => b.at - a.at);
+    },
+
+    usedToday(memberId, cafeId) {
+      const since = startOfToday();
+      return state.redemptions
+        .filter((r) => r.memberId === memberId && r.cafeId === cafeId && r.at >= since)
+        .reduce((n, r) => n + r.credits, 0);
+    },
+
+    /** What the café dashboard shows for today and this month. */
+    cafeSummary(cafeId = state.partnerCafeId) {
+      const cafe = state.cafes[cafeId];
+      const since = startOfToday();
+      const today = state.redemptions.filter((r) => r.cafeId === cafeId && r.at >= since).sort((a, b) => b.at - a.at);
+      const cupsToday = today.reduce((n, r) => n + r.credits, 0);
+      const monthCups = cafe.monthRedemptions + cupsToday; // monthRedemptions = cups before today
+      return {
+        today,
+        redemptionsToday: today.length,
+        cupsToday,
+        newCustomersToday: today.filter((r) => r.firstVisit).length,
+        newCustomersMonth: cafe.newCustomersMonth + today.filter((r) => r.firstVisit).length,
+        monthCups,
+        payoutEstimate: monthCups * cafe.payoutPerCup,
+      };
+    },
+
+    /** Build-your-own pricing. Spec §6. */
+    customPrice(allocation = state.builder) {
+      const { customDiscount, roundTo: step, minCupsTotal } = state.rules;
+      let cups = 0;
+      let counter = 0;
+      Object.entries(allocation).forEach(([cafeId, n]) => {
+        const cafe = state.cafes[cafeId];
+        if (!cafe || !n) return;
+        cups += n;
+        counter += n * cafe.price;
+      });
+      const price = roundTo(counter * customDiscount, step);
+      return {
+        cups,
+        price,
+        counter,
+        savings: Math.max(0, counter - price),
+        meetsMinimum: cups >= minCupsTotal,
+        cupsShort: Math.max(0, minCupsTotal - cups),
+      };
+    },
+
+    /** Savings for a fixed tier vs. the average list price across cafés. */
+    tierSavings(tierId) {
+      const tier = select.tier(tierId);
+      const avg = select.cafes().reduce((n, c) => n + c.price, 0) / state.cafeOrder.length;
+      return Math.max(0, roundTo(tier.cups * avg - tier.price, state.rules.roundTo));
+    },
+
+    /** Current rotating pass for a member. */
+    pass(memberId = state.memberId, at = Date.now()) {
+      const period = state.rules.passRotateSeconds * 1000;
+      const win = Math.floor(at / period);
+      const code = String(fnv1a(`${memberId}:${win}`) % 1000000).padStart(6, "0");
+      const expiresAt = (win + 1) * period;
+      return {
+        code,
+        payload: `LCC1:${memberId}:${code}`, // what the QR encodes
+        expiresAt,
+        secondsLeft: Math.max(0, Math.ceil((expiresAt - at) / 1000)),
+        period: state.rules.passRotateSeconds,
+      };
+    },
+
+    loyalty(cafeId, memberId = state.memberId) {
+      const goal = 5;
+      const visits = state.members[memberId]?.visits?.[cafeId] || 0;
+      return { visits: visits % goal, goal, freeCupsEarned: Math.floor(visits / goal) };
+    },
+  };
+
+  /* -------------------------------------------------------------------
+     Code lookup and redemption (café view)
+     ------------------------------------------------------------------- */
+  const MESSAGES = {
+    "not-found": () => "That code didn’t match a member. Ask them to refresh their pass and read it again.",
+    "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
+    "not-enough": (m, need) => `That drink uses ${need} cups and ${m.firstName} has ${m.cupsLeft} left. Try a one-cup drink.`,
+    "daily-limit": (m, _n, limit) => `${m.firstName} has had ${limit} cups here today, the daily limit. It resets tomorrow.`,
+  };
+
+  function findMemberByCode(raw) {
+    const code = String(raw || "").replace(/\D/g, "");
+    if (code.length !== 6) return null;
+    const now = Date.now();
+    const period = state.rules.passRotateSeconds * 1000;
+    for (const m of Object.values(state.members)) {
+      if (m.staticCode === code) return m;
+      // Accept the current and previous window, so a code read out at
+      // 0:01 still works a moment later.
+      if (!m.staticCode && (select.pass(m.id, now).code === code || select.pass(m.id, now - period).code === code)) return m;
+    }
+    return null;
+  }
+
+  /** Check a code before redeeming. Never mutates. */
+  function lookupCode(code, cafeId = state.partnerCafeId, credits = 1) {
+    // BACKEND: GET /passes/:code?cafe=:cafeId
+    const member = findMemberByCode(code);
+    if (!member) return { ok: false, reason: "not-found", message: MESSAGES["not-found"]() };
+    const limit = state.rules.dailyLimitPerCafe;
+    const usedToday = select.usedToday(member.id, cafeId);
+    const base = { member, cupsLeft: member.cupsLeft, usedToday, dailyLimit: limit };
+    if (member.cupsLeft <= 0) return { ...base, ok: false, reason: "no-cups", message: MESSAGES["no-cups"](member) };
+    if (usedToday >= limit) return { ...base, ok: false, reason: "daily-limit", message: MESSAGES["daily-limit"](member, 0, limit) };
+    if (member.cupsLeft < credits) return { ...base, ok: false, reason: "not-enough", message: MESSAGES["not-enough"](member, credits) };
+    return { ...base, ok: true };
+  }
+
+  function commitRedemption(entry, { remote = false } = {}) {
+    if (state.redemptions.some((r) => r.id === entry.id)) return; // idempotent across windows
+    const member = state.members[entry.memberId];
+    if (!member) return;
+    member.cupsLeft = Math.max(0, member.cupsLeft - entry.credits);
+    member.visits = member.visits || {};
+    member.visits[entry.cafeId] = (member.visits[entry.cafeId] || 0) + 1;
+    if (member.cafesTried && !member.cafesTried.includes(entry.cafeId)) member.cafesTried.push(entry.cafeId);
+    state.redemptions.push(entry);
+    emit("redeem", { entry, member }, { remote });
+  }
+
+  /* -------------------------------------------------------------------
+     Actions (the only things that write to state)
+     ------------------------------------------------------------------- */
+  function applyStatus({ cafeId, status, at }, opts) {
+    const cafe = state.cafes[cafeId];
+    if (!cafe || !STATUSES.includes(status)) return;
+    cafe.status = status;
+    cafe.statusUpdatedAt = at;
+    emit("cafe:status", { cafeId, status, at }, opts);
+  }
+
+  const actions = {
+    setCafeStatus(cafeId, status) {
+      // BACKEND: PATCH /cafes/:cafeId/status { status }
+      applyStatus({ cafeId, status, at: Date.now() });
+    },
+
+    /** Redeem by code (café view). Returns the lookup result plus the entry. */
+    redeem({ code, cafeId = state.partnerCafeId, drinkId }) {
+      const cafe = state.cafes[cafeId];
+      const drink = select.drink(cafeId, drinkId) || cafe.drinks[0];
+      const check = lookupCode(code, cafeId, drink.credits);
+      if (!check.ok) return check;
+      const member = check.member;
+      // BACKEND: POST /redeem { code, cafeId, drinkId } -> { entry, member }
+      const entry = {
+        id: uid("r"),
+        at: Date.now(),
+        cafeId,
+        memberId: member.id,
+        drinkId: drink.id,
+        credits: drink.credits,
+        firstVisit: !(member.visits && member.visits[cafeId] > 0),
+      };
+      commitRedemption(entry);
+      return { ...check, ok: true, entry, cupsLeft: member.cupsLeft };
+    },
+
+    choosePlan(plan) {
+      // plan: { type: "fixed", tierId } | { type: "custom", allocation }
+      // BACKEND: POST /subscriptions
+      const member = select.member();
+      if (plan.type === "fixed") {
+        const tier = select.tier(plan.tierId);
+        state.plan = { type: "fixed", tierId: tier.id, allocation: null };
+        member.planId = tier.id;
+        member.cupsTotal = tier.cups;
+        member.cupsLeft = tier.cups;
+      } else {
+        const allocation = clone(plan.allocation || state.builder);
+        const { cups } = select.customPrice(allocation);
+        state.plan = { type: "custom", tierId: null, allocation };
+        member.planId = "custom";
+        member.cupsTotal = cups;
+        member.cupsLeft = cups;
+      }
+      emit("plan", { plan: state.plan });
+      emit("member", { member });
+    },
+
+    setBuilderCups(cafeId, cups) {
+      if (!state.cafes[cafeId]) return;
+      const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
+      if (n === 0) delete state.builder[cafeId];
+      else state.builder[cafeId] = n;
+      emit("builder", { cafeId, cups: n, price: select.customPrice() });
+    },
+
+    updateMember(patch) {
+      // BACKEND: PATCH /me
+      Object.assign(select.member(), patch);
+      emit("member", { member: select.member() });
+    },
+
+    sendGift({ toName, toPhone, cups, cafeId = null, message = "" }) {
+      const member = select.member();
+      const n = Math.max(1, Math.min(state.rules.giftMaxCups, cups | 0));
+      if (member.cupsLeft < n) return { ok: false, message: `You have ${member.cupsLeft} cups left, so you can gift up to ${member.cupsLeft}.` };
+      // BACKEND: POST /gifts
+      const sentAt = Date.now();
+      const gift = {
+        id: uid("g"),
+        fromId: member.id,
+        toName, toPhone, cups: n, cafeId, message,
+        sentAt,
+        expiresAt: sentAt + state.rules.giftExpiryDays * 24 * 60 * MIN,
+        link: `lahorecoffee.club/g/${Math.random().toString(36).slice(2, 8)}`,
+      };
+      member.cupsLeft -= n;
+      state.gifts.push(gift);
+      emit("gift", { gift });
+      emit("member", { member });
+      return { ok: true, gift };
+    },
+
+    joinWaitlist(entry) {
+      // BACKEND: POST /waitlist
+      const record = { id: uid("w"), at: Date.now(), ...entry };
+      state.waitlist.push(record);
+      console.log("[LCC] waitlist", record, `(${state.waitlist.length} total)`);
+      emit("waitlist", { entry: record });
+      return record;
+    },
+
+    requestPartnerCall(entry) {
+      // BACKEND: POST /partners/requests
+      const record = { id: uid("p"), at: Date.now(), ...entry };
+      state.partnerRequests.push(record);
+      console.log("[LCC] partner request", record);
+      emit("partner", { entry: record });
+      return record;
+    },
+  };
+
+  /* -------------------------------------------------------------------
+     Clocks: relative-time tick and pass rotation
+     ------------------------------------------------------------------- */
+  setInterval(() => emit("tick", { at: Date.now() }), 30 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") emit("tick", { at: Date.now() });
+  });
+
+  (function schedulePassRotation() {
+    const { expiresAt } = select.pass();
+    setTimeout(() => {
+      emit("pass", select.pass());
+      schedulePassRotation();
+    }, Math.max(50, expiresAt - Date.now() + 20));
+  })();
+
+  /* -------------------------------------------------------------------
+     Formatting (shared copy rules: sentence case, typographic marks)
+     ------------------------------------------------------------------- */
+  const NBSP = " ";
+  const intNum = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+  const fmt = {
+    rs: (n) => `Rs${NBSP}${intNum.format(Math.round(n))}`,
+    num: (n) => intNum.format(n),
+    cups: (n) => `${n} ${n === 1 ? "cup" : "cups"}`,
+    statusLabel: (s) => ({ quiet: "Quiet", moderate: "Moderate", packed: "Packed" }[s] || s),
+    ago(ts, now = Date.now()) {
+      const m = Math.floor((now - ts) / MIN);
+      if (m < 1) return "just now";
+      if (m < 60) return `${m}${NBSP}min ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}${NBSP}hr ago`;
+      const d = Math.floor(h / 24);
+      return d === 1 ? "yesterday" : `${d} days ago`;
+    },
+    updated: (ts) => `updated ${fmt.ago(ts)}`,
+    time: (ts) =>
+      new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(/\s?([AP])M/, (_, x) => `${NBSP}${x.toLowerCase()}m`),
+    date: (ts) => new Date(ts).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
+    shortDate: (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+    countdown: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`,
+  };
+
+  LCC.fmt = fmt;
+  LCC.store = { on, subscribe, emit, select, actions, lookupCode, statuses: STATUSES, getState: () => state };
+})();
+
+</script>
+<script>
+/* ---- src/ui.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — ui.js
+   Small DOM helpers behind the components in base.css: safe templating,
+   icons, toast, bottom sheet, number animation, and live bindings that
+   keep status pills and “X min ago” text in sync with the store.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = (window.LCC = window.LCC || {});
+  const { store, fmt } = LCC;
+
+  /* Templating ---------------------------------------------------------- */
+  const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
+  class Raw { constructor(s) { this.s = s; } toString() { return this.s; } }
+  const raw = (s) => new Raw(s);
+  /** html`<p>${userText}</p>` escapes values; wrap trusted markup in raw(). */
+  function html(strings, ...values) {
+    let out = strings[0];
+    values.forEach((v, i) => {
+      const val = Array.isArray(v) ? v.map((x) => (x instanceof Raw ? x.s : esc(x))).join("") : v instanceof Raw ? v.s : esc(v);
+      out += val + strings[i + 1];
+    });
+    return raw(out);
+  }
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* Icons: 24px grid, 1.5px stroke, round caps. Extended in later passes. */
+  const ICON_PATHS = {
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    chevronRight: '<path d="M9.5 6l6 6-6 6"/>',
+    chevronDown: '<path d="M6 9.5l6 6 6-6"/>',
+    arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  };
+  function icon(name, { size = 24, label } = {}) {
+    const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true" focusable="false"';
+    return raw(
+      `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${a11y}>${ICON_PATHS[name] || ""}</svg>`
+    );
+  }
+
+  /* Status pill --------------------------------------------------------- */
+  /** Renders a pill bound to a café; it updates itself on store changes. */
+  function statusPill(cafeId, { bare = false, time = true } = {}) {
+    const cafe = store.select.cafe(cafeId);
+    return html`<span class="status${bare ? " status--bare" : ""}" data-status="${cafe.status}" data-live-status="${cafeId}" data-live-time="${time ? "1" : "0"}">
+      <span class="status__dot" aria-hidden="true"></span>
+      <span class="status__label">${fmt.statusLabel(cafe.status)}</span>
+      ${time ? html`<span class="status__time" data-rel-time="${cafe.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(cafe.statusUpdatedAt)}</span>` : ""}
+    </span>`;
+  }
+
+  function refreshStatusPills(cafeId, { flash = false } = {}) {
+    const cafe = store.select.cafe(cafeId);
+    $$(`[data-live-status="${cafeId}"]`).forEach((el) => {
+      el.dataset.status = cafe.status;
+      const label = el.querySelector(".status__label");
+      if (label) label.textContent = fmt.statusLabel(cafe.status);
+      const t = el.querySelector("[data-rel-time]");
+      if (t) { t.dataset.relTime = cafe.statusUpdatedAt; t.textContent = fmt.updated(cafe.statusUpdatedAt); }
+      if (flash) { el.classList.remove("is-changed"); void el.offsetWidth; el.classList.add("is-changed"); }
+    });
+  }
+
+  function refreshRelativeTimes() {
+    $$("[data-rel-time]").forEach((el) => {
+      const ts = Number(el.dataset.relTime);
+      el.textContent = el.dataset.relPrefix === "updated" ? fmt.updated(ts) : fmt.ago(ts);
+    });
+  }
+
+  store.on("cafe:status", ({ cafeId }) => refreshStatusPills(cafeId, { flash: true }));
+  store.on("tick", refreshRelativeTimes);
+
+  /* Number animation ---------------------------------------------------- */
+  const running = new WeakMap();
+  /** Count from the element’s current value to `to`. */
+  function animateNumber(el, to, { format = fmt.num, duration = 420 } = {}) {
+    if (!el) return;
+    const from = Number(el.dataset.value ?? to);
+    el.dataset.value = to;
+    if (from === to || reducedMotion()) { el.textContent = format(to); return; }
+    cancelAnimationFrame(running.get(el));
+    const t0 = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / duration);
+      el.textContent = format(Math.round(from + (to - from) * ease(p)));
+      if (p < 1) running.set(el, requestAnimationFrame(step));
+    };
+    running.set(el, requestAnimationFrame(step));
+  }
+
+  /* Toast --------------------------------------------------------------- */
+  function toast(message, { iconName = "check", duration = 2800, region } = {}) {
+    const host = region || $(".phone__screen .toast-region") || $("#toast-region");
+    if (!host) return;
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.innerHTML = `${iconName ? icon(iconName, { size: 18 }) : ""}<span>${esc(message)}</span>`;
+    host.appendChild(el);
+    setTimeout(() => {
+      el.classList.add("is-leaving");
+      el.addEventListener("animationend", () => el.remove(), { once: true });
+      setTimeout(() => el.remove(), 400);
+    }, duration);
+  }
+
+  /* Bottom sheet -------------------------------------------------------
+     Markup:
+       <div class="sheet" id="x" role="dialog" aria-modal="true" aria-labelledby="x-title" aria-hidden="true">
+         <div class="sheet__scrim" data-sheet-close></div>
+         <div class="sheet__panel">
+           <div class="sheet__handle" aria-hidden="true"></div>
+           <div class="sheet__body">…</div>
+         </div>
+       </div>
+     Opens with focus moved inside, closes on scrim, Escape, or drag down.  */
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+  const openSheets = [];
+
+  function openSheet(sheet, { onClose } = {}) {
+    if (!sheet || sheet.dataset.open === "true") return;
+    sheet._returnFocus = document.activeElement;
+    sheet._onClose = onClose;
+    sheet.dataset.open = "true";
+    sheet.setAttribute("aria-hidden", "false");
+    openSheets.push(sheet);
+    bindDrag(sheet);
+    requestAnimationFrame(() => {
+      const target = sheet.querySelector("[autofocus]") || sheet.querySelector(FOCUSABLE) || sheet.querySelector(".sheet__panel");
+      if (target) { if (!target.hasAttribute("tabindex") && target.classList.contains("sheet__panel")) target.tabIndex = -1; target.focus({ preventScroll: true }); }
+    });
+  }
+
+  function closeSheet(sheet) {
+    if (!sheet || sheet.dataset.open !== "true") return;
+    sheet.dataset.open = "false";
+    sheet.setAttribute("aria-hidden", "true");
+    sheet.style.removeProperty("--drag");
+    const i = openSheets.indexOf(sheet);
+    if (i > -1) openSheets.splice(i, 1);
+    const back = sheet._returnFocus;
+    if (back && document.contains(back)) back.focus({ preventScroll: true });
+    if (typeof sheet._onClose === "function") sheet._onClose();
+  }
+
+  function bindDrag(sheet) {
+    if (sheet._dragBound) return;
+    sheet._dragBound = true;
+    const handle = sheet.querySelector(".sheet__handle");
+    if (!handle) return;
+    let startY = 0, dy = 0, t0 = 0, active = false;
+    handle.addEventListener("pointerdown", (e) => {
+      active = true; startY = e.clientY; dy = 0; t0 = performance.now();
+      sheet.classList.add("is-dragging");
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener("pointermove", (e) => {
+      if (!active) return;
+      dy = Math.max(0, e.clientY - startY);
+      sheet.style.setProperty("--drag", `${dy}px`);
+    });
+    const end = () => {
+      if (!active) return;
+      active = false;
+      sheet.classList.remove("is-dragging");
+      const velocity = dy / Math.max(1, performance.now() - t0);
+      if (dy > 96 || velocity > 0.6) closeSheet(sheet);
+      else sheet.style.setProperty("--drag", "0px");
+    };
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  }
+
+  document.addEventListener("click", (e) => {
+    const closer = e.target.closest("[data-sheet-close]");
+    if (closer) closeSheet(closer.closest(".sheet"));
+    const opener = e.target.closest("[data-sheet-open]");
+    if (opener) openSheet(document.getElementById(opener.dataset.sheetOpen));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const top = openSheets[openSheets.length - 1];
+    if (!top) return;
+    if (e.key === "Escape") { e.preventDefault(); closeSheet(top); return; }
+    if (e.key === "Tab") {
+      const items = $$(FOCUSABLE, top).filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* Stepper ------------------------------------------------------------- */
+  function stepper({ id, value = 0, min = 0, max = 10, label }) {
+    return html`<div class="stepper" role="group" aria-label="${label}" data-stepper="${id}" data-min="${min}" data-max="${max}">
+      <button type="button" class="stepper__btn" data-step="-1" aria-label="One fewer" ${value <= min ? raw("disabled") : ""}>${icon("minus")}</button>
+      <output class="stepper__value" aria-live="polite">${value}</output>
+      <button type="button" class="stepper__btn" data-step="1" aria-label="One more" ${value >= max ? raw("disabled") : ""}>${icon("plus")}</button>
+    </div>`;
+  }
+  /** Sync a rendered stepper with a new value. */
+  function setStepper(el, value) {
+    const min = Number(el.dataset.min), max = Number(el.dataset.max);
+    el.querySelector(".stepper__value").textContent = value;
+    el.querySelector('[data-step="-1"]').disabled = value <= min;
+    el.querySelector('[data-step="1"]').disabled = value >= max;
+  }
+
+  /* Segmented control --------------------------------------------------- */
+  function segmented({ name, options, value, label }) {
+    const index = Math.max(0, options.findIndex((o) => o.value === value));
+    return html`<div class="segmented" role="tablist" aria-label="${label}" data-segmented="${name}" style="--count:${options.length};--index:${index}">
+      <span class="segmented__thumb" aria-hidden="true"></span>
+      ${options.map((o) => html`<button type="button" role="tab" class="segmented__option" data-value="${o.value}" aria-selected="${o.value === value}" tabindex="${o.value === value ? 0 : -1}">${o.label}</button>`)}
+    </div>`;
+  }
+  function selectSegment(group, value) {
+    const opts = $$(".segmented__option", group);
+    opts.forEach((o, i) => {
+      const on = o.dataset.value === value;
+      o.setAttribute("aria-selected", on);
+      o.tabIndex = on ? 0 : -1;
+      if (on) group.style.setProperty("--index", i);
+    });
+  }
+  // Arrow keys move between segments (tablist pattern)
+  document.addEventListener("keydown", (e) => {
+    const opt = e.target.closest?.(".segmented__option");
+    if (!opt || !["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    const opts = $$(".segmented__option", opt.parentElement);
+    const next = opts[(opts.indexOf(opt) + (e.key === "ArrowRight" ? 1 : -1) + opts.length) % opts.length];
+    next.focus(); next.click();
+  });
+
+  LCC.ui = {
+    html, raw, esc, $, $$, icon,
+    statusPill, refreshStatusPills, refreshRelativeTimes,
+    animateNumber, toast, openSheet, closeSheet,
+    stepper, setStepper, segmented, selectSegment,
+    reducedMotion,
+  };
+})();
+
+</script>
+<script>
+/* ---- src/router.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — router.js
+   Hash routes:
+     #/            landing
+     #/app[/…]     member app (phone frame); sub-paths go to the app
+     #/cafe[/…]    café partner view
+     #/kit         component sheet (not in the switcher; for review)
+
+   Surfaces register as:
+     LCC.router.register("app", {
+       title: "Member app",
+       mount(el, path) { …; return cleanup },   // called on entering
+       update(path) { … },                       // sub-path change only
+     });
+   The shells below are the Pass 1 defaults; later passes replace them.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = (window.LCC = window.LCC || {});
+  const { store, fmt, ui } = LCC;
+  const { html, raw, $, icon } = ui;
+
+  const surfaces = {};
+  let current = { name: null, cleanup: null };
+
+  function register(name, def) {
+    surfaces[name] = def;
+    // Re-render if the surface being replaced is on screen
+    if (current.name === name) { current.name = null; render(); }
+  }
+
+  function parse() {
+    const clean = location.hash.replace(/^#\/?/, "").replace(/\/+$/, "");
+    const [name = "", ...path] = clean.split("/");
+    return { name, path };
+  }
+
+  function navigate(to) {
+    if (location.hash !== to) location.hash = to;
+    else render();
+  }
+
+  function render() {
+    const { name, path } = parse();
+    if (!surfaces[name]) { history.replaceState(null, "", "#/"); return render(); }
+    const main = $("#main");
+    const def = surfaces[name];
+
+    if (current.name === name && def.update) {
+      def.update(path);
+    } else {
+      if (typeof current.cleanup === "function") current.cleanup();
+      const firstLoad = current.name === null && !main.childElementCount;
+      main.innerHTML = "";
+      main.dataset.surface = name || "landing";
+      current = { name, cleanup: def.mount(main, path) || null };
+      window.scrollTo(0, 0);
+      if (!firstLoad) main.focus({ preventScroll: true });
+    }
+    document.title = def.title ? `${def.title} · Lahore Coffee Club` : "Lahore Coffee Club";
+    renderProtoBar(name);
+  }
+
+  /* -------------------------------------------------------------------
+     Prototype switcher
+     ------------------------------------------------------------------- */
+  const SWITCH = [
+    { name: "", href: "#/", label: "Landing" },
+    { name: "app", href: "#/app", label: "Member app" },
+    { name: "cafe", href: "#/cafe", label: "Café view" },
+  ];
+  const THEMES = ["auto", "light", "dark"];
+  let theme = "auto";
+
+  function renderProtoBar(active) {
+    const bar = $("#proto-bar");
+    bar.className = "proto-bar";
+    bar.setAttribute("aria-label", "Prototype navigation");
+    bar.innerHTML = html`
+      <span class="proto-bar__label">Prototype</span>
+      <nav class="proto-bar__nav" aria-label="Surfaces">
+        ${SWITCH.map((s) => html`<a class="proto-bar__link" href="${s.href}" ${s.name === active ? raw('aria-current="page"') : ""}>${s.label}</a>`)}
+      </nav>
+      <button type="button" class="proto-bar__theme" data-theme-toggle aria-label="Colour theme: ${theme}. Change theme">
+        ${theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark"}
+      </button>`;
+  }
+
+  function cycleTheme() {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    const root = document.documentElement;
+    if (theme === "auto") root.removeAttribute("data-theme");
+    else root.dataset.theme = theme;
+    renderProtoBar(parse().name);
+    $("[data-theme-toggle]")?.focus();
+  }
+
+  /* -------------------------------------------------------------------
+     Global behaviour
+     ------------------------------------------------------------------- */
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-theme-toggle]")) return cycleTheme();
+
+    // In-page scroll links (hash is taken by the router)
+    const scroller = e.target.closest("[data-scroll]");
+    if (scroller) {
+      e.preventDefault();
+      const target = document.getElementById(scroller.dataset.scroll);
+      if (target) {
+        target.scrollIntoView({ behavior: ui.reducedMotion() ? "auto" : "smooth", block: "start" });
+        target.setAttribute("tabindex", "-1");
+        target.focus({ preventScroll: true });
+      }
+      return;
+    }
+
+    const skip = e.target.closest(".skip-link");
+    if (skip) { e.preventDefault(); $("#main").focus(); }
+  });
+
+  // Fit the 844px phone into shorter laptop screens without changing its layout
+  function fitPhone() {
+    const available = window.innerHeight - 40 /* proto bar */ - 48 /* breathing room */;
+    const scale = Math.min(1, Math.max(0.6, available / 864));
+    document.documentElement.style.setProperty("--phone-scale", scale.toFixed(3));
+  }
+  window.addEventListener("resize", fitPhone);
+
+  /* -------------------------------------------------------------------
+     Pass 1 shells
+     ------------------------------------------------------------------- */
+  const LANDING_SECTIONS = [
+    { id: "how", label: "How it works" },
+    { id: "plans", label: "Plans" },
+    { id: "map", label: "Busy map" },
+    { id: "gifting", label: "Gifting and loyalty" },
+    { id: "partner", label: "For cafés" },
+    { id: "join", label: "Join the waitlist" },
+    { id: "faq", label: "Questions" },
+  ];
+
+  register("", {
+    title: null,
+    mount(el) {
+      el.innerHTML = html`
+        <div class="surface landing">
+          <header class="container landing-nav">
+            <a class="wordmark" href="#/">Lahore Coffee Club</a>
+            <nav class="landing-nav__links" aria-label="Main">
+              <a class="landing-nav__link" href="#/" data-scroll="how">How it works</a>
+              <a class="landing-nav__link" href="#/" data-scroll="plans">Cafés</a>
+              <a class="landing-nav__link" href="#/" data-scroll="join">Join</a>
+              <a class="btn btn--secondary btn--compact" href="#/" data-scroll="partner">Partner with us</a>
+            </nav>
+          </header>
+          <div class="container">
+            ${LANDING_SECTIONS.map((s, i) => html`
+              <section class="landing-section" id="${s.id}" aria-labelledby="${s.id}-h">
+                <div class="landing-section__head">
+                  <p class="eyebrow num">${String(i + 1).padStart(2, "0")}</p>
+                  <div class="placeholder">
+                    <h2 class="t-h3" id="${s.id}-h" style="color:var(--ink)">${s.label}</h2>
+                    <span>Built in Pass 2.</span>
+                  </div>
+                </div>
+              </section>`)}
+          </div>
+        </div>`;
+    },
+  });
+
+  register("app", {
+    title: "Member app",
+    mount(el) {
+      fitPhone();
+      const m = store.select.member();
+      el.innerHTML = html`
+        <div class="surface stage">
+          <div class="phone">
+            <div class="phone__screen">
+              <div class="phone__status" aria-hidden="true">
+                <span>9:41</span>
+                <span class="phone__island"></span>
+                <span class="phone__status-icons">
+                  <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                  <svg viewBox="0 0 26 12" style="width:26px"><rect x="0.75" y="0.75" width="21.5" height="10.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><rect x="2.5" y="2.5" width="15" height="7" rx="1.6" fill="currentColor"/><rect x="23.5" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg>
+                </span>
+              </div>
+              <div class="app-view" id="app-view">
+                <div class="app-view__inner stack" style="--stack-gap:var(--space-4)">
+                  <p class="eyebrow">Member app</p>
+                  <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
+                  <div class="placeholder">
+                    <span>Screens are built in Pass 2.</span>
+                    <span>Store check: <span class="num" data-bind="cups">${m.cupsLeft} of ${m.cupsTotal}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="toast-region" style="position:absolute" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>`;
+      const cups = $('[data-bind="cups"]', el);
+      const off = store.on("member", ({ member }) => { cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
+      const off2 = store.on("redeem", ({ member }) => { if (member.id === m.id) cups.textContent = `${member.cupsLeft} of ${member.cupsTotal}`; });
+      return () => { off(); off2(); };
+    },
+  });
+
+  register("cafe", {
+    title: "Café view",
+    mount(el) {
+      const cafe = store.select.partnerCafe();
+      const area = store.select.area(cafe.area);
+      el.innerHTML = html`
+        <div class="surface cafe">
+          <header class="cafe-header">
+            <div class="stack" style="--stack-gap:var(--space-2)">
+              <p class="eyebrow">Partner view · ${area.name}</p>
+              <h1 class="t-h1">${cafe.name}</h1>
+              <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+            </div>
+            <span class="open-indicator">Open <span class="t-faint t-small" style="font-weight:400">until ${cafe.hours.label.split("–")[1].trim()}</span></span>
+          </header>
+          <div class="cafe-grid">
+            <section class="card" aria-labelledby="redeem-h">
+              <div class="panel-title"><h2 class="eyebrow" id="redeem-h">Redeem a cup</h2></div>
+              <div class="placeholder" style="min-height:360px">Code entry, numpad, and QR scan. Built in Pass 2.</div>
+            </section>
+            <div class="cafe-grid__side">
+              <section class="card" aria-labelledby="busy-h">
+                <div class="panel-title"><h2 class="eyebrow" id="busy-h">How busy are you?</h2>${ui.statusPill(cafe.id)}</div>
+                <div class="placeholder">Quiet, Moderate, Packed. Built in Pass 2.</div>
+              </section>
+              <section class="card" aria-labelledby="today-h">
+                <div class="panel-title"><h2 class="eyebrow" id="today-h">Today</h2></div>
+                <div class="placeholder">Redemptions, new customers, payout. Built in Pass 2.</div>
+              </section>
+            </div>
+          </div>
+          <p class="t-small t-faint" style="margin-top:var(--space-6)">Works on any phone or tablet. No special hardware.</p>
+        </div>`;
+    },
+  });
+
+  /* Boot ---------------------------------------------------------------- */
+  window.addEventListener("hashchange", render);
+  LCC.router = { register, navigate, render, parse };
+
+  // Defer first render so later scripts (kit.js, screens) can register first
+  document.addEventListener("DOMContentLoaded", render);
+})();
+
+</script>
+<script>
+/* ---- src/kit.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — kit.js
+   #/kit: every Pass 1 component on one page, wired to the real store,
+   so the design system can be reviewed before screens are built.
+   Not linked from the switcher.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, raw, $, $$ } = ui;
+
+  const swatches = ["--bg", "--surface", "--surface-2", "--ink", "--ink-2", "--ink-3", "--line", "--accent", "--accent-soft", "--status-quiet", "--status-moderate", "--status-packed"];
+
+  LCC.router.register("kit", {
+    title: "Component kit",
+    mount(el) {
+      const cafes = store.select.cafes();
+      const kiln = store.select.cafe("kiln");
+      el.innerHTML = html`
+        <div class="surface container kit">
+          <p class="eyebrow">Pass 1 · design system</p>
+          <h1 class="t-display" style="margin-top:var(--space-3)">Every café you love.<br>One monthly pass.</h1>
+          <p class="t-body t-muted measure" style="margin-top:var(--space-4)">Pick your places, pick your cups. Pay once, drink well all month.</p>
+
+          <div class="kit-grid">
+            <section class="card stack" style="--stack-gap:var(--space-4)">
+              <h2 class="eyebrow">Colour</h2>
+              <div class="kit-swatches">
+                ${swatches.map((s) => html`<div class="kit-swatch"><span style="background:var(${s})"></span><span>${s.slice(2)}</span></div>`)}
+              </div>
+            </section>
+
+            <section class="card stack" style="--stack-gap:var(--space-3)">
+              <h2 class="eyebrow">Type</h2>
+              <p class="t-h1">Fraunces 40</p>
+              <p class="t-h2">Fraunces 28, for titles</p>
+              <p class="t-h3">Inter Tight 20, medium</p>
+              <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
+              <p class="t-small t-muted">Small 14, secondary ink.</p>
+              <p class="t-micro t-faint num">Micro 12 · Rs 6,500 · 11 of 16</p>
+            </section>
+
+            <section class="card stack" style="--stack-gap:var(--space-3)">
+              <h2 class="eyebrow">Buttons</h2>
+              <button class="btn btn--primary btn--block" type="button" data-kit-toast="You’re on the list.">Join the waitlist</button>
+              <button class="btn btn--secondary btn--block" type="button">See the app</button>
+              <div class="cluster">
+                <button class="btn btn--secondary btn--compact" type="button">Partner with us</button>
+                <button class="btn btn--link" type="button">How we pay you</button>
+                <button class="btn btn--primary btn--compact" type="button" disabled>Disabled</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="eyebrow" style="margin-bottom:var(--space-4)">Inputs</h2>
+              <form class="stack" style="--stack-gap:var(--space-4)" data-kit-form novalidate>
+                <div class="field">
+                  <label class="field__label" for="kit-name">Your name</label>
+                  <input class="input" id="kit-name" name="name" autocomplete="given-name" placeholder="Ayesha" aria-describedby="kit-name-err">
+                  <p class="field__error" id="kit-name-err">We’ll need a name to save your spot.</p>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="kit-area">Area</label>
+                  <div class="select">
+                    <select class="input" id="kit-area">
+                      ${store.getState().areas.map((a) => html`<option>${a.name}</option>`)}
+                    </select>
+                  </div>
+                </div>
+                <button class="btn btn--primary" type="submit">Check validation</button>
+              </form>
+            </section>
+
+            <section class="card stack" style="--stack-gap:var(--space-4)">
+              <h2 class="eyebrow">Chips, segmented, toggle</h2>
+              <div class="cluster" style="--cluster-gap:var(--space-2)">
+                ${["Area", "Quiet now", "Roastery", "Pastries"].map((c, i) => html`<button type="button" class="chip" aria-pressed="${i === 1}" data-kit-chip>${c}</button>`)}
+              </div>
+              ${ui.segmented({ name: "plan", label: "Plan type", value: "fixed", options: [{ value: "fixed", label: "Fixed" }, { value: "custom", label: "Build your own" }] })}
+              <div class="row">
+                <div class="row__main"><div class="row__title">Renewal reminders</div><div class="row__meta">Two days before, on WhatsApp</div></div>
+                <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="Renewal reminders" data-kit-toggle></button>
+              </div>
+              <div class="cluster"><span class="badge">3 of 5 visits</span><span class="badge badge--accent">Your plan</span></div>
+            </section>
+
+            <section class="card">
+              <div class="panel-title"><h2 class="eyebrow">Stepper · live builder price</h2></div>
+              <div data-kit-builder>
+                ${cafes.slice(0, 4).map((c) => html`
+                  <div class="row">
+                    <div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta num">${fmt.rs(c.price)} at the counter</div></div>
+                    ${ui.stepper({ id: c.id, value: store.getState().builder[c.id] || 0, max: store.getState().rules.maxCupsPerCafe, label: `Cups per month at ${c.name}` })}
+                  </div>`)}
+              </div>
+              <hr class="divider" style="margin-block:var(--space-4)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span class="t-small t-muted"><span class="num" data-kit-cups></span></span>
+                <span class="t-h2 num" data-kit-price></span>
+              </div>
+              <p class="t-small t-faint num" data-kit-savings style="text-align:right"></p>
+            </section>
+
+            <section class="card">
+              <div class="panel-title"><h2 class="eyebrow">Status · shared store</h2></div>
+              <p class="t-small t-muted" style="margin-bottom:var(--space-3)">Change Kiln &amp; Bean here, then open the member app or café view. Open two windows to see it mirror across them.</p>
+              <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
+                ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
+              </div>
+              ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
+            </section>
+
+            <section class="card">
+              <div class="panel-title"><h2 class="eyebrow">Bottom sheet, toast, check</h2></div>
+              <div class="kit-demo-phone">
+                <div style="padding:var(--space-5)" class="stack">
+                  <button class="btn btn--secondary btn--block" type="button" data-sheet-open="kit-sheet">Open café sheet</button>
+                  <button class="btn btn--ghost btn--block" type="button" data-kit-toast="Cup redeemed. 10 left.">Show toast</button>
+                  <svg class="check-draw" data-kit-check viewBox="0 0 48 48" width="48" height="48" style="color:var(--accent);margin:var(--space-2) auto 0" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+                </div>
+                <div class="sheet" id="kit-sheet" role="dialog" aria-modal="true" aria-labelledby="kit-sheet-title" aria-hidden="true">
+                  <div class="sheet__scrim" data-sheet-close></div>
+                  <div class="sheet__panel">
+                    <div class="sheet__handle" aria-hidden="true"></div>
+                    <div class="sheet__body stack" style="--stack-gap:var(--space-3)">
+                      <h3 class="t-h2" id="kit-sheet-title">${kiln.name}</h3>
+                      ${ui.statusPill("kiln")}
+                      <p class="t-small t-muted">${kiln.blurb}</p>
+                      <button class="btn btn--primary btn--block" type="button" data-sheet-close>Directions</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>`;
+
+      // Builder
+      const cupsEl = $("[data-kit-cups]", el), priceEl = $("[data-kit-price]", el), saveEl = $("[data-kit-savings]", el);
+      const paintPrice = (animate) => {
+        const p = store.select.customPrice();
+        cupsEl.textContent = `${fmt.cups(p.cups)} a month`;
+        if (animate) ui.animateNumber(priceEl, p.price, { format: fmt.rs }); else { priceEl.textContent = fmt.rs(p.price); priceEl.dataset.value = p.price; }
+        saveEl.textContent = p.meetsMinimum ? `You save ${fmt.rs(p.savings)} vs paying at the counter` : `Add ${fmt.cups(p.cupsShort)} to reach the six-cup minimum`;
+      };
+      paintPrice(false);
+
+      const onClick = (e) => {
+        const step = e.target.closest("[data-step]");
+        if (step) {
+          const box = step.closest("[data-stepper]");
+          const id = box.dataset.stepper;
+          store.actions.setBuilderCups(id, (store.getState().builder[id] || 0) + Number(step.dataset.step));
+          ui.setStepper(box, store.getState().builder[id] || 0);
+        }
+        const st = e.target.closest("[data-kit-status]");
+        if (st) store.actions.setCafeStatus("kiln", st.dataset.kitStatus);
+        const chip = e.target.closest("[data-kit-chip]");
+        if (chip) chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") !== "true");
+        const tog = e.target.closest("[data-kit-toggle]");
+        if (tog) tog.setAttribute("aria-checked", tog.getAttribute("aria-checked") !== "true");
+        const seg = e.target.closest(".segmented__option");
+        if (seg) ui.selectSegment(seg.parentElement, seg.dataset.value);
+        const t = e.target.closest("[data-kit-toast]");
+        if (t) {
+          ui.toast(t.dataset.kitToast);
+          const check = $("[data-kit-check]", el);
+          const clone = check.cloneNode(true); check.replaceWith(clone); // replay draw
+        }
+      };
+      el.addEventListener("click", onClick);
+
+      const form = $("[data-kit-form]", el);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const field = $("#kit-name", el).closest(".field");
+        const ok = $("#kit-name", el).value.trim().length > 0;
+        field.dataset.invalid = String(!ok);
+        $("#kit-name", el).setAttribute("aria-invalid", String(!ok));
+        if (ok) ui.toast("Looks good.");
+        else $("#kit-name", el).focus();
+      });
+
+      const offs = [
+        store.on("builder", () => paintPrice(true)),
+        store.on("cafe:status", ({ cafeId, status }) => {
+          if (cafeId !== "kiln") return;
+          $$("[data-kit-status]", el).forEach((b) => b.setAttribute("aria-pressed", b.dataset.kitStatus === status));
+        }),
+      ];
+      return () => { el.removeEventListener("click", onClick); offs.forEach((f) => f()); };
+    },
+  });
+})();
+
+</script>
+</body>
+</html>
