@@ -12,6 +12,11 @@
 #   <!-- @logos -->    the logo SVGs below as hidden <template>s (ui.logo)
 #   <!-- @scripts -->  the JS files below, in order
 # Add new files to these lists.
+#
+# PWA files can't be inlined (the phone fetches them as real files), so
+# they are copied next to index.html with relative paths:
+#   src/manifest.json -> manifest.json, src/sw.js -> sw.js,
+#   the icons below   -> icons/
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -39,6 +44,15 @@ FONT_FILES=(
   GlacialIndifference-Bold.woff2
 )
 FAVICON="$SRC/logos/favicon-32.png"
+
+# Copied as real files for the installable app (PWA)
+PWA_FILES=(manifest.json sw.js)
+ICON_FILES=(
+  app-icon-192.png
+  app-icon-512.png
+  app-icon-maskable-512.png
+  apple-touch-icon-180.png
+)
 
 # Order matters: data -> state -> ui -> router -> surfaces
 JS_FILES=(
@@ -76,6 +90,8 @@ build() {
   for f in "${LOGO_FILES[@]}"; do [[ -f "$SRC/logos/$f" ]] || { echo "build: missing $SRC/logos/$f" >&2; return 1; }; done
   for f in "${FONT_FILES[@]}"; do [[ -f "$SRC/fonts/$f" ]] || { echo "build: missing $SRC/fonts/$f" >&2; return 1; }; done
   [[ -f "$FAVICON" ]] || { echo "build: missing $FAVICON" >&2; return 1; }
+  for f in "${PWA_FILES[@]}"; do [[ -f "$SRC/$f" ]] || { echo "build: missing $SRC/$f" >&2; return 1; }; done
+  for f in "${ICON_FILES[@]}"; do [[ -f "$SRC/logos/$f" ]] || { echo "build: missing $SRC/logos/$f" >&2; return 1; }; done
 
   # A literal </script> or </style> inside a source file would end the tag early
   if grep -l -i '</script' "${JS_FILES[@]/#/$SRC/}" >/dev/null 2>&1; then
@@ -88,6 +104,7 @@ build() {
   # Syntax-check scripts when Node is available
   if command -v node >/dev/null 2>&1; then
     for f in "${JS_FILES[@]}"; do node --check "$SRC/$f" || return 1; done
+    node --check "$SRC/sw.js" || return 1
   fi
 
   local tmp
@@ -118,6 +135,11 @@ build() {
     esac
   done < "$TEMPLATE" > "$tmp"
   mv "$tmp" "$OUT"
+
+  # PWA files next to index.html (relative paths, so a subfolder works too)
+  for f in "${PWA_FILES[@]}"; do cp "$SRC/$f" "$f"; done
+  mkdir -p icons
+  for f in "${ICON_FILES[@]}"; do cp "$SRC/logos/$f" "icons/$f"; done
 
   local size
   size=$(wc -c < "$OUT" | tr -d ' ')

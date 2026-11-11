@@ -6,6 +6,12 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FFF7E8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B0B0B" media="(prefers-color-scheme: dark)">
+  <!-- Installable app (PWA): build.sh copies manifest.json and icons/ next to index.html -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="LCC">
   <meta name="description" content="Lahore Coffee Club: one monthly pass for the city’s best independent cafés. Prototype.">
   <title>Lahore Coffee Club</title>
   <!-- Link previews (WhatsApp, iMessage, X…). The image is og.png in the repo root, rendered by headless Chrome. -->
@@ -1342,8 +1348,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   border-top: var(--hairline);
 }
 .phone__screen .tabbar { padding-bottom: 22px; } /* home indicator inside the desktop frame */
+/* Real phones (≤520px): base.css drops the frame and fills the screen, and
+   the fixed prototype bar already clears the notch (safe-area-inset-top).
+   Here the bottom bars clear the home indicator. The desktop frame is unchanged. */
 @media (max-width: 520px) {
   .phone__screen .tabbar { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .phone__screen.is-flow .summary-bar,
+  .phone__screen.is-flow .sticky-action { padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom)); }
 }
 .tab {
   display: grid;
@@ -8404,5 +8415,11 @@ li:last-child > .near-row { border-bottom: 0; }
 })();
 
 </script>
+  <!-- Service worker (sw.js, copied next to index.html by build.sh). Needs http(s); skipped on file://. -->
+  <script>
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
 </body>
 </html>

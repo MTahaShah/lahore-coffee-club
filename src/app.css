@@ -35,8 +35,13 @@
   border-top: var(--hairline);
 }
 .phone__screen .tabbar { padding-bottom: 22px; } /* home indicator inside the desktop frame */
+/* Real phones (≤520px): base.css drops the frame and fills the screen, and
+   the fixed prototype bar already clears the notch (safe-area-inset-top).
+   Here the bottom bars clear the home indicator. The desktop frame is unchanged. */
 @media (max-width: 520px) {
   .phone__screen .tabbar { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .phone__screen.is-flow .summary-bar,
+  .phone__screen.is-flow .sticky-action { padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom)); }
 }
 .tab {
   display: grid;

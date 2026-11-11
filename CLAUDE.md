@@ -97,6 +97,11 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `landing.css`, `landing.js` — landing page (`#/`): hero, plans with a live
   Build-your-own teaser, busy map teaser, café estimator, waitlist and
   partner forms, FAQ
+- `manifest.json`, `sw.js` — installable app (PWA). `build.sh` copies them,
+  and the icons (`logos/app-icon-192.png`, `-512`, `-maskable-512`,
+  `apple-touch-icon-180.png`, resized from `app-icon-cream-1024.png`) into
+  `icons/`, next to `index.html`. The service worker is network first; bump
+  `CACHE_VERSION` to clear old caches
 - `og.png` (repo root) — 1200×630 link-preview image, rendered with
   headless Chrome; referenced by absolute URL in the template's OG tags
 
