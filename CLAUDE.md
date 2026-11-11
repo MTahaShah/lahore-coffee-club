@@ -255,6 +255,10 @@ next pass until asked.**
   replayed from redeem entries in `select.club` (`badge.earnedAt`).
   Badges added: DHA local, Familiar face (50 cups), First light (30 cups
   before 9 am).
+- Club tab perks: one "Perks · N" row (the member's unlocked perks; locked
+  ones are counted in its second line) that fans out a stack of ticket
+  stubs (280ms, fade with reduced motion). Used / expired come from optional
+  `member.perksUsed[perkId]` and `perk.expiresAt`; none are seeded.
 - Gatherings: next one is the second Saturday ahead (Maple, 9 am, 30 seats,
   19 taken); Founding Members and Connoisseurs RSVP before the general
   opening a week ahead. RSVPs sync (`rsvp` message, newest wins, in join

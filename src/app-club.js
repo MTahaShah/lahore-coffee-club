@@ -78,6 +78,7 @@
     gulberg: '<path d="M12 20s5.5-5 5.5-9.5a5.5 5.5 0 0 0-11 0C6.5 15 12 20 12 20z"/><path d="M12 8v5M10 10.5h4"/>',
     dha: '<path d="M12 20s5.5-5 5.5-9.5a5.5 5.5 0 0 0-11 0C6.5 15 12 20 12 20z"/><rect x="10" y="8.5" width="4" height="4" rx=".75"/>',
     familiar: '<circle cx="12" cy="12" r="8.5"/><path d="M8.25 10h6.5v2.25a3 3 0 0 1-3 3h-.5a3 3 0 0 1-3-3V10zM14.75 10.75h.6a1.35 1.35 0 0 1 0 2.7h-.6"/>',
+    ticket: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4V7.5z"/><path d="M14.5 6.5v11" stroke-dasharray="1.5 2.25"/>',
     "first-light": '<path d="M3.5 16.5h17M7.5 19.5h9M8 16.5a4 4 0 0 1 8 0M12 7v2.5M6.3 9.8l1.5 1.3M17.7 9.8l-1.5 1.3"/>',
   };
   const mark = (id) => raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${MARKS[id] || ""}</svg>`);
@@ -292,11 +293,22 @@
   }
 
   /* -------------------------------------------------------------------
+     Perks: a row that fans out a stack of ticket stubs (your perks only)
+     ------------------------------------------------------------------- */
+  const stack = { open: false, front: null };
+  const TICKET_TILT = [-2.5, 2, -1.5, 3, -2, 1.5];
+  const FAN_MS = 280;
+  const PERK_ORDER = ["founding", "local", "connoisseur"];
+  const STATE_WORD = { ready: "Perk", used: "Used", expired: "Expired" };
+
+  /* -------------------------------------------------------------------
      Club tab
      ------------------------------------------------------------------- */
   REG.club = (ctx) => {
     const { view, el } = ctx;
     let badgeSheet = null;
+    stack.open = false;
+    stack.front = null;
 
     function statusHtml(c) {
       const levels = c.levels;
@@ -366,19 +378,110 @@
         </div>`;
     }
 
-    function perksHtml(c) {
-      const order = ["founding", "local", "connoisseur"];
-      const perks = c.perks.slice().sort((a, b) => (b.unlocked - a.unlocked) || (order.indexOf(a.for) - order.indexOf(b.for)));
-      return html`<ul role="list">
-        ${perks.map((p) => html`<li class="row perk-row${p.unlocked ? " is-yours" : ""}">
-          <span class="row__main">
-            <span class="row__title">${p.text}</span>
-            <span class="row__meta">From ${p.cafe.name} · for ${p.audience}</span>
+    /** Your perks: ready ones first, then used or expired. Locked perks stay off the stack. */
+    function myPerks(c) {
+      const rank = (p) => (p.state === "ready" ? 0 : 1);
+      return c.perks.filter((p) => p.unlocked).sort((a, b) => rank(a) - rank(b) || PERK_ORDER.indexOf(a.for) - PERK_ORDER.indexOf(b.for));
+    }
+
+    function ticketHtml(p, i) {
+      const when = p.state === "used" ? `Used on ${fmt.longDate(p.usedAt)}`
+        : p.state === "expired" ? `Expired on ${fmt.longDate(p.expiresAt)}`
+        : p.expiresAt ? `Until ${fmt.longDate(p.expiresAt)}` : "";
+      return html`<li class="ticket-slot${stack.front === i ? " is-front" : ""}" style="--i:${i};--tilt:${TICKET_TILT[i % TICKET_TILT.length]}deg">
+        <button type="button" class="ticket is-${p.state}" data-ticket="${i}" ${stack.front === i ? raw('aria-current="true"') : ""}
+          aria-label="${p.text}. ${p.cafe.name.replace(/\.$/, "")}.${when ? ` ${when}.` : ""}${p.state === "ready" ? " Show your pass at the counter." : ""}${stack.front === i ? "" : " Bring to front."}">
+          <span class="ticket__paper" aria-hidden="true">
+            <span class="ticket__main">
+              <span class="ticket__cafe">${p.cafe.name}</span>
+              <span class="ticket__perk">${p.text}</span>
+              <span class="ticket__meta">${when ? html`<span>${when}</span>` : ""}${p.state === "ready" ? html`<span>Show your pass at the counter</span>` : ""}</span>
+            </span>
+            <span class="ticket__stub"><span>${STATE_WORD[p.state]}</span></span>
           </span>
-          ${p.unlocked ? html`<span class="badge badge--accent">Yours</span>` : html`<span class="badge">${p.for === "founding" ? "Founding" : p.audience.slice(0, -1)}</span>`}
-        </li>`)}
-      </ul>
-      <p class="t-micro t-faint">Paid for by each café, not by your plan. Show your pass and the barista will see what’s yours.</p>`;
+        </button>
+      </li>`;
+    }
+
+    function perksHtml(c) {
+      const mine = myPerks(c);
+      const locked = c.perks.filter((p) => !p.unlocked);
+      const lockedLine = locked.length ? `${locked.length} more for ${[...new Set(locked.map((p) => p.audience))].join(" and ")}` : "Every perk is yours";
+      if (stack.front != null && stack.front >= mine.length) stack.front = null;
+      return html`
+        <button type="button" class="row badges-row perks-row" data-perks-toggle aria-expanded="${stack.open}" aria-controls="perk-stack">
+          <span class="badge-mark is-earned">${mark("ticket")}</span>
+          <span class="row__main"><span class="row__title">Perks · ${mine.length}</span><span class="row__meta">${lockedLine}</span></span>
+          <span class="row__trail" aria-hidden="true">${icon("chevronDown", { size: 20 })}</span>
+        </button>
+        <div class="tickets${stack.open ? " is-fanned" : ""}" id="perk-stack" data-perk-stack role="group" aria-label="Your perks" ${stack.open ? "" : raw("hidden")}>
+          <div class="tickets__bar">
+            <p class="t-small t-muted">${mine.length > 1 ? "Tap a ticket to bring it to the front." : mine.length ? "Your perk, from a partner café." : "Your first perks come with Local: 30 cups with the club."}</p>
+            <button type="button" class="icon-btn" data-perks-close aria-label="Fold the perks away">${icon("close")}</button>
+          </div>
+          ${mine.length ? html`<ul class="tickets__fan" role="list" style="--n:${mine.length}">${mine.map(ticketHtml)}</ul>` : ""}
+          <p class="t-micro t-faint">Paid for by each café, not by your plan.</p>
+        </div>`;
+    }
+
+    /** Fan out, fold back, bring a ticket forward. Reduced motion: a fade. */
+    function bindPerks(root) {
+      let busy = false;
+      const still = () => ui.reducedMotion();
+      const nodes = () => ({ box: $("[data-perk-stack]", root), row: $("[data-perks-toggle]", root) });
+      const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      async function open() {
+        if (busy || stack.open) return;
+        busy = true;
+        const { box, row } = nodes();
+        box.classList.toggle("is-still", still());
+        box.hidden = false;
+        await frame();
+        box.classList.add("is-fanned");
+        stack.open = true;
+        row.setAttribute("aria-expanded", "true");
+        await wait(FAN_MS);
+        busy = false;
+      }
+
+      async function close({ focusRow = false } = {}) {
+        if (busy || !stack.open) return;
+        busy = true;
+        const { box, row } = nodes();
+        box.classList.toggle("is-still", still());
+        box.classList.remove("is-fanned");
+        stack.open = false;
+        row.setAttribute("aria-expanded", "false");
+        if (focusRow || box.contains(document.activeElement)) row.focus({ preventScroll: true });
+        await wait(FAN_MS);
+        if (!stack.open) box.hidden = true;
+        busy = false;
+      }
+
+      function bringForward(i) {
+        stack.front = i;
+        $$("[data-ticket]", root).forEach((t) => {
+          const on = Number(t.dataset.ticket) === i;
+          t.closest(".ticket-slot").classList.toggle("is-front", on);
+          if (on) t.setAttribute("aria-current", "true"); else t.removeAttribute("aria-current");
+          t.setAttribute("aria-label", t.getAttribute("aria-label").replace(/ Bring to front\.$/, "") + (on ? "" : " Bring to front."));
+        });
+      }
+
+      root.addEventListener("click", (e) => {
+        if (e.target.closest("[data-perks-toggle]")) { stack.open ? close() : open(); return; }
+        if (e.target.closest("[data-perks-close]")) { close({ focusRow: true }); return; }
+        const t = e.target.closest("[data-ticket]");
+        if (t) bringForward(Number(t.dataset.ticket));
+      });
+      // Tap anywhere else, or Escape, folds the stack back
+      const onDocClick = (e) => { if (stack.open && !root.contains(e.target)) close(); };
+      const onKey = (e) => { if (stack.open && e.key === "Escape" && !document.querySelector('.sheet[data-open="true"]')) { e.preventDefault(); close({ focusRow: true }); } };
+      document.addEventListener("click", onDocClick);
+      document.addEventListener("keydown", onKey);
+      return () => { document.removeEventListener("click", onDocClick); document.removeEventListener("keydown", onKey); };
     }
 
     function gatheringHtml() {
@@ -464,9 +567,8 @@
             <div class="stack" style="--stack-gap:var(--space-3)" data-club="gathering">${gatheringHtml()}</div>
           </section>
 
-          <section class="app-section" aria-labelledby="perks-h">
-            <h2 class="eyebrow app-section__title" id="perks-h">Perks from cafés</h2>
-            <div data-club="perks">${perksHtml(c)}</div>
+          <section class="app-section" aria-label="Perks from cafés">
+            <div class="perks" data-club="perks">${perksHtml(c)}</div>
           </section>
 
           <section class="app-section" aria-label="Badges">
@@ -533,6 +635,7 @@
       mount() {
         // The passport container stays put across repaints, so its listeners do too
         bindBook($('[data-club="passport"]', view));
+        const unbindPerks = bindPerks($('[data-club="perks"]', view));
         badgeSheet = document.createElement("div");
         badgeSheet.className = "sheet";
         badgeSheet.id = "badges-sheet";
@@ -543,6 +646,7 @@
         $(".phone__screen", el).appendChild(badgeSheet);
         view.addEventListener("click", onClick);
         return () => {
+          unbindPerks();
           ui.closeSheet(badgeSheet);
           badgeSheet.remove();
           view.removeEventListener("click", onClick);

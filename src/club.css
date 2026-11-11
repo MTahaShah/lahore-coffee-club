@@ -233,10 +233,56 @@
 .badges-sheet__bar { display: flex; align-items: center; justify-content: space-between; padding-top: 4px; }
 .badges-sheet .eyebrow { margin-bottom: var(--space-1); }
 
-.perk-row .row__title { font-weight: 400; }
-.perk-row.is-yours .row__title { font-weight: 500; }
-.perk-row:not(.is-yours) .row__title { color: var(--ink-2); }
-.perk-row + .t-micro, [data-club="perks"] > .t-micro { margin-top: var(--space-2); }
+/* Perks: a row that fans out a stack of ticket stubs ----------------------
+   Tickets are paper (--surface) with a hairline, a dashed perforation
+   before the stub and a torn right edge (a mask, no images). The stub's
+   word is the one accent. Fan: 280ms with the brand easing. */
+.perks-row .row__trail svg { transition: transform var(--dur-2) var(--ease); }
+.perks-row[aria-expanded="true"] .row__trail svg { transform: rotate(180deg); }
+.tickets { --ticket-h: 128px; --step: 62px; display: grid; gap: var(--space-3); padding-top: var(--space-3); opacity: 1; }
+.tickets[hidden] { display: none; }
+.tickets__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-right: -10px; }
+.tickets__fan { position: relative; height: calc(var(--ticket-h) + (var(--n) - 1) * var(--step) + 8px); }
+.ticket-slot {
+  position: absolute;
+  top: 4px; left: 0; right: 0;
+  z-index: calc(var(--i) + 1);
+  transform: translateY(0) rotate(0deg);
+  transition: transform 280ms var(--ease);
+}
+.tickets.is-fanned .ticket-slot { transform: translateY(calc(var(--i) * var(--step))) rotate(var(--tilt, 0deg)); }
+.tickets.is-fanned .ticket-slot.is-front { z-index: 20; transform: translateY(calc(var(--i) * var(--step))) rotate(0deg); }
+/* Reduced motion: the fan is already in place; the stack fades in and out */
+.tickets.is-still .ticket-slot { transition: none; transform: translateY(calc(var(--i) * var(--step))) rotate(var(--tilt, 0deg)); }
+.tickets.is-still { transition: opacity 220ms linear !important; opacity: 0; }
+.tickets.is-still.is-fanned { opacity: 1; }
+
+.ticket { display: block; width: 100%; height: var(--ticket-h); padding: 0; text-align: left; color: var(--ink); border-radius: 10px; -webkit-tap-highlight-color: transparent; }
+.ticket:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.ticket__paper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  height: 100%;
+  background: var(--surface);
+  border: var(--hairline);
+  border-radius: 10px;
+  /* the torn, perforated right edge: a bite every 10px */
+  -webkit-mask: radial-gradient(circle 4px at 100% 50%, transparent 3.5px, #000 4px) 0 0 / 100% 10px repeat-y;
+  mask: radial-gradient(circle 4px at 100% 50%, transparent 3.5px, #000 4px) 0 0 / 100% 10px repeat-y;
+}
+.ticket__main { display: grid; grid-template-rows: auto 1fr auto; gap: 4px; min-width: 0; padding: 14px 14px 12px 16px; }
+.ticket__cafe { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket__perk { align-self: start; font-size: var(--fs-16); font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ticket__meta { display: grid; gap: 2px; font-size: var(--fs-12); color: var(--ink-3); }
+/* Tickets partly under the next one show their perk on one line */
+.ticket-slot:not(.is-front):not(:last-child) .ticket__perk { -webkit-line-clamp: 1; }
+.perks-row .row__main { display: grid; gap: 2px; }
+.ticket__stub { display: grid; place-items: center; border-left: 1.5px dashed var(--line-strong); }
+.ticket__stub span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-text); }
+/* Used or expired: faded, with the word on the stub and the date */
+.ticket.is-used .ticket__main, .ticket.is-expired .ticket__main { opacity: 0.5; }
+.ticket.is-used .ticket__stub span, .ticket.is-expired .ticket__stub span { color: var(--ink-3); }
+.perks > .tickets .t-micro { margin-top: var(--space-1); }
 
 /* Gatherings */
 .gather { display: grid; gap: var(--space-3); }
@@ -314,6 +360,6 @@
 }
 
 /* Rows built from spans: title above meta */
-.badge-row .row__main, .perk-row .row__main, .gather-past .row__main, .gift-link .row__main { display: grid; gap: 2px; }
+.badge-row .row__main, .gather-past .row__main, .gift-link .row__main { display: grid; gap: 2px; }
 [data-gift-body] [role="status"]:focus { outline: none; }
 .welcome-intro__mark { width: 160px; margin-bottom: var(--space-2); }

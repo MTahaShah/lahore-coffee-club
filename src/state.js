@@ -594,7 +594,15 @@
 
       const rank = (id) => C.levels.findIndex((l) => l.id === id);
       const hasPerk = (p) => (p.for === "founding" ? founding : rank(level.id) >= rank(p.for));
-      const perks = C.perks.map((p) => ({ ...p, cafe: state.cafes[p.cafeId], unlocked: hasPerk(p), audience: p.for === "founding" ? "Founding Members" : levels[rank(p.for)].plural }));
+      // Used / expired: optional fields, none seeded. m.perksUsed = { perkId: timestamp }; perk.expiresAt = timestamp.
+      // BACKEND: perk claims become a table (member, perk, café, at); expiry comes with the perk
+      const now = Date.now();
+      const perks = C.perks.map((p) => {
+        const usedAt = (m.perksUsed || {})[p.id] || null;
+        const expiresAt = p.expiresAt || null;
+        const state_ = usedAt ? "used" : expiresAt && expiresAt < now ? "expired" : "ready";
+        return { ...p, cafe: state.cafes[p.cafeId], unlocked: hasPerk(p), audience: p.for === "founding" ? "Founding Members" : levels[rank(p.for)].plural, usedAt, expiresAt, state: state_ };
+      });
 
       return {
         member: m,
