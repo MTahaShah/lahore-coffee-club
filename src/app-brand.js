@@ -5,8 +5,9 @@
    a Hot / Iced toggle, ordering ("Use a cup"), branches and plans.
 
    Cups belong to the brand, not a branch: they work at every branch.
-   Ordering only tells the counter what you'd like; the cup is spent when
-   the counter redeems your code (store.actions.placeOrder / redeem).
+   "Use a cup at the counter" only tells the counter what you'd like; the
+   cup is spent when the counter redeems your code (store.actions.placeOrder
+   / redeem). "Order for pickup" opens the pickup flow (app-order.js).
    ===================================================================== */
 (function () {
   "use strict";
@@ -130,11 +131,12 @@
               ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
             <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
             ${canUse
-              ? html`<button type="button" class="btn btn--primary btn--block" data-use-cup>Use a cup</button>
-                  <p class="t-micro t-faint">The counter sees your drink when they scan your pass. Nothing is spent until they do.</p>`
-              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. Your plan renews soon." : `Choose a ${b.name} plan to use cups for this.`}</p>
-                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--primary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
+              ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
+                  <p class="t-micro t-faint">Order ahead and collect, or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
+              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. You can still order and pay for it." : `Order and pay for it, or choose a ${b.name} plan to use cups.`}</p>
+                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--secondary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
             <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
           </div>
         </div>`;
@@ -162,6 +164,11 @@
       if (e.target.closest("[data-use-cup]")) {
         A.placeOrder({ brandId: b.id, drinkId: picked.item.id, temp: picked.temp });
         ctx.go("#/app/pass");
+        return;
+      }
+      if (e.target.closest("[data-pickup-order]")) {
+        LCC.appOrder?.start({ brandId: b.id, drinkId: picked.item.id, temp: picked.temp });
+        ctx.go("#/app/order");
         return;
       }
       if (e.target.closest("[data-skip-order]")) { A.placeOrder({}); ctx.go("#/app/pass"); return; }

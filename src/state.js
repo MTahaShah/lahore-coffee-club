@@ -10,8 +10,8 @@
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, order, session, waitlist, partner, snapshot,
-           tick (every 30s)
+           builder, gift, rsvp, order, pickup, session, waitlist, partner,
+           snapshot, tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
@@ -20,6 +20,12 @@
      brand     one pool for one brand (Double Shot), any of its branches;
                a redemption records the branch, the drink, its price and
                any top-up, so payouts can be paid per branch
+
+   Pickup orders (state.orders): order ahead, collect at the counter. A cup
+   order writes a `hold` entry (−cups) when placed; cancelled or rejected
+   writes a `release` (+cups); collected writes the release plus an
+   ordinary `redeem`, so it pays out exactly like a cup at the counter.
+   Paid orders don't touch cups: the café gets the price minus the LCC fee.
 
    No storage. Café status, ledger entries and plan changes are handed to
    "transports" (store.addTransport); sync.js registers two:
@@ -37,6 +43,10 @@
   const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
   const MIN = 60 * 1000;
   const STATUSES = ["quiet", "moderate", "packed"];
+  const OPEN = ["placed", "making", "ready"];        // pickup orders still in the café's queue
+  // A status only moves forward; the finished ones never change again (so sync can't undo them)
+  const PICKUP_RANK = { placed: 0, making: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const PICKUP_NEXT = { making: ["placed"], ready: ["placed", "making"], collected: ["ready"], rejected: ["placed", "making"], cancelled: ["placed"] };
 
   /* -------------------------------------------------------------------
      State
@@ -58,6 +68,7 @@
     session: { saved: null },    // presenter: Mumtaz's place while a new member onboards
     drinkCategories: clone(seed.drinkCategories || []),
     gifts: [],
+    orders: byId(clone(seed.orders || [])), // pickup orders, id -> order
     waitlist: [],
     partnerRequests: [],
   };
@@ -117,6 +128,7 @@
     else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
     else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
+    else if (type === "pickup") send("pickup", { order: payload.order });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -146,9 +158,10 @@
       plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
       orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
+      pickups: Object.values(state.orders).filter((o) => o.live),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt);
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -160,6 +173,7 @@
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
     (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
+    (snap.pickups || []).forEach((o) => applyPickup(o, { remote: true }, { quiet: true }));
     emit("snapshot", {}, { remote: true });
   }
 
@@ -182,6 +196,7 @@
     else if (type === "snapshot") applyRoomSnapshot(data);
     else if (type === "rsvp") applyRsvp(data, { remote: true });
     else if (type === "order") applyOrder(data, { remote: true });
+    else if (type === "pickup") applyPickup(data.order, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -233,7 +248,7 @@
         m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
         if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
         // The drink they chose in the app has been served: clear it (on every device)
-        if (e.brandId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
+        if (e.brandId && !e.orderId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
           m.order = null; m.orderAt = e.at;
           emit("order", { memberId: m.id, order: null, at: e.at }, { remote: true });
         }
@@ -332,16 +347,19 @@
       return (byMember.get(memberId) || []).filter((e) => types.includes(e.type)).sort((a, b) => b.at - a.at);
     },
 
+    /** Cups redeemed at a café today, plus cups held by pickup orders placed today. */
     usedToday(memberId, cafeId) {
       const since = startOfToday();
       return (byMember.get(memberId) || [])
         .filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since)
-        .reduce((n, e) => n + e.credits, 0);
+        .reduce((n, e) => n + e.credits, 0) + select.heldCups(memberId, cafeId, { since });
     },
 
-    /** Cups a member has redeemed at a café this plan cycle. */
+    /** Cups a member has redeemed (or holds for a pickup) at a café this plan cycle. */
     usedHereThisCycle(memberId, cafeId) {
-      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0);
+      const m = state.members[memberId];
+      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0)
+        + select.heldCups(memberId, cafeId, { cycle: m?.cycle });
     },
 
     /** Balances for this cycle, all derived from the ledger.
@@ -778,10 +796,11 @@
     /** Member cups are paused at this café right now? */
     isPaused: (cafeId, at = Date.now()) => (state.cafes[cafeId]?.pausedUntil || 0) > at,
 
-    /** Cups redeemed at a café today (two-cup drinks count twice). */
+    /** Cups redeemed at a café today (two-cup drinks count twice), plus cups held by open pickup orders. */
     cafeCupsToday(cafeId) {
       const since = startOfToday();
-      return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0);
+      return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0)
+        + Object.values(state.orders).reduce((n, o) => (o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status) && o.placedAt >= since ? n + o.credits : n), 0);
     },
 
     /** Auto busy level: estimated from cups redeemed here in the last 30 min. */
@@ -815,7 +834,7 @@
       const byHour = Array.from({ length: 16 }, (_, i) => ({ hour: 8 + i, cups: 0 }));
       entries.forEach((e) => { const h = new Date(e.at).getHours(); if (h >= 8 && h <= 23) byHour[h - 8].cups += e.credits; });
       const earnings = entries.reduce((n, e) => n + select.entryPayout(e), 0);
-      const topUps = entries.reduce((n, e) => n + (e.topUp || 0), 0);
+      const topUps = entries.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0);
       return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings, topUps, rate: cafe.payoutPerCup, brand: !!cafe.brandId, byHour };
     },
 
@@ -833,9 +852,13 @@
         const month = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= monthStart);
         const rows = ids.map((id) => {
           const es = month.filter((e) => e.cafeId === id);
-          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), earned: es.reduce((n, e) => n + select.entryPayout(e), 0), topUps: es.reduce((n, e) => n + (e.topUp || 0), 0) };
+          const cupEarned = es.reduce((n, e) => n + select.entryPayout(e), 0);
+          const paid = select.paidOrders([id], monthStart);
+          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), cupEarned, paid, earned: cupEarned + paid.net, topUps: es.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0) };
         });
-        const cups = rows.reduce((n, r) => n + r.cups, 0), earned = rows.reduce((n, r) => n + r.earned, 0);
+        const cups = rows.reduce((n, r) => n + r.cups, 0), cupEarned = rows.reduce((n, r) => n + r.cupEarned, 0);
+        const paid = select.paidOrders(ids, monthStart);
+        const earned = cupEarned + paid.net;
         // History: this branch's months, or every branch added up per month
         const hist = {};
         ids.forEach((id) => state.partner[id].payouts.forEach((p) => {
@@ -843,8 +866,9 @@
           h.cups += p.cups; h.amount += p.amount ?? p.cups * state.cafes[id].payoutPerCup;
         }));
         return {
-          brand: b, scope, monthStart, cups, earned, rows,
-          perCup: cups ? earned / cups : 0,
+          brand: b, scope, monthStart, cups, cupEarned, paid, earned, rows,
+          topUps: rows.reduce((n, r) => n + r.topUps, 0),
+          perCup: cups ? cupEarned / cups : 0,
           maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare),
           share: Math.round(b.economics.payoutShare * 100),
           nextAt: next.getTime(),
@@ -853,18 +877,122 @@
         };
       }
       const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
+      const paid = select.paidOrders([cafeId], monthStart);
       return {
         monthStart,
         cups,
         rate: cafe.payoutPerCup,
         price: cafe.price,
         share: Math.round((cafe.payoutPerCup / cafe.price) * 100),
-        earned: cups * cafe.payoutPerCup,
+        cupEarned: cups * cafe.payoutPerCup,
+        paid,
+        earned: cups * cafe.payoutPerCup + paid.net,
         nextAt: next.getTime(),
         account: P.account,
         history: P.payouts.map((p) => ({ ...p, amount: p.amount ?? p.cups * cafe.payoutPerCup })),
       };
     },
+
+    /* ---------------- Pickup orders ---------------- */
+
+    pickup: (id) => state.orders[id] || null,
+    /** Short name for where to collect: "Double Shot Gulberg", "Kiln & Bean". */
+    pickupPlace(cafeId) {
+      const c = state.cafes[cafeId];
+      return c?.brandId ? `${state.brands[c.brandId].name} ${c.short}` : c?.name || "";
+    },
+    /** The drink as served: "Iced Spanish Latte". */
+    pickupDrinkName(o) {
+      if (o.brandId) return select.drinkLabel(select.menuItem(o.brandId, o.drinkId), o.temp);
+      return select.drink(o.cafeId, o.drinkId)?.name || "Coffee";
+    },
+    /** The 6-digit code the member shows at pickup, the same on every device. */
+    pickupCode: (o) => String(fnv1a(`${o.id}:pickup`) % 1000000).padStart(6, "0"),
+    /** Paid orders have no ledger entry, so they get their own reference. */
+    pickupRef: (o) => (o.pay === "cup" ? select.redemptionRef({ id: `rd_${o.id}` }) : `LCC-${1000 + (fnv1a(o.id) % 9000)}`),
+    isPickupOpen: (o) => OPEN.includes(o.status),
+
+    /** A member's orders, newest first. */
+    memberPickups(memberId = state.memberId) {
+      return Object.values(state.orders).filter((o) => o.memberId === memberId).sort((a, b) => b.placedAt - a.placedAt);
+    },
+    /** A café's live queue, oldest first. */
+    pickupQueue(cafeId) {
+      // BACKEND: GET /cafes/:id/orders?status=placed,making,ready (live via Postgres Changes)
+      return Object.values(state.orders).filter((o) => o.cafeId === cafeId && OPEN.includes(o.status)).sort((a, b) => a.placedAt - b.placedAt);
+    },
+    /** Finished today at this café (collected, rejected, cancelled), newest first. */
+    pickupsDoneToday(cafeId) {
+      const since = startOfToday();
+      return Object.values(state.orders).filter((o) => o.cafeId === cafeId && !OPEN.includes(o.status) && o.updatedAt >= since).sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+    /** Cups a member's open cup orders hold at a café (optionally placed since, or in one cycle). */
+    heldCups(memberId, cafeId, { since = 0, cycle = null } = {}) {
+      return Object.values(state.orders).reduce((n, o) => (o.memberId === memberId && o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status)
+        && o.placedAt >= since && (!cycle || o.cycle === cycle) ? n + o.credits : n), 0);
+    },
+    /** Can the member still cancel? Within the cancel window, and only before the café starts. */
+    canCancelPickup(o, at = Date.now()) {
+      const windowMs = state.rules.orderCancelMinutes * MIN;
+      return o.status === "placed" && at - o.placedAt < windowMs ? Math.ceil((o.placedAt + windowMs - at) / 1000) : 0;
+    },
+
+    /** "ASAP, about 10 min" and 15-minute slots for the rest of today, from the café's hours. */
+    pickupTimes(cafeId, at = Date.now()) {
+      const c = state.cafes[cafeId];
+      const { orderAsapMinutes: asapMin, orderSlotMinutes: step } = state.rules;
+      const toMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+      const open = toMin(c.hours.open);
+      let close = toMin(c.hours.close);
+      if (close <= open) close += 1440;
+      const d = new Date(at);
+      let base = startOfToday();
+      let nowMin = d.getHours() * 60 + d.getMinutes();
+      // Early hours, still open from yesterday: count from yesterday's midnight
+      if (nowMin < open && nowMin + 1440 < close) { nowMin += 1440; base -= 1440 * MIN; }
+      const asap = nowMin >= open && nowMin + asapMin <= close - 5;
+      const slots = [];
+      for (let t = Math.max(open, Math.ceil((nowMin + step) / step) * step); t <= close - step; t += step) {
+        slots.push({ at: base + t * MIN, label: fmt.clock(t) });
+      }
+      return { asap, asapAt: at + asapMin * MIN, slots };
+    },
+    /** Is this café taking pickup orders now? */
+    pickupAvailable(cafeId, at = Date.now()) {
+      const c = state.cafes[cafeId];
+      const place = select.pickupPlace(cafeId);
+      if (select.isPaused(cafeId, at)) return { ok: false, reason: "paused", message: `${place} is very busy and isn’t taking orders until ${fmt.time(c.pausedUntil)}.` };
+      const t = select.pickupTimes(cafeId, at);
+      if (!t.asap && !t.slots.length) return { ok: false, reason: "closed", message: `${place} has closed for today. ${select.openState(c, at).label}.` };
+      return { ok: true, times: t };
+    },
+    /** What one drink costs here, and whether a cup can pay for it. */
+    pickupQuote(memberId, cafeId, drinkId, temp) {
+      const cafe = state.cafes[cafeId];
+      let q;
+      if (cafe.brandId) {
+        const item = select.menuItem(cafe.brandId, drinkId) || state.brands[cafe.brandId].menu[0];
+        const p = select.drinkPrice(cafe.brandId, item, temp);
+        q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp };
+      } else {
+        const d = select.drink(cafeId, drinkId) || cafe.drinks[0];
+        q = { drinkId: d.id, temp: null, name: d.name, price: d.price, credits: d.credits, topUp: 0 };
+      }
+      const cup = select.canRedeemHere(memberId, cafeId, q.credits);
+      const m = state.members[memberId];
+      return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
+    },
+    /** Paid orders collected at these cafés since a time: what members paid online, the fee, the café's share. */
+    paidOrders(cafeIds, since = 0) {
+      const share = state.rules.orderFeeShare;
+      const list = Object.values(state.orders).filter((o) => o.status === "collected" && cafeIds.includes(o.cafeId) && (o.times?.collected || o.updatedAt) >= since && o.amount > 0);
+      const full = list.filter((o) => o.pay === "paid");
+      const gross = list.reduce((n, o) => n + o.amount, 0);
+      const net = list.reduce((n, o) => n + select.pickupPayout(o), 0);
+      return { count: full.length, gross, fee: gross - net, net, topUps: list.filter((o) => o.pay === "cup").reduce((n, o) => n + o.amount, 0), feePct: Math.round(share * 100) };
+    },
+    /** What the café gets for what a member paid online (full price, or a top-up): less the LCC fee. */
+    pickupPayout: (o) => Math.round((o.amount || 0) * (1 - state.rules.orderFeeShare)),
 
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
@@ -893,6 +1021,20 @@
     "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
     "daily-limit": (m, { limit }) => `${m.firstName} has had ${fmt.cups(limit)} here today, the most a member can have in a day. It resets tomorrow.`,
     "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
+  };
+
+  /** The same refusals, said to the member ordering in the app. */
+  const MEMBER_MESSAGES = {
+    "paused": (m, { cafeId }) => `${select.pickupPlace(cafeId)} has paused member cups until ${fmt.time(state.cafes[cafeId].pausedUntil)}.`,
+    "cafe-cap": (m, { cafeId }) => `Today’s member cups at ${select.pickupPlace(cafeId)} are used up.`,
+    "no-cups": (m) => (m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
+    "not-brand": (m) => `Your cups are for ${state.brands[m.plan.brandId].name}.`,
+    "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups.`,
+    "not-reserved": (m, { cafeId }) => `${state.cafes[cafeId].name} isn’t in your plan.`,
+    "reserved-used": (m, { cafeId }) => `You’ve used the cups reserved at ${state.cafes[cafeId].name} this month.`,
+    "explorer-cap": (m, { here, cafeId }) => `You’ve had your ${here.cap} at ${state.cafes[cafeId].name} this month.`,
+    "daily-limit": (m, { limit }) => `You’ve had ${fmt.cups(limit)} here today, the most in a day.`,
+    "not-enough": (m, { credits, here }) => `This drink uses ${credits} cups and you have ${fmt.cups(here.left)} here.`,
   };
 
   /** Returns { member, expired } or null. */
@@ -969,6 +1111,47 @@
     m.order = order ? clone(order) : null;
     m.orderAt = at;
     emit("order", { memberId, order: m.order, at }, opts);
+  }
+
+  /** A pickup order from this or another device. Newer status wins; finished ones stay finished. */
+  function applyPickup(o, opts, { quiet = false } = {}) {
+    if (!o || !o.id || !state.cafes[o.cafeId] || !(o.status in PICKUP_RANK)) return;
+    const cur = state.orders[o.id];
+    if (cur && PICKUP_RANK[o.status] <= PICKUP_RANK[cur.status]) return;
+    state.orders[o.id] = clone(o);
+    emit("pickup", { order: state.orders[o.id], prev: cur?.status || null, quiet }, opts);
+  }
+
+  /** Move an order on. Cup orders write the ledger: release on cancel or reject;
+      release plus an ordinary redeem when collected. */
+  function setPickupStatus(id, status, { reason = null } = {}) {
+    const o = state.orders[id];
+    if (!o || !(PICKUP_NEXT[status] || []).includes(o.status)) return { ok: false, order: o };
+    const now = Date.now();
+    const entries = [];
+    let newStamp = false;
+    const member = state.members[o.memberId];
+    if (o.pay === "cup" && member && ["cancelled", "rejected", "collected"].includes(status)) {
+      // BACKEND: the release (and redeem) are ledger inserts in the same transaction as the status change
+      const extra = o.bonus ? { bonus: true } : {};
+      entries.push({ id: `rl_${o.id}`, type: "release", memberId: o.memberId, cafeId: o.cafeId, cups: o.credits, credits: o.credits, orderId: o.id, at: now, cycle: o.cycle, live: true, ...extra });
+      if (status === "collected") {
+        newStamp = !select.activity(o.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId));
+        entries.push({
+          id: `rd_${o.id}`, type: "redeem", memberId: o.memberId, cafeId: o.cafeId, cups: -o.credits, credits: o.credits, drinkId: o.drinkId,
+          ...(o.brandId ? { brandId: o.brandId, temp: o.temp, price: o.price, topUp: o.topUp, topUpOnline: o.topUp > 0 } : {}),
+          firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: o.cycle, live: true, ...extra,
+        });
+      }
+    }
+    const prev = o.status;
+    Object.assign(o, { status, updatedAt: now, times: { ...o.times, [status]: now } });
+    if (reason) o.reason = reason;
+    if (o.payment && (status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
+    appendEntries(entries);
+    if (newStamp) grantPassportReward(member);
+    emit("pickup", { order: o, prev });
+    return { ok: true, order: o };
   }
 
   function addMember(m) {
@@ -1104,6 +1287,69 @@
       // BACKEND: PUT /members/:id/order { brandId, drinkId, temp } (short-lived)
       const item = drinkId ? select.menuItem(brandId, drinkId) : null;
       applyOrder({ memberId, order: item ? { brandId, drinkId, temp: select.servedTemp(item, temp) } : null, at: Date.now() });
+    },
+
+    /** Order ahead for pickup. pay: "cup" (holds a cup now; any top-up paid
+        online) or "paid" (full price online). Returns { ok, order } or { ok: false, message }. */
+    placePickup({ cafeId, drinkId, temp, asap = true, pickupAt = null, pay = "cup", payment = null }, memberId = state.memberId) {
+      // BACKEND: POST /orders { cafeId, drinkId, temp, pickupAt, pay, paymentId } -> order row (+ hold row in the ledger)
+      const m = state.members[memberId];
+      const avail = select.pickupAvailable(cafeId);
+      if (!m || !avail.ok) return { ok: false, message: avail.message };
+      const q = select.pickupQuote(memberId, cafeId, drinkId, temp);
+      if (pay === "cup" && !q.cup.ok) return { ok: false, message: q.cup.message };
+      const now = Date.now();
+      const when = asap || !pickupAt ? now + state.rules.orderAsapMinutes * MIN : pickupAt;
+      const cup = pay === "cup";
+      const order = {
+        id: uid("o"), memberId, memberName: m.firstName, cafeId, brandId: q.brandId, drinkId: q.drinkId, temp: q.temp, price: q.price,
+        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
+        bonus: cup && q.cup.bonus, asap: !!asap || !pickupAt, pickupAt: when, status: "placed", placedAt: now, updatedAt: now, times: { placed: now },
+        cycle: m.cycle, live: true,
+      };
+      state.orders[order.id] = order;
+      if (cup) appendEntries([{ id: `hd_${order.id}`, type: "hold", memberId, cafeId, cups: -q.credits, credits: q.credits, orderId: order.id, at: now, cycle: m.cycle, live: true, ...(order.bonus ? { bonus: true } : {}) }]);
+      emit("pickup", { order, prev: null });
+      return { ok: true, order };
+    },
+
+    /** Simulated online payment (full price, or a cup's top-up), then the order is placed.
+        Like plan checkout: a wallet number ending in 0000 fails. */
+    checkoutPickup(order, { method, account = "" }) {
+      const q = select.pickupQuote(state.memberId, order.cafeId, order.drinkId, order.temp);
+      const amount = order.pay === "cup" ? q.topUp : q.price;
+      const digits = String(account).replace(/\D/g, "");
+      // BACKEND: POST /payments { method, account, amount } -> wallet or card provider, then POST /orders
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (method !== "card" && digits.endsWith("0000")) { resolve({ ok: false, reason: "declined", message: "The payment didn’t go through. Nothing was taken." }); return; }
+          const labels = { jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card" };
+          resolve(actions.placePickup({ ...order, payment: { method: labels[method] || method, last4: digits.slice(-4), amount } }));
+        }, 1600);
+      });
+    },
+
+    /** The member cancels (within the window, before the café starts). The cup comes back. */
+    cancelPickup(id) {
+      // BACKEND: POST /orders/:id/cancel
+      const o = state.orders[id];
+      if (!o || o.memberId !== state.memberId || !select.canCancelPickup(o)) return { ok: false, message: "The café has started on it, so it can’t be cancelled now." };
+      return setPickupStatus(id, "cancelled");
+    },
+
+    /** Café: Start, Ready, Collected. */
+    advancePickup(id) {
+      // BACKEND: PATCH /orders/:id { status }
+      const o = state.orders[id];
+      if (!o) return { ok: false };
+      const next = { placed: "making", making: "ready", ready: "collected" }[o.status];
+      return next ? setPickupStatus(id, next) : { ok: false, order: o };
+    },
+
+    /** Café: can't make it. reason: "out-of-stock" | "closing-soon". The cup (or payment) goes back. */
+    rejectPickup(id, reason) {
+      // BACKEND: POST /orders/:id/reject { reason } (refund for paid orders)
+      return setPickupStatus(id, "rejected", { reason });
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -1368,5 +1614,6 @@
   LCC.store = {
     on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state,
     addTransport, applyRemote, roomSnapshot, hasLiveData,
+    pickupReasons: { "out-of-stock": "Out of stock", "closing-soon": "Closing soon" },
   };
 })();

@@ -1200,7 +1200,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 /* Phone: a segmented control */
 .cv-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 4px;
   background: var(--surface-2);
   border-radius: var(--radius-pill);
@@ -1435,6 +1435,51 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .cv-section > .segmented { max-width: 320px; }
 /* Big money figures (brand payouts run to six digits) fit two columns on a phone */
 @media (max-width: 520px) { .cv-stats dd:not(.t-small) { font-size: var(--fs-28); overflow-wrap: anywhere; } }
+
+/* Orders: pickup queue ---------------------------------------------------- */
+.cv-tab { position: relative; }
+.cv-tab__count {
+  display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--primary); color: var(--on-primary);
+  font-size: var(--fs-12); line-height: 1;
+}
+.cv-tab__count[hidden] { display: none; }
+@media (max-width: 767px) {
+  .cv-tab { font-size: var(--fs-12); padding: 0 2px; }
+  .cv-tab__count { position: absolute; top: -4px; right: -2px; }
+}
+@media (min-width: 768px) { .cv-tab__count { margin-left: auto; } }
+
+.cv-note { padding: var(--space-3) var(--space-4); border: var(--hairline); border-radius: var(--radius-sm); }
+.cv-tickets { display: grid; gap: var(--space-4); }
+@media (min-width: 1100px) { .cv-tickets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cv-tickets__empty { padding: var(--space-6) 0; border-block: var(--hairline); }
+.cv-ticket {
+  display: grid; gap: var(--space-3); align-content: start;
+  padding: var(--space-5);
+  border: var(--hairline); border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.cv-ticket[data-status="placed"] { border-color: var(--ink); }   /* new: needs someone to start it */
+.cv-ticket__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.cv-ticket__state { font-size: var(--fs-12); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-2); }
+.cv-ticket[data-status="placed"] .cv-ticket__state { color: var(--ink); font-weight: 700; }
+.cv-ticket__name { font-size: var(--fs-28); line-height: 1.1; }
+.cv-ticket__drink { font-size: var(--fs-20); line-height: 1.25; }
+.cv-ticket__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+.cv-ticket__facts dt { font-size: var(--fs-12); color: var(--ink-3); }
+.cv-ticket__facts dd { margin: 0; font-size: var(--fs-16); }
+.cv-ticket__code { font-size: var(--fs-20) !important; letter-spacing: 0.08em; }
+.cv-ticket .cv-till { padding: var(--space-2) 0; font-size: var(--fs-14); }
+.cv-ticket__acts { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-3); }
+.cv-ticket__acts .btn:only-child { grid-column: 1 / -1; }
+.cv-reject { display: grid; gap: var(--space-3); }
+.cv-reject__opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.cv-reject .btn--secondary { --btn-h: 56px; }
+.cv-reject .btn--link { justify-self: start; }
+.cv-table-wrap { overflow-x: auto; }
 
 /* ---- src/app.css ---- */
 /* =====================================================================
@@ -1930,6 +1975,47 @@ li:last-child > .branch-row { border-bottom: 0; }
 .pass-order__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); font-size: var(--fs-14); }
 .pass-order__acts .btn--link { --btn-h: 36px; }
 .pass__brand { font-size: var(--fs-14); color: var(--ink-2); text-align: center; }
+
+/* Pickup orders ------------------------------------------------------------ */
+.home__more { display: flex; justify-content: center; gap: var(--space-5); }
+.home__more .btn--link { --btn-h: 40px; font-size: var(--fs-14); color: var(--ink-2); }
+.home__pickups { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.home__pickups:empty { display: none; }
+.home.has-pickup .home__center { gap: var(--space-3); padding-block: var(--space-4) var(--space-3); }
+.home.has-pickup .ring--home { width: 132px; height: 132px; }
+.home.has-pickup .ring--home .ring__num { font-size: 44px; }
+.home.has-pickup .home__actions { margin-top: 0; }
+.home.has-pickup [data-renew-line] { display: none; }
+.ring--home { transition: width var(--dur-2) var(--ease), height var(--dur-2) var(--ease); }
+@media (prefers-reduced-motion: reduce) { .ring--home { transition: none; } }
+
+.pickup { display: grid; gap: var(--space-3); text-align: left; }
+.home__pickups .pickup { gap: var(--space-2); padding: var(--space-4); }
+.pickup__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.pickup__drink { font-size: var(--fs-20); font-weight: 500; line-height: 1.2; }
+.pickup__steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.pickup__step { display: grid; gap: 6px; }
+.pickup__bar { height: 4px; border-radius: var(--radius-pill); background: var(--line); transition: background-color var(--dur-2) var(--ease); }
+.pickup__step[data-on="true"] .pickup__bar { background: var(--primary); }
+.pickup__label { font-size: var(--fs-12); line-height: 1.2; color: var(--ink-3); }
+.pickup__step[aria-current] .pickup__label { color: var(--ink); font-weight: 700; }
+.pickup__code { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding-top: var(--space-3); border-top: var(--hairline); }
+.pickup__codelabel { display: grid; gap: 2px; }
+.pickup__code > .num { font-size: var(--fs-28); line-height: 1; letter-spacing: 0.08em; }
+.pickup .btn--link { justify-self: start; --btn-h: 28px; font-size: var(--fs-14); }
+.pickup__head { align-items: center; }
+.pickup__ok { justify-self: start; }
+.pickup-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.drawer__section .pickup { padding: var(--space-4); }
+
+.drink-row { width: 100%; text-align: left; cursor: pointer; }
+.drink-row .row__main { display: grid; gap: 2px; }
+.cafe-sheet__actions .btn--link { justify-self: center; }
+
+.order-flow .method.is-off { opacity: 0.55; cursor: not-allowed; }
+.order-flow .method.is-off .row__meta { color: var(--ink-2); }
+.order-sum strong { color: var(--ink); font-weight: 500; }
+.order-flow .sticky-action .t-micro { text-align: center; }
 
 /* ---- src/club.css ---- */
 /* =====================================================================
@@ -2513,6 +2599,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     giftExpiryDays: 60,
     giftMaxCups: 3,
     giftMessageMax: 140,
+    // Pickup orders (order ahead, collect at the counter)
+    orderFeeShare: 0.05,       // LCC keeps 5% of what a member pays online; the café gets the rest
+    orderCancelMinutes: 2,     // a member can cancel this long after placing, until the café starts it
+    orderAsapMinutes: 10,      // "ASAP, about 10 min"
+    orderSlotMinutes: 15,      // pickup slots today, every 15 minutes
   };
 
   /* Fixed tiers --------------------------------------------------------- */
@@ -2925,8 +3016,11 @@ li:last-child > .branch-row { border-bottom: 0; }
 
   /* Ledger ----------------------------------------------------------------
      Append-only. Every change to a member’s cups is one entry:
-       { id, type: purchase|redeem|gift|expire, memberId, cafeId|null,
-         cups (signed: purchase +, everything else −), at, cycle }
+       { id, type: purchase|redeem|gift|expire|reward|hold|release,
+         memberId, cafeId|null, cups (signed: purchase, reward and
+         release +, everything else −), at, cycle }
+     hold / release: a pickup order holds a cup when placed and gives it
+     back if cancelled or rejected (state.js).
      Redeem entries also carry drinkId, credits and firstVisit, so the
      café’s redemption list is read straight from the ledger.
      // BACKEND: this becomes a Supabase table (ledger), insert-only.   */
@@ -3160,6 +3254,47 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
   })();
 
+  /* Pickup orders paid online, already collected this month: a few a day
+     per café, from background regulars. Cup orders are in the ledger as
+     ordinary redemptions; only paid orders need their own record.
+     // BACKEND: rows in an orders table (status collected).            */
+  const orders = [];
+  (function generatePaidOrders() {
+    const rnd = mulberry32(today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate() + 77);
+    const monthStart = new Date(startOfToday); monthStart.setDate(1);
+    const METHODS = ["JazzCash", "Easypaisa", "Card", "JazzCash"];
+    let n = 0;
+    cafes.forEach((cafe) => {
+      const pool = cafe.brandId ? dsRegulars : regulars;
+      for (let d = 9; d >= 0; d--) {
+        const dayStart = startOfToday - d * DAY;
+        if (dayStart < monthStart.getTime()) continue;
+        const count = Math.round(cafe.avgDailyCups * (0.15 + rnd() * 0.15));
+        const times = dayTimes(cafe, dayStart, count, d === 0).filter((t) => t < now - 15 * MIN);
+        times.forEach((at) => {
+          const m = pool[Math.floor(rnd() * pool.length)];
+          let drinkId, temp = null, price;
+          if (cafe.brandId) {
+            const item = dsItem(DS_POPULAR[Math.floor(rnd() * DS_POPULAR.length)][0]);
+            temp = item.hot != null && item.iced != null ? (rnd() < 0.55 ? "iced" : "hot") : item.hot != null ? "hot" : "iced";
+            drinkId = item.id; price = item[temp];
+          } else {
+            const dr = cafe.drinks[Math.floor(rnd() * cafe.drinks.length)];
+            drinkId = dr.id; price = dr.price;
+          }
+          const placed = at - Math.round((8 + rnd() * 10) * MIN);
+          orders.push({
+            id: `so${n++}`, memberId: m.id, memberName: m.firstName, cafeId: cafe.id, brandId: cafe.brandId || null,
+            drinkId, temp, price, credits: 0, topUp: 0, pay: "paid", amount: price,
+            payment: { method: METHODS[Math.floor(rnd() * METHODS.length)], last4: String(1000 + Math.floor(rnd() * 9000)) },
+            asap: rnd() < 0.7, pickupAt: at, status: "collected", placedAt: placed, updatedAt: at,
+            times: { placed, making: placed + 2 * MIN, ready: at - 2 * MIN, collected: at },
+          });
+        });
+      }
+    });
+  })();
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -3302,6 +3437,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     memberId: mumtaz.id,
     partnerCafeId: "ds-gulberg", // the café shown in the partner view: Double Shot Gulberg
     ledger,
+    orders,
     club,
     partner,
     drinkCategories,
@@ -3325,8 +3461,8 @@ li:last-child > .branch-row { border-bottom: 0; }
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, order, session, waitlist, partner, snapshot,
-           tick (every 30s)
+           builder, gift, rsvp, order, pickup, session, waitlist, partner,
+           snapshot, tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
@@ -3335,6 +3471,12 @@ li:last-child > .branch-row { border-bottom: 0; }
      brand     one pool for one brand (Double Shot), any of its branches;
                a redemption records the branch, the drink, its price and
                any top-up, so payouts can be paid per branch
+
+   Pickup orders (state.orders): order ahead, collect at the counter. A cup
+   order writes a `hold` entry (−cups) when placed; cancelled or rejected
+   writes a `release` (+cups); collected writes the release plus an
+   ordinary `redeem`, so it pays out exactly like a cup at the counter.
+   Paid orders don't touch cups: the café gets the price minus the LCC fee.
 
    No storage. Café status, ledger entries and plan changes are handed to
    "transports" (store.addTransport); sync.js registers two:
@@ -3352,6 +3494,10 @@ li:last-child > .branch-row { border-bottom: 0; }
   const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
   const MIN = 60 * 1000;
   const STATUSES = ["quiet", "moderate", "packed"];
+  const OPEN = ["placed", "making", "ready"];        // pickup orders still in the café's queue
+  // A status only moves forward; the finished ones never change again (so sync can't undo them)
+  const PICKUP_RANK = { placed: 0, making: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const PICKUP_NEXT = { making: ["placed"], ready: ["placed", "making"], collected: ["ready"], rejected: ["placed", "making"], cancelled: ["placed"] };
 
   /* -------------------------------------------------------------------
      State
@@ -3373,6 +3519,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     session: { saved: null },    // presenter: Mumtaz's place while a new member onboards
     drinkCategories: clone(seed.drinkCategories || []),
     gifts: [],
+    orders: byId(clone(seed.orders || [])), // pickup orders, id -> order
     waitlist: [],
     partnerRequests: [],
   };
@@ -3432,6 +3579,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
     else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
+    else if (type === "pickup") send("pickup", { order: payload.order });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -3461,9 +3609,10 @@ li:last-child > .branch-row { border-bottom: 0; }
       plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
       orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
+      pickups: Object.values(state.orders).filter((o) => o.live),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt);
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -3475,6 +3624,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
     (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
+    (snap.pickups || []).forEach((o) => applyPickup(o, { remote: true }, { quiet: true }));
     emit("snapshot", {}, { remote: true });
   }
 
@@ -3497,6 +3647,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     else if (type === "snapshot") applyRoomSnapshot(data);
     else if (type === "rsvp") applyRsvp(data, { remote: true });
     else if (type === "order") applyOrder(data, { remote: true });
+    else if (type === "pickup") applyPickup(data.order, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -3548,7 +3699,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
         if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
         // The drink they chose in the app has been served: clear it (on every device)
-        if (e.brandId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
+        if (e.brandId && !e.orderId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
           m.order = null; m.orderAt = e.at;
           emit("order", { memberId: m.id, order: null, at: e.at }, { remote: true });
         }
@@ -3647,16 +3798,19 @@ li:last-child > .branch-row { border-bottom: 0; }
       return (byMember.get(memberId) || []).filter((e) => types.includes(e.type)).sort((a, b) => b.at - a.at);
     },
 
+    /** Cups redeemed at a café today, plus cups held by pickup orders placed today. */
     usedToday(memberId, cafeId) {
       const since = startOfToday();
       return (byMember.get(memberId) || [])
         .filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since)
-        .reduce((n, e) => n + e.credits, 0);
+        .reduce((n, e) => n + e.credits, 0) + select.heldCups(memberId, cafeId, { since });
     },
 
-    /** Cups a member has redeemed at a café this plan cycle. */
+    /** Cups a member has redeemed (or holds for a pickup) at a café this plan cycle. */
     usedHereThisCycle(memberId, cafeId) {
-      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0);
+      const m = state.members[memberId];
+      return cycleEntries(memberId).filter((e) => e.type === "redeem" && e.cafeId === cafeId).reduce((n, e) => n + e.credits, 0)
+        + select.heldCups(memberId, cafeId, { cycle: m?.cycle });
     },
 
     /** Balances for this cycle, all derived from the ledger.
@@ -4093,10 +4247,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     /** Member cups are paused at this café right now? */
     isPaused: (cafeId, at = Date.now()) => (state.cafes[cafeId]?.pausedUntil || 0) > at,
 
-    /** Cups redeemed at a café today (two-cup drinks count twice). */
+    /** Cups redeemed at a café today (two-cup drinks count twice), plus cups held by open pickup orders. */
     cafeCupsToday(cafeId) {
       const since = startOfToday();
-      return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0);
+      return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0)
+        + Object.values(state.orders).reduce((n, o) => (o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status) && o.placedAt >= since ? n + o.credits : n), 0);
     },
 
     /** Auto busy level: estimated from cups redeemed here in the last 30 min. */
@@ -4130,7 +4285,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const byHour = Array.from({ length: 16 }, (_, i) => ({ hour: 8 + i, cups: 0 }));
       entries.forEach((e) => { const h = new Date(e.at).getHours(); if (h >= 8 && h <= 23) byHour[h - 8].cups += e.credits; });
       const earnings = entries.reduce((n, e) => n + select.entryPayout(e), 0);
-      const topUps = entries.reduce((n, e) => n + (e.topUp || 0), 0);
+      const topUps = entries.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0);
       return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings, topUps, rate: cafe.payoutPerCup, brand: !!cafe.brandId, byHour };
     },
 
@@ -4148,9 +4303,13 @@ li:last-child > .branch-row { border-bottom: 0; }
         const month = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= monthStart);
         const rows = ids.map((id) => {
           const es = month.filter((e) => e.cafeId === id);
-          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), earned: es.reduce((n, e) => n + select.entryPayout(e), 0), topUps: es.reduce((n, e) => n + (e.topUp || 0), 0) };
+          const cupEarned = es.reduce((n, e) => n + select.entryPayout(e), 0);
+          const paid = select.paidOrders([id], monthStart);
+          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), cupEarned, paid, earned: cupEarned + paid.net, topUps: es.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0) };
         });
-        const cups = rows.reduce((n, r) => n + r.cups, 0), earned = rows.reduce((n, r) => n + r.earned, 0);
+        const cups = rows.reduce((n, r) => n + r.cups, 0), cupEarned = rows.reduce((n, r) => n + r.cupEarned, 0);
+        const paid = select.paidOrders(ids, monthStart);
+        const earned = cupEarned + paid.net;
         // History: this branch's months, or every branch added up per month
         const hist = {};
         ids.forEach((id) => state.partner[id].payouts.forEach((p) => {
@@ -4158,8 +4317,9 @@ li:last-child > .branch-row { border-bottom: 0; }
           h.cups += p.cups; h.amount += p.amount ?? p.cups * state.cafes[id].payoutPerCup;
         }));
         return {
-          brand: b, scope, monthStart, cups, earned, rows,
-          perCup: cups ? earned / cups : 0,
+          brand: b, scope, monthStart, cups, cupEarned, paid, earned, rows,
+          topUps: rows.reduce((n, r) => n + r.topUps, 0),
+          perCup: cups ? cupEarned / cups : 0,
           maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare),
           share: Math.round(b.economics.payoutShare * 100),
           nextAt: next.getTime(),
@@ -4168,18 +4328,122 @@ li:last-child > .branch-row { border-bottom: 0; }
         };
       }
       const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
+      const paid = select.paidOrders([cafeId], monthStart);
       return {
         monthStart,
         cups,
         rate: cafe.payoutPerCup,
         price: cafe.price,
         share: Math.round((cafe.payoutPerCup / cafe.price) * 100),
-        earned: cups * cafe.payoutPerCup,
+        cupEarned: cups * cafe.payoutPerCup,
+        paid,
+        earned: cups * cafe.payoutPerCup + paid.net,
         nextAt: next.getTime(),
         account: P.account,
         history: P.payouts.map((p) => ({ ...p, amount: p.amount ?? p.cups * cafe.payoutPerCup })),
       };
     },
+
+    /* ---------------- Pickup orders ---------------- */
+
+    pickup: (id) => state.orders[id] || null,
+    /** Short name for where to collect: "Double Shot Gulberg", "Kiln & Bean". */
+    pickupPlace(cafeId) {
+      const c = state.cafes[cafeId];
+      return c?.brandId ? `${state.brands[c.brandId].name} ${c.short}` : c?.name || "";
+    },
+    /** The drink as served: "Iced Spanish Latte". */
+    pickupDrinkName(o) {
+      if (o.brandId) return select.drinkLabel(select.menuItem(o.brandId, o.drinkId), o.temp);
+      return select.drink(o.cafeId, o.drinkId)?.name || "Coffee";
+    },
+    /** The 6-digit code the member shows at pickup, the same on every device. */
+    pickupCode: (o) => String(fnv1a(`${o.id}:pickup`) % 1000000).padStart(6, "0"),
+    /** Paid orders have no ledger entry, so they get their own reference. */
+    pickupRef: (o) => (o.pay === "cup" ? select.redemptionRef({ id: `rd_${o.id}` }) : `LCC-${1000 + (fnv1a(o.id) % 9000)}`),
+    isPickupOpen: (o) => OPEN.includes(o.status),
+
+    /** A member's orders, newest first. */
+    memberPickups(memberId = state.memberId) {
+      return Object.values(state.orders).filter((o) => o.memberId === memberId).sort((a, b) => b.placedAt - a.placedAt);
+    },
+    /** A café's live queue, oldest first. */
+    pickupQueue(cafeId) {
+      // BACKEND: GET /cafes/:id/orders?status=placed,making,ready (live via Postgres Changes)
+      return Object.values(state.orders).filter((o) => o.cafeId === cafeId && OPEN.includes(o.status)).sort((a, b) => a.placedAt - b.placedAt);
+    },
+    /** Finished today at this café (collected, rejected, cancelled), newest first. */
+    pickupsDoneToday(cafeId) {
+      const since = startOfToday();
+      return Object.values(state.orders).filter((o) => o.cafeId === cafeId && !OPEN.includes(o.status) && o.updatedAt >= since).sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+    /** Cups a member's open cup orders hold at a café (optionally placed since, or in one cycle). */
+    heldCups(memberId, cafeId, { since = 0, cycle = null } = {}) {
+      return Object.values(state.orders).reduce((n, o) => (o.memberId === memberId && o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status)
+        && o.placedAt >= since && (!cycle || o.cycle === cycle) ? n + o.credits : n), 0);
+    },
+    /** Can the member still cancel? Within the cancel window, and only before the café starts. */
+    canCancelPickup(o, at = Date.now()) {
+      const windowMs = state.rules.orderCancelMinutes * MIN;
+      return o.status === "placed" && at - o.placedAt < windowMs ? Math.ceil((o.placedAt + windowMs - at) / 1000) : 0;
+    },
+
+    /** "ASAP, about 10 min" and 15-minute slots for the rest of today, from the café's hours. */
+    pickupTimes(cafeId, at = Date.now()) {
+      const c = state.cafes[cafeId];
+      const { orderAsapMinutes: asapMin, orderSlotMinutes: step } = state.rules;
+      const toMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+      const open = toMin(c.hours.open);
+      let close = toMin(c.hours.close);
+      if (close <= open) close += 1440;
+      const d = new Date(at);
+      let base = startOfToday();
+      let nowMin = d.getHours() * 60 + d.getMinutes();
+      // Early hours, still open from yesterday: count from yesterday's midnight
+      if (nowMin < open && nowMin + 1440 < close) { nowMin += 1440; base -= 1440 * MIN; }
+      const asap = nowMin >= open && nowMin + asapMin <= close - 5;
+      const slots = [];
+      for (let t = Math.max(open, Math.ceil((nowMin + step) / step) * step); t <= close - step; t += step) {
+        slots.push({ at: base + t * MIN, label: fmt.clock(t) });
+      }
+      return { asap, asapAt: at + asapMin * MIN, slots };
+    },
+    /** Is this café taking pickup orders now? */
+    pickupAvailable(cafeId, at = Date.now()) {
+      const c = state.cafes[cafeId];
+      const place = select.pickupPlace(cafeId);
+      if (select.isPaused(cafeId, at)) return { ok: false, reason: "paused", message: `${place} is very busy and isn’t taking orders until ${fmt.time(c.pausedUntil)}.` };
+      const t = select.pickupTimes(cafeId, at);
+      if (!t.asap && !t.slots.length) return { ok: false, reason: "closed", message: `${place} has closed for today. ${select.openState(c, at).label}.` };
+      return { ok: true, times: t };
+    },
+    /** What one drink costs here, and whether a cup can pay for it. */
+    pickupQuote(memberId, cafeId, drinkId, temp) {
+      const cafe = state.cafes[cafeId];
+      let q;
+      if (cafe.brandId) {
+        const item = select.menuItem(cafe.brandId, drinkId) || state.brands[cafe.brandId].menu[0];
+        const p = select.drinkPrice(cafe.brandId, item, temp);
+        q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp };
+      } else {
+        const d = select.drink(cafeId, drinkId) || cafe.drinks[0];
+        q = { drinkId: d.id, temp: null, name: d.name, price: d.price, credits: d.credits, topUp: 0 };
+      }
+      const cup = select.canRedeemHere(memberId, cafeId, q.credits);
+      const m = state.members[memberId];
+      return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
+    },
+    /** Paid orders collected at these cafés since a time: what members paid online, the fee, the café's share. */
+    paidOrders(cafeIds, since = 0) {
+      const share = state.rules.orderFeeShare;
+      const list = Object.values(state.orders).filter((o) => o.status === "collected" && cafeIds.includes(o.cafeId) && (o.times?.collected || o.updatedAt) >= since && o.amount > 0);
+      const full = list.filter((o) => o.pay === "paid");
+      const gross = list.reduce((n, o) => n + o.amount, 0);
+      const net = list.reduce((n, o) => n + select.pickupPayout(o), 0);
+      return { count: full.length, gross, fee: gross - net, net, topUps: list.filter((o) => o.pay === "cup").reduce((n, o) => n + o.amount, 0), feePct: Math.round(share * 100) };
+    },
+    /** What the café gets for what a member paid online (full price, or a top-up): less the LCC fee. */
+    pickupPayout: (o) => Math.round((o.amount || 0) * (1 - state.rules.orderFeeShare)),
 
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
@@ -4208,6 +4472,20 @@ li:last-child > .branch-row { border-bottom: 0; }
     "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
     "daily-limit": (m, { limit }) => `${m.firstName} has had ${fmt.cups(limit)} here today, the most a member can have in a day. It resets tomorrow.`,
     "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
+  };
+
+  /** The same refusals, said to the member ordering in the app. */
+  const MEMBER_MESSAGES = {
+    "paused": (m, { cafeId }) => `${select.pickupPlace(cafeId)} has paused member cups until ${fmt.time(state.cafes[cafeId].pausedUntil)}.`,
+    "cafe-cap": (m, { cafeId }) => `Today’s member cups at ${select.pickupPlace(cafeId)} are used up.`,
+    "no-cups": (m) => (m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
+    "not-brand": (m) => `Your cups are for ${state.brands[m.plan.brandId].name}.`,
+    "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups.`,
+    "not-reserved": (m, { cafeId }) => `${state.cafes[cafeId].name} isn’t in your plan.`,
+    "reserved-used": (m, { cafeId }) => `You’ve used the cups reserved at ${state.cafes[cafeId].name} this month.`,
+    "explorer-cap": (m, { here, cafeId }) => `You’ve had your ${here.cap} at ${state.cafes[cafeId].name} this month.`,
+    "daily-limit": (m, { limit }) => `You’ve had ${fmt.cups(limit)} here today, the most in a day.`,
+    "not-enough": (m, { credits, here }) => `This drink uses ${credits} cups and you have ${fmt.cups(here.left)} here.`,
   };
 
   /** Returns { member, expired } or null. */
@@ -4284,6 +4562,47 @@ li:last-child > .branch-row { border-bottom: 0; }
     m.order = order ? clone(order) : null;
     m.orderAt = at;
     emit("order", { memberId, order: m.order, at }, opts);
+  }
+
+  /** A pickup order from this or another device. Newer status wins; finished ones stay finished. */
+  function applyPickup(o, opts, { quiet = false } = {}) {
+    if (!o || !o.id || !state.cafes[o.cafeId] || !(o.status in PICKUP_RANK)) return;
+    const cur = state.orders[o.id];
+    if (cur && PICKUP_RANK[o.status] <= PICKUP_RANK[cur.status]) return;
+    state.orders[o.id] = clone(o);
+    emit("pickup", { order: state.orders[o.id], prev: cur?.status || null, quiet }, opts);
+  }
+
+  /** Move an order on. Cup orders write the ledger: release on cancel or reject;
+      release plus an ordinary redeem when collected. */
+  function setPickupStatus(id, status, { reason = null } = {}) {
+    const o = state.orders[id];
+    if (!o || !(PICKUP_NEXT[status] || []).includes(o.status)) return { ok: false, order: o };
+    const now = Date.now();
+    const entries = [];
+    let newStamp = false;
+    const member = state.members[o.memberId];
+    if (o.pay === "cup" && member && ["cancelled", "rejected", "collected"].includes(status)) {
+      // BACKEND: the release (and redeem) are ledger inserts in the same transaction as the status change
+      const extra = o.bonus ? { bonus: true } : {};
+      entries.push({ id: `rl_${o.id}`, type: "release", memberId: o.memberId, cafeId: o.cafeId, cups: o.credits, credits: o.credits, orderId: o.id, at: now, cycle: o.cycle, live: true, ...extra });
+      if (status === "collected") {
+        newStamp = !select.activity(o.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId));
+        entries.push({
+          id: `rd_${o.id}`, type: "redeem", memberId: o.memberId, cafeId: o.cafeId, cups: -o.credits, credits: o.credits, drinkId: o.drinkId,
+          ...(o.brandId ? { brandId: o.brandId, temp: o.temp, price: o.price, topUp: o.topUp, topUpOnline: o.topUp > 0 } : {}),
+          firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: o.cycle, live: true, ...extra,
+        });
+      }
+    }
+    const prev = o.status;
+    Object.assign(o, { status, updatedAt: now, times: { ...o.times, [status]: now } });
+    if (reason) o.reason = reason;
+    if (o.payment && (status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
+    appendEntries(entries);
+    if (newStamp) grantPassportReward(member);
+    emit("pickup", { order: o, prev });
+    return { ok: true, order: o };
   }
 
   function addMember(m) {
@@ -4419,6 +4738,69 @@ li:last-child > .branch-row { border-bottom: 0; }
       // BACKEND: PUT /members/:id/order { brandId, drinkId, temp } (short-lived)
       const item = drinkId ? select.menuItem(brandId, drinkId) : null;
       applyOrder({ memberId, order: item ? { brandId, drinkId, temp: select.servedTemp(item, temp) } : null, at: Date.now() });
+    },
+
+    /** Order ahead for pickup. pay: "cup" (holds a cup now; any top-up paid
+        online) or "paid" (full price online). Returns { ok, order } or { ok: false, message }. */
+    placePickup({ cafeId, drinkId, temp, asap = true, pickupAt = null, pay = "cup", payment = null }, memberId = state.memberId) {
+      // BACKEND: POST /orders { cafeId, drinkId, temp, pickupAt, pay, paymentId } -> order row (+ hold row in the ledger)
+      const m = state.members[memberId];
+      const avail = select.pickupAvailable(cafeId);
+      if (!m || !avail.ok) return { ok: false, message: avail.message };
+      const q = select.pickupQuote(memberId, cafeId, drinkId, temp);
+      if (pay === "cup" && !q.cup.ok) return { ok: false, message: q.cup.message };
+      const now = Date.now();
+      const when = asap || !pickupAt ? now + state.rules.orderAsapMinutes * MIN : pickupAt;
+      const cup = pay === "cup";
+      const order = {
+        id: uid("o"), memberId, memberName: m.firstName, cafeId, brandId: q.brandId, drinkId: q.drinkId, temp: q.temp, price: q.price,
+        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
+        bonus: cup && q.cup.bonus, asap: !!asap || !pickupAt, pickupAt: when, status: "placed", placedAt: now, updatedAt: now, times: { placed: now },
+        cycle: m.cycle, live: true,
+      };
+      state.orders[order.id] = order;
+      if (cup) appendEntries([{ id: `hd_${order.id}`, type: "hold", memberId, cafeId, cups: -q.credits, credits: q.credits, orderId: order.id, at: now, cycle: m.cycle, live: true, ...(order.bonus ? { bonus: true } : {}) }]);
+      emit("pickup", { order, prev: null });
+      return { ok: true, order };
+    },
+
+    /** Simulated online payment (full price, or a cup's top-up), then the order is placed.
+        Like plan checkout: a wallet number ending in 0000 fails. */
+    checkoutPickup(order, { method, account = "" }) {
+      const q = select.pickupQuote(state.memberId, order.cafeId, order.drinkId, order.temp);
+      const amount = order.pay === "cup" ? q.topUp : q.price;
+      const digits = String(account).replace(/\D/g, "");
+      // BACKEND: POST /payments { method, account, amount } -> wallet or card provider, then POST /orders
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (method !== "card" && digits.endsWith("0000")) { resolve({ ok: false, reason: "declined", message: "The payment didn’t go through. Nothing was taken." }); return; }
+          const labels = { jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card" };
+          resolve(actions.placePickup({ ...order, payment: { method: labels[method] || method, last4: digits.slice(-4), amount } }));
+        }, 1600);
+      });
+    },
+
+    /** The member cancels (within the window, before the café starts). The cup comes back. */
+    cancelPickup(id) {
+      // BACKEND: POST /orders/:id/cancel
+      const o = state.orders[id];
+      if (!o || o.memberId !== state.memberId || !select.canCancelPickup(o)) return { ok: false, message: "The café has started on it, so it can’t be cancelled now." };
+      return setPickupStatus(id, "cancelled");
+    },
+
+    /** Café: Start, Ready, Collected. */
+    advancePickup(id) {
+      // BACKEND: PATCH /orders/:id { status }
+      const o = state.orders[id];
+      if (!o) return { ok: false };
+      const next = { placed: "making", making: "ready", ready: "collected" }[o.status];
+      return next ? setPickupStatus(id, next) : { ok: false, order: o };
+    },
+
+    /** Café: can't make it. reason: "out-of-stock" | "closing-soon". The cup (or payment) goes back. */
+    rejectPickup(id, reason) {
+      // BACKEND: POST /orders/:id/reject { reason } (refund for paid orders)
+      return setPickupStatus(id, "rejected", { reason });
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -4683,6 +5065,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   LCC.store = {
     on, subscribe, emit, select, actions, lookupCode, addMonths, statuses: STATUSES, getState: () => state,
     addTransport, applyRemote, roomSnapshot, hasLiveData,
+    pickupReasons: { "out-of-stock": "Out of stock", "closing-soon": "Closing soon" },
   };
 })();
 
@@ -5445,8 +5828,10 @@ li:last-child > .branch-row { border-bottom: 0; }
    store.applyRemote(), which never re-sends, so there are no echo loops.
 
    What travels: café status, and ledger entries (redeem, purchase, expire,
-   gift) with the plan header of any member whose plan changed. Entries are
-   append-only with stable ids, so applying one twice is harmless.
+   gift, reward, hold, release) with the plan header of any member whose
+   plan changed. Entries are append-only with stable ids, so applying one
+   twice is harmless. Pickup orders travel whole (`pickup`); a status only
+   moves forward, so a late or repeated message can't undo one.
 
    Join handshake: a window that joins says “hello”. A café window answers
    with statuses plus this session’s ledger entries and plan changes; any
@@ -5455,8 +5840,9 @@ li:last-child > .branch-row { border-bottom: 0; }
    Approved exception to “no backend” (see CLAUDE.md).
    // BACKEND: replace Broadcast with Supabase tables + Postgres Changes:
    //   cafe_status (cafe_id, status, updated_at), ledger (insert-only:
-   //   purchase/redeem/gift/expire), subscriptions (member_id, plan, cycle,
-   //   renews_at). Balances stay derived from the ledger. Rooms go away.
+   //   purchase/redeem/gift/expire/hold/release), subscriptions (member_id,
+   //   plan, cycle, renews_at), orders (pickup orders and their status).
+   //   Balances stay derived from the ledger. Rooms go away.
    ===================================================================== */
 (function () {
   "use strict";
@@ -5843,8 +6229,10 @@ li:last-child > .branch-row { border-bottom: 0; }
 
      Header   ring logo, café, area · staff on shift (PIN) · taking cups
      Counter  scan or enter a code, redeem, last 5 cups, busy level, pause
+     Orders   pickup queue for this branch, oldest first: Start, Ready,
+              Collected, or Reject with a reason. Badge counts new orders
      Today    four numbers, cups by hour, every redemption, CSV export
-     Payouts  this month, next payout, history, statement
+     Payouts  this month (cups and paid orders), next payout, history
      Settings what a cup covers, limits, hours, staff PINs
 
    Tablet: a slim left rail. Phone: a segmented control at the top.
@@ -5864,6 +6252,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   const PAUSE_MINUTES = 30;
   const SECTIONS = [
     { id: "counter",  label: "Counter" },
+    { id: "orders",   label: "Orders" },
     { id: "today",    label: "Today" },
     { id: "payouts",  label: "Payouts" },
     { id: "settings", label: "Settings" },
@@ -5879,6 +6268,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   // Thin-line icons for the rail, drawn like ui.icon (24 grid, 1.5 stroke)
   const RAIL_ICONS = {
     counter: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5z"/>',
+    orders: '<path d="M6 8.5h12l-1 11.5H7L6 8.5z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>',
     today: '<path d="M4 20h16M7 20v-6M12 20V8M17 20v-9"/>',
     payouts: '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9.5v5M17 9.5v5"/>',
     settings: '<path d="M5 7h9M18 7h1M5 17h3M12 17h7"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
@@ -5899,6 +6289,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       let pin = "";                // staff sign-in entry
       let wasPaused = false;       // so the tick only redraws the pause control when it ends
       let scope = "branch";        // brands: Today and Payouts for "this branch" or "all branches"
+      let rejecting = null;        // Orders: the order whose reject reasons are showing
 
       function freshRedeem() { return { state: "idle", code: "", message: "", lookup: null, result: null }; }
       const cafe = () => S.cafe(cafeId);
@@ -5946,7 +6337,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <div class="cv-tabs" role="tablist" aria-label="Sections">
                   ${SECTIONS.map((x) => html`<button type="button" role="tab" class="cv-tab" id="cv-tab-${x.id}" data-section="${x.id}"
                       aria-controls="cv-panel" aria-selected="${x.id === section}" tabindex="${x.id === section ? 0 : -1}">
-                      ${railIcon(x.id)}<span>${x.label}</span>
+                      ${railIcon(x.id)}<span>${x.label}</span>${x.id === "orders" ? html`<span class="cv-tab__count num" data-orders-count hidden></span>` : ""}
                     </button>`)}
                 </div>
               </nav>
@@ -5973,6 +6364,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           </div>
           ${sheets()}`;
         paintSection();
+        paintOrdersCount();
       }
 
       const staffLabel = () => { const s = staffOnShift(); return `${s.name} · ${ROLES[s.role] || s.role}`; };
@@ -5998,7 +6390,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       function paintSection() {
         const panel = $("[data-panel]", el);
         if (!panel) return;
-        const make = { counter: counterHtml, today: todayHtml, payouts: payoutsHtml, settings: settingsHtml }[section];
+        const make = { counter: counterHtml, orders: ordersHtml, today: todayHtml, payouts: payoutsHtml, settings: settingsHtml }[section];
         panel.innerHTML = `<div class="enter">${make().s}</div>`;
         if (section === "counter") { paintRedeem(); paintRecent(); paintBusy(); paintPause(); }
       }
@@ -6222,7 +6614,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         list.innerHTML = rows.length
           ? html`${rows.map((e) => html`<li class="cv-row${e.id === newId ? " enter" : ""}">
               <span class="cv-row__time num">${fmt.time(e.at)}</span>
-              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
+              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp && !e.topUpOnline ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.orderId ? html` <span class="t-faint">· pickup</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
               <span class="cv-row__ref num">${S.redemptionRef(e)}</span>
             </li>`)}`.s
           : html`<li class="cv-row"><span class="cv-row__main t-muted">No member cups yet today.</span></li>`.s;
@@ -6255,6 +6647,106 @@ li:last-child > .branch-row { border-bottom: 0; }
               <button type="button" class="btn btn--secondary btn--block" data-resume>Take member cups again</button>`.s
           : html`<button type="button" class="btn btn--secondary btn--block" data-pause-now>Pause member cups for ${PAUSE_MINUTES} min</button>
               <p class="t-small t-faint">For a rush. Codes won’t redeem until it ends; you can end it early.</p>`.s;
+      }
+
+      /* ---------------------------------------------------------------
+         Orders: the pickup queue for this branch
+         --------------------------------------------------------------- */
+      const STATE_LABEL = { placed: "New", making: "Being made", ready: "Ready" };
+      const NEXT_LABEL = { placed: "Start", making: "Ready", ready: "Collected" };
+      const DONE_LABEL = { collected: "collected", cancelled: "cancelled by the member", rejected: "rejected" };
+      const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+      function paintOrdersCount() {
+        const n = S.pickupQueue(cafeId).filter((o) => o.status === "placed").length;
+        const badge = $("[data-orders-count]", el);
+        if (badge) { badge.textContent = n; badge.hidden = !n; }
+        const tab = $('[data-section="orders"]', el);
+        if (tab) tab.setAttribute("aria-label", n ? `Orders, ${n} new` : "Orders");
+      }
+
+      function ticketPayLine(o) {
+        if (o.pay === "cup") return o.topUp ? `Member cup. ${fmt.rs(o.topUp)} top-up paid online, nothing to collect.` : "Member cup. Nothing to collect.";
+        return `Paid online, ${fmt.rs(o.amount)}. Nothing to collect.`;
+      }
+
+      function ticketHtml(o, fresh) {
+        const code = S.pickupCode(o);
+        const acts = rejecting === o.id
+          ? html`<div class="cv-reject" role="group" aria-label="Why can’t you make it?">
+              <p class="t-small">Why can’t you make it? ${o.memberName} is told, and ${o.pay === "cup" ? "gets the cup back" : "refunded"}.</p>
+              <div class="cv-reject__opts">
+                ${Object.entries(store.pickupReasons).map(([id, label]) => html`<button type="button" class="btn btn--secondary" data-reject="${o.id}" data-reason="${id}">${label}</button>`)}
+              </div>
+              <button type="button" class="btn btn--link" data-reject-keep="${o.id}">Keep the order</button>
+            </div>`
+          : html`<div class="cv-ticket__acts">
+              <button type="button" class="btn btn--primary btn--tall" data-advance="${o.id}">${NEXT_LABEL[o.status]}</button>
+              ${o.status !== "ready" ? html`<button type="button" class="btn btn--secondary btn--tall" data-reject-open="${o.id}">Reject</button>` : ""}
+            </div>`;
+        return html`<li class="cv-ticket${fresh ? " enter" : ""}" data-ticket="${o.id}" data-status="${o.status}" aria-labelledby="tk-${o.id}">
+          <div class="cv-ticket__top">
+            <span class="cv-ticket__state">${STATE_LABEL[o.status]}</span>
+            <span class="badge">${o.pay === "cup" ? "Cup" : "Paid"}</span>
+          </div>
+          <p class="cv-ticket__name" id="tk-${o.id}">${o.memberName}</p>
+          <p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>
+          <dl class="cv-ticket__facts">
+            <div><dt>Pickup</dt><dd class="num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)}</dd></div>
+            <div><dt>Code</dt><dd class="num cv-ticket__code" aria-label="${code.split("").join(" ")}">${spaced(code)}</dd></div>
+            <div><dt>Placed</dt><dd><span data-rel-time="${o.placedAt}">${fmt.ago(o.placedAt)}</span></dd></div>
+          </dl>
+          <p class="t-small t-muted num">${ticketPayLine(o)}</p>
+          <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong> <span class="t-muted num">· Reference ${S.pickupRef(o)}</span></p>
+          ${acts}
+        </li>`;
+      }
+
+      function ordersHtml(freshId) {
+        const b = brand();
+        const queue = S.pickupQueue(cafeId);
+        const done = S.pickupsDoneToday(cafeId).slice(0, 8);
+        const off = S.pickupAvailable(cafeId);
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Orders</h2>
+              <p class="t-small t-muted">Pickup orders${b ? ` for ${cafe().branch}` : ""}, oldest first.</p>
+            </div>
+            ${off.ok ? "" : html`<p class="t-small cv-note">${off.reason === "paused" ? `Member cups are paused, so new orders are off until ${fmt.time(cafe().pausedUntil)}.` : "Closed for today, so no new orders."} Orders already here still need making.</p>`}
+            <ol class="cv-tickets" role="list" data-queue>
+              ${queue.length ? queue.map((o) => ticketHtml(o, o.id === freshId)) : html`<li class="cv-tickets__empty t-small t-muted">No orders waiting. New ones appear here as members place them.</li>`}
+            </ol>
+            <section aria-labelledby="done-h">
+              <h3 class="eyebrow" id="done-h">Done today</h3>
+              <ol class="cv-list" role="list">
+                ${done.length ? done.map((o) => html`<li class="cv-row">
+                  <span class="cv-row__time num">${fmt.time(o.updatedAt)}</span>
+                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
+                  <span class="cv-row__ref num">${o.status === "collected" ? S.pickupRef(o) : ""}</span>
+                </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">Nothing collected yet today.</span></li>`}
+              </ol>
+            </section>
+          </div>`;
+      }
+
+      function paintOrders({ freshId = null, focusId = null } = {}) {
+        if (section !== "orders") return;
+        const panel = $("[data-panel]", el);
+        const keep = panel.contains(document.activeElement);
+        panel.innerHTML = `<div>${ordersHtml(freshId).s}</div>`;
+        const target = focusId && ($(`[data-advance="${focusId}"]`, panel) || $(`[data-reject="${focusId}"]`, panel));
+        if (target) target.focus({ preventScroll: true });
+        else if (keep) panel.focus({ preventScroll: true });
+      }
+
+      function advance(id) {
+        const res = A.advancePickup(id);
+        if (!res.ok) return paintOrders();
+        const o = res.order;
+        if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as LCC member.`, { duration: 4200 });
+        else if (o.status === "ready") ui.toast(`${o.memberName} has been told it’s ready.`);
+        paintOrders({ focusId: o.status === "collected" ? null : id });
       }
 
       /* ---------------------------------------------------------------
@@ -6305,8 +6797,8 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <thead><tr><th scope="col">Time</th><th scope="col">Member</th>${b ? html`<th scope="col">Drink</th>` : ""}${all ? html`<th scope="col">Branch</th>` : ""}<th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
                 <tbody>${d.entries.map((e) => html`<tr>
                   <td class="num">${fmt.time(e.at)}</td>
-                  <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}</td>
-                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up</span>` : ""}</td>` : ""}
+                  <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}${e.orderId ? html` <span class="t-faint">· pickup</span>` : ""}</td>
+                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up${e.topUpOnline ? " paid online" : ""}</span>` : ""}</td>` : ""}
                   ${all ? html`<td>${S.cafe(e.cafeId).short}</td>` : ""}
                   <td class="num">${S.redemptionRef(e)}</td>
                   <td class="num r">${fmt.rs(S.entryPayout(e))}</td>
@@ -6332,22 +6824,18 @@ li:last-child > .branch-row { border-bottom: 0; }
               <p class="t-small t-muted">${month(p.monthStart)} so far · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}</p>
             </div>
             ${scopeToggle()}
-            <dl class="cv-stats">
-              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
-              <div><dt>Paid per cup</dt><dd class="num">${fmt.rs(p.perCup)}</dd><dd class="t-small t-muted num">On average. ${payRule()}.</dd></div>
-              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
-              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
-            </dl>
+            ${moneyStats(p, html`${fmt.rs(p.perCup)} a cup on average. ${payRule()}.`)}
 
             <section aria-labelledby="branches-h">
               <h3 class="eyebrow" id="branches-h">${all ? "By branch" : "This branch"}, ${month(p.monthStart)}</h3>
-              <table class="cv-table">
-                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Top-ups at the till</th><th scope="col" class="r">Payout</th></tr></thead>
+              <div class="cv-table-wrap"><table class="cv-table">
+                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">From cups</th><th scope="col" class="r">Paid orders</th><th scope="col" class="r">From paid orders</th><th scope="col" class="r">Payout</th></tr></thead>
                 <tbody>${p.rows.map((x) => html`<tr${x.cafe.id === cafeId && all ? raw(' class="is-here"') : ""}>
-                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.topUps)}</td><td class="num r">${fmt.rs(x.earned)}</td>
+                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.cupEarned)}</td><td class="num r">${x.paid.count}</td><td class="num r">${fmt.rs(x.paid.net)}</td><td class="num r">${fmt.rs(x.earned)}</td>
                 </tr>`)}</tbody>
-                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.rows.reduce((n, x) => n + x.topUps, 0))}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
-              </table>
+                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.cupEarned)}</td><td class="num r">${p.paid.count}</td><td class="num r">${fmt.rs(p.paid.net)}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
+              </table></div>
+              <p class="t-small t-muted num">Top-ups paid at your till this month: ${fmt.rs(p.topUps)}. They stay with you and aren’t in the payout.</p>
             </section>
 
             <section aria-labelledby="history-h">
@@ -6363,8 +6851,18 @@ li:last-child > .branch-row { border-bottom: 0; }
                 </tr>`)}</tbody>
               </table>
             </section>
-            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account, per cup redeemed: ${payRule()}. Top-ups are paid by the member at your till and stay with you.</p>
+            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account. Cups: ${payRule()}, pickup cups included. Paid orders: what the member paid online, less the ${p.paid.feePct}% LCC fee. Top-ups paid at your till stay with you.</p>
           </div>`;
+      }
+
+      /** Cups and paid orders, side by side, then the total and the next payout. */
+      function moneyStats(p, cupLine) {
+        return html`<dl class="cv-stats">
+          <div><dt>Cups</dt><dd class="num">${fmt.rs(p.cupEarned)}</dd><dd class="t-small t-muted num">${fmt.cups(p.cups)} redeemed. ${cupLine}</dd></div>
+          <div><dt>Paid orders</dt><dd class="num">${fmt.rs(p.paid.net)}</dd><dd class="t-small t-muted num">${p.paid.count} ${p.paid.count === 1 ? "order" : "orders"}${p.paid.topUps ? ` and ${fmt.rs(p.paid.topUps)} in online top-ups` : ""}: ${fmt.rs(p.paid.gross)}, less the ${p.paid.feePct}% LCC fee (${fmt.rs(p.paid.fee)}).</dd></div>
+          <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
+          <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
+        </dl>`;
       }
 
       function payoutsHtml() {
@@ -6377,12 +6875,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               <h2 class="cv-title">Payouts</h2>
               <p class="t-small t-muted">${month(p.monthStart)} so far</p>
             </div>
-            <dl class="cv-stats">
-              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
-              <div><dt>Your rate per cup</dt><dd class="num">${fmt.rs(p.rate)}</dd><dd class="t-small t-muted num">${p.share}% of your ${fmt.rs(p.price)} counter price</dd></div>
-              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
-              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
-            </dl>
+            ${moneyStats(p, html`${fmt.rs(p.rate)} a cup: ${p.share}% of your ${fmt.rs(p.price)} counter price.`)}
 
             <section aria-labelledby="history-h">
               <div class="cv-section__bar">
@@ -6399,7 +6892,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 </tr>`)}</tbody>
               </table>` : html`<p class="t-small t-muted">Your first payout comes on the ${S.partner(cafeId).payoutDay}th of next month.</p>`}
             </section>
-            <p class="t-small t-muted">Paid monthly, per cup redeemed, at the rate you agreed.</p>
+            <p class="t-small t-muted">Paid monthly. Cups at the rate you agreed, pickup cups included. Paid orders: what the member paid online, less the ${p.paid.feePct}% LCC fee.</p>
           </div>`;
       }
 
@@ -6563,6 +7056,19 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (tseg) { ui.selectSegment(tseg.parentElement, tseg.dataset.value); r.drink = { ...r.drink, temp: tseg.dataset.value, fromApp: false }; return paintDrink({ temp: false }); }
         const sseg = t.closest('[data-segmented="cvscope"] .segmented__option');
         if (sseg) { if (scope === sseg.dataset.value) return; scope = sseg.dataset.value; paintSection(); return $(`[data-segmented="cvscope"] [data-value="${scope}"]`, el)?.focus(); }
+        const adv = t.closest("[data-advance]");
+        if (adv) return advance(adv.dataset.advance);
+        const ro = t.closest("[data-reject-open]");
+        if (ro) { rejecting = ro.dataset.rejectOpen; paintOrders(); return $(`[data-reject="${rejecting}"]`, el)?.focus(); }
+        const rk = t.closest("[data-reject-keep]");
+        if (rk) { rejecting = null; return paintOrders({ focusId: rk.dataset.rejectKeep }); }
+        const rj = t.closest("[data-reject]");
+        if (rj) {
+          rejecting = null;
+          const res = A.rejectPickup(rj.dataset.reject, rj.dataset.reason);
+          if (res.ok) ui.toast(`Order rejected. ${res.order.memberName} has been told${res.order.pay === "cup" ? " and has the cup back" : " and will be refunded"}.`, { duration: 4200 });
+          return paintOrders();
+        }
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
@@ -6694,6 +7200,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           if (id !== cafeId) return;
           wasPaused = S.isPaused(cafeId);
           paintHead(); paintPause();
+          if (section === "orders") paintOrders();
           if (r.state === "found") check(r.code, { focus: false });
         }),
         store.on("redeem", ({ entry }) => {
@@ -6711,11 +7218,23 @@ li:last-child > .branch-row { border-bottom: 0; }
           // Another window redeemed for the member on screen: refresh their numbers
           if (r.state === "found" && r.lookup.member.id === entry.memberId) check(r.code, { focus: false });
         }),
+        // Pickup orders from phones (or another café window)
+        store.on("pickup", ({ order, prev, quiet }) => {
+          if (order.cafeId !== cafeId) return;
+          paintOrdersCount();
+          if (section === "orders") paintOrders({ freshId: !prev ? order.id : null, focusId: el.contains(document.activeElement) && document.activeElement.dataset?.advance === order.id ? order.id : null });
+          else if (section === "payouts" && order.status === "collected") paintSection();
+          if (quiet) return;
+          const name = S.pickupDrinkName(order);
+          if (!prev && order.status === "placed") ui.toast(`New pickup order: ${order.memberName}, ${name}.`, { iconName: "clock", duration: 4200 });
+          else if (order.status === "cancelled") ui.toast(`${order.memberName} cancelled their ${name}.`, { iconName: "info" });
+        }),
         store.on("partner:settings", ({ cafeId: id }) => { if (id === cafeId) { paintHead(); if (r.state === "found") check(r.code, { focus: false }); } }),
         store.on("cafe:viewing", ({ cafeId: id }) => {
           cafeId = id;
           clearTimeout(resetTimer); clearTimeout(scanTimer);
           r = freshRedeem();
+          rejecting = null;
           A.refreshAutoBusy(cafeId);
           renderAll();
           $("[data-viewing]", el)?.focus();
@@ -6724,7 +7243,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           A.refreshAutoBusy(cafeId);  // cups age out of the 30-minute window
           paintHead(); paintBusy();
           const paused = S.isPaused(cafeId);
-          if (paused !== wasPaused) { wasPaused = paused; paintPause(); }
+          if (paused !== wasPaused) { wasPaused = paused; paintPause(); if (section === "orders") paintOrders(); }
         }),
         // A plan bought or switched (here or on a phone) changes reserved cups
         store.on("plan", () => { if (r.state === "found") check(r.code, { focus: false }); }),
@@ -6782,10 +7301,12 @@ li:last-child > .branch-row { border-bottom: 0; }
 
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
             #/app/map · #/app/club · #/app/gift · #/app/plan
-            #/app/plan/pay · #/app/welcome · #/app/welcome/card
+            #/app/plan/pay · #/app/order · #/app/order/pay
+            #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
    app-cafes.js, the plan picker and payment in app-plan.js, the Club
-   and gifting in app-club.js, onboarding in app-welcome.js; they add
+   and gifting in app-club.js, pickup orders in app-order.js,
+   onboarding in app-welcome.js; they add
    screen factories to LCC.appScreens and get a small ctx object.
 
    Everything reads the shared store, so a redemption or status change
@@ -6918,6 +7439,8 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
+        if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
         if (a === "plan" && REG.plan) return { key: "plan", tab: "home", flow: true, make: () => REG.plan(ctx) };
         if (a === "club" && REG.club) return { key: "club", tab: "club", make: () => REG.club(ctx) };
@@ -6992,8 +7515,9 @@ li:last-child > .branch-row { border-bottom: 0; }
               </div>
               <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
               <div class="cafe-sheet__actions">
-                <a class="btn btn--primary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
-                <button type="button" class="btn btn--secondary btn--block" data-directions="${c.id}">Directions</button>
+                <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
+                <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
+                <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
               </div>
             </div>`.s;
           ui.openSheet($("#cafe-sheet", el));
@@ -7018,8 +7542,9 @@ li:last-child > .branch-row { border-bottom: 0; }
               </ul>
             </div>
             <div class="cafe-sheet__actions">
-              <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+              <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
               <a class="btn btn--secondary btn--block" href="#/app/cafes/${c.id}">More about ${c.name}</a>
+              <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
             </div>
           </div>`;
         ui.openSheet($("#cafe-sheet", el));
@@ -7033,13 +7558,23 @@ li:last-child > .branch-row { border-bottom: 0; }
       };
 
       /* Home ------------------------------------------------------------ */
-      // One calm, centred block: the brick ring, cups left, renewal, two actions.
+      // One calm, centred block: the brick ring, cups left, renewal, and
+      // "Order for pickup" (plan and gift are quieter links under it). An
+      // open pickup order sits above the ring, which shrinks to make room.
       // Recent activity, plan details and help live in the profile drawer.
       function homeScreen() {
         const m = member();
+        const hasPickup = () => !!LCC.appOrder?.visible().length;
+        let cancelTimer = null;
+        function paintPickups() {
+          const box = $("[data-home-pickups]", view);
+          if (!box) return;
+          box.innerHTML = LCC.appOrder ? LCC.appOrder.cardsHtml().s : "";
+          $(".home", view)?.classList.toggle("has-pickup", hasPickup());
+        }
         return {
           html: html`
-            <div class="app-screen home">
+            <div class="app-screen home${hasPickup() ? " has-pickup" : ""}">
               <div class="app-top">
                 <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
                 ${profileButton()}
@@ -7048,6 +7583,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <p class="t-small t-muted">${fmt.date(Date.now())}</p>
                 <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
               </div>
+              <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
               <div class="home__center">
                 <div class="ring ring--home" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
@@ -7061,15 +7597,23 @@ li:last-child > .branch-row { border-bottom: 0; }
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
                 </div>
                 <div class="home__actions">
-                  <button type="button" class="btn btn--primary btn--block" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-                  <a class="btn btn--secondary btn--block" href="#/app/gift">Send a gift</a>
+                  <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
+                  <div class="home__more">
+                    <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                    <a class="btn btn--link" href="#/app/gift">Send a gift</a>
+                  </div>
                 </div>
               </div>
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
+            // The cancel countdown on an order card
+            cancelTimer = setInterval(() => { if (LCC.appOrder?.tickCancel(view)) paintPickups(); }, 1000);
+            return () => clearInterval(cancelTimer);
           },
           on: {
+            pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
+            dismissPickup: paintPickups,
             // Redemptions, gifts and free cups, from this window or another device
             ledger: ({ entries }) => {
               if (!entries.some((e) => e.memberId === member().id)) return;
@@ -7122,6 +7666,11 @@ li:last-child > .branch-row { border-bottom: 0; }
               <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
             </section>
 
+            <section class="drawer__section" aria-labelledby="dr-pickups">
+              <h3 class="eyebrow" id="dr-pickups">Pickup orders</h3>
+              <div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>
+            </section>
+
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
@@ -7172,7 +7721,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           return html`<li class="row${r.id === newId ? " enter" : ""}">
             <div class="row__main">
               <div class="row__title">${S.entryDrinkName(r)}</div>
-              <div class="row__meta">${S.placeName(r.cafeId)}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              <div class="row__meta">${S.placeName(r.cafeId)}${r.orderId ? " · pickup" : ""}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
             </div>
             <span class="badge">${fmt.cups(r.credits)}</span>
           </li>`;
@@ -7216,7 +7765,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           },
           on: {
             pass: () => rotate(),
-            redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
+            redeem: ({ entry, member: who }) => { if (who.id === member().id && !entry.orderId) showSuccess(entry); },
             member: () => paintMeta(),
             ledger: () => paintMeta(),
             order: ({ memberId }) => { if (memberId !== member().id) return; const box = $("[data-pass-order]", view); if (box) box.innerHTML = orderHtml().s; },
@@ -7452,6 +8001,22 @@ li:last-child > .branch-row { border-bottom: 0; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
+        const so = t.closest("[data-start-order]");
+        if (so) {
+          LCC.appOrder?.start({ cafeId: so.dataset.startOrder || null, drinkId: so.dataset.drink || null, temp: so.dataset.temp || null });
+          go("#/app/order");
+          return;
+        }
+        const cp = t.closest("[data-cancel-pickup]");
+        if (cp) {
+          const o = S.pickup(cp.dataset.cancelPickup);
+          const res = A.cancelPickup(cp.dataset.cancelPickup);
+          ui.toast(res.ok ? `Order cancelled. ${LCC.appOrder.backLine(o)}` : res.message, { iconName: res.ok ? "check" : "info", duration: 4200 });
+          if (!res.ok) repaintPickups();
+          return;
+        }
+        const dp = t.closest("[data-dismiss-pickup]");
+        if (dp) { LCC.appOrder?.dismiss(dp.dataset.dismissPickup); repaintPickups(); return; }
         if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
         const start = t.closest("[data-start-plan]");
         if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
@@ -7485,13 +8050,38 @@ li:last-child > .branch-row { border-bottom: 0; }
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
+      function repaintPickups() {
+        active.on?.dismissPickup?.();
+        const box = $("#profile-drawer [data-drawer-pickups]", el);
+        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+      }
       // The drawer's recent activity follows the ledger while it is open
       const offDrawer = store.on("ledger", ({ entries }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup"].map((type) => store.on(type, dispatch(type)));
+
+      // Pickup orders: the drawer follows along, and the café's moves get a word
+      offs.push(store.on("pickup", ({ order, prev, quiet }) => {
+        if (order.memberId !== member().id) return;
+        const box = $("#profile-drawer [data-drawer-pickups]", el);
+        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+        if (quiet || prev === order.status) return;
+        const name = S.pickupDrinkName(order), place = S.pickupPlace(order.cafeId);
+        if (order.status === "ready") ui.toast(`Your ${name} is ready at ${place}.`, { iconName: "check", duration: 6000 });
+        else if (order.status === "making" && prev === "placed") ui.toast(`${place} is making your ${name}.`, { iconName: "clock" });
+        else if (order.status === "rejected") ui.toast(`${place} couldn’t make your ${name}. ${LCC.appOrder.backLine(order)}`, { iconName: "info", duration: 6000 });
+        else if (order.status === "collected") ui.toast(`Collected. Enjoy your ${name}.`);
+      }));
+      // The drawer's cancel countdown, while it's open
+      const drawerTimer = setInterval(() => {
+        const d = $("#profile-drawer", el);
+        const box = $("[data-drawer-pickups]", d);
+        if (d?.dataset.open === "true" && box && LCC.appOrder?.tickCancel(box)) box.innerHTML = LCC.appOrder.drawerHtml().s;
+      }, 1000);
+      offs.push(() => clearInterval(drawerTimer));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {
@@ -7522,7 +8112,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       }));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
-        if (who.id !== member().id || active.key === "pass") return;
+        if (who.id !== member().id || active.key === "pass" || entry.orderId) return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(S.balance(who.id).left)} left.`);
       }));
 
@@ -7844,7 +8434,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
               <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Change my cups</button>`
           : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
-              <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
       }
       const line = here.left > 0
         ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
@@ -7886,11 +8476,14 @@ li:last-child > .branch-row { border-bottom: 0; }
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
               <ul role="list">
-                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li class="row">
-                  <div class="row__main"><div class="row__title">${d.name}</div><div class="row__meta num">${fmt.rs(d.price)} at the counter</div></div>
-                  <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, uses ${fmt.cups(d.credits)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter</span></span>
+                    <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                  </button>
                 </li>`)}
               </ul>
+              <p class="t-micro t-faint">Tap a drink to order it for pickup.</p>
             </section>
 
             <section class="app-section" aria-labelledby="visits-h">
@@ -7898,7 +8491,10 @@ li:last-child > .branch-row { border-bottom: 0; }
               <div data-visits>${visitsHtml()}</div>
             </section>
           </div>
-          <div class="sticky-action" data-detail-action>${actionHtml()}</div>
+          <div class="sticky-action">
+            <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
+            <div class="stack" style="--stack-gap:var(--space-3)" data-detail-action>${actionHtml()}</div>
+          </div>
         </div>`.s,
       mount() {
         // The bar shows the name once the big title scrolls away
@@ -7928,8 +8524,9 @@ li:last-child > .branch-row { border-bottom: 0; }
    a Hot / Iced toggle, ordering ("Use a cup"), branches and plans.
 
    Cups belong to the brand, not a branch: they work at every branch.
-   Ordering only tells the counter what you'd like; the cup is spent when
-   the counter redeems your code (store.actions.placeOrder / redeem).
+   "Use a cup at the counter" only tells the counter what you'd like; the
+   cup is spent when the counter redeems your code (store.actions.placeOrder
+   / redeem). "Order for pickup" opens the pickup flow (app-order.js).
    ===================================================================== */
 (function () {
   "use strict";
@@ -8053,11 +8650,12 @@ li:last-child > .branch-row { border-bottom: 0; }
               ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
             <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
             ${canUse
-              ? html`<button type="button" class="btn btn--primary btn--block" data-use-cup>Use a cup</button>
-                  <p class="t-micro t-faint">The counter sees your drink when they scan your pass. Nothing is spent until they do.</p>`
-              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. Your plan renews soon." : `Choose a ${b.name} plan to use cups for this.`}</p>
-                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--primary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
+              ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
+                  <p class="t-micro t-faint">Order ahead and collect, or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
+              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. You can still order and pay for it." : `Order and pay for it, or choose a ${b.name} plan to use cups.`}</p>
+                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--secondary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
             <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
           </div>
         </div>`;
@@ -8085,6 +8683,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       if (e.target.closest("[data-use-cup]")) {
         A.placeOrder({ brandId: b.id, drinkId: picked.item.id, temp: picked.temp });
         ctx.go("#/app/pass");
+        return;
+      }
+      if (e.target.closest("[data-pickup-order]")) {
+        LCC.appOrder?.start({ brandId: b.id, drinkId: picked.item.id, temp: picked.temp });
+        ctx.go("#/app/order");
         return;
       }
       if (e.target.closest("[data-skip-order]")) { A.placeOrder({}); ctx.go("#/app/pass"); return; }
@@ -8477,6 +9080,8 @@ li:last-child > .branch-row { border-bottom: 0; }
     },
     cvc: (v) => (/^\d{3,4}$/.test(v.trim()) ? "" : "The 3 digits on the back of your card."),
   };
+  // Shared with pickup orders (app-order.js), which pay the same simulated way
+  LCC.payKit = { METHODS, methodLabel, digits, formatPhone, formatCard, formatExp, CHECKS };
 
   REG.pay = (ctx) => {
     const { view } = ctx;
@@ -8667,6 +9272,551 @@ li:last-child > .branch-row { border-bottom: 0; }
               ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
+          </div>
+        </div>`.s,
+      mount() {
+        paint();
+        view.addEventListener("input", onInput);
+        view.addEventListener("focusout", onFocusOut);
+        view.addEventListener("change", onChange);
+        view.addEventListener("submit", onSubmit);
+        view.addEventListener("click", onClick);
+        return () => {
+          alive = false;
+          view.removeEventListener("input", onInput);
+          view.removeEventListener("focusout", onFocusOut);
+          view.removeEventListener("change", onChange);
+          view.removeEventListener("submit", onSubmit);
+          view.removeEventListener("click", onClick);
+        };
+      },
+    };
+  };
+})();
+
+</script>
+<script>
+/* ---- src/app-order.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — app-order.js
+   Member app: pickup orders. Order ahead, collect at the counter.
+
+     #/app/order        choose café (branch), drink, hot or iced, pickup
+                        time, and how to pay: a cup, or the full price
+     #/app/order/pay    simulated payment (full price, or a cup's top-up)
+
+   Also the order status card (Home and the profile drawer):
+   Placed → Being made → Ready → Collected, with a 6-digit pickup code.
+   The store does the work (store.actions.placePickup / checkoutPickup /
+   cancelPickup); the café moves orders on from #/cafe → Orders, and
+   every change arrives here over sync like a redemption does.
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, raw, $, $$, icon } = ui;
+  const S = store.select;
+  const A = store.actions;
+  const REG = (LCC.appScreens = LCC.appScreens || {});
+  const kit = () => LCC.payKit; // from app-plan.js
+
+  /* -------------------------------------------------------------------
+     Draft: what the member is about to order
+     ------------------------------------------------------------------- */
+  const draft = { started: false, cafeId: null, drinkId: null, temp: "hot", when: "asap", pay: "cup" };
+  const pay = { method: "jazzcash", phone: "", card: { number: "", exp: "", cvc: "" }, phase: "form", forMember: null, error: "" };
+  const dismissed = new Set(); // rejected orders the member has closed (this device only)
+
+  const venueOf = (c) => c.brandId || c.id;
+  /** The member's last drink at this café (or brand), from orders and redemptions. */
+  function lastDrink(m, cafe) {
+    const same = (cafeId) => S.cafe(cafeId) && venueOf(S.cafe(cafeId)) === venueOf(cafe);
+    const o = S.memberPickups(m.id).find((x) => same(x.cafeId));
+    if (o) return { drinkId: o.drinkId, temp: o.temp };
+    const e = S.activity(m.id, ["redeem"]).find((x) => same(x.cafeId));
+    if (e) return { drinkId: e.drinkId, temp: e.temp || null };
+    const pass = S.order(m.id);
+    if (pass && pass.brandId === cafe.brandId) return { drinkId: pass.drinkId, temp: pass.temp };
+    return null;
+  }
+  const hasDrink = (cafe, id) => cafe.drinks.some((d) => d.id === id);
+  const firstDrink = (cafe) => (cafe.brandId ? (hasDrink(cafe, "ds-latte") ? "ds-latte" : cafe.drinks[0].id) : (cafe.drinks.find((d) => d.credits === 1) || cafe.drinks[0]).id);
+
+  /** Where to start: where the member's cups work, nearest first, taking orders now. */
+  function defaultCafe(m, brandId = null) {
+    let pool;
+    if (brandId) pool = S.branches(brandId).map((c) => c.id);
+    else if (m.plan?.type === "brand") pool = S.branches(m.plan.brandId).map((c) => c.id);
+    else if (m.plan?.type === "mycafes") pool = Object.entries(S.balance(m.id).perCafe).filter(([, b]) => b.left > 0).map(([id]) => id);
+    else pool = S.clubCafes().map((c) => c.id);
+    if (!pool.length) pool = S.clubCafes().map((c) => c.id);
+    const ranked = pool.slice().sort((a, b) => S.cafe(a).distanceKm - S.cafe(b).distanceKm);
+    return ranked.find((id) => S.pickupAvailable(id).ok) || ranked[0];
+  }
+
+  /** Begin an order. Any of cafeId, brandId (pick a branch), drinkId, temp. */
+  function start({ cafeId = null, brandId = null, drinkId = null, temp = null } = {}) {
+    const m = S.member();
+    draft.started = true;
+    draft.cafeId = cafeId && S.cafe(cafeId) ? cafeId : defaultCafe(m, brandId);
+    const cafe = S.cafe(draft.cafeId);
+    const last = lastDrink(m, cafe);
+    draft.drinkId = drinkId && hasDrink(cafe, drinkId) ? drinkId : last && hasDrink(cafe, last.drinkId) ? last.drinkId : firstDrink(cafe);
+    draft.temp = temp || (drinkId ? null : last?.temp) || "hot";
+    draft.when = "asap";
+    draft.pay = "cup";
+    pay.phase = "form"; pay.error = "";
+    if (pay.forMember !== m.id) {
+      pay.forMember = m.id;
+      pay.phone = kit() ? kit().formatPhone(String(m.phone || "").replace(/^\+92\s?/, "0")) : "";
+    }
+  }
+
+  const quote = () => S.pickupQuote(S.member().id, draft.cafeId, draft.drinkId, draft.temp);
+  /** "cup" unless the member chose to pay, or a cup can't cover this one. */
+  const payWith = (q) => (draft.pay === "paid" || !q.cup.ok ? "paid" : "cup");
+  const amountDue = (q) => (payWith(q) === "cup" ? q.topUp : q.price);
+  function pickupChoice() {
+    const avail = S.pickupAvailable(draft.cafeId);
+    const t = avail.times || { asap: false, slots: [] };
+    if (draft.when === "asap" && t.asap) return { asap: true, pickupAt: t.asapAt, label: "ASAP, about 10 min" };
+    const slot = t.slots.find((x) => String(x.at) === String(draft.when)) || t.slots[0];
+    return slot ? { asap: false, pickupAt: slot.at, label: `Pickup at ${slot.label}` } : { asap: true, pickupAt: t.asapAt, label: "ASAP, about 10 min" };
+  }
+  const orderFromDraft = () => {
+    const q = quote();
+    const w = pickupChoice();
+    return { cafeId: draft.cafeId, drinkId: q.drinkId, temp: q.temp, asap: w.asap, pickupAt: w.pickupAt, pay: payWith(q) };
+  };
+  const placeLabel = (cafeId) => S.pickupPlace(cafeId);
+
+  /* -------------------------------------------------------------------
+     Order status card: Home and the drawer
+     ------------------------------------------------------------------- */
+  const STEPS = [["placed", "Placed"], ["making", "Being made"], ["ready", "Ready"], ["collected", "Collected"]];
+  const NOTES = {
+    placed: "Sent to the café. They’ll start on it shortly.",
+    making: "Being made now.",
+    ready: "Ready at the counter. Show your pickup code.",
+  };
+  const when = (o) => (o.asap ? `ASAP, about ${fmt.time(o.pickupAt)}` : `Pickup at ${fmt.time(o.pickupAt)}`);
+  const payLine = (o) => (o.pay === "cup"
+    ? (o.topUp ? `A cup + ${fmt.rs(o.topUp)} paid online` : "Paid with a cup")
+    : `Paid ${fmt.rs(o.amount)} with ${o.payment?.method || "card"}`);
+  const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+  const reasonText = (o) => (store.pickupReasons[o.reason] || "they can’t make it now").toLowerCase();
+  const backLine = (o) => (o.pay === "cup"
+    ? `Your cup is back${o.topUp ? `, and ${fmt.rs(o.topUp)} is on its way back to your ${o.payment?.method || "card"}` : ""}.`
+    : `${fmt.rs(o.amount)} is on its way back to your ${o.payment?.method || "card"}.`);
+
+  /** compact: Home's version (no status sentence; payment beside the code). */
+  function cardHtml(o, { compact = false } = {}) {
+    const place = placeLabel(o.cafeId);
+    const name = S.pickupDrinkName(o);
+    if (o.status === "rejected") {
+      return html`<article class="pickup card" data-pickup="${o.id}" data-status="rejected" aria-labelledby="pk-${o.id}">
+        <p class="eyebrow">Pickup · ${place}</p>
+        <p class="pickup__drink" id="pk-${o.id}">${name}</p>
+        <p class="t-body">${place} couldn’t make it: ${reasonText(o)}. ${backLine(o)}</p>
+        <button type="button" class="btn btn--secondary btn--compact pickup__ok" data-dismiss-pickup="${o.id}">OK</button>
+      </article>`;
+    }
+    const idx = STEPS.findIndex(([id]) => id === o.status);
+    const code = S.pickupCode(o);
+    const secs = S.canCancelPickup(o);
+    return html`<article class="pickup card" data-pickup="${o.id}" data-status="${o.status}" aria-labelledby="pk-${o.id}">
+      <p class="eyebrow">Pickup · ${place}</p>
+      <div class="pickup__head">
+        <p class="t-small t-muted num">${when(o)}</p>
+        ${secs ? html`<button type="button" class="btn btn--link" data-cancel-pickup="${o.id}">Cancel <span class="num" data-cancel-left="${o.id}">${fmt.countdown(secs)}</span></button>` : ""}
+      </div>
+      <p class="pickup__drink" id="pk-${o.id}">${name}</p>
+      <ol class="pickup__steps" role="list" aria-label="Status: ${STEPS[idx][1]}">
+        ${STEPS.map(([id, label], i) => html`<li class="pickup__step" data-on="${i <= idx}" ${i === idx ? raw('aria-current="step"') : ""}>
+          <span class="pickup__bar" aria-hidden="true"></span><span class="pickup__label">${label}</span>
+        </li>`)}
+      </ol>
+      ${compact ? "" : html`<p class="t-small">${NOTES[o.status] || ""}</p>`}
+      <div class="pickup__code">
+        <span class="pickup__codelabel"><span class="t-micro t-faint">Pickup code</span>${compact ? html`<span class="t-micro t-faint num">${payLine(o)}</span>` : ""}</span>
+        <span class="num" aria-label="Pickup code ${code.split("").join(" ")}">${spaced(code)}</span>
+      </div>
+      ${compact ? "" : html`<p class="t-small t-muted num">${payLine(o)}</p>`}
+    </article>`;
+  }
+
+  /** Orders worth a card: in the queue, or rejected and not yet closed (last 6 hours). */
+  function visible(memberId = S.member().id) {
+    const now = Date.now();
+    return S.memberPickups(memberId).filter((o) => S.isPickupOpen(o) || (o.status === "rejected" && !dismissed.has(o.id) && now - o.updatedAt < 6 * 60 * 60 * 1000));
+  }
+  const cardsHtml = (memberId) => html`${visible(memberId).map((o) => cardHtml(o, { compact: true }))}`;
+
+  const DONE = { collected: "Collected", cancelled: "Cancelled", rejected: "Couldn’t be made" };
+  function drawerHtml(memberId = S.member().id) {
+    const cards = visible(memberId);
+    const past = S.memberPickups(memberId).filter((o) => !S.isPickupOpen(o) && !cards.includes(o)).slice(0, 3);
+    return html`
+      ${cards.length ? html`<div class="pickup-list">${cards.map((o) => cardHtml(o))}</div>` : ""}
+      ${past.length ? html`<ul role="list">${past.map((o) => html`<li class="row">
+          <div class="row__main">
+            <div class="row__title">${S.pickupDrinkName(o)}</div>
+            <div class="row__meta">${placeLabel(o.cafeId)} · ${DONE[o.status]} · <span data-rel-time="${o.updatedAt}">${fmt.ago(o.updatedAt)}</span></div>
+          </div>
+          <span class="badge">${o.pay === "cup" ? "Cup" : fmt.rs(o.amount)}</span>
+        </li>`)}</ul>` : ""}
+      ${!cards.length && !past.length ? html`<p class="t-small t-muted">No pickup orders yet. Order ahead and skip the queue.</p>` : ""}
+      <button type="button" class="btn btn--link" data-start-order>Order for pickup</button>`;
+  }
+
+  /** Every second while a card can still be cancelled. Returns true when one ran out (repaint). */
+  function tickCancel(root) {
+    let expired = false;
+    $$("[data-cancel-left]", root).forEach((n) => {
+      const o = S.pickup(n.dataset.cancelLeft);
+      const secs = o ? S.canCancelPickup(o) : 0;
+      if (!secs) expired = true; else n.textContent = fmt.countdown(secs);
+    });
+    return expired;
+  }
+
+  LCC.appOrder = { start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine };
+
+  /* -------------------------------------------------------------------
+     #/app/order
+     ------------------------------------------------------------------- */
+  REG.order = (ctx, cafeArg) => {
+    const { view } = ctx;
+    if (cafeArg && S.cafe(cafeArg) && (!draft.started || draft.cafeId !== cafeArg)) start({ cafeId: cafeArg });
+    if (!draft.started) start();
+    const m = ctx.member();
+    const matcha = () => LCC.theme?.flavour() === "matcha";
+
+    function placeHtml() {
+      const brands = [...new Set(S.cafes().filter((c) => c.brandId).map((c) => c.brandId))].map(S.brand);
+      const opt = (c, text) => {
+        const a = S.pickupAvailable(c.id);
+        const note = a.ok ? "" : a.reason === "paused" ? " · not taking orders" : " · closed";
+        return html`<option value="${c.id}" ${c.id === draft.cafeId ? raw("selected") : ""}>${text}${note}</option>`;
+      };
+      return html`<div class="field">
+        <label class="field__label" for="o-place">${S.cafe(draft.cafeId).brandId ? "Branch" : "Pick up at"}</label>
+        <span class="select"><select class="input" id="o-place" data-o-place>
+          ${brands.map((b) => html`<optgroup label="${b.name}">${S.branches(b.id).map((c) => opt(c, c.branch))}</optgroup>`)}
+          <optgroup label="Partner cafés">${S.clubCafes().map((c) => opt(c, c.name))}</optgroup>
+        </select></span>
+      </div>`;
+    }
+
+    function drinkHtml() {
+      const cafe = S.cafe(draft.cafeId);
+      let body;
+      if (cafe.brandId) {
+        const b = S.brand(cafe.brandId);
+        let secs = [...new Set(b.menu.map((d) => d.section))];
+        if (matcha()) secs = [...secs.filter((x) => /matcha/i.test(x)), ...secs.filter((x) => !/matcha/i.test(x))];
+        body = html`${secs.map((sec) => html`<optgroup label="${sec}">${b.menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === draft.drinkId ? raw("selected") : ""}>${d.name}</option>`)}</optgroup>`)}`;
+      } else {
+        const isM = (d) => /matcha/i.test(d.name);
+        const list = matcha() ? [...cafe.drinks.filter(isM), ...cafe.drinks.filter((d) => !isM(d))] : cafe.drinks;
+        body = html`${list.map((d) => html`<option value="${d.id}" ${d.id === draft.drinkId ? raw("selected") : ""}>${d.name} · ${fmt.rs(d.price)}${d.credits > 1 ? ` · uses ${fmt.cups(d.credits)}` : ""}</option>`)}`;
+      }
+      return html`<div class="field">
+        <label class="field__label" for="o-drink">Drink</label>
+        <span class="select"><select class="input" id="o-drink" data-o-drink>${body}</select></span>
+      </div>`;
+    }
+
+    function tempHtml() {
+      const cafe = S.cafe(draft.cafeId);
+      if (!cafe.brandId) return "";
+      const item = S.menuItem(cafe.brandId, draft.drinkId);
+      if (item.hot != null && item.iced != null) {
+        return ui.segmented({ name: "otemp", label: "Hot or iced", value: S.servedTemp(item, draft.temp), options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] });
+      }
+      return html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`;
+    }
+
+    function timesHtml() {
+      const a = S.pickupAvailable(draft.cafeId);
+      if (!a.ok) return "";
+      const t = a.times;
+      if (draft.when === "asap" && !t.asap) draft.when = t.slots[0] ? String(t.slots[0].at) : "asap";
+      return html`<div class="field">
+        <label class="field__label" for="o-when">Pickup time</label>
+        <span class="select"><select class="input num" id="o-when" data-o-when>
+          ${t.asap ? html`<option value="asap" ${draft.when === "asap" ? raw("selected") : ""}>ASAP, about 10 min</option>` : ""}
+          ${t.slots.map((s) => html`<option value="${s.at}" ${String(s.at) === String(draft.when) ? raw("selected") : ""}>${s.label}</option>`)}
+        </select></span>
+      </div>`;
+    }
+
+    function payHtml() {
+      const a = S.pickupAvailable(draft.cafeId);
+      if (!a.ok) return html`<div class="proto-note">${icon("info", { size: 18 })}<p>${a.message}</p></div>`;
+      const q = quote();
+      const p = payWith(q);
+      const cupLine = !q.cup.ok ? q.cup.message
+        : q.topUp ? `Cup + ${fmt.rs(q.topUp)}, paid online. A cup covers up to ${fmt.rs(S.brand(q.brandId).economics.coverUpTo)}.`
+        : q.cup.bonus ? "A free cup from the club." : q.credits > 1 ? `Uses ${fmt.cups(q.credits)} from your plan.` : "Covered by your plan.";
+      return html`<fieldset class="method-list">
+        <legend class="field__label">Pay with</legend>
+        <label class="method${q.cup.ok ? "" : " is-off"}">
+          <input class="sr-only" type="radio" name="opay" value="cup" ${p === "cup" ? raw("checked") : ""} ${q.cup.ok ? "" : raw("disabled")}>
+          <span class="method__icon">${icon("qr", { size: 22 })}</span>
+          <span class="method__text"><span class="row__title">Use a cup</span><span class="row__meta num">${cupLine}</span></span>
+          <span class="method__tick" aria-hidden="true">${icon("check", { size: 18 })}</span>
+        </label>
+        <label class="method">
+          <input class="sr-only" type="radio" name="opay" value="paid" ${p === "paid" ? raw("checked") : ""}>
+          <span class="method__icon">${icon("card", { size: 22 })}</span>
+          <span class="method__text"><span class="row__title num">Pay ${fmt.rs(q.price)}</span><span class="row__meta">Card, JazzCash or Easypaisa</span></span>
+          <span class="method__tick" aria-hidden="true">${icon("check", { size: 18 })}</span>
+        </label>
+      </fieldset>`;
+    }
+
+    function actionHtml() {
+      const a = S.pickupAvailable(draft.cafeId);
+      if (!a.ok) return html`<button type="button" class="btn btn--primary btn--block" disabled>Place order</button>`;
+      const q = quote();
+      const due = amountDue(q);
+      const w = pickupChoice();
+      return html`<p class="t-small t-muted num order-sum"><strong>${q.name}</strong> · ${placeLabel(draft.cafeId)} · ${w.label}</p>
+        <p class="cv-error" data-o-error role="alert"></p>
+        <button type="button" class="btn btn--primary btn--block num" data-o-submit>${due ? `Continue to pay ${fmt.rs(due)}` : "Place order"}</button>
+        ${payWith(q) === "cup" ? html`<p class="t-micro t-faint">A cup is held now and comes back if the order is cancelled.</p>` : ""}`;
+    }
+
+    const set = (sel, markup) => { const n = $(sel, view); if (n) n.innerHTML = markup.s ?? markup; };
+    function paint({ drink = true, times = true } = {}) {
+      if (drink) set("[data-o-drinkbox]", drinkHtml());
+      set("[data-o-temp]", tempHtml());
+      if (times) set("[data-o-times]", timesHtml());
+      set("[data-o-pay]", payHtml());
+      set("[data-o-action]", actionHtml());
+    }
+
+    function submit() {
+      const q = quote();
+      if (amountDue(q) > 0) { pay.phase = "form"; pay.error = ""; ctx.go("#/app/order/pay"); return; }
+      const res = A.placePickup(orderFromDraft());
+      if (!res.ok) { const e = $("[data-o-error]", view); if (e) e.textContent = res.message; return; }
+      draft.started = false;
+      ctx.go("#/app", { replace: true });
+      ctx.toast(`Order placed. Pickup code ${spaced(S.pickupCode(res.order))}.`, { duration: 4200 });
+    }
+
+    function onChange(e) {
+      const t = e.target;
+      if (t.matches("[data-o-place]")) {
+        const cafe = S.cafe(t.value);
+        const prev = S.cafe(draft.cafeId);
+        draft.cafeId = t.value;
+        // Same brand: keep the drink. Otherwise their usual here, or the first one-cup drink
+        if (venueOf(cafe) !== venueOf(prev) || !hasDrink(cafe, draft.drinkId)) {
+          const last = lastDrink(m, cafe);
+          draft.drinkId = last && hasDrink(cafe, last.drinkId) ? last.drinkId : firstDrink(cafe);
+          if (last?.temp) draft.temp = last.temp;
+        }
+        draft.when = "asap";
+        $("label[for=o-place]", view).textContent = cafe.brandId ? "Branch" : "Pick up at";
+        return paint();
+      }
+      if (t.matches("[data-o-drink]")) { draft.drinkId = t.value; return paint({ drink: false, times: false }); }
+      if (t.matches("[data-o-when]")) { draft.when = t.value; return set("[data-o-action]", actionHtml()); }
+      if (t.name === "opay") { draft.pay = t.value; return set("[data-o-action]", actionHtml()); }
+    }
+    function onClick(e) {
+      const seg = e.target.closest('[data-segmented="otemp"] .segmented__option');
+      if (seg) {
+        ui.selectSegment(seg.parentElement, seg.dataset.value);
+        draft.temp = seg.dataset.value;
+        set("[data-o-pay]", payHtml()); set("[data-o-action]", actionHtml());
+        return;
+      }
+      if (e.target.closest("[data-o-submit]")) submit();
+    }
+
+    return {
+      html: html`
+        <div class="flow order-flow">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app" aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen flow__body">
+            <div class="stack" style="--stack-gap:var(--space-1)">
+              <h1 class="t-h2">Order for pickup</h1>
+              <p class="t-small t-muted">Order ahead and collect at the counter.</p>
+            </div>
+            ${placeHtml()}
+            <div class="stack" style="--stack-gap:var(--space-3)">
+              <div data-o-drinkbox>${drinkHtml()}</div>
+              <div data-o-temp>${tempHtml()}</div>
+            </div>
+            <div data-o-times>${timesHtml()}</div>
+            <div data-o-pay>${payHtml()}</div>
+          </div>
+          <div class="sticky-action" data-o-action>${actionHtml()}</div>
+        </div>`.s,
+      mount() {
+        view.addEventListener("change", onChange);
+        view.addEventListener("click", onClick);
+        const onFlavour = () => set("[data-o-drinkbox]", drinkHtml());
+        document.addEventListener("lcc:flavour", onFlavour);
+        return () => {
+          view.removeEventListener("change", onChange);
+          view.removeEventListener("click", onClick);
+          document.removeEventListener("lcc:flavour", onFlavour);
+        };
+      },
+      on: {
+        // Cups used elsewhere, a pause at the café, the clock: what's possible can change
+        ledger: () => { set("[data-o-pay]", payHtml()); set("[data-o-action]", actionHtml()); },
+        tick: () => paint({ drink: false }),
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
+     #/app/order/pay (simulated, like the plan payment)
+     ------------------------------------------------------------------- */
+  REG.orderPay = (ctx) => {
+    const { view } = ctx;
+    if (!draft.started || !kit()) return { redirect: "#/app/order" };
+    const K = kit();
+    const order = orderFromDraft();
+    const q = quote();
+    const due = amountDue(q);
+    if (!due) return { redirect: "#/app/order" };
+    let alive = true;
+
+    function field({ id, label, value, placeholder, inputmode = "numeric", autocomplete, hint }) {
+      return html`<div class="field" data-field="${id}">
+        <label class="field__label" for="opay-${id}">${label}</label>
+        <input class="input num" id="opay-${id}" name="${id}" value="${value}" placeholder="${placeholder}" inputmode="${inputmode}" autocomplete="${autocomplete}" aria-describedby="opay-${id}-err${hint ? ` opay-${id}-hint` : ""}">
+        ${hint ? html`<p class="field__hint" id="opay-${id}-hint">${hint}</p>` : ""}
+        <p class="field__error" id="opay-${id}-err"></p>
+      </div>`;
+    }
+    function fieldsHtml() {
+      if (pay.method === "card") {
+        return html`${field({ id: "number", label: "Card number", value: pay.card.number, placeholder: "1234 5678 9012 3456", autocomplete: "cc-number" })}
+          <div class="field-pair">
+            ${field({ id: "exp", label: "Expiry", value: pay.card.exp, placeholder: "MM/YY", autocomplete: "cc-exp" })}
+            ${field({ id: "cvc", label: "CVC", value: pay.card.cvc, placeholder: "123", autocomplete: "cc-csc" })}
+          </div>`;
+      }
+      return field({ id: "phone", label: `${K.methodLabel(pay.method)} mobile number`, value: pay.phone, placeholder: "03XX XXXXXXX", inputmode: "tel", autocomplete: "tel-national", hint: `You’ll approve the payment in the ${K.methodLabel(pay.method)} app.` });
+    }
+    function bodyHtml() {
+      if (pay.phase === "processing") {
+        return html`<div class="pay-state" role="status"><span class="spinner" aria-hidden="true"></span>
+          <p class="t-h3">${pay.method === "card" ? "Checking your card" : `Waiting for ${K.methodLabel(pay.method)}`}</p>
+          <p class="t-small t-muted num">${pay.method === "card" ? "This takes a few seconds." : `Approve the request sent to ${pay.phone}.`}</p></div>`;
+      }
+      if (pay.phase === "failed") {
+        return html`<div class="pay-state" role="alert">
+          <span class="pay-state__mark" aria-hidden="true">${icon("info", { size: 28 })}</span>
+          <h2 class="t-h2">Order not placed.</h2>
+          <p class="t-body t-muted">${/Nothing was taken/.test(pay.error) ? pay.error : `${pay.error || "The payment didn’t go through."} Nothing was taken.`}</p>
+          <div class="pay-state__actions"><button type="button" class="btn btn--primary btn--block" data-try-again>Try again</button></div>
+        </div>`;
+      }
+      return html`<form class="pay-form" data-opay-form novalidate>
+        <fieldset class="method-list">
+          <legend class="field__label">Pay with</legend>
+          ${K.METHODS.map((x) => html`<label class="method">
+            <input class="sr-only" type="radio" name="method" value="${x.id}" ${pay.method === x.id ? raw("checked") : ""}>
+            <span class="method__icon">${icon(x.icon, { size: 22 })}</span>
+            <span class="method__text"><span class="row__title">${x.label}</span><span class="row__meta">${x.line}</span></span>
+            <span class="method__tick" aria-hidden="true">${icon("check", { size: 18 })}</span>
+          </label>`)}
+        </fieldset>
+        <div class="stack" style="--stack-gap:var(--space-4)" data-opay-fields>${fieldsHtml()}</div>
+        <div class="proto-note">${icon("info", { size: 18 })}<p><strong>Prototype: no payment is taken.</strong></p></div>
+        <button type="submit" class="btn btn--primary btn--block num">Pay ${fmt.rs(due)} and place order</button>
+      </form>`;
+    }
+    function paint() {
+      $("[data-opay-body]", view).innerHTML = bodyHtml().s;
+      const back = $("[data-opay-back]", view);
+      if (back) back.disabled = pay.phase === "processing";
+      if (pay.phase !== "form") $("[data-opay-body]", view).querySelector("button, [role]")?.focus?.({ preventScroll: true });
+    }
+    function showError(id, msg) {
+      const f = $(`[data-field="${id}"]`, view);
+      if (!f) return;
+      f.dataset.invalid = String(!!msg);
+      $(".field__error", f).textContent = msg;
+      $("input", f).setAttribute("aria-invalid", String(!!msg));
+    }
+    const fieldIds = () => (pay.method === "card" ? ["number", "exp", "cvc"] : ["phone"]);
+    const valueOf = (id) => (id === "phone" ? pay.phone : pay.card[id]);
+
+    function onInput(e) {
+      const inp = e.target;
+      if (!inp.matches("[data-opay-fields] input")) return;
+      const id = inp.name;
+      const deleting = (e.inputType || "").startsWith("delete");
+      let v = inp.value;
+      if (id === "phone") v = K.formatPhone(v);
+      else if (id === "number") v = K.formatCard(v);
+      else if (id === "exp") v = K.formatExp(v, deleting);
+      else if (id === "cvc") v = K.digits(v).slice(0, 4);
+      if (v !== inp.value) inp.value = v;
+      if (id === "phone") pay.phone = v; else pay.card[id] = v;
+      if (inp.closest(".field").dataset.invalid === "true") showError(id, K.CHECKS[id](v));
+    }
+    function onFocusOut(e) {
+      const inp = e.target;
+      if (!inp.matches?.("[data-opay-fields] input") || !inp.value) return;
+      showError(inp.name, K.CHECKS[inp.name](inp.value));
+    }
+    function onChange(e) {
+      if (e.target.name !== "method") return;
+      pay.method = e.target.value;
+      $("[data-opay-fields]", view).innerHTML = fieldsHtml().s;
+    }
+    function onSubmit(e) {
+      if (!e.target.matches("[data-opay-form]")) return;
+      e.preventDefault();
+      const bad = fieldIds().map((id) => [id, K.CHECKS[id](valueOf(id))]).filter(([, msg]) => msg);
+      fieldIds().forEach((id) => showError(id, K.CHECKS[id](valueOf(id))));
+      if (bad.length) { $(`#opay-${bad[0][0]}`, view).focus(); return; }
+      pay.phase = "processing";
+      paint();
+      A.checkoutPickup(order, { method: pay.method, account: pay.method === "card" ? pay.card.number : pay.phone }).then((res) => {
+        if (!res.ok) { pay.phase = "failed"; pay.error = res.message; if (alive) paint(); return; }
+        pay.phase = "form";
+        draft.started = false;
+        const msg = `Order placed. Pickup code ${spaced(S.pickupCode(res.order))}.`;
+        if (alive) ctx.go("#/app", { replace: true });
+        ctx.toast(msg, { duration: 4200 });
+      });
+    }
+    function onClick(e) {
+      if (e.target.closest("[data-try-again]")) { pay.phase = "form"; paint(); $("[data-opay-fields] input", view)?.focus(); }
+    }
+
+    return {
+      html: html`
+        <div class="flow">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app/order" data-opay-back aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen flow__body">
+            <h1 class="t-h2">Payment</h1>
+            <div class="card pay-summary">
+              <div class="pay-summary__row">
+                <span class="t-h3">${q.name}</span>
+                <span class="t-h3 num">${fmt.rs(due)}</span>
+              </div>
+              <p class="t-small t-muted num">${placeLabel(order.cafeId)} · ${pickupChoice().label}</p>
+              <p class="t-micro t-faint num">${order.pay === "cup" ? `A cup from your plan, plus ${fmt.rs(q.topUp)} for the difference.` : "Full price. Your cups stay as they are."}</p>
+            </div>
+            <div data-opay-body></div>
           </div>
         </div>`.s,
       mount() {

@@ -29,6 +29,11 @@
     giftExpiryDays: 60,
     giftMaxCups: 3,
     giftMessageMax: 140,
+    // Pickup orders (order ahead, collect at the counter)
+    orderFeeShare: 0.05,       // LCC keeps 5% of what a member pays online; the café gets the rest
+    orderCancelMinutes: 2,     // a member can cancel this long after placing, until the café starts it
+    orderAsapMinutes: 10,      // "ASAP, about 10 min"
+    orderSlotMinutes: 15,      // pickup slots today, every 15 minutes
   };
 
   /* Fixed tiers --------------------------------------------------------- */
@@ -441,8 +446,11 @@
 
   /* Ledger ----------------------------------------------------------------
      Append-only. Every change to a member’s cups is one entry:
-       { id, type: purchase|redeem|gift|expire, memberId, cafeId|null,
-         cups (signed: purchase +, everything else −), at, cycle }
+       { id, type: purchase|redeem|gift|expire|reward|hold|release,
+         memberId, cafeId|null, cups (signed: purchase, reward and
+         release +, everything else −), at, cycle }
+     hold / release: a pickup order holds a cup when placed and gives it
+     back if cancelled or rejected (state.js).
      Redeem entries also carry drinkId, credits and firstVisit, so the
      café’s redemption list is read straight from the ledger.
      // BACKEND: this becomes a Supabase table (ledger), insert-only.   */
@@ -676,6 +684,47 @@
     }
   })();
 
+  /* Pickup orders paid online, already collected this month: a few a day
+     per café, from background regulars. Cup orders are in the ledger as
+     ordinary redemptions; only paid orders need their own record.
+     // BACKEND: rows in an orders table (status collected).            */
+  const orders = [];
+  (function generatePaidOrders() {
+    const rnd = mulberry32(today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate() + 77);
+    const monthStart = new Date(startOfToday); monthStart.setDate(1);
+    const METHODS = ["JazzCash", "Easypaisa", "Card", "JazzCash"];
+    let n = 0;
+    cafes.forEach((cafe) => {
+      const pool = cafe.brandId ? dsRegulars : regulars;
+      for (let d = 9; d >= 0; d--) {
+        const dayStart = startOfToday - d * DAY;
+        if (dayStart < monthStart.getTime()) continue;
+        const count = Math.round(cafe.avgDailyCups * (0.15 + rnd() * 0.15));
+        const times = dayTimes(cafe, dayStart, count, d === 0).filter((t) => t < now - 15 * MIN);
+        times.forEach((at) => {
+          const m = pool[Math.floor(rnd() * pool.length)];
+          let drinkId, temp = null, price;
+          if (cafe.brandId) {
+            const item = dsItem(DS_POPULAR[Math.floor(rnd() * DS_POPULAR.length)][0]);
+            temp = item.hot != null && item.iced != null ? (rnd() < 0.55 ? "iced" : "hot") : item.hot != null ? "hot" : "iced";
+            drinkId = item.id; price = item[temp];
+          } else {
+            const dr = cafe.drinks[Math.floor(rnd() * cafe.drinks.length)];
+            drinkId = dr.id; price = dr.price;
+          }
+          const placed = at - Math.round((8 + rnd() * 10) * MIN);
+          orders.push({
+            id: `so${n++}`, memberId: m.id, memberName: m.firstName, cafeId: cafe.id, brandId: cafe.brandId || null,
+            drinkId, temp, price, credits: 0, topUp: 0, pay: "paid", amount: price,
+            payment: { method: METHODS[Math.floor(rnd() * METHODS.length)], last4: String(1000 + Math.floor(rnd() * 9000)) },
+            asap: rnd() < 0.7, pickupAt: at, status: "collected", placedAt: placed, updatedAt: at,
+            times: { placed, making: placed + 2 * MIN, ready: at - 2 * MIN, collected: at },
+          });
+        });
+      }
+    });
+  })();
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -818,6 +867,7 @@
     memberId: mumtaz.id,
     partnerCafeId: "ds-gulberg", // the café shown in the partner view: Double Shot Gulberg
     ledger,
+    orders,
     club,
     partner,
     drinkCategories,

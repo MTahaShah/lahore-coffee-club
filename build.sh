@@ -69,6 +69,7 @@ JS_FILES=(
   app-cafes.js
   app-brand.js
   app-plan.js
+  app-order.js
   app-club.js
   app-welcome.js
   landing.js

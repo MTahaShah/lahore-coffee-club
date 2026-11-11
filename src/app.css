@@ -491,3 +491,44 @@ li:last-child > .branch-row { border-bottom: 0; }
 .pass-order__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); font-size: var(--fs-14); }
 .pass-order__acts .btn--link { --btn-h: 36px; }
 .pass__brand { font-size: var(--fs-14); color: var(--ink-2); text-align: center; }
+
+/* Pickup orders ------------------------------------------------------------ */
+.home__more { display: flex; justify-content: center; gap: var(--space-5); }
+.home__more .btn--link { --btn-h: 40px; font-size: var(--fs-14); color: var(--ink-2); }
+.home__pickups { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.home__pickups:empty { display: none; }
+.home.has-pickup .home__center { gap: var(--space-3); padding-block: var(--space-4) var(--space-3); }
+.home.has-pickup .ring--home { width: 132px; height: 132px; }
+.home.has-pickup .ring--home .ring__num { font-size: 44px; }
+.home.has-pickup .home__actions { margin-top: 0; }
+.home.has-pickup [data-renew-line] { display: none; }
+.ring--home { transition: width var(--dur-2) var(--ease), height var(--dur-2) var(--ease); }
+@media (prefers-reduced-motion: reduce) { .ring--home { transition: none; } }
+
+.pickup { display: grid; gap: var(--space-3); text-align: left; }
+.home__pickups .pickup { gap: var(--space-2); padding: var(--space-4); }
+.pickup__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.pickup__drink { font-size: var(--fs-20); font-weight: 500; line-height: 1.2; }
+.pickup__steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.pickup__step { display: grid; gap: 6px; }
+.pickup__bar { height: 4px; border-radius: var(--radius-pill); background: var(--line); transition: background-color var(--dur-2) var(--ease); }
+.pickup__step[data-on="true"] .pickup__bar { background: var(--primary); }
+.pickup__label { font-size: var(--fs-12); line-height: 1.2; color: var(--ink-3); }
+.pickup__step[aria-current] .pickup__label { color: var(--ink); font-weight: 700; }
+.pickup__code { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding-top: var(--space-3); border-top: var(--hairline); }
+.pickup__codelabel { display: grid; gap: 2px; }
+.pickup__code > .num { font-size: var(--fs-28); line-height: 1; letter-spacing: 0.08em; }
+.pickup .btn--link { justify-self: start; --btn-h: 28px; font-size: var(--fs-14); }
+.pickup__head { align-items: center; }
+.pickup__ok { justify-self: start; }
+.pickup-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.drawer__section .pickup { padding: var(--space-4); }
+
+.drink-row { width: 100%; text-align: left; cursor: pointer; }
+.drink-row .row__main { display: grid; gap: 2px; }
+.cafe-sheet__actions .btn--link { justify-self: center; }
+
+.order-flow .method.is-off { opacity: 0.55; cursor: not-allowed; }
+.order-flow .method.is-off .row__meta { color: var(--ink-2); }
+.order-sum strong { color: var(--ink); font-weight: 500; }
+.order-flow .sticky-action .t-micro { text-align: center; }

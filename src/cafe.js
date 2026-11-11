@@ -5,8 +5,10 @@
 
      Header   ring logo, café, area · staff on shift (PIN) · taking cups
      Counter  scan or enter a code, redeem, last 5 cups, busy level, pause
+     Orders   pickup queue for this branch, oldest first: Start, Ready,
+              Collected, or Reject with a reason. Badge counts new orders
      Today    four numbers, cups by hour, every redemption, CSV export
-     Payouts  this month, next payout, history, statement
+     Payouts  this month (cups and paid orders), next payout, history
      Settings what a cup covers, limits, hours, staff PINs
 
    Tablet: a slim left rail. Phone: a segmented control at the top.
@@ -26,6 +28,7 @@
   const PAUSE_MINUTES = 30;
   const SECTIONS = [
     { id: "counter",  label: "Counter" },
+    { id: "orders",   label: "Orders" },
     { id: "today",    label: "Today" },
     { id: "payouts",  label: "Payouts" },
     { id: "settings", label: "Settings" },
@@ -41,6 +44,7 @@
   // Thin-line icons for the rail, drawn like ui.icon (24 grid, 1.5 stroke)
   const RAIL_ICONS = {
     counter: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5z"/>',
+    orders: '<path d="M6 8.5h12l-1 11.5H7L6 8.5z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>',
     today: '<path d="M4 20h16M7 20v-6M12 20V8M17 20v-9"/>',
     payouts: '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9.5v5M17 9.5v5"/>',
     settings: '<path d="M5 7h9M18 7h1M5 17h3M12 17h7"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
@@ -61,6 +65,7 @@
       let pin = "";                // staff sign-in entry
       let wasPaused = false;       // so the tick only redraws the pause control when it ends
       let scope = "branch";        // brands: Today and Payouts for "this branch" or "all branches"
+      let rejecting = null;        // Orders: the order whose reject reasons are showing
 
       function freshRedeem() { return { state: "idle", code: "", message: "", lookup: null, result: null }; }
       const cafe = () => S.cafe(cafeId);
@@ -108,7 +113,7 @@
                 <div class="cv-tabs" role="tablist" aria-label="Sections">
                   ${SECTIONS.map((x) => html`<button type="button" role="tab" class="cv-tab" id="cv-tab-${x.id}" data-section="${x.id}"
                       aria-controls="cv-panel" aria-selected="${x.id === section}" tabindex="${x.id === section ? 0 : -1}">
-                      ${railIcon(x.id)}<span>${x.label}</span>
+                      ${railIcon(x.id)}<span>${x.label}</span>${x.id === "orders" ? html`<span class="cv-tab__count num" data-orders-count hidden></span>` : ""}
                     </button>`)}
                 </div>
               </nav>
@@ -135,6 +140,7 @@
           </div>
           ${sheets()}`;
         paintSection();
+        paintOrdersCount();
       }
 
       const staffLabel = () => { const s = staffOnShift(); return `${s.name} · ${ROLES[s.role] || s.role}`; };
@@ -160,7 +166,7 @@
       function paintSection() {
         const panel = $("[data-panel]", el);
         if (!panel) return;
-        const make = { counter: counterHtml, today: todayHtml, payouts: payoutsHtml, settings: settingsHtml }[section];
+        const make = { counter: counterHtml, orders: ordersHtml, today: todayHtml, payouts: payoutsHtml, settings: settingsHtml }[section];
         panel.innerHTML = `<div class="enter">${make().s}</div>`;
         if (section === "counter") { paintRedeem(); paintRecent(); paintBusy(); paintPause(); }
       }
@@ -384,7 +390,7 @@
         list.innerHTML = rows.length
           ? html`${rows.map((e) => html`<li class="cv-row${e.id === newId ? " enter" : ""}">
               <span class="cv-row__time num">${fmt.time(e.at)}</span>
-              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
+              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp && !e.topUpOnline ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.orderId ? html` <span class="t-faint">· pickup</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
               <span class="cv-row__ref num">${S.redemptionRef(e)}</span>
             </li>`)}`.s
           : html`<li class="cv-row"><span class="cv-row__main t-muted">No member cups yet today.</span></li>`.s;
@@ -417,6 +423,106 @@
               <button type="button" class="btn btn--secondary btn--block" data-resume>Take member cups again</button>`.s
           : html`<button type="button" class="btn btn--secondary btn--block" data-pause-now>Pause member cups for ${PAUSE_MINUTES} min</button>
               <p class="t-small t-faint">For a rush. Codes won’t redeem until it ends; you can end it early.</p>`.s;
+      }
+
+      /* ---------------------------------------------------------------
+         Orders: the pickup queue for this branch
+         --------------------------------------------------------------- */
+      const STATE_LABEL = { placed: "New", making: "Being made", ready: "Ready" };
+      const NEXT_LABEL = { placed: "Start", making: "Ready", ready: "Collected" };
+      const DONE_LABEL = { collected: "collected", cancelled: "cancelled by the member", rejected: "rejected" };
+      const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+      function paintOrdersCount() {
+        const n = S.pickupQueue(cafeId).filter((o) => o.status === "placed").length;
+        const badge = $("[data-orders-count]", el);
+        if (badge) { badge.textContent = n; badge.hidden = !n; }
+        const tab = $('[data-section="orders"]', el);
+        if (tab) tab.setAttribute("aria-label", n ? `Orders, ${n} new` : "Orders");
+      }
+
+      function ticketPayLine(o) {
+        if (o.pay === "cup") return o.topUp ? `Member cup. ${fmt.rs(o.topUp)} top-up paid online, nothing to collect.` : "Member cup. Nothing to collect.";
+        return `Paid online, ${fmt.rs(o.amount)}. Nothing to collect.`;
+      }
+
+      function ticketHtml(o, fresh) {
+        const code = S.pickupCode(o);
+        const acts = rejecting === o.id
+          ? html`<div class="cv-reject" role="group" aria-label="Why can’t you make it?">
+              <p class="t-small">Why can’t you make it? ${o.memberName} is told, and ${o.pay === "cup" ? "gets the cup back" : "refunded"}.</p>
+              <div class="cv-reject__opts">
+                ${Object.entries(store.pickupReasons).map(([id, label]) => html`<button type="button" class="btn btn--secondary" data-reject="${o.id}" data-reason="${id}">${label}</button>`)}
+              </div>
+              <button type="button" class="btn btn--link" data-reject-keep="${o.id}">Keep the order</button>
+            </div>`
+          : html`<div class="cv-ticket__acts">
+              <button type="button" class="btn btn--primary btn--tall" data-advance="${o.id}">${NEXT_LABEL[o.status]}</button>
+              ${o.status !== "ready" ? html`<button type="button" class="btn btn--secondary btn--tall" data-reject-open="${o.id}">Reject</button>` : ""}
+            </div>`;
+        return html`<li class="cv-ticket${fresh ? " enter" : ""}" data-ticket="${o.id}" data-status="${o.status}" aria-labelledby="tk-${o.id}">
+          <div class="cv-ticket__top">
+            <span class="cv-ticket__state">${STATE_LABEL[o.status]}</span>
+            <span class="badge">${o.pay === "cup" ? "Cup" : "Paid"}</span>
+          </div>
+          <p class="cv-ticket__name" id="tk-${o.id}">${o.memberName}</p>
+          <p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>
+          <dl class="cv-ticket__facts">
+            <div><dt>Pickup</dt><dd class="num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)}</dd></div>
+            <div><dt>Code</dt><dd class="num cv-ticket__code" aria-label="${code.split("").join(" ")}">${spaced(code)}</dd></div>
+            <div><dt>Placed</dt><dd><span data-rel-time="${o.placedAt}">${fmt.ago(o.placedAt)}</span></dd></div>
+          </dl>
+          <p class="t-small t-muted num">${ticketPayLine(o)}</p>
+          <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong> <span class="t-muted num">· Reference ${S.pickupRef(o)}</span></p>
+          ${acts}
+        </li>`;
+      }
+
+      function ordersHtml(freshId) {
+        const b = brand();
+        const queue = S.pickupQueue(cafeId);
+        const done = S.pickupsDoneToday(cafeId).slice(0, 8);
+        const off = S.pickupAvailable(cafeId);
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Orders</h2>
+              <p class="t-small t-muted">Pickup orders${b ? ` for ${cafe().branch}` : ""}, oldest first.</p>
+            </div>
+            ${off.ok ? "" : html`<p class="t-small cv-note">${off.reason === "paused" ? `Member cups are paused, so new orders are off until ${fmt.time(cafe().pausedUntil)}.` : "Closed for today, so no new orders."} Orders already here still need making.</p>`}
+            <ol class="cv-tickets" role="list" data-queue>
+              ${queue.length ? queue.map((o) => ticketHtml(o, o.id === freshId)) : html`<li class="cv-tickets__empty t-small t-muted">No orders waiting. New ones appear here as members place them.</li>`}
+            </ol>
+            <section aria-labelledby="done-h">
+              <h3 class="eyebrow" id="done-h">Done today</h3>
+              <ol class="cv-list" role="list">
+                ${done.length ? done.map((o) => html`<li class="cv-row">
+                  <span class="cv-row__time num">${fmt.time(o.updatedAt)}</span>
+                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
+                  <span class="cv-row__ref num">${o.status === "collected" ? S.pickupRef(o) : ""}</span>
+                </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">Nothing collected yet today.</span></li>`}
+              </ol>
+            </section>
+          </div>`;
+      }
+
+      function paintOrders({ freshId = null, focusId = null } = {}) {
+        if (section !== "orders") return;
+        const panel = $("[data-panel]", el);
+        const keep = panel.contains(document.activeElement);
+        panel.innerHTML = `<div>${ordersHtml(freshId).s}</div>`;
+        const target = focusId && ($(`[data-advance="${focusId}"]`, panel) || $(`[data-reject="${focusId}"]`, panel));
+        if (target) target.focus({ preventScroll: true });
+        else if (keep) panel.focus({ preventScroll: true });
+      }
+
+      function advance(id) {
+        const res = A.advancePickup(id);
+        if (!res.ok) return paintOrders();
+        const o = res.order;
+        if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as LCC member.`, { duration: 4200 });
+        else if (o.status === "ready") ui.toast(`${o.memberName} has been told it’s ready.`);
+        paintOrders({ focusId: o.status === "collected" ? null : id });
       }
 
       /* ---------------------------------------------------------------
@@ -467,8 +573,8 @@
                 <thead><tr><th scope="col">Time</th><th scope="col">Member</th>${b ? html`<th scope="col">Drink</th>` : ""}${all ? html`<th scope="col">Branch</th>` : ""}<th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
                 <tbody>${d.entries.map((e) => html`<tr>
                   <td class="num">${fmt.time(e.at)}</td>
-                  <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}</td>
-                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up</span>` : ""}</td>` : ""}
+                  <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}${e.orderId ? html` <span class="t-faint">· pickup</span>` : ""}</td>
+                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up${e.topUpOnline ? " paid online" : ""}</span>` : ""}</td>` : ""}
                   ${all ? html`<td>${S.cafe(e.cafeId).short}</td>` : ""}
                   <td class="num">${S.redemptionRef(e)}</td>
                   <td class="num r">${fmt.rs(S.entryPayout(e))}</td>
@@ -494,22 +600,18 @@
               <p class="t-small t-muted">${month(p.monthStart)} so far · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}</p>
             </div>
             ${scopeToggle()}
-            <dl class="cv-stats">
-              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
-              <div><dt>Paid per cup</dt><dd class="num">${fmt.rs(p.perCup)}</dd><dd class="t-small t-muted num">On average. ${payRule()}.</dd></div>
-              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
-              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
-            </dl>
+            ${moneyStats(p, html`${fmt.rs(p.perCup)} a cup on average. ${payRule()}.`)}
 
             <section aria-labelledby="branches-h">
               <h3 class="eyebrow" id="branches-h">${all ? "By branch" : "This branch"}, ${month(p.monthStart)}</h3>
-              <table class="cv-table">
-                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Top-ups at the till</th><th scope="col" class="r">Payout</th></tr></thead>
+              <div class="cv-table-wrap"><table class="cv-table">
+                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">From cups</th><th scope="col" class="r">Paid orders</th><th scope="col" class="r">From paid orders</th><th scope="col" class="r">Payout</th></tr></thead>
                 <tbody>${p.rows.map((x) => html`<tr${x.cafe.id === cafeId && all ? raw(' class="is-here"') : ""}>
-                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.topUps)}</td><td class="num r">${fmt.rs(x.earned)}</td>
+                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.cupEarned)}</td><td class="num r">${x.paid.count}</td><td class="num r">${fmt.rs(x.paid.net)}</td><td class="num r">${fmt.rs(x.earned)}</td>
                 </tr>`)}</tbody>
-                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.rows.reduce((n, x) => n + x.topUps, 0))}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
-              </table>
+                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.cupEarned)}</td><td class="num r">${p.paid.count}</td><td class="num r">${fmt.rs(p.paid.net)}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
+              </table></div>
+              <p class="t-small t-muted num">Top-ups paid at your till this month: ${fmt.rs(p.topUps)}. They stay with you and aren’t in the payout.</p>
             </section>
 
             <section aria-labelledby="history-h">
@@ -525,8 +627,18 @@
                 </tr>`)}</tbody>
               </table>
             </section>
-            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account, per cup redeemed: ${payRule()}. Top-ups are paid by the member at your till and stay with you.</p>
+            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account. Cups: ${payRule()}, pickup cups included. Paid orders: what the member paid online, less the ${p.paid.feePct}% LCC fee. Top-ups paid at your till stay with you.</p>
           </div>`;
+      }
+
+      /** Cups and paid orders, side by side, then the total and the next payout. */
+      function moneyStats(p, cupLine) {
+        return html`<dl class="cv-stats">
+          <div><dt>Cups</dt><dd class="num">${fmt.rs(p.cupEarned)}</dd><dd class="t-small t-muted num">${fmt.cups(p.cups)} redeemed. ${cupLine}</dd></div>
+          <div><dt>Paid orders</dt><dd class="num">${fmt.rs(p.paid.net)}</dd><dd class="t-small t-muted num">${p.paid.count} ${p.paid.count === 1 ? "order" : "orders"}${p.paid.topUps ? ` and ${fmt.rs(p.paid.topUps)} in online top-ups` : ""}: ${fmt.rs(p.paid.gross)}, less the ${p.paid.feePct}% LCC fee (${fmt.rs(p.paid.fee)}).</dd></div>
+          <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
+          <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
+        </dl>`;
       }
 
       function payoutsHtml() {
@@ -539,12 +651,7 @@
               <h2 class="cv-title">Payouts</h2>
               <p class="t-small t-muted">${month(p.monthStart)} so far</p>
             </div>
-            <dl class="cv-stats">
-              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
-              <div><dt>Your rate per cup</dt><dd class="num">${fmt.rs(p.rate)}</dd><dd class="t-small t-muted num">${p.share}% of your ${fmt.rs(p.price)} counter price</dd></div>
-              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
-              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
-            </dl>
+            ${moneyStats(p, html`${fmt.rs(p.rate)} a cup: ${p.share}% of your ${fmt.rs(p.price)} counter price.`)}
 
             <section aria-labelledby="history-h">
               <div class="cv-section__bar">
@@ -561,7 +668,7 @@
                 </tr>`)}</tbody>
               </table>` : html`<p class="t-small t-muted">Your first payout comes on the ${S.partner(cafeId).payoutDay}th of next month.</p>`}
             </section>
-            <p class="t-small t-muted">Paid monthly, per cup redeemed, at the rate you agreed.</p>
+            <p class="t-small t-muted">Paid monthly. Cups at the rate you agreed, pickup cups included. Paid orders: what the member paid online, less the ${p.paid.feePct}% LCC fee.</p>
           </div>`;
       }
 
@@ -725,6 +832,19 @@
         if (tseg) { ui.selectSegment(tseg.parentElement, tseg.dataset.value); r.drink = { ...r.drink, temp: tseg.dataset.value, fromApp: false }; return paintDrink({ temp: false }); }
         const sseg = t.closest('[data-segmented="cvscope"] .segmented__option');
         if (sseg) { if (scope === sseg.dataset.value) return; scope = sseg.dataset.value; paintSection(); return $(`[data-segmented="cvscope"] [data-value="${scope}"]`, el)?.focus(); }
+        const adv = t.closest("[data-advance]");
+        if (adv) return advance(adv.dataset.advance);
+        const ro = t.closest("[data-reject-open]");
+        if (ro) { rejecting = ro.dataset.rejectOpen; paintOrders(); return $(`[data-reject="${rejecting}"]`, el)?.focus(); }
+        const rk = t.closest("[data-reject-keep]");
+        if (rk) { rejecting = null; return paintOrders({ focusId: rk.dataset.rejectKeep }); }
+        const rj = t.closest("[data-reject]");
+        if (rj) {
+          rejecting = null;
+          const res = A.rejectPickup(rj.dataset.reject, rj.dataset.reason);
+          if (res.ok) ui.toast(`Order rejected. ${res.order.memberName} has been told${res.order.pay === "cup" ? " and has the cup back" : " and will be refunded"}.`, { duration: 4200 });
+          return paintOrders();
+        }
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
@@ -856,6 +976,7 @@
           if (id !== cafeId) return;
           wasPaused = S.isPaused(cafeId);
           paintHead(); paintPause();
+          if (section === "orders") paintOrders();
           if (r.state === "found") check(r.code, { focus: false });
         }),
         store.on("redeem", ({ entry }) => {
@@ -873,11 +994,23 @@
           // Another window redeemed for the member on screen: refresh their numbers
           if (r.state === "found" && r.lookup.member.id === entry.memberId) check(r.code, { focus: false });
         }),
+        // Pickup orders from phones (or another café window)
+        store.on("pickup", ({ order, prev, quiet }) => {
+          if (order.cafeId !== cafeId) return;
+          paintOrdersCount();
+          if (section === "orders") paintOrders({ freshId: !prev ? order.id : null, focusId: el.contains(document.activeElement) && document.activeElement.dataset?.advance === order.id ? order.id : null });
+          else if (section === "payouts" && order.status === "collected") paintSection();
+          if (quiet) return;
+          const name = S.pickupDrinkName(order);
+          if (!prev && order.status === "placed") ui.toast(`New pickup order: ${order.memberName}, ${name}.`, { iconName: "clock", duration: 4200 });
+          else if (order.status === "cancelled") ui.toast(`${order.memberName} cancelled their ${name}.`, { iconName: "info" });
+        }),
         store.on("partner:settings", ({ cafeId: id }) => { if (id === cafeId) { paintHead(); if (r.state === "found") check(r.code, { focus: false }); } }),
         store.on("cafe:viewing", ({ cafeId: id }) => {
           cafeId = id;
           clearTimeout(resetTimer); clearTimeout(scanTimer);
           r = freshRedeem();
+          rejecting = null;
           A.refreshAutoBusy(cafeId);
           renderAll();
           $("[data-viewing]", el)?.focus();
@@ -886,7 +1019,7 @@
           A.refreshAutoBusy(cafeId);  // cups age out of the 30-minute window
           paintHead(); paintBusy();
           const paused = S.isPaused(cafeId);
-          if (paused !== wasPaused) { wasPaused = paused; paintPause(); }
+          if (paused !== wasPaused) { wasPaused = paused; paintPause(); if (section === "orders") paintOrders(); }
         }),
         // A plan bought or switched (here or on a phone) changes reserved cups
         store.on("plan", () => { if (r.state === "found") check(r.code, { focus: false }); }),

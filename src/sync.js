@@ -17,8 +17,10 @@
    store.applyRemote(), which never re-sends, so there are no echo loops.
 
    What travels: café status, and ledger entries (redeem, purchase, expire,
-   gift) with the plan header of any member whose plan changed. Entries are
-   append-only with stable ids, so applying one twice is harmless.
+   gift, reward, hold, release) with the plan header of any member whose
+   plan changed. Entries are append-only with stable ids, so applying one
+   twice is harmless. Pickup orders travel whole (`pickup`); a status only
+   moves forward, so a late or repeated message can't undo one.
 
    Join handshake: a window that joins says “hello”. A café window answers
    with statuses plus this session’s ledger entries and plan changes; any
@@ -27,8 +29,9 @@
    Approved exception to “no backend” (see CLAUDE.md).
    // BACKEND: replace Broadcast with Supabase tables + Postgres Changes:
    //   cafe_status (cafe_id, status, updated_at), ledger (insert-only:
-   //   purchase/redeem/gift/expire), subscriptions (member_id, plan, cycle,
-   //   renews_at). Balances stay derived from the ledger. Rooms go away.
+   //   purchase/redeem/gift/expire/hold/release), subscriptions (member_id,
+   //   plan, cycle, renews_at), orders (pickup orders and their status).
+   //   Balances stay derived from the ledger. Rooms go away.
    ===================================================================== */
 (function () {
   "use strict";

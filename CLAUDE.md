@@ -84,8 +84,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   under the real rules), club rules (levels, badges, perks, gatherings)
 - `state.js` — one store with pub-sub (`store.on`, `actions`, `select`), the
   ledger and derived balances, pricing, pass codes, redemption rules, the
-  club (`select.club`, gatherings, RSVPs), gifts, presenter sessions,
-  `LCC.fmt` formatting
+  club (`select.club`, gatherings, RSVPs), gifts, pickup orders
+  (`state.orders`), presenter sessions, `LCC.fmt` formatting
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher (with the presenter Demo menu),
@@ -94,8 +94,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   Supabase Realtime Broadcast (other devices), join handshake, `LCC.sync`
 - `kit.js` — `#/kit` component sheet wired to the real store
 - `cafe.css`, `cafe.js` — café partner view (`#/cafe`): header (staff on
-  shift, taking or paused), Counter, Today, Payouts, Settings; a left rail
-  on tablets (768px and up), segmented tabs on phones
+  shift, taking or paused), Counter, Orders, Today, Payouts, Settings; a
+  left rail on tablets (768px and up), segmented tabs on phones
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
   bar, Pass, Home, Map, café sheet, club milestone toasts
 - `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
@@ -103,7 +103,10 @@ favicon are inlined). Edit `src/`, never `index.html`.
   branch row or pin): your cups, menu with Hot / Iced, ordering ("Use a
   cup"), branches, plans
 - `app-plan.js` — plan picker (Explorer / My cafés), simulated payment
-  (`#/app/plan`, `#/app/plan/pay`)
+  (`#/app/plan`, `#/app/plan/pay`); shares its payment helpers as
+  `LCC.payKit`
+- `app-order.js` — pickup orders (`#/app/order`, `#/app/order/pay`) and the
+  order status card (Home, profile drawer); `LCC.appOrder`
 - `app-club.js` — Club tab (`#/app/club`: member card, status, passport,
   badges, perks, gatherings, invite) and gifting (`#/app/gift`)
 - `app-welcome.js` — onboarding (`#/app/welcome`) and card issue
@@ -140,8 +143,9 @@ This order overrides any order implied by the spec.
 5. [x] Member app: Club, gifting, onboarding
 6. [x] Landing page and waitlist
 7. [x] Explorer and My cafés plans, cups ledger
+8. [x] Pickup orders: order ahead with a cup or online payment, café queue
 
-Build order was 1, 2, 3, 4, 4.5, 6, 7, 5 (6 and 7 came first on request).
+Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8 (6 and 7 came first on request).
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
@@ -201,9 +205,10 @@ next pass until asked.**
 
 ## Ledger
 
-- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward,
-  memberId, cafeId|null, cups, at, cycle }`. `cups` is signed (purchase and
-  reward +, the rest −). Redeem entries also carry `drinkId`, `credits`,
+- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release,
+  memberId, cafeId|null, cups, at, cycle }`. `cups` is signed (purchase,
+  reward and release +, the rest −). `hold` / `release` belong to pickup
+  orders (they carry `orderId`; see Pickup orders). Redeem entries also carry `drinkId`, `credits`,
   `firstVisit` (and `bonus` when a free cup is spent); the café's redemption
   list is read from them. Gift entries carry `giftCode` and `toName`; reward
   entries a `reason` (`passport-5`, `passport-all`, `invite`, `invited`).
@@ -228,7 +233,8 @@ next pass until asked.**
   computer) and Supabase Realtime Broadcast (other devices). Messages are
   de-duplicated by id; incoming ones go through `store.applyRemote`, which
   never re-sends.
-- What travels: café status (`cafe:status`); ledger entries of every type
+- What travels: pickup orders (`pickup`, the whole order; status only moves
+  forward, finished ones never change; in join snapshots); café status (`cafe:status`); ledger entries of every type
   with a plan header for members whose plan changed (`ledger`; newest
   `changedAt` wins; members who joined in this session also send their
   profile, so other devices can look them up); RSVPs (`rsvp`; newest answer
@@ -239,6 +245,53 @@ next pass until asked.**
   quietly (no redeem events, toasts or success screens).
 - If supabase-js can't load or connect, sync falls back to same-computer
   windows and shows "Offline, this device only".
+
+## Pickup orders (Pass 8)
+
+- Member app: "Order for pickup" is Home's primary button (Change plan and
+  Send a gift are quiet links under it), on every café page and drink row,
+  the brand menu's drink sheet ("Use a cup at the counter" is the old
+  pass choice) and the map sheet. `#/app/order`: café or branch (defaults
+  to the nearest one taking orders), drink, Hot / Iced, pickup time
+  ("ASAP, about 10 min" or 15-minute slots until 15 min before closing,
+  `select.pickupTimes`), and Use a cup or Pay the full price. A cup's
+  top-up, or the full price, is paid online on `#/app/order/pay` (same
+  simulated payment as plans; a wallet ending 0000 fails).
+- One drink per order (the data is per order; place another for a second).
+- `state.orders[id]`: `{ memberId, memberName, cafeId, brandId, drinkId,
+  temp, price, credits, topUp, pay: "cup"|"paid", amount (paid online),
+  payment, asap, pickupAt, status, placedAt, updatedAt, times, reason }`.
+  Status: placed → making → ready → collected, or cancelled / rejected.
+  Pickup code and reference are derived from the id
+  (`select.pickupCode`, `pickupRef`; cup orders reuse `redemptionRef` of
+  their redeem entry `rd_<orderId>`).
+- Cups: placing a cup order writes `hold` (−cups, `hd_<id>`); cancel or
+  reject writes `release` (+cups, `rl_<id>`); Collected writes the release
+  plus an ordinary `redeem` (with `orderId`, and `topUpOnline` when the
+  top-up was paid in the app). So the counter's checks count held cups
+  (`usedToday`, `usedHereThisCycle`, `cafeCupsToday`), and a collected cup
+  pays out, stamps the passport and counts for the club like any other.
+- Cancel: the member, while the order is placed and within
+  `rules.orderCancelMinutes` (2). Reject: the café, before Ready, with
+  "Out of stock" or "Closing soon"; the cup comes back, paid amounts are
+  marked refunded. No new orders while the café is paused or closed.
+- Café view Orders tab: this branch's queue, oldest first, big Start /
+  Ready / Collected buttons, Reject with a reason, the till line and
+  reference on every ticket; a badge counts new (placed) orders. Done
+  today lists finished ones.
+- Money: cup orders pay out exactly as redemptions. Paid orders and online
+  top-ups: the café gets `amount × (1 − rules.orderFeeShare)` (5% LCC fee),
+  when collected (`select.paidOrders`, `pickupPayout`). Payouts shows Cups
+  and Paid orders separately, per branch and for all branches. Top-ups
+  paid at the till stay out of the payout, as before.
+- Seed: a few collected paid orders a day per café this month
+  (`data.js` `orders`), so Payouts has a paid-orders figure.
+- Toasts on the phone: "<café> is making your <drink>.", "Your <drink> is
+  ready at <Double Shot Gulberg>." (`select.pickupPlace`), rejected (with
+  the reason and the refund), collected. The café gets "New pickup order".
+- // BACKEND: an orders table (Postgres Changes for the queue), holds and
+  releases as ledger inserts in the same transaction, refunds through the
+  payment provider.
 
 ## Decisions
 

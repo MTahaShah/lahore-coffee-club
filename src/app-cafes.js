@@ -293,7 +293,7 @@
           ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
               <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Change my cups</button>`
           : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
-              <button type="button" class="btn btn--primary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
       }
       const line = here.left > 0
         ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
@@ -335,11 +335,14 @@
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
               <ul role="list">
-                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li class="row">
-                  <div class="row__main"><div class="row__title">${d.name}</div><div class="row__meta num">${fmt.rs(d.price)} at the counter</div></div>
-                  <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, uses ${fmt.cups(d.credits)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter</span></span>
+                    <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                  </button>
                 </li>`)}
               </ul>
+              <p class="t-micro t-faint">Tap a drink to order it for pickup.</p>
             </section>
 
             <section class="app-section" aria-labelledby="visits-h">
@@ -347,7 +350,10 @@
               <div data-visits>${visitsHtml()}</div>
             </section>
           </div>
-          <div class="sticky-action" data-detail-action>${actionHtml()}</div>
+          <div class="sticky-action">
+            <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
+            <div class="stack" style="--stack-gap:var(--space-3)" data-detail-action>${actionHtml()}</div>
+          </div>
         </div>`.s,
       mount() {
         // The bar shows the name once the big title scrolls away

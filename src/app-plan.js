@@ -284,6 +284,8 @@
     },
     cvc: (v) => (/^\d{3,4}$/.test(v.trim()) ? "" : "The 3 digits on the back of your card."),
   };
+  // Shared with pickup orders (app-order.js), which pay the same simulated way
+  LCC.payKit = { METHODS, methodLabel, digits, formatPhone, formatCard, formatExp, CHECKS };
 
   REG.pay = (ctx) => {
     const { view } = ctx;

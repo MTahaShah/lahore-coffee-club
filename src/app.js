@@ -4,10 +4,12 @@
 
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
             #/app/map · #/app/club · #/app/gift · #/app/plan
-            #/app/plan/pay · #/app/welcome · #/app/welcome/card
+            #/app/plan/pay · #/app/order · #/app/order/pay
+            #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
    app-cafes.js, the plan picker and payment in app-plan.js, the Club
-   and gifting in app-club.js, onboarding in app-welcome.js; they add
+   and gifting in app-club.js, pickup orders in app-order.js,
+   onboarding in app-welcome.js; they add
    screen factories to LCC.appScreens and get a small ctx object.
 
    Everything reads the shared store, so a redemption or status change
@@ -140,6 +142,8 @@
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
+        if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
         if (a === "plan" && REG.plan) return { key: "plan", tab: "home", flow: true, make: () => REG.plan(ctx) };
         if (a === "club" && REG.club) return { key: "club", tab: "club", make: () => REG.club(ctx) };
@@ -214,8 +218,9 @@
               </div>
               <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
               <div class="cafe-sheet__actions">
-                <a class="btn btn--primary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
-                <button type="button" class="btn btn--secondary btn--block" data-directions="${c.id}">Directions</button>
+                <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
+                <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
+                <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
               </div>
             </div>`.s;
           ui.openSheet($("#cafe-sheet", el));
@@ -240,8 +245,9 @@
               </ul>
             </div>
             <div class="cafe-sheet__actions">
-              <button type="button" class="btn btn--primary btn--block" data-directions="${c.id}">Directions</button>
+              <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
               <a class="btn btn--secondary btn--block" href="#/app/cafes/${c.id}">More about ${c.name}</a>
+              <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
             </div>
           </div>`;
         ui.openSheet($("#cafe-sheet", el));
@@ -255,13 +261,23 @@
       };
 
       /* Home ------------------------------------------------------------ */
-      // One calm, centred block: the brick ring, cups left, renewal, two actions.
+      // One calm, centred block: the brick ring, cups left, renewal, and
+      // "Order for pickup" (plan and gift are quieter links under it). An
+      // open pickup order sits above the ring, which shrinks to make room.
       // Recent activity, plan details and help live in the profile drawer.
       function homeScreen() {
         const m = member();
+        const hasPickup = () => !!LCC.appOrder?.visible().length;
+        let cancelTimer = null;
+        function paintPickups() {
+          const box = $("[data-home-pickups]", view);
+          if (!box) return;
+          box.innerHTML = LCC.appOrder ? LCC.appOrder.cardsHtml().s : "";
+          $(".home", view)?.classList.toggle("has-pickup", hasPickup());
+        }
         return {
           html: html`
-            <div class="app-screen home">
+            <div class="app-screen home${hasPickup() ? " has-pickup" : ""}">
               <div class="app-top">
                 <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
                 ${profileButton()}
@@ -270,6 +286,7 @@
                 <p class="t-small t-muted">${fmt.date(Date.now())}</p>
                 <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
               </div>
+              <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
               <div class="home__center">
                 <div class="ring ring--home" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
@@ -283,15 +300,23 @@
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
                 </div>
                 <div class="home__actions">
-                  <button type="button" class="btn btn--primary btn--block" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-                  <a class="btn btn--secondary btn--block" href="#/app/gift">Send a gift</a>
+                  <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
+                  <div class="home__more">
+                    <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                    <a class="btn btn--link" href="#/app/gift">Send a gift</a>
+                  </div>
                 </div>
               </div>
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
+            // The cancel countdown on an order card
+            cancelTimer = setInterval(() => { if (LCC.appOrder?.tickCancel(view)) paintPickups(); }, 1000);
+            return () => clearInterval(cancelTimer);
           },
           on: {
+            pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
+            dismissPickup: paintPickups,
             // Redemptions, gifts and free cups, from this window or another device
             ledger: ({ entries }) => {
               if (!entries.some((e) => e.memberId === member().id)) return;
@@ -344,6 +369,11 @@
               <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
             </section>
 
+            <section class="drawer__section" aria-labelledby="dr-pickups">
+              <h3 class="eyebrow" id="dr-pickups">Pickup orders</h3>
+              <div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>
+            </section>
+
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
@@ -394,7 +424,7 @@
           return html`<li class="row${r.id === newId ? " enter" : ""}">
             <div class="row__main">
               <div class="row__title">${S.entryDrinkName(r)}</div>
-              <div class="row__meta">${S.placeName(r.cafeId)}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              <div class="row__meta">${S.placeName(r.cafeId)}${r.orderId ? " · pickup" : ""}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
             </div>
             <span class="badge">${fmt.cups(r.credits)}</span>
           </li>`;
@@ -438,7 +468,7 @@
           },
           on: {
             pass: () => rotate(),
-            redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
+            redeem: ({ entry, member: who }) => { if (who.id === member().id && !entry.orderId) showSuccess(entry); },
             member: () => paintMeta(),
             ledger: () => paintMeta(),
             order: ({ memberId }) => { if (memberId !== member().id) return; const box = $("[data-pass-order]", view); if (box) box.innerHTML = orderHtml().s; },
@@ -674,6 +704,22 @@
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
+        const so = t.closest("[data-start-order]");
+        if (so) {
+          LCC.appOrder?.start({ cafeId: so.dataset.startOrder || null, drinkId: so.dataset.drink || null, temp: so.dataset.temp || null });
+          go("#/app/order");
+          return;
+        }
+        const cp = t.closest("[data-cancel-pickup]");
+        if (cp) {
+          const o = S.pickup(cp.dataset.cancelPickup);
+          const res = A.cancelPickup(cp.dataset.cancelPickup);
+          ui.toast(res.ok ? `Order cancelled. ${LCC.appOrder.backLine(o)}` : res.message, { iconName: res.ok ? "check" : "info", duration: 4200 });
+          if (!res.ok) repaintPickups();
+          return;
+        }
+        const dp = t.closest("[data-dismiss-pickup]");
+        if (dp) { LCC.appOrder?.dismiss(dp.dataset.dismissPickup); repaintPickups(); return; }
         if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
         const start = t.closest("[data-start-plan]");
         if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
@@ -707,13 +753,38 @@
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
+      function repaintPickups() {
+        active.on?.dismissPickup?.();
+        const box = $("#profile-drawer [data-drawer-pickups]", el);
+        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+      }
       // The drawer's recent activity follows the ledger while it is open
       const offDrawer = store.on("ledger", ({ entries }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup"].map((type) => store.on(type, dispatch(type)));
+
+      // Pickup orders: the drawer follows along, and the café's moves get a word
+      offs.push(store.on("pickup", ({ order, prev, quiet }) => {
+        if (order.memberId !== member().id) return;
+        const box = $("#profile-drawer [data-drawer-pickups]", el);
+        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+        if (quiet || prev === order.status) return;
+        const name = S.pickupDrinkName(order), place = S.pickupPlace(order.cafeId);
+        if (order.status === "ready") ui.toast(`Your ${name} is ready at ${place}.`, { iconName: "check", duration: 6000 });
+        else if (order.status === "making" && prev === "placed") ui.toast(`${place} is making your ${name}.`, { iconName: "clock" });
+        else if (order.status === "rejected") ui.toast(`${place} couldn’t make your ${name}. ${LCC.appOrder.backLine(order)}`, { iconName: "info", duration: 6000 });
+        else if (order.status === "collected") ui.toast(`Collected. Enjoy your ${name}.`);
+      }));
+      // The drawer's cancel countdown, while it's open
+      const drawerTimer = setInterval(() => {
+        const d = $("#profile-drawer", el);
+        const box = $("[data-drawer-pickups]", d);
+        if (d?.dataset.open === "true" && box && LCC.appOrder?.tickCancel(box)) box.innerHTML = LCC.appOrder.drawerHtml().s;
+      }, 1000);
+      offs.push(() => clearInterval(drawerTimer));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {
@@ -744,7 +815,7 @@
       }));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
-        if (who.id !== member().id || active.key === "pass") return;
+        if (who.id !== member().id || active.key === "pass" || entry.orderId) return;
         ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(S.balance(who.id).left)} left.`);
       }));
 
