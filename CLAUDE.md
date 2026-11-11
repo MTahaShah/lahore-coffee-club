@@ -276,6 +276,6 @@ next pass until asked.**
   staff PINs, payout account and history. Settings are not synced.
 - Demo staff PINs at Kiln & Bean: Bilal 1234, Hira 5678, Saad 2468.
 - Payouts: this month from the ledger (calendar month) × the café's rate
-  (`payoutPerCup`; Kiln & Bean Rs 480 = 74% of Rs 650); next payout on the
+  (`payoutPerCup`; Kiln & Bean Rs 520 = 80% of Rs 650); next payout on the
   5th; three months of seeded history. CSV export and PDF statement are
   simulated with a toast.

@@ -58,7 +58,7 @@
       name: "Kiln & Bean",
       area: "gulberg",
       price: 650,
-      payoutPerCup: 480,
+      payoutPerCup: 520,
       tags: ["Roastery", "Pastries"],
       status: "moderate",
       statusUpdatedAt: minsAgo(6),
