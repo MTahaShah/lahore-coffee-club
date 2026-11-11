@@ -1,7 +1,8 @@
 /* =====================================================================
    Lahore Coffee Club — data.js
-   Fictional seed data. No real brands. Timestamps are relative to page
-   load so “updated 6 min ago” always reads true.
+   Seed data. Fictional, except one demo partner: Double Shot, a real
+   Lahore chain, shown by name only (no logo; a neutral "DS" monogram).
+   Timestamps are relative to page load so “updated 6 min ago” reads true.
    // BACKEND: GET /cafes, GET /tiers, GET /me replace this file.
    ===================================================================== */
 (function () {
@@ -45,14 +46,132 @@
     { id: "dha",        name: "DHA",        x: 760, y: 560 },
     { id: "model-town", name: "Model Town", x: 520, y: 600 },
     { id: "johar-town", name: "Johar Town", x: 280, y: 640 },
+    { id: "cantt",      name: "Cantt",      x: 720, y: 410 },
   ];
+
+  /* Brands: one membership, many branches ---------------------------------
+     A brand's cups belong to the brand, not a branch: a member's Double
+     Shot cups work at any Double Shot branch. Each redemption records the
+     branch that served it, for payouts only.
+     // BACKEND: brands, brand_plans and brand_menu tables                */
+  const brands = [
+    {
+      id: "doubleshot",
+      name: "Double Shot",
+      monogram: "DS",
+      line: "Seven branches across Lahore. One membership for all of them.",
+      menuNote: "Prices from Double Shot’s public menu, Nov 2026. Demo only.",
+      // Economics, in one place:
+      //   a cup covers any drink up to coverUpTo; above that the member pays
+      //   the difference at the till ("Cup + Rs X").
+      //   payout per cup = payoutShare × the drink's counter price, capped at
+      //   the covered amount (72% of 880 = Rs 634 at most).
+      economics: { coverUpTo: 880, payoutShare: 0.72 },
+      plans: [
+        { id: "ds8",  cups: 8,  price: 5600 },
+        { id: "ds15", cups: 15, price: 9750 },
+        { id: "ds22", cups: 22, price: 13500 },
+      ],
+      // Drinks only. hot / iced: the counter price in Rs, or null if not served that way.
+      // Where the menu didn't say hot or iced, espresso-bar and seasonal drinks are hot
+      // and frappes, smoothies, spritzes, iced teas and ube drinks are iced.
+      menu: [
+        { id: "ds-espresso",      section: "Espresso", name: "Double Shot Espresso", hot: 540,  iced: null },
+        { id: "ds-americano",     section: "Espresso", name: "Americano",            hot: 585,  iced: 585 },
+        { id: "ds-orange-amer",   section: "Espresso", name: "Orange Americano",     hot: 650,  iced: 695 },
+        { id: "ds-cortado",       section: "Espresso", name: "Cortado",              hot: 615,  iced: 615 },
+        { id: "ds-flat-white",    section: "Espresso", name: "Flat White",           hot: 680,  iced: 680 },
+        { id: "ds-latte",         section: "Espresso", name: "Latte",                hot: 710,  iced: 710 },
+        { id: "ds-cappuccino",    section: "Espresso", name: "Cappuccino",           hot: 720,  iced: null },
+        { id: "ds-whipped",       section: "Espresso", name: "Whipped Latte",        hot: 720,  iced: 720 },
+        { id: "ds-v60",           section: "Espresso", name: "V60",                  hot: 1095, iced: 1095 },
+
+        { id: "ds-spanish",       section: "Lattes", name: "Spanish Latte",          hot: 785,  iced: 785 },
+        { id: "ds-vanilla",       section: "Lattes", name: "Vanilla Latte",          hot: 785,  iced: 785 },
+        { id: "ds-caramel",       section: "Lattes", name: "Caramel Latte",          hot: 785,  iced: 785 },
+        { id: "ds-hazelnut",      section: "Lattes", name: "Hazelnut Latte",         hot: 785,  iced: 785 },
+        { id: "ds-toffee-nut",    section: "Lattes", name: "Toffee Nut Latte",       hot: 785,  iced: 785 },
+        { id: "ds-honey",         section: "Lattes", name: "Honey Latte",            hot: 785,  iced: 785 },
+        { id: "ds-mocha-101",     section: "Lattes", name: "Mocha 101",              hot: 795,  iced: 795 },
+        { id: "ds-cinnamon",      section: "Lattes", name: "Sri Lankan Cinnamon Spice", hot: 765, iced: null },
+        { id: "ds-dark-latte",    section: "Lattes", name: "Dark Latte",             hot: 870,  iced: 870 },
+        { id: "ds-salted-caramel", section: "Lattes", name: "Salted Caramel Latte",  hot: 910,  iced: 910 },
+        { id: "ds-pistachio",     section: "Lattes", name: "Pistachio Latte",        hot: null, iced: 995 },
+        { id: "ds-pumpkin",       section: "Lattes", name: "Pumpkin Spice Latte",    hot: 1040, iced: null },
+        { id: "ds-peppermint",    section: "Lattes", name: "Peppermint Mocha",       hot: 980,  iced: null },
+        { id: "ds-coconut-latte", section: "Lattes", name: "Coconut Latte",          hot: 1650, iced: 1650 },
+        { id: "ds-coconut-amer",  section: "Lattes", name: "Coconut Americano",      hot: null, iced: 900 },
+
+        { id: "ds-matcha",        section: "Matcha", name: "Matcha",                 hot: 840,  iced: 840 },
+        { id: "ds-elderflower-m", section: "Matcha", name: "Elderflower Iced Matcha", hot: null, iced: 840 },
+        { id: "ds-vanilla-m",     section: "Matcha", name: "Vanilla Matcha",         hot: null, iced: 1040 },
+        { id: "ds-strawberry-m",  section: "Matcha", name: "Strawberry Matcha",      hot: null, iced: 1040 },
+        { id: "ds-coconut-m",     section: "Matcha", name: "Coconut Matcha",         hot: null, iced: 1040 },
+        { id: "ds-mango-m",       section: "Matcha", name: "Mango Matcha",           hot: null, iced: 1040 },
+        { id: "ds-banana-m",      section: "Matcha", name: "Toasted Banana Matcha",  hot: null, iced: 1040 },
+        { id: "ds-earl-m",        section: "Matcha", name: "Citrus Earl Matcha",     hot: null, iced: 1040 },
+        { id: "ds-matcha-frapp",  section: "Matcha", name: "Matcha Frappuccino",     hot: null, iced: 1040 },
+
+        { id: "ds-caramel-f",     section: "Frappes", name: "Caramel Frappuccino",   hot: null, iced: 880 },
+        { id: "ds-vanilla-f",     section: "Frappes", name: "Vanilla Frappuccino",   hot: null, iced: 880 },
+        { id: "ds-hazelnut-f",    section: "Frappes", name: "Hazelnut Frappuccino",  hot: null, iced: 880 },
+        { id: "ds-mocha-f",       section: "Frappes", name: "Mocha Frappuccino",     hot: null, iced: 880 },
+        { id: "ds-toffee-f",      section: "Frappes", name: "Toffee Nut Frappuccino", hot: null, iced: 880 },
+        { id: "ds-hazel-rush",    section: "Frappes", name: "Hazel Rush",            hot: null, iced: 1210 },
+        { id: "ds-frosted-toffee", section: "Frappes", name: "Frosted Toffee",       hot: null, iced: 1220 },
+        { id: "ds-java-chip",     section: "Frappes", name: "Java Chip",             hot: null, iced: 1250 },
+        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa",                hot: null, iced: 1290 },
+
+        { id: "ds-choc-classic",  section: "Dark chocolate", name: "Classic Chocolate", hot: 980, iced: 980 },
+        { id: "ds-choc-orange",   section: "Dark chocolate", name: "Orange Chocolate",  hot: 980, iced: 980 },
+        { id: "ds-choc-mint",     section: "Dark chocolate", name: "Mint Chocolate",    hot: 980, iced: 980 },
+        { id: "ds-choc-bounty",   section: "Dark chocolate", name: "Bounty Chocolate",  hot: 980, iced: 980 },
+        { id: "ds-choc-cortado",  section: "Dark chocolate", name: "Dark Chocolate Cortado", hot: 910, iced: null },
+
+        { id: "ds-ube-latte",     section: "Ube", name: "Ube Latte",                 hot: null, iced: 955 },
+        { id: "ds-ube-cloud",     section: "Ube", name: "Ube Cloud",                 hot: null, iced: 1130 },
+        { id: "ds-ube-smoothie",  section: "Ube", name: "Ube Smoothie",              hot: null, iced: 1180 },
+
+        { id: "ds-chai",          section: "Zero shot and more", name: "Chai Latte",            hot: 650, iced: null },
+        { id: "ds-peach-tea",     section: "Zero shot and more", name: "Peach Iced Tea",        hot: null, iced: 670 },
+        { id: "ds-pom-tea",       section: "Zero shot and more", name: "Pomegranate Iced Tea",  hot: null, iced: 670 },
+        { id: "ds-elder-tea",     section: "Zero shot and more", name: "Elderflower Iced Tea",  hot: null, iced: 670 },
+        { id: "ds-berry-spritz",  section: "Zero shot and more", name: "Berry Blast Spritz",    hot: null, iced: 670 },
+        { id: "ds-honey-spritz",  section: "Zero shot and more", name: "Honey Lemon Spritz",    hot: null, iced: 700 },
+        { id: "ds-coco-spritz",   section: "Zero shot and more", name: "Coconut Lemon Spritz",  hot: null, iced: 700 },
+        { id: "ds-pb-smoothie",   section: "Zero shot and more", name: "Peanut Butter Date Smoothie", hot: null, iced: 840 },
+        { id: "ds-berry-smoothie", section: "Zero shot and more", name: "Berry Smoothie",       hot: null, iced: 840 },
+        { id: "ds-mango-smoothie", section: "Zero shot and more", name: "Mango Drift Smoothie", hot: null, iced: 840 },
+        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980 },
+      ],
+    },
+  ];
+  const DS = brands[0];
+  // Branch cafés read the brand menu as their drinks (one cup each; the top-up is separate)
+  const brandDrinks = (b) => b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 }));
 
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
      payoutPerCup: the rate the café set; what we pay them per cup.
      avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
+  // A branch: its own pin, row, hours and busy level; the brand's menu and cups.
+  const branch = (id, branchName, pinName, area, x, y, status, statusMins, hours, distanceKm, avgDailyCups, busyByHour) => ({
+    id, brandId: DS.id, name: DS.name, branch: branchName, short: pinName.replace(/^DS · /, ""), label: `${DS.name} · ${branchName.replace(" · ", " ")}`, pinName,
+    area, price: 710, payoutPerCup: Math.round(DS.economics.coverUpTo * DS.economics.payoutShare),
+    tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
+    blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
+  });
+  const LATE = { open: "8:00", close: "2:00", label: "8 am – 2 am" };
+  const EVENING = [0.15, 0.3, 0.4, 0.45, 0.4, 0.4, 0.45, 0.4, 0.45, 0.55, 0.7, 0.85, 0.9, 0.8, 0.65, 0.45];
   const cafes = [
+    branch("ds-gulberg",  "Gulberg · Falcon Complex", "DS · Gulberg",  "gulberg",    480, 315, "moderate", 4,  LATE, 1.1, 16, EVENING),
+    branch("ds-cantt",    "Cantt · C Block",          "DS · Cantt",    "cantt",      740, 430, "quiet",    9,  LATE, 4.2, 9,  EVENING),
+    branch("ds-modeltown", "Model Town",              "DS · Model Town", "model-town", 560, 575, "moderate", 7, LATE, 5.4, 10, EVENING),
+    branch("ds-dha6",     "DHA · Phase 6",            "DS · Phase 6",  "dha",        810, 690, "packed",   3,  LATE, 9.6, 13, EVENING),
+    branch("ds-lalakjan", "DHA · Lalak Jan Chowk",    "DS · Lalak Jan", "dha",       720, 505, "moderate", 12, LATE, 7.3, 11, EVENING),
+    branch("ds-pine",     "Pine Avenue",              "DS · Pine Ave", "dha",        630, 670, "quiet",    16, LATE, 8.8, 8,  EVENING),
+    branch("ds-dolmen",   "DHA · Dolmen Mall",        "DS · Dolmen",   "dha",        800, 640, "moderate", 6,  { open: "10:00", close: "23:00", label: "10 am – 11 pm" }, 9.9, 12, [0, 0, 0.35, 0.45, 0.5, 0.55, 0.6, 0.6, 0.65, 0.75, 0.85, 0.85, 0.7, 0.5, 0.3, 0.1]),
     {
       id: "kiln",
       name: "Kiln & Bean",
@@ -247,7 +366,7 @@
     pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    plan: { type: "explorer", tierId: "regular" },
+    plan: { type: "brand", brandId: "doubleshot", planId: "ds15" },   // 15 Double Shot cups, 11 left
     cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
@@ -267,6 +386,11 @@
     demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356),
     demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }, 418),
     demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 529),
+    // Double Shot demo members (counter codes): Rabia 5 of 8 left, Kamran at the
+    // daily limit at Gulberg (2 today), Nida no cups left.
+    demo("m_rabia",  "Rabia",  "her", { type: "brand", brandId: "doubleshot", planId: "ds8" },  "341862", {}, 233),
+    demo("m_kamran", "Kamran", "him", { type: "brand", brandId: "doubleshot", planId: "ds22" }, "905417", {}, 311),
+    demo("m_nida",   "Nida",   "her", { type: "brand", brandId: "doubleshot", planId: "ds8" },  "274639", {}, 447),
   ];
 
   // Small seeded PRNG. Seeded by date, so every open window builds the same month.
@@ -325,9 +449,11 @@
   const ledger = [];
   let seq = 0;
   const tierCups = (id) => tiers.find((t) => t.id === id).cups;
+  const brandPlanCups = (plan) => brands.find((b) => b.id === plan.brandId).plans.find((x) => x.id === plan.planId).cups;
   function purchase(m) {
     const at = m.cycleStartedAt;
-    if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
+    if (m.plan.type === "brand") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, brandId: m.plan.brandId, cups: brandPlanCups(m.plan), at, cycle: m.cycle });
+    else if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
     else Object.entries(m.plan.allocation).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId, cups: n, at, cycle: m.cycle }));
   }
   members.forEach(purchase);
@@ -337,6 +463,16 @@
   function redeem(m, cafeId, drinkId, at, firstVisit = false) {
     const credits = drinkCredits(cafeId, drinkId);
     ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit, at, cycle: m.cycle });
+  }
+  /** A cup at a brand branch: one cup, the drink as served (hot or iced), its
+      counter price and any top-up the member paid at the till. */
+  const dsItem = (drinkId) => DS.menu.find((d) => d.id === drinkId);
+  function brandRedeem(m, cafeId, drinkId, temp, at, firstVisit = false) {
+    const d = dsItem(drinkId);
+    const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
+    const price = d[t];
+    ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price,
+      topUp: Math.max(0, price - DS.economics.coverUpTo), firstVisit, at, cycle: m.cycle });
   }
 
   /* Mumtaz’s earlier months --------------------------------------------
@@ -373,7 +509,6 @@
   const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
   const byId = Object.fromEntries(members.map((m) => [m.id, m]));
   const HISTORY = {
-    m_ayesha: [["noon", "noon-capp", clockAgo(14, 8, 20)], ["slowpour", "sp-v60", clockAgo(10, 17, 40)], ["grind", "gg-latte", clockAgo(6, 11, 10)], ["slowpour", "sp-gibraltar", clockAgo(2, 19, 5)]],
     m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
     m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
     m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
@@ -382,11 +517,29 @@
   };
   Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
 
+  /* Double Shot, this cycle. Mumtaz: 4 of 15 used at four branches (one
+     before 9 am), so 11 left. Rabia: 3 of 8. Kamran: 6 of 22, two of them
+     at Gulberg today (the daily limit). Nida: all 8 used.                 */
+  // Earlier today at h:m, or `backoff` minutes ago if that hasn't happened yet (never before midnight)
+  const todayAt = (h, m, backoff) => Math.max(startOfToday + MIN, Math.min(clockAgo(0, h, m), now - backoff * MIN));
+  const DS_HISTORY = {
+    m_ayesha: [["ds-gulberg", "ds-latte", "hot", clockAgo(14, 8, 20), true], ["ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40), true], ["ds-modeltown", "ds-flat-white", "hot", clockAgo(6, 11, 10), true], ["ds-pine", "ds-caramel-f", "iced", clockAgo(2, 19, 5), true]],
+    m_rabia:  [["ds-cantt", "ds-latte", "iced"], ["ds-cantt", "ds-americano", "hot"], ["ds-gulberg", "ds-matcha", "iced"]],
+    m_kamran: [["ds-dha6", "ds-v60", "hot"], ["ds-lalakjan", "ds-cortado", "hot"], ["ds-dolmen", "ds-java-chip", "iced"], ["ds-gulberg", "ds-flat-white", "hot"], ["ds-gulberg", "ds-americano", "iced", todayAt(9, 5, 70)], ["ds-gulberg", "ds-spanish", "iced", todayAt(9, 50, 25)]],
+    m_nida:   [["ds-modeltown", "ds-latte", "hot"], ["ds-modeltown", "ds-caramel", "iced"], ["ds-pine", "ds-chai", "hot"], ["ds-pine", "ds-latte", "iced"], ["ds-gulberg", "ds-mocha-101", "iced"], ["ds-gulberg", "ds-spanish", "iced"], ["ds-dha6", "ds-matcha", "iced"], ["ds-dha6", "ds-kunafa", "iced"]],
+  };
+  Object.entries(DS_HISTORY).forEach(([id, rows]) => {
+    const seen = new Set();
+    rows.forEach(([cafeId, drinkId, temp, at], k) => {
+      brandRedeem(byId[id], cafeId, drinkId, temp, at || before(k, rows.length), !seen.has(cafeId));
+      seen.add(cafeId);
+    });
+  });
+
   /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
      Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
   const handToday = {
     kiln: [
-      { memberId: "m_ayesha", drinkId: "kiln-flat" },
       { memberId: "m_zara",   drinkId: "kiln-flat" },
       { memberId: "m_zara",   drinkId: "kiln-cort" },
       { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
@@ -446,7 +599,7 @@
       const dayStart = startOfToday - d * DAY;
       const isToday = d === 0;
       const todayUse = {};
-      cafes.forEach((cafe) => {
+      cafes.filter((c) => !c.brandId).forEach((cafe) => {
         const hand = isToday ? (handToday[cafe.id] || []) : [];
         const handCups = hand.reduce((n, s) => n + drinkCredits(cafe.id, s.drinkId), 0);
         // A normal day wobbles around the café’s average
@@ -472,6 +625,57 @@
       });
     }
   })();
+
+  /* Double Shot regulars: 90 members on Double Shot plans, generated under
+     the real rules (cups from the brand pool, 2 a day per branch), around
+     each branch's average day. Drinks weighted towards what sells.      */
+  const DS_POPULAR = [
+    ["ds-spanish", 10], ["ds-latte", 8], ["ds-americano", 6], ["ds-flat-white", 5], ["ds-cappuccino", 5], ["ds-caramel", 5],
+    ["ds-mocha-101", 4], ["ds-matcha", 4], ["ds-caramel-f", 4], ["ds-cortado", 3], ["ds-vanilla", 3], ["ds-hazelnut", 3], ["ds-chai", 3],
+    ["ds-honey", 2], ["ds-toffee-nut", 2], ["ds-dark-latte", 2], ["ds-salted-caramel", 2], ["ds-pistachio", 2], ["ds-java-chip", 2],
+    ["ds-v60", 2], ["ds-choc-classic", 2], ["ds-peach-tea", 2], ["ds-espresso", 2], ["ds-kunafa", 1], ["ds-ube-latte", 1], ["ds-frosted-toffee", 1], ["ds-coconut-latte", 1],
+  ];
+  const DS_WEIGHT = DS_POPULAR.reduce((n, [, w]) => n + w, 0);
+  const pickDrink = () => { let u = rand() * DS_WEIGHT; return (DS_POPULAR.find(([, w]) => (u -= w) <= 0) || DS_POPULAR[0])[0]; };
+  const dsRegulars = Array.from({ length: 90 }, (_, i) => {
+    const firstName = REGULAR_NAMES[(i * 7 + 3) % REGULAR_NAMES.length];
+    const id = `m_d${i}_${firstName.toLowerCase()}`;
+    const u = rand();
+    const plan = { type: "brand", brandId: DS.id, planId: u < 0.3 ? "ds8" : u < 0.8 ? "ds15" : "ds22" };
+    const m = { id, firstName, lastName: `${INITIALS[(i + 5) % INITIALS.length]}.`, pronoun: "them", plan, background: true, visits: {},
+      cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY };
+    members.push(m); byId[id] = m; purchase(m);
+    return m;
+  });
+  (function generateBrandMonth() {
+    const branches = cafes.filter((c) => c.brandId === DS.id);
+    const left = Object.fromEntries(dsRegulars.map((m) => [m.id, brandPlanCups(m.plan)]));
+    for (let d = 9; d >= 0; d--) {
+      const dayStart = startOfToday - d * DAY;
+      const isToday = d === 0;
+      const todayUse = {};
+      branches.forEach((cafe) => {
+        const target = isToday ? cafe.avgDailyCups : Math.round(cafe.avgDailyCups * (0.75 + rand() * 0.5));
+        const rows = [];
+        let guard = 0;
+        while (rows.length < target && guard++ < 600) {
+          const m = pick(dsRegulars);
+          const k = `${m.id}:${cafe.id}`;
+          if (left[m.id] < 1 || (todayUse[k] || 0) >= rules.dailyLimitPerCafe) continue;
+          left[m.id] -= 1; todayUse[k] = (todayUse[k] || 0) + 1;
+          const drinkId = pickDrink();
+          const item = dsItem(drinkId);
+          const temp = item.hot != null && item.iced != null ? (rand() < 0.55 ? "iced" : "hot") : item.hot != null ? "hot" : "iced";
+          const first = !(m.visits[cafe.id] > 0);
+          m.visits[cafe.id] = (m.visits[cafe.id] || 0) + 1;
+          rows.push({ m, drinkId, temp, first });
+        }
+        const times = dayTimes(cafe, dayStart, rows.length, isToday);
+        rows.forEach((r, i) => brandRedeem(r.m, cafe.id, r.drinkId, r.temp, times[i], r.first));
+      });
+    }
+  })();
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -567,6 +771,33 @@
       ],
     },
   };
+  // Double Shot branches: staff PINs per branch (presenter knowledge): the
+  // branch's number in the list, then 234 (counter) or 678 (manager).
+  // Gulberg 1234 / 1678, Cantt 2234 / 2678, Model Town 3234 / 3678, Phase 6
+  // 4234 / 4678, Lalak Jan 5234 / 5678, Pine Avenue 6234 / 6678, Dolmen 7234 / 7678.
+  // Payouts go to one head-office account; the statement splits by branch.
+  const DS_STAFF = [["Usman", "Hira"], ["Faraz", "Amna"], ["Danish", "Rida"], ["Saad", "Mahnoor"], ["Taimur", "Iqra"], ["Hamid", "Sara"], ["Ali", "Noor"]];
+  const DS_AVG_PAYOUT = [552, 547, 549, 556, 551, 545, 558]; // Rs a cup, from each branch's drink mix
+  cafes.filter((c) => c.brandId === DS.id).forEach((c, i) => {
+    const n = i + 1;
+    const [counter, manager] = DS_STAFF[i];
+    partner[c.id] = {
+      staff: [
+        { id: `st_${c.id}_c`, name: counter, role: "counter", pin: `${n}234` },
+        { id: `st_${c.id}_m`, name: manager, role: "manager", pin: `${n}678` },
+      ],
+      staffOnShift: `st_${c.id}_c`,
+      covers: { categories: ["espresso", "milk", "filter", "tea", "cold"], size: "any", extrasPaid: true },
+      limits: { cafePerDay: c.avgDailyCups * 10, perMemberPerDay: rules.dailyLimitPerCafe },
+      account: { label: "Double Shot head office account", last4: "7302" },
+      payoutDay: 5,
+      payouts: [1, 2, 3].map((k) => {
+        const cups = Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
+        return { month: monthStart(k), cups, amount: cups * DS_AVG_PAYOUT[i], paidAt: monthStart(k - 1) + 4 * DAY };
+      }),
+    };
+  });
+
   // What a member cup can cover; each café ticks its own
   const drinkCategories = [
     { id: "espresso", name: "Espresso and americano" },
@@ -581,10 +812,11 @@
     rules,
     tiers,
     areas,
+    brands,
     cafes,
     members,
     memberId: mumtaz.id,
-    partnerCafeId: "kiln",       // the café shown in the partner view
+    partnerCafeId: "ds-gulberg", // the café shown in the partner view: Double Shot Gulberg
     ledger,
     club,
     partner,

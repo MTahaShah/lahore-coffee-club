@@ -19,6 +19,7 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+  const A = store.actions;
   // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
   const REG = (LCC.appScreens = LCC.appScreens || {});
 
@@ -39,10 +40,13 @@
   const MAP_W = 360, MAP_H = 560;
   const project = (x, y) => ({ x: 24 + (x - 260) * 0.58, y: 60 + (y - 250) * 1.1 });
   // Where each pin's name sits, so names stay inside the frame and don't collide (default: right)
-  const LABEL_SIDE = { slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below" };
+  const LABEL_SIDE = {
+    slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below",
+    "ds-gulberg": "left", "ds-cantt": "below", "ds-lalakjan": "left", "ds-dha6": "left", "ds-dolmen": "left", "ds-pine": "left", "ds-modeltown": "left",
+  };
   const AREA_LABELS = {
     gulberg: [236, 196], liberty: [92, 286], fortress: [292, 70],
-    dha: [300, 514], "model-town": [196, 512], "johar-town": [58, 530],
+    dha: [300, 540], "model-town": [196, 512], "johar-town": [58, 530], cantt: [318, 270],
   };
   const USUAL_HOUR = 18;
 
@@ -132,6 +136,8 @@
       /* ---------------- Routing inside the app ---------------- */
       function resolve(path) {
         const [a = "home", b] = path;
+        const brandId = b && (S.brand(b) ? b : S.cafe(b)?.brandId);
+        if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
@@ -192,6 +198,29 @@
         const c = S.cafe(cafeId);
         const open = S.openState(c);
         const usual = S.usualStatus(c, USUAL_HOUR).status;
+        const brand = S.brandOf(cafeId);
+        if (brand) {
+          const cover = brand.economics.coverUpTo;
+          $("[data-sheet-body]", el).innerHTML = html`
+            <div class="cafe-sheet">
+              <div class="stack" style="--stack-gap:var(--space-1)">
+                <h2 class="t-h2" id="cafe-sheet-title">${brand.name}</h2>
+                <p class="t-small t-muted">${c.branch} · ${c.distanceKm} km · one of ${S.branches(brand.id).length} branches</p>
+              </div>
+              <div>${ui.statusPill(c.id)}</div>
+              <div class="cafe-sheet__facts">
+                <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
+                <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
+              </div>
+              <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
+              <div class="cafe-sheet__actions">
+                <a class="btn btn--primary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
+                <button type="button" class="btn btn--secondary btn--block" data-directions="${c.id}">Directions</button>
+              </div>
+            </div>`.s;
+          ui.openSheet($("#cafe-sheet", el));
+          return;
+        }
         $("[data-sheet-body]", el).innerHTML = html`
           <div class="cafe-sheet">
             <div class="stack" style="--stack-gap:var(--space-1)">
@@ -250,7 +279,7 @@
                   </div>
                 </div>
                 <div class="home__lines">
-                  <p class="t-body">cups left this month</p>
+                  <p class="t-body" data-home-line>${homeLine()}</p>
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
                 </div>
                 <div class="home__actions">
@@ -267,11 +296,19 @@
             ledger: ({ entries }) => {
               if (!entries.some((e) => e.memberId === member().id)) return;
               paintRing();
+              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
             },
-            member: () => { paintRing(); const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine(); },
+            member: () => {
+              paintRing();
+              const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine();
+              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
+            },
           },
         };
       }
+
+      /** Under the ring: "Double Shot · 11 cups left · any branch" on a brand plan. */
+      const homeLine = () => S.brandBalanceLine() || "cups left this month";
 
       function renewLine() {
         const m = member();
@@ -310,7 +347,7 @@
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
-                ? html`<p class="t-body">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}, ${fmt.cups(plan.cups)} this month</p>
+                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : `, ${fmt.cups(plan.cups)} this month`}</p>
                     <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)} a month · ` : ""}renews on ${fmt.shortDate(m.renewsAt)}</p>
                     ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
                 : html`<p class="t-body">No plan yet</p>`}
@@ -348,11 +385,10 @@
               <span class="badge${r.type === "reward" ? " badge--accent" : ""}">${r.type === "reward" ? "+" : "−"}${fmt.cups(Math.abs(r.cups))}</span>
             </li>`;
           }
-          const d = S.drink(r.cafeId, r.drinkId);
           return html`<li class="row${r.id === newId ? " enter" : ""}">
             <div class="row__main">
-              <div class="row__title">${d ? d.name : "Coffee"}</div>
-              <div class="row__meta">${c.name} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              <div class="row__title">${S.entryDrinkName(r)}</div>
+              <div class="row__meta">${S.placeName(r.cafeId)}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
             </div>
             <span class="badge">${fmt.cups(r.credits)}</span>
           </li>`;
@@ -399,6 +435,7 @@
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
             member: () => paintMeta(),
             ledger: () => paintMeta(),
+            order: ({ memberId }) => { if (memberId !== member().id) return; const box = $("[data-pass-order]", view); if (box) box.innerHTML = orderHtml().s; },
           },
         };
 
@@ -407,6 +444,7 @@
           const plan = S.memberPlan(m2);
           const card = $("[data-pass-card]", view);
           card.innerHTML = html`
+            <div class="pass-order" data-pass-order>${orderHtml()}</div>
             <div class="pass-ring">
               <div class="pass-ring__bricks" data-pass-ring>${passRing()}</div>
               <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
@@ -427,6 +465,19 @@
           tickCountdown();
         }
 
+        /** The drink chosen in the app, with any top-up, shown above the QR. */
+        function orderHtml() {
+          const o = S.order();
+          if (!o) return "";
+          const item = S.menuItem(o.brandId, o.drinkId);
+          const p = S.drinkPrice(o.brandId, item, o.temp);
+          return html`
+            <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
+            <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>
+            <p class="t-small t-muted num">${p.included ? "Included in your cup" : `Cup + ${fmt.rs(p.topUp)}, paid at the till`}</p>
+            <p class="pass-order__acts"><a class="btn btn--link" href="#/app/cafes/${o.brandId}">Change</a><button type="button" class="btn btn--link" data-clear-order>Order at the counter instead</button></p>`;
+        }
+
         /** Caramel bricks around the QR: one per cup, used ones outlined. */
         function passRing() {
           const b = S.balance();
@@ -438,6 +489,8 @@
         function passCafes() {
           const b = S.balance();
           const cap = store.getState().rules.explorerCapPerCafe;
+          const brandLine = S.brandBalanceLine();
+          if (brandLine) return html`<p class="pass__brand num">${brandLine}</p>`;
           if (b.type === "mycafes") {
             return html`<p class="t-micro t-faint">Reserved at</p>
               <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
@@ -499,11 +552,11 @@
           if (!card) return;
           const m2 = member();
           const cafe = S.cafe(entry.cafeId);
-          const drink = S.drink(entry.cafeId, entry.drinkId);
           const b = S.balance();
           const before = b.left + entry.credits;
           const here = S.cafeBalance(m2.id, entry.cafeId);
           const hereLine = entry.bonus ? "That was a free cup from the club"
+            : here.type === "brand" ? `Your cups work at every ${cafe.name} branch`
             : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
             : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
@@ -511,7 +564,8 @@
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${cafe.name}.</p>
-              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
+              ${entry.topUp ? html`<p class="t-body num">Pay ${fmt.rs(entry.topUp)} at the till for the difference.</p>` : ""}
+              <p class="t-body t-muted">${S.entryDrinkName(entry)} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
               <p class="t-small t-faint num" data-success-here>${hereLine}</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
@@ -527,8 +581,8 @@
       }
       function pinLabel(c, status) {
         return mapMode === "now"
-          ? `${c.name}, ${fmt.statusLabel(status)}, ${fmt.updated(c.statusUpdatedAt)}`
-          : `${c.name}, usually ${fmt.statusLabel(status).toLowerCase()} at 6 pm`;
+          ? `${S.placeName(c.id)}, ${fmt.statusLabel(status)}, ${fmt.updated(c.statusUpdatedAt)}`
+          : `${S.placeName(c.id)}, usually ${fmt.statusLabel(status).toLowerCase()} at 6 pm`;
       }
       function pinHtml(c) {
         const p = project(c.x, c.y);
@@ -536,7 +590,7 @@
         return html`<button type="button" class="pin${LABEL_SIDE[c.id] ? ` pin--${LABEL_SIDE[c.id]}` : ""}" data-pin="${c.id}" data-status="${status}"
             style="left:${(p.x / MAP_W * 100).toFixed(2)}%;top:${(p.y / MAP_H * 100).toFixed(2)}%" aria-label="${pinLabel(c, status)}">
             <span class="pin__dot">${ui.cupIcon(status, { size: 18, cls: "pin__icon" })}</span>
-            <span class="pin__name" aria-hidden="true">${c.name}</span>
+            <span class="pin__name" aria-hidden="true">${c.pinName || c.name}</span>
           </button>`;
       }
       function mapNote() {
@@ -605,6 +659,7 @@
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
+        if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
         if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
         const start = t.closest("[data-start-plan]");
         if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
@@ -613,7 +668,7 @@
         const dir = t.closest("[data-directions]");
         if (dir) {
           // BACKEND: deep link to the phone's maps app with the café's coordinates
-          ui.toast(`Directions to ${S.cafe(dir.dataset.directions).name} open in your maps app.`, { iconName: "pin" });
+          ui.toast(`Directions to ${S.placeName(dir.dataset.directions)} open in your maps app.`, { iconName: "pin" });
         }
       };
 
@@ -644,7 +699,7 @@
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order"].map((type) => store.on(type, dispatch(type)));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {

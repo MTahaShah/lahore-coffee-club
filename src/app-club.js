@@ -676,6 +676,7 @@
     const m = S.member();
     if (!m.plan) return [];
     if (m.plan.type === "explorer") return [{ id: null, label: "Your Explorer pool", left: S.poolBalance(), line: "They can use it at any partner café." }];
+    if (m.plan.type === "brand") { const b = S.brand(m.plan.brandId); return [{ id: null, label: `Your ${b.name} cups`, left: S.poolBalance(), line: `They can use them at any ${b.name} branch.` }]; }
     const b = S.balance();
     return Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => ({ id, label: S.cafe(id).name, left: x.left, line: `Reserved cups stay at ${S.cafe(id).name}. They can only use them there.` }));
   }

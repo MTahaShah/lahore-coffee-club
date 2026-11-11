@@ -270,3 +270,20 @@
 .pair__room .num { font-size: var(--fs-40); font-weight: 400; line-height: 1; letter-spacing: 0.08em; }
 .pair__url { max-width: 100%; overflow-wrap: anywhere; }
 .pair__note { max-width: 40ch; }
+
+/* Brand partner (Double Shot): branch picker, drink and top-up ---------- */
+.cv-branch { display: block; margin-top: var(--space-1); }
+.cv-branch .input { height: 40px; padding-left: var(--space-3); font-size: var(--fs-14); border-radius: var(--radius-pill); }
+.cv-brand .monogram { width: 44px; height: 44px; font-size: var(--fs-12); }
+.cv-order { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+.cv-order__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.cv-order__head [hidden] { display: none; }
+.cv-order .segmented { max-width: 240px; }
+.cv-order__cover { font-size: var(--fs-16); }
+.cv-topup { font-weight: 700; }
+p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
+.cv-success__drink { font-size: var(--fs-20); }
+.cv-table tr.is-here td { font-weight: 500; }
+.cv-section > .segmented { max-width: 320px; }
+/* Big money figures (brand payouts run to six digits) fit two columns on a phone */
+@media (max-width: 520px) { .cv-stats dd:not(.t-small) { font-size: var(--fs-28); overflow-wrap: anywhere; } }

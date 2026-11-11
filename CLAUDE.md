@@ -67,7 +67,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   typography, components, shells
 - `fonts/` — Glacial Indifference Regular and Bold (woff2)
 - `logos/` — wordmark, horizontal monogram, ring, app icons, favicon
-- `data.js` — fictional seed: 8 cafés, 3 tiers, members with plans and
+- `data.js` — seed: 8 fictional cafés, the Double Shot brand (7 branches,
+  menu, economics, plans), 3 tiers, members with plans and
   member numbers, the ledger (Mumtaz's earlier months, and a month generated
   under the real rules), club rules (levels, badges, perks, gatherings)
 - `state.js` — one store with pub-sub (`store.on`, `actions`, `select`), the
@@ -87,6 +88,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
   bar, Pass, Home, Map, café sheet, club milestone toasts
 - `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
+- `app-brand.js` — a brand's page (`#/app/cafes/doubleshot`, also from any
+  branch row or pin): your cups, menu with Hot / Iced, ordering ("Use a
+  cup"), branches, plans
 - `app-plan.js` — plan picker (Explorer / My cafés), simulated payment
   (`#/app/plan`, `#/app/plan/pay`)
 - `app-club.js` — Club tab (`#/app/club`: member card, status, passport,
@@ -149,6 +153,40 @@ next pass until asked.**
   left there (the redeem entry carries `bonus: true`).
 - A new member has `plan: null` until they pay; selectors treat that as no
   cups and "No plan yet".
+- **Brand** (`plan.type` `"brand"`, `brandId`, `planId`): Double Shot plans,
+  8 cups Rs 5,600 · 15 Rs 9,750 · 22 Rs 13,500. Cups belong to the brand, not
+  a branch: one pool, any branch. A brand branch takes only its own brand's
+  cups (`brand-only`); brand cups work nowhere else (`not-brand`). Explorer
+  and My cafés cover the other cafés only (`select.clubCafes()`).
+
+## Double Shot (demo partner)
+
+- The one real brand, by name only: no logo, a neutral "DS" monogram
+  (`.monogram`). Config in `data.js` `brands`: menu (drinks only; `hot` /
+  `iced` prices, null if not served that way), `menuNote` ("Prices from
+  Double Shot's public menu, Nov 2026. Demo only."), plans, economics.
+- Economics: a cup covers any drink up to Rs 880 (`coverUpTo`); above that
+  "Cup + Rs X" is paid at the till (`topUp`). Payout per cup = 72%
+  (`payoutShare`) × min(price, 880), so at most Rs 634 (`select.entryPayout`).
+- Branches are cafés with `brandId`, `branch`, `short`, `label`, `pinName`:
+  Gulberg · Falcon Complex, Cantt · C Block, Model Town, DHA · Phase 6,
+  DHA · Lalak Jan Chowk, Pine Avenue, DHA · Dolmen Mall. New area: Cantt.
+- Brand redeem entries carry `brandId`, `drinkId`, `temp`, `price`, `topUp`.
+- Ordering: the member picks a drink and taps "Use a cup"
+  (`actions.placeOrder`; `member.order`, fresh for 3 hours). It syncs
+  (`order` message, newest wins, in join snapshots) and shows on the Pass and
+  the counter; nothing is spent until the counter redeems, which clears it.
+- Club: a brand counts as one café (one passport stamp, any branch), so the
+  passport has 9 stamps.
+- Café view: Double Shot is one choice in the Demo café picker; branches are
+  picked in the header. Today and Payouts have This branch / All branches.
+  Settings shows the cover rule (set by the brand) instead of the checkboxes.
+- Demo codes: Rabia 341862 (5 of 8), Kamran 905417 (daily limit at
+  Gulberg), Nida 274639 (no cups). Explorer / My cafés codes are refused at
+  Double Shot. Staff PINs: branch number (list order) then 234 (counter) or
+  678 (manager): Gulberg 1234 / 1678 … Dolmen 7234 / 7678.
+- 90 background Double Shot regulars generate the last 10 days under the
+  real rules; three months of payout history per branch (amounts seeded).
 
 ## Ledger
 
@@ -201,8 +239,9 @@ next pass until asked.**
   the cap at Kiln & Bean), Sana 207341 (My cafés: Kiln & Bean 6, Maple 4;
   3 + 3 left), Omar 558190 (Explorer Starter, 2 left), Zara 482913 (My cafés,
   daily limit at Kiln & Bean), Hamza 730215 (no cups left).
-- Mumtaz: Explorer Regular, 11 of 16, 1 cup at Kiln & Bean this month (so one
-  more works there, then the cap refuses).
+- Mumtaz: Double Shot, 15-cup plan, 11 left (cups at Gulberg, Phase 6, Model
+  Town and Pine Avenue this month). Her codes are refused at Kiln & Bean.
+- The café view opens on Double Shot Gulberg (`partnerCafeId`).
 - Payout today = cups today × the café's payout rate. The café's "This month"
   block (calendar month) reads the ledger: cups reserved here and by how many
   My cafés members, cups redeemed so far, payout so far = redeemed × rate.
@@ -241,7 +280,7 @@ next pass until asked.**
   café while there are fewer than 10), passport, badges and perks are all
   derived from the ledger by `select.club`. Rules live in `data.js` `club`;
   the Connoisseur copy is written in `select.club` from the café count.
-- Mumtaz: No. 0042, Founding Member, Local (41 cups), 4 of 8 cafés, 7 of 10
+- Mumtaz: No. 0042, Founding Member, Local (40 cups), 4 of 9 cafés, 7 of 10
   morning cups. Three earlier months on My cafés (Kiln 6, Noon 4, Slow Pour
   3) are seeded in the ledger. A cup at a fifth café gives a free cup.
 - Ledger type `reward` (+cups, cafeId null): passport at 5 and at all cafés

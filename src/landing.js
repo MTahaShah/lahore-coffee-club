@@ -167,12 +167,12 @@
           return html`<span class="pin${side ? ` pin--${side}` : ""}" data-lp-pin="${c.id}" data-status="${c.status}"
             style="left:${(p.x / M.width * 100).toFixed(2)}%;top:${(p.y / M.height * 100).toFixed(2)}%">
             <span class="pin__dot">${ui.cupIcon(c.status, { size: 18, cls: "pin__icon" })}</span>
-            <span class="pin__name">${c.name}</span>
+            <span class="pin__name">${c.pinName || c.name}</span>
           </span>`;
         })}
       </div>` : ""}
       <ul role="list" class="lp-map__list" aria-label="How busy each café is now">
-        ${S.cafes().map((c) => html`<li class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${S.area(c.area).name}</div></div>${ui.statusPill(c.id, { time: false })}</li>`)}
+        ${S.cafes().map((c) => html`<li class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${c.branch || S.area(c.area).name}</div></div>${ui.statusPill(c.id, { time: false })}</li>`)}
       </ul>
     </div>`;
   }

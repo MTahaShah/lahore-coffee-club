@@ -60,12 +60,21 @@
       let resetTimer = null, scanTimer = null;
       let pin = "";                // staff sign-in entry
       let wasPaused = false;       // so the tick only redraws the pause control when it ends
+      let scope = "branch";        // brands: Today and Payouts for "this branch" or "all branches"
 
       function freshRedeem() { return { state: "idle", code: "", message: "", lookup: null, result: null }; }
       const cafe = () => S.cafe(cafeId);
       const P = () => S.partner(cafeId);
       const staffOnShift = () => P().staff.find((x) => x.id === P().staffOnShift) || P().staff[0];
       const defaultDrink = () => cafe().drinks.find((d) => d.credits === 1) || cafe().drinks[0];
+      const brand = () => S.brandOf(cafeId);
+      /** The drink to ring up: the member's choice in the app, or a latte until staff pick. */
+      function drinkFor(member) {
+        const b = brand();
+        const o = S.order(member.id);
+        if (o && o.brandId === b.id) return { drinkId: o.drinkId, temp: o.temp, fromApp: true };
+        return { drinkId: "ds-latte", temp: "hot", fromApp: false };
+      }
 
       /* ---------------------------------------------------------------
          Shell
@@ -76,10 +85,14 @@
           <div class="surface cv">
             <header class="cv-head">
               <div class="cv-brand">
-                ${ui.logo("ring", { label: null, cls: "cv-brand__ring" })}
+                ${brand() ? html`<span class="monogram cv-brand__ring" aria-hidden="true">${brand().monogram}</span>` : ui.logo("ring", { label: null, cls: "cv-brand__ring" })}
                 <div>
-                  <h1 class="cv-name">${c.name}</h1>
-                  <p class="t-small t-muted">${S.area(c.area).name}</p>
+                  <h1 class="cv-name">${brand() ? `${brand().name} · ${c.short}` : c.name}</h1>
+                  ${brand()
+                    ? html`<label class="cv-branch"><span class="sr-only">Branch</span><span class="select"><select class="input" data-branch>
+                        ${S.branches(brand().id).map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.branch}</option>`)}
+                      </select></span></label>`
+                    : html`<p class="t-small t-muted">${S.area(c.area).name}</p>`}
                 </div>
               </div>
               <div class="cv-head__aside">
@@ -108,7 +121,13 @@
                 <label class="cv-demo__cafe">
                   <span class="t-micro t-faint">Demo café</span>
                   <span class="select"><select class="input" data-viewing>
-                    ${S.cafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}
+                    ${(() => {
+                      // A brand is one choice here; its branches are picked in the header
+                      const firstBranch = (b) => (brand()?.id === b.id ? cafeId : S.branches(b.id)[0].id);
+                      const brands = [...new Set(S.cafes().filter((x) => x.brandId).map((x) => x.brandId))].map((id) => S.brand(id));
+                      return html`${brands.map((b) => html`<option value="${firstBranch(b)}" ${brand()?.id === b.id ? raw("selected") : ""}>${b.name} (${S.branches(b.id).length} branches)</option>`)}
+                        ${S.clubCafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}`;
+                    })()}
                   </select></span>
                 </label>
               </div>
@@ -200,9 +219,42 @@
           return;
         }
 
+        if (r.state === "found" && brand()) {
+          const { member, left, usedToday, dailyLimit } = r.lookup;
+          const b = brand();
+          const club = member.memberNo != null ? S.club(member.id) : null;
+          const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
+          body.innerHTML = html`
+            <div class="cv-member enter">
+              ${clubLine ? html`<p class="cv-member__club num">${clubLine}</p>` : ""}
+              <p class="cv-member__name" id="member-name">${member.firstName}</p>
+              <dl class="cv-facts">
+                <div><dt>Plan</dt><dd>${S.planLabel(member)}</dd></div>
+                <div><dt>Cups left</dt><dd class="num">${left} <span class="t-faint">· any ${b.name} branch</span></dd></div>
+                <div><dt>Today here</dt><dd class="num">${usedToday} of ${dailyLimit}</dd></div>
+              </dl>
+              <div class="cv-order">
+                <div class="cv-order__head">
+                  <label class="eyebrow" for="cv-drink">Drink</label>
+                  <span class="badge" data-cv-from ${r.drink.fromApp ? "" : raw("hidden")}>Chosen in the app</span>
+                </div>
+                <span class="select"><select class="input" id="cv-drink" data-cv-drink>
+                  ${[...new Set(b.menu.map((d) => d.section))].map((sec) => html`<optgroup label="${sec}">
+                    ${b.menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === r.drink.drinkId ? raw("selected") : ""}>${d.name}</option>`)}
+                  </optgroup>`)}
+                </select></span>
+                <div data-cv-temp>${tempHtml()}</div>
+                <p class="cv-order__cover num" data-cv-cover aria-live="polite">${coverHtml()}</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--block btn--tall" data-redeem aria-describedby="member-name">Redeem 1 cup</button>
+              <button type="button" class="btn btn--link" data-reset>Not ${member.firstName}? Enter another code</button>
+            </div>`.s;
+          if (focus) $("[data-redeem]", body).focus();
+          return;
+        }
+
         if (r.state === "found") {
           const { member, left, here, usedToday, dailyLimit } = r.lookup;
-          const plan = S.memberPlan(member);
           const club = member.memberNo != null ? S.club(member.id) : null;
           const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
           const perks = club ? S.perksAt(member.id, cafeId) : [];
@@ -214,7 +266,7 @@
               ${clubLine ? html`<p class="cv-member__club num">${clubLine}</p>` : ""}
               <p class="cv-member__name" id="member-name">${member.firstName}</p>
               <dl class="cv-facts">
-                <div><dt>Plan</dt><dd>${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}</dd></div>
+                <div><dt>Plan</dt><dd>${S.planLabel(member)}</dd></div>
                 <div><dt>Cups left</dt><dd class="num">${left} <span class="t-faint">· ${hereLine}</span></dd></div>
                 <div><dt>Today here</dt><dd class="num">${usedToday} of ${dailyLimit}</dd></div>
                 <div><dt>A cup covers</dt><dd>${S.coversLine(cafeId)}</dd></div>
@@ -224,6 +276,26 @@
               <button type="button" class="btn btn--link" data-reset>Not ${member.firstName}? Enter another code</button>
             </div>`.s;
           if (focus) $("[data-redeem]", body).focus();
+          return;
+        }
+
+        if (r.state === "success" && entry0()?.brandId) {
+          const { member, entry } = r.result;
+          body.innerHTML = html`
+            <div class="cv-success" role="status">
+              <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+              <p class="cv-success__title">Cup redeemed for ${member.firstName}</p>
+              <p class="cv-success__drink">${S.entryDrinkName(entry)}</p>
+              ${entry.topUp
+                ? html`<p class="cv-topup num">Collect ${fmt.rs(entry.topUp)} top-up</p>`
+                : html`<p class="t-small t-muted">Fully covered by the cup.</p>`}
+              <p class="cv-success__ref num">Reference ${S.redemptionRef(entry)}</p>
+              <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
+              <p class="t-small t-faint num">${fmt.time(entry.at)} · ${member.firstName} has ${fmt.cups(S.balance(member.id).left)} left, any branch</p>
+              <button type="button" class="btn btn--secondary" data-reset>Next</button>
+              <span class="cv-success__timer" aria-hidden="true"></span>
+            </div>`.s;
+          if (focus) $("[data-reset]", body).focus({ preventScroll: true });
           return;
         }
 
@@ -243,16 +315,41 @@
         }
       }
 
+      const entry0 = () => r.result?.entry;
+      function tempHtml() {
+        const item = S.menuItem(brand().id, r.drink.drinkId);
+        if (item.hot != null && item.iced != null) {
+          return ui.segmented({ name: "cvtemp", label: "Hot or iced", value: S.servedTemp(item, r.drink.temp), options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] });
+        }
+        return html`<p class="t-small t-muted">${item.hot != null ? "Hot only" : "Iced only"}</p>`;
+      }
+      function coverHtml() {
+        const item = S.menuItem(brand().id, r.drink.drinkId);
+        const p = S.drinkPrice(brand().id, item, r.drink.temp);
+        return p.included
+          ? html`${S.drinkLabel(item, p.temp)}, ${fmt.rs(p.price)}: <strong>covered by the cup</strong>`
+          : html`${S.drinkLabel(item, p.temp)}, ${fmt.rs(p.price)}: <strong class="cv-topup">Collect ${fmt.rs(p.topUp)} top-up</strong>`;
+      }
+      function paintDrink({ temp = true } = {}) {
+        const t = $("[data-cv-temp]", el); if (t && temp) t.innerHTML = tempHtml().s;
+        const c = $("[data-cv-cover]", el); if (c) c.innerHTML = coverHtml().s;
+        const f = $("[data-cv-from]", el); if (f) f.hidden = !r.drink.fromApp;
+      }
+
       function check(code, { focus = true } = {}) {
         r.code = code;
+        const keep = r.state === "found" ? r.drink : null; // a re-check keeps what staff picked
         const res = store.lookupCode(code, cafeId, 1);
         r = res.ok ? { ...freshRedeem(), state: "found", code, lookup: res } : { ...freshRedeem(), state: "error", code, message: res.message };
+        if (res.ok && brand()) r.drink = keep && keep.memberId === res.member.id ? keep : { ...drinkFor(res.member), memberId: res.member.id };
         paintRedeem({ focus });
       }
 
       function redeemNow() {
         // store.actions.redeem carries the // BACKEND: POST /redeem seam
-        const res = A.redeem({ code: r.code, cafeId, drinkId: defaultDrink().id });
+        const res = brand()
+          ? A.redeem({ code: r.code, cafeId, drinkId: r.drink.drinkId, temp: r.drink.temp })
+          : A.redeem({ code: r.code, cafeId, drinkId: defaultDrink().id });
         if (!res.ok) {
           // e.g. the code expired, or the café paused, while the barista looked
           r = { ...freshRedeem(), state: "error", code: r.code, message: res.message };
@@ -262,7 +359,8 @@
         r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry } };
         paintRedeem({ focus: true });
         clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
+        // A top-up to collect gets a little longer on screen
+        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS * (res.entry.topUp ? 1.75 : 1));
       }
 
       function reset({ focus = true } = {}) {
@@ -286,7 +384,7 @@
         list.innerHTML = rows.length
           ? html`${rows.map((e) => html`<li class="cv-row${e.id === newId ? " enter" : ""}">
               <span class="cv-row__time num">${fmt.time(e.at)}</span>
-              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
+              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
               <span class="cv-row__ref num">${S.redemptionRef(e)}</span>
             </li>`)}`.s
           : html`<li class="cv-row"><span class="cv-row__main t-muted">No member cups yet today.</span></li>`.s;
@@ -324,8 +422,15 @@
       /* ---------------------------------------------------------------
          Today
          --------------------------------------------------------------- */
+      const scopeToggle = () => (brand()
+        ? ui.segmented({ name: "cvscope", label: "Show", value: scope, options: [{ value: "branch", label: "This branch" }, { value: "brand", label: "All branches" }] })
+        : "");
+      const payRule = () => { const e = brand().economics; return `${Math.round(e.payoutShare * 100)}% of each drink’s price, up to ${fmt.rs(Math.round(e.coverUpTo * e.payoutShare))}`; };
+
       function todayHtml() {
-        const d = S.cafeDay(cafeId);
+        const b = brand();
+        const all = b && scope === "brand";
+        const d = S.cafeDay(cafeId, { scope: all ? "brand" : "branch" });
         const max = Math.max(1, ...d.byHour.map((h) => h.cups));
         const nowHour = new Date().getHours();
         const hourLabel = (h) => fmt.clock(h * 60);
@@ -333,13 +438,14 @@
           <div class="cv-section">
             <div class="cv-section__head">
               <h2 class="cv-title">Today</h2>
-              <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+              <p class="t-small t-muted">${fmt.date(Date.now())}${b ? ` · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}` : ""}</p>
             </div>
+            ${scopeToggle()}
             <dl class="cv-stats">
               <div><dt>Cups redeemed</dt><dd class="num">${d.cups}</dd></div>
               <div><dt>New members</dt><dd class="num">${d.newMembers}</dd></div>
               <div><dt>Returning members</dt><dd class="num">${d.returningMembers}</dd></div>
-              <div><dt>Estimated earnings</dt><dd class="num">${fmt.rs(d.earnings)}</dd></div>
+              <div><dt>Estimated earnings</dt><dd class="num">${fmt.rs(d.earnings)}</dd>${b ? html`<dd class="t-small t-muted num">${fmt.rs(d.topUps)} in top-ups at the till</dd>` : ""}</div>
             </dl>
 
             <section aria-labelledby="hours-h">
@@ -358,14 +464,16 @@
                 <button type="button" class="btn btn--secondary btn--compact" data-export>Export today (CSV)</button>
               </div>
               ${d.entries.length ? html`<table class="cv-table">
-                <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
+                <thead><tr><th scope="col">Time</th><th scope="col">Member</th>${b ? html`<th scope="col">Drink</th>` : ""}${all ? html`<th scope="col">Branch</th>` : ""}<th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
                 <tbody>${d.entries.map((e) => html`<tr>
                   <td class="num">${fmt.time(e.at)}</td>
                   <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}</td>
+                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up</span>` : ""}</td>` : ""}
+                  ${all ? html`<td>${S.cafe(e.cafeId).short}</td>` : ""}
                   <td class="num">${S.redemptionRef(e)}</td>
-                  <td class="num r">${fmt.rs(e.credits * d.rate)}</td>
+                  <td class="num r">${fmt.rs(S.entryPayout(e))}</td>
                 </tr>`)}</tbody>
-                <tfoot><tr><th scope="row" colspan="3">${fmt.cups(d.cups)} at ${fmt.rs(d.rate)} a cup</th><td class="num r">${fmt.rs(d.earnings)}</td></tr></tfoot>
+                <tfoot><tr><th scope="row" colspan="${2 + (b ? 1 : 0) + (all ? 1 : 0)}">${b ? `${fmt.cups(d.cups)} · ${payRule()}` : `${fmt.cups(d.cups)} at ${fmt.rs(d.rate)} a cup`}</th><td class="num r">${fmt.rs(d.earnings)}</td></tr></tfoot>
               </table>` : html`<p class="t-small t-muted">No member cups yet today.</p>`}
             </section>
           </div>`;
@@ -374,7 +482,55 @@
       /* ---------------------------------------------------------------
          Payouts
          --------------------------------------------------------------- */
+      function brandPayoutsHtml() {
+        const b = brand();
+        const all = scope === "brand";
+        const p = S.cafePayouts(cafeId, Date.now(), { scope: all ? "brand" : "branch" });
+        const month = (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Payouts</h2>
+              <p class="t-small t-muted">${month(p.monthStart)} so far · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}</p>
+            </div>
+            ${scopeToggle()}
+            <dl class="cv-stats">
+              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
+              <div><dt>Paid per cup</dt><dd class="num">${fmt.rs(p.perCup)}</dd><dd class="t-small t-muted num">On average. ${payRule()}.</dd></div>
+              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
+              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
+            </dl>
+
+            <section aria-labelledby="branches-h">
+              <h3 class="eyebrow" id="branches-h">${all ? "By branch" : "This branch"}, ${month(p.monthStart)}</h3>
+              <table class="cv-table">
+                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Top-ups at the till</th><th scope="col" class="r">Payout</th></tr></thead>
+                <tbody>${p.rows.map((x) => html`<tr${x.cafe.id === cafeId && all ? raw(' class="is-here"') : ""}>
+                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.topUps)}</td><td class="num r">${fmt.rs(x.earned)}</td>
+                </tr>`)}</tbody>
+                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.rows.reduce((n, x) => n + x.topUps, 0))}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
+              </table>
+            </section>
+
+            <section aria-labelledby="history-h">
+              <div class="cv-section__bar">
+                <h3 class="eyebrow" id="history-h">Payout history${all ? ", all branches" : ""}</h3>
+                <button type="button" class="btn btn--secondary btn--compact" data-statement>Download statement (PDF)</button>
+              </div>
+              <table class="cv-table">
+                <thead><tr><th scope="col">Month</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Amount</th><th scope="col" class="r">Status</th></tr></thead>
+                <tbody>${p.history.map((h) => html`<tr>
+                  <td>${month(h.month)}</td><td class="num r">${fmt.num(h.cups)}</td><td class="num r">${fmt.rs(h.amount)}</td>
+                  <td class="r"><span class="cv-paid">Paid</span> <span class="t-faint num">${fmt.shortDate(h.paidAt)}</span></td>
+                </tr>`)}</tbody>
+              </table>
+            </section>
+            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account, per cup redeemed: ${payRule()}. Top-ups are paid by the member at your till and stay with you.</p>
+          </div>`;
+      }
+
       function payoutsHtml() {
+        if (brand()) return brandPayoutsHtml();
         const p = S.cafePayouts(cafeId);
         const month = (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
         return html`
@@ -419,7 +575,11 @@
           <div class="cv-section cv-settings">
             <div class="cv-section__head"><h2 class="cv-title">Settings</h2></div>
 
-            <fieldset class="cv-set">
+            ${brand() ? html`<fieldset class="cv-set">
+              <legend class="eyebrow">What a member cup covers</legend>
+              <p class="t-body num">${S.coversLine(cafeId)}</p>
+              <p class="t-small t-muted num">Set by ${brand().name} for every branch. Your counter shows “Collect Rs X top-up” when a drink costs more. Payout: ${payRule()}.</p>
+            </fieldset>` : html`<fieldset class="cv-set">
               <legend class="eyebrow">What a member cup covers</legend>
               <div class="cv-checks">
                 ${S.drinkCategories().map((k) => html`<label class="cv-check">
@@ -438,7 +598,7 @@
                 <span>Extras paid at the counter (extra shot, syrup, oat milk)</span>
               </label>
               <p class="t-small t-muted">Your counter shows: “${S.coversLine(cafeId)}”</p>
-            </fieldset>
+            </fieldset>`}
 
             <fieldset class="cv-set">
               <legend class="eyebrow">Limits</legend>
@@ -561,6 +721,10 @@
         if (tab) return showSection(tab.dataset.section);
         const busy = t.closest("[data-busy-option]");
         if (busy) return A.setBusyMode(cafeId, busy.dataset.busyOption);
+        const tseg = t.closest('[data-segmented="cvtemp"] .segmented__option');
+        if (tseg) { ui.selectSegment(tseg.parentElement, tseg.dataset.value); r.drink = { ...r.drink, temp: tseg.dataset.value, fromApp: false }; return paintDrink({ temp: false }); }
+        const sseg = t.closest('[data-segmented="cvscope"] .segmented__option');
+        if (sseg) { if (scope === sseg.dataset.value) return; scope = sseg.dataset.value; paintSection(); return $(`[data-segmented="cvscope"] [data-value="${scope}"]`, el)?.focus(); }
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
@@ -619,7 +783,12 @@
 
       const onChange = (e) => {
         const t = e.target;
-        if (t.matches("[data-viewing]")) return A.setPartnerCafe(t.value);
+        if (t.matches("[data-viewing]") || t.matches("[data-branch]")) return A.setPartnerCafe(t.value);
+        if (t.matches("[data-cv-drink]")) {
+          const item = S.menuItem(brand().id, t.value);
+          r.drink = { ...r.drink, drinkId: t.value, temp: S.servedTemp(item, r.drink.temp), fromApp: false };
+          return paintDrink();
+        }
         if (t.name === "cat") {
           const cats = $$('input[name="cat"]:checked', el).map((x) => x.value);
           if (!cats.length) { t.checked = true; return ui.toast("A member cup needs to cover at least one kind of drink.", { iconName: "info" }); }
@@ -690,7 +859,13 @@
           if (r.state === "found") check(r.code, { focus: false });
         }),
         store.on("redeem", ({ entry }) => {
-          if (entry.cafeId !== cafeId) return;
+          if (entry.cafeId !== cafeId) {
+            // Another branch of this brand: the all-branches views and brand-wide cups change
+            if (!brand() || entry.brandId !== brand().id) return;
+            if (scope === "brand" && (section === "today" || section === "payouts")) paintSection();
+            if (r.state === "found" && r.lookup.member.id === entry.memberId) check(r.code, { focus: false });
+            return;
+          }
           A.refreshAutoBusy(cafeId);
           paintBusy();   // the cup count in the busy line, even if the level holds
           paintRecent(entry.id);
@@ -715,6 +890,13 @@
         }),
         // A plan bought or switched (here or on a phone) changes reserved cups
         store.on("plan", () => { if (r.state === "found") check(r.code, { focus: false }); }),
+        // The member picked (or changed) a drink on their phone while the counter has them up
+        store.on("order", ({ memberId }) => {
+          if (r.state !== "found" || !brand() || r.lookup.member.id !== memberId) return;
+          r.drink = { ...drinkFor(r.lookup.member), memberId };
+          const sel = $("[data-cv-drink]", el); if (sel) sel.value = r.drink.drinkId;
+          paintDrink();
+        }),
         // A device that joined the room was filled in by another café window
         store.on("snapshot", () => { renderAll(); }),
       ];

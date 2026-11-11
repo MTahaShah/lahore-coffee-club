@@ -18,8 +18,7 @@
       const cafes = store.select.cafes();
       const planMeta = () => {
         const a = store.select.member();
-        const p = store.select.memberPlan(a);
-        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+        return `${store.select.planLabel(a)} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`

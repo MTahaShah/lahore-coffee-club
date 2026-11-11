@@ -38,9 +38,9 @@
     function rowHtml(c) {
       const open = S.openState(c).open;
       return html`<li>
-        <a class="cafe-line" href="#/app/cafes/${c.id}" aria-label="${c.name}, ${S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
           <span class="cafe-line__name">${c.name}</span>
-          <span class="cafe-line__area">${S.area(c.area).name}</span>
+          <span class="cafe-line__area">${c.branch || S.area(c.area).name}</span>
           <span class="cafe-line__end" aria-hidden="true">
             ${ui.statusPill(c.id, { bare: true, time: false })}
             <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>

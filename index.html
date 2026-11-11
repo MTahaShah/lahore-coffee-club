@@ -644,6 +644,22 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .status__label { font-weight: 500; color: var(--ink); }
 .status__time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .status--bare { height: auto; padding: 0; border: 0; background: none; }
+
+/* Monogram: a partner's initials in a hairline circle (no partner logos) */
+.monogram {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;          /* centres tracked text */
+}
 .status.is-changed .status__icon { animation: status-settle 600ms var(--ease); }
 @keyframes status-settle {
   0% { transform: scale(1); }
@@ -1310,6 +1326,23 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .pair__url { max-width: 100%; overflow-wrap: anywhere; }
 .pair__note { max-width: 40ch; }
 
+/* Brand partner (Double Shot): branch picker, drink and top-up ---------- */
+.cv-branch { display: block; margin-top: var(--space-1); }
+.cv-branch .input { height: 40px; padding-left: var(--space-3); font-size: var(--fs-14); border-radius: var(--radius-pill); }
+.cv-brand .monogram { width: 44px; height: 44px; font-size: var(--fs-12); }
+.cv-order { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+.cv-order__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.cv-order__head [hidden] { display: none; }
+.cv-order .segmented { max-width: 240px; }
+.cv-order__cover { font-size: var(--fs-16); }
+.cv-topup { font-weight: 700; }
+p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
+.cv-success__drink { font-size: var(--fs-20); }
+.cv-table tr.is-here td { font-weight: 500; }
+.cv-section > .segmented { max-width: 320px; }
+/* Big money figures (brand payouts run to six digits) fit two columns on a phone */
+@media (max-width: 520px) { .cv-stats dd:not(.t-small) { font-size: var(--fs-28); overflow-wrap: anywhere; } }
+
 /* ---- src/app.css ---- */
 /* =====================================================================
    Lahore Coffee Club — app.css
@@ -1753,6 +1786,53 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: 6px; border-top: var(--hairline); font-size: var(--fs-14); }
 .pass__cafes li .num { color: var(--ink-2); }
 [data-here-line] strong { color: var(--ink); font-weight: 500; }
+
+/* Brand partner page (Double Shot): menu, ordering, branches, plans ------ */
+.brand { display: grid; gap: var(--space-4); }
+.brand .app-section { margin-top: var(--space-4); display: grid; gap: var(--space-3); }
+.brand__head { display: flex; align-items: center; gap: var(--space-4); }
+.brand__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.brand__bar .segmented { width: 168px; flex: none; }
+.brand-cups { display: grid; gap: var(--space-2); justify-items: start; }
+.brand-cups__line { font-size: var(--fs-20); line-height: 1.25; }
+.menu-sec { display: grid; gap: var(--space-1); margin-top: var(--space-3); }
+.menu-sec__title { margin-bottom: var(--space-1); }
+.menu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) 0;
+  text-align: left;
+  border-bottom: var(--hairline);
+  cursor: pointer;
+}
+.menu-sec li:last-child .menu-row { border-bottom: 0; }
+.menu-row__main { display: grid; gap: 2px; min-width: 0; }
+.menu-row:hover .row__title { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.badge--top { background: transparent; border: 1px solid var(--line-strong); color: var(--ink); }
+.branch-row { width: 100%; text-align: left; cursor: pointer; border-bottom: var(--hairline); }
+li:last-child > .branch-row { border-bottom: 0; }
+.branch-row .row__main { display: grid; gap: 2px; }
+.brand-plans { display: grid; gap: var(--space-3); }
+.brand-plan { display: grid; gap: var(--space-2); }
+.brand-plan.is-mine { border-color: var(--primary); }
+.brand-plan__head { display: flex; align-items: baseline; gap: var(--space-2); }
+.brand-plan__price { margin-left: auto; }
+.order-sheet { display: grid; gap: var(--space-4); }
+.order-sheet .segmented { width: 100%; }
+.order-sheet__cover { font-size: var(--fs-16); }
+.order-sheet .btn--link { justify-self: center; }
+
+/* Pass: the drink chosen in the app, above the QR; the brand balance */
+.pass-order { display: grid; gap: 2px; justify-items: center; }
+.pass-order:empty { display: none; }
+.pass-order__drink { font-size: var(--fs-20); font-weight: 500; line-height: 1.2; }
+.pass-order__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); font-size: var(--fs-14); }
+.pass-order__acts .btn--link { --btn-h: 36px; }
+.pass__brand { font-size: var(--fs-14); color: var(--ink-2); text-align: center; }
 
 /* ---- src/club.css ---- */
 /* =====================================================================
@@ -2307,8 +2387,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 /* ---- src/data.js ---- */
 /* =====================================================================
    Lahore Coffee Club — data.js
-   Fictional seed data. No real brands. Timestamps are relative to page
-   load so “updated 6 min ago” always reads true.
+   Seed data. Fictional, except one demo partner: Double Shot, a real
+   Lahore chain, shown by name only (no logo; a neutral "DS" monogram).
+   Timestamps are relative to page load so “updated 6 min ago” reads true.
    // BACKEND: GET /cafes, GET /tiers, GET /me replace this file.
    ===================================================================== */
 (function () {
@@ -2352,14 +2433,132 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     { id: "dha",        name: "DHA",        x: 760, y: 560 },
     { id: "model-town", name: "Model Town", x: 520, y: 600 },
     { id: "johar-town", name: "Johar Town", x: 280, y: 640 },
+    { id: "cantt",      name: "Cantt",      x: 720, y: 410 },
   ];
+
+  /* Brands: one membership, many branches ---------------------------------
+     A brand's cups belong to the brand, not a branch: a member's Double
+     Shot cups work at any Double Shot branch. Each redemption records the
+     branch that served it, for payouts only.
+     // BACKEND: brands, brand_plans and brand_menu tables                */
+  const brands = [
+    {
+      id: "doubleshot",
+      name: "Double Shot",
+      monogram: "DS",
+      line: "Seven branches across Lahore. One membership for all of them.",
+      menuNote: "Prices from Double Shot’s public menu, Nov 2026. Demo only.",
+      // Economics, in one place:
+      //   a cup covers any drink up to coverUpTo; above that the member pays
+      //   the difference at the till ("Cup + Rs X").
+      //   payout per cup = payoutShare × the drink's counter price, capped at
+      //   the covered amount (72% of 880 = Rs 634 at most).
+      economics: { coverUpTo: 880, payoutShare: 0.72 },
+      plans: [
+        { id: "ds8",  cups: 8,  price: 5600 },
+        { id: "ds15", cups: 15, price: 9750 },
+        { id: "ds22", cups: 22, price: 13500 },
+      ],
+      // Drinks only. hot / iced: the counter price in Rs, or null if not served that way.
+      // Where the menu didn't say hot or iced, espresso-bar and seasonal drinks are hot
+      // and frappes, smoothies, spritzes, iced teas and ube drinks are iced.
+      menu: [
+        { id: "ds-espresso",      section: "Espresso", name: "Double Shot Espresso", hot: 540,  iced: null },
+        { id: "ds-americano",     section: "Espresso", name: "Americano",            hot: 585,  iced: 585 },
+        { id: "ds-orange-amer",   section: "Espresso", name: "Orange Americano",     hot: 650,  iced: 695 },
+        { id: "ds-cortado",       section: "Espresso", name: "Cortado",              hot: 615,  iced: 615 },
+        { id: "ds-flat-white",    section: "Espresso", name: "Flat White",           hot: 680,  iced: 680 },
+        { id: "ds-latte",         section: "Espresso", name: "Latte",                hot: 710,  iced: 710 },
+        { id: "ds-cappuccino",    section: "Espresso", name: "Cappuccino",           hot: 720,  iced: null },
+        { id: "ds-whipped",       section: "Espresso", name: "Whipped Latte",        hot: 720,  iced: 720 },
+        { id: "ds-v60",           section: "Espresso", name: "V60",                  hot: 1095, iced: 1095 },
+
+        { id: "ds-spanish",       section: "Lattes", name: "Spanish Latte",          hot: 785,  iced: 785 },
+        { id: "ds-vanilla",       section: "Lattes", name: "Vanilla Latte",          hot: 785,  iced: 785 },
+        { id: "ds-caramel",       section: "Lattes", name: "Caramel Latte",          hot: 785,  iced: 785 },
+        { id: "ds-hazelnut",      section: "Lattes", name: "Hazelnut Latte",         hot: 785,  iced: 785 },
+        { id: "ds-toffee-nut",    section: "Lattes", name: "Toffee Nut Latte",       hot: 785,  iced: 785 },
+        { id: "ds-honey",         section: "Lattes", name: "Honey Latte",            hot: 785,  iced: 785 },
+        { id: "ds-mocha-101",     section: "Lattes", name: "Mocha 101",              hot: 795,  iced: 795 },
+        { id: "ds-cinnamon",      section: "Lattes", name: "Sri Lankan Cinnamon Spice", hot: 765, iced: null },
+        { id: "ds-dark-latte",    section: "Lattes", name: "Dark Latte",             hot: 870,  iced: 870 },
+        { id: "ds-salted-caramel", section: "Lattes", name: "Salted Caramel Latte",  hot: 910,  iced: 910 },
+        { id: "ds-pistachio",     section: "Lattes", name: "Pistachio Latte",        hot: null, iced: 995 },
+        { id: "ds-pumpkin",       section: "Lattes", name: "Pumpkin Spice Latte",    hot: 1040, iced: null },
+        { id: "ds-peppermint",    section: "Lattes", name: "Peppermint Mocha",       hot: 980,  iced: null },
+        { id: "ds-coconut-latte", section: "Lattes", name: "Coconut Latte",          hot: 1650, iced: 1650 },
+        { id: "ds-coconut-amer",  section: "Lattes", name: "Coconut Americano",      hot: null, iced: 900 },
+
+        { id: "ds-matcha",        section: "Matcha", name: "Matcha",                 hot: 840,  iced: 840 },
+        { id: "ds-elderflower-m", section: "Matcha", name: "Elderflower Iced Matcha", hot: null, iced: 840 },
+        { id: "ds-vanilla-m",     section: "Matcha", name: "Vanilla Matcha",         hot: null, iced: 1040 },
+        { id: "ds-strawberry-m",  section: "Matcha", name: "Strawberry Matcha",      hot: null, iced: 1040 },
+        { id: "ds-coconut-m",     section: "Matcha", name: "Coconut Matcha",         hot: null, iced: 1040 },
+        { id: "ds-mango-m",       section: "Matcha", name: "Mango Matcha",           hot: null, iced: 1040 },
+        { id: "ds-banana-m",      section: "Matcha", name: "Toasted Banana Matcha",  hot: null, iced: 1040 },
+        { id: "ds-earl-m",        section: "Matcha", name: "Citrus Earl Matcha",     hot: null, iced: 1040 },
+        { id: "ds-matcha-frapp",  section: "Matcha", name: "Matcha Frappuccino",     hot: null, iced: 1040 },
+
+        { id: "ds-caramel-f",     section: "Frappes", name: "Caramel Frappuccino",   hot: null, iced: 880 },
+        { id: "ds-vanilla-f",     section: "Frappes", name: "Vanilla Frappuccino",   hot: null, iced: 880 },
+        { id: "ds-hazelnut-f",    section: "Frappes", name: "Hazelnut Frappuccino",  hot: null, iced: 880 },
+        { id: "ds-mocha-f",       section: "Frappes", name: "Mocha Frappuccino",     hot: null, iced: 880 },
+        { id: "ds-toffee-f",      section: "Frappes", name: "Toffee Nut Frappuccino", hot: null, iced: 880 },
+        { id: "ds-hazel-rush",    section: "Frappes", name: "Hazel Rush",            hot: null, iced: 1210 },
+        { id: "ds-frosted-toffee", section: "Frappes", name: "Frosted Toffee",       hot: null, iced: 1220 },
+        { id: "ds-java-chip",     section: "Frappes", name: "Java Chip",             hot: null, iced: 1250 },
+        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa",                hot: null, iced: 1290 },
+
+        { id: "ds-choc-classic",  section: "Dark chocolate", name: "Classic Chocolate", hot: 980, iced: 980 },
+        { id: "ds-choc-orange",   section: "Dark chocolate", name: "Orange Chocolate",  hot: 980, iced: 980 },
+        { id: "ds-choc-mint",     section: "Dark chocolate", name: "Mint Chocolate",    hot: 980, iced: 980 },
+        { id: "ds-choc-bounty",   section: "Dark chocolate", name: "Bounty Chocolate",  hot: 980, iced: 980 },
+        { id: "ds-choc-cortado",  section: "Dark chocolate", name: "Dark Chocolate Cortado", hot: 910, iced: null },
+
+        { id: "ds-ube-latte",     section: "Ube", name: "Ube Latte",                 hot: null, iced: 955 },
+        { id: "ds-ube-cloud",     section: "Ube", name: "Ube Cloud",                 hot: null, iced: 1130 },
+        { id: "ds-ube-smoothie",  section: "Ube", name: "Ube Smoothie",              hot: null, iced: 1180 },
+
+        { id: "ds-chai",          section: "Zero shot and more", name: "Chai Latte",            hot: 650, iced: null },
+        { id: "ds-peach-tea",     section: "Zero shot and more", name: "Peach Iced Tea",        hot: null, iced: 670 },
+        { id: "ds-pom-tea",       section: "Zero shot and more", name: "Pomegranate Iced Tea",  hot: null, iced: 670 },
+        { id: "ds-elder-tea",     section: "Zero shot and more", name: "Elderflower Iced Tea",  hot: null, iced: 670 },
+        { id: "ds-berry-spritz",  section: "Zero shot and more", name: "Berry Blast Spritz",    hot: null, iced: 670 },
+        { id: "ds-honey-spritz",  section: "Zero shot and more", name: "Honey Lemon Spritz",    hot: null, iced: 700 },
+        { id: "ds-coco-spritz",   section: "Zero shot and more", name: "Coconut Lemon Spritz",  hot: null, iced: 700 },
+        { id: "ds-pb-smoothie",   section: "Zero shot and more", name: "Peanut Butter Date Smoothie", hot: null, iced: 840 },
+        { id: "ds-berry-smoothie", section: "Zero shot and more", name: "Berry Smoothie",       hot: null, iced: 840 },
+        { id: "ds-mango-smoothie", section: "Zero shot and more", name: "Mango Drift Smoothie", hot: null, iced: 840 },
+        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980 },
+      ],
+    },
+  ];
+  const DS = brands[0];
+  // Branch cafés read the brand menu as their drinks (one cup each; the top-up is separate)
+  const brandDrinks = (b) => b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 }));
 
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
      payoutPerCup: the rate the café set; what we pay them per cup.
      avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
+  // A branch: its own pin, row, hours and busy level; the brand's menu and cups.
+  const branch = (id, branchName, pinName, area, x, y, status, statusMins, hours, distanceKm, avgDailyCups, busyByHour) => ({
+    id, brandId: DS.id, name: DS.name, branch: branchName, short: pinName.replace(/^DS · /, ""), label: `${DS.name} · ${branchName.replace(" · ", " ")}`, pinName,
+    area, price: 710, payoutPerCup: Math.round(DS.economics.coverUpTo * DS.economics.payoutShare),
+    tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
+    blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
+  });
+  const LATE = { open: "8:00", close: "2:00", label: "8 am – 2 am" };
+  const EVENING = [0.15, 0.3, 0.4, 0.45, 0.4, 0.4, 0.45, 0.4, 0.45, 0.55, 0.7, 0.85, 0.9, 0.8, 0.65, 0.45];
   const cafes = [
+    branch("ds-gulberg",  "Gulberg · Falcon Complex", "DS · Gulberg",  "gulberg",    480, 315, "moderate", 4,  LATE, 1.1, 16, EVENING),
+    branch("ds-cantt",    "Cantt · C Block",          "DS · Cantt",    "cantt",      740, 430, "quiet",    9,  LATE, 4.2, 9,  EVENING),
+    branch("ds-modeltown", "Model Town",              "DS · Model Town", "model-town", 560, 575, "moderate", 7, LATE, 5.4, 10, EVENING),
+    branch("ds-dha6",     "DHA · Phase 6",            "DS · Phase 6",  "dha",        810, 690, "packed",   3,  LATE, 9.6, 13, EVENING),
+    branch("ds-lalakjan", "DHA · Lalak Jan Chowk",    "DS · Lalak Jan", "dha",       720, 505, "moderate", 12, LATE, 7.3, 11, EVENING),
+    branch("ds-pine",     "Pine Avenue",              "DS · Pine Ave", "dha",        630, 670, "quiet",    16, LATE, 8.8, 8,  EVENING),
+    branch("ds-dolmen",   "DHA · Dolmen Mall",        "DS · Dolmen",   "dha",        800, 640, "moderate", 6,  { open: "10:00", close: "23:00", label: "10 am – 11 pm" }, 9.9, 12, [0, 0, 0.35, 0.45, 0.5, 0.55, 0.6, 0.6, 0.65, 0.75, 0.85, 0.85, 0.7, 0.5, 0.3, 0.1]),
     {
       id: "kiln",
       name: "Kiln & Bean",
@@ -2554,7 +2753,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    plan: { type: "explorer", tierId: "regular" },
+    plan: { type: "brand", brandId: "doubleshot", planId: "ds15" },   // 15 Double Shot cups, 11 left
     cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
@@ -2574,6 +2773,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     demo("m_omar",  "Omar",  "him",  { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356),
     demo("m_zara",  "Zara",  "her",  { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }, 418),
     demo("m_hamza", "Hamza", "him",  { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 529),
+    // Double Shot demo members (counter codes): Rabia 5 of 8 left, Kamran at the
+    // daily limit at Gulberg (2 today), Nida no cups left.
+    demo("m_rabia",  "Rabia",  "her", { type: "brand", brandId: "doubleshot", planId: "ds8" },  "341862", {}, 233),
+    demo("m_kamran", "Kamran", "him", { type: "brand", brandId: "doubleshot", planId: "ds22" }, "905417", {}, 311),
+    demo("m_nida",   "Nida",   "her", { type: "brand", brandId: "doubleshot", planId: "ds8" },  "274639", {}, 447),
   ];
 
   // Small seeded PRNG. Seeded by date, so every open window builds the same month.
@@ -2632,9 +2836,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   const ledger = [];
   let seq = 0;
   const tierCups = (id) => tiers.find((t) => t.id === id).cups;
+  const brandPlanCups = (plan) => brands.find((b) => b.id === plan.brandId).plans.find((x) => x.id === plan.planId).cups;
   function purchase(m) {
     const at = m.cycleStartedAt;
-    if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
+    if (m.plan.type === "brand") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, brandId: m.plan.brandId, cups: brandPlanCups(m.plan), at, cycle: m.cycle });
+    else if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
     else Object.entries(m.plan.allocation).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId, cups: n, at, cycle: m.cycle }));
   }
   members.forEach(purchase);
@@ -2644,6 +2850,16 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   function redeem(m, cafeId, drinkId, at, firstVisit = false) {
     const credits = drinkCredits(cafeId, drinkId);
     ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit, at, cycle: m.cycle });
+  }
+  /** A cup at a brand branch: one cup, the drink as served (hot or iced), its
+      counter price and any top-up the member paid at the till. */
+  const dsItem = (drinkId) => DS.menu.find((d) => d.id === drinkId);
+  function brandRedeem(m, cafeId, drinkId, temp, at, firstVisit = false) {
+    const d = dsItem(drinkId);
+    const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
+    const price = d[t];
+    ledger.push({ id: `s${seq++}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price,
+      topUp: Math.max(0, price - DS.economics.coverUpTo), firstVisit, at, cycle: m.cycle });
   }
 
   /* Mumtaz’s earlier months --------------------------------------------
@@ -2680,7 +2896,6 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
   const byId = Object.fromEntries(members.map((m) => [m.id, m]));
   const HISTORY = {
-    m_ayesha: [["noon", "noon-capp", clockAgo(14, 8, 20)], ["slowpour", "sp-v60", clockAgo(10, 17, 40)], ["grind", "gg-latte", clockAgo(6, 11, 10)], ["slowpour", "sp-gibraltar", clockAgo(2, 19, 5)]],
     m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
     m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
     m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
@@ -2689,11 +2904,29 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   };
   Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
 
+  /* Double Shot, this cycle. Mumtaz: 4 of 15 used at four branches (one
+     before 9 am), so 11 left. Rabia: 3 of 8. Kamran: 6 of 22, two of them
+     at Gulberg today (the daily limit). Nida: all 8 used.                 */
+  // Earlier today at h:m, or `backoff` minutes ago if that hasn't happened yet (never before midnight)
+  const todayAt = (h, m, backoff) => Math.max(startOfToday + MIN, Math.min(clockAgo(0, h, m), now - backoff * MIN));
+  const DS_HISTORY = {
+    m_ayesha: [["ds-gulberg", "ds-latte", "hot", clockAgo(14, 8, 20), true], ["ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40), true], ["ds-modeltown", "ds-flat-white", "hot", clockAgo(6, 11, 10), true], ["ds-pine", "ds-caramel-f", "iced", clockAgo(2, 19, 5), true]],
+    m_rabia:  [["ds-cantt", "ds-latte", "iced"], ["ds-cantt", "ds-americano", "hot"], ["ds-gulberg", "ds-matcha", "iced"]],
+    m_kamran: [["ds-dha6", "ds-v60", "hot"], ["ds-lalakjan", "ds-cortado", "hot"], ["ds-dolmen", "ds-java-chip", "iced"], ["ds-gulberg", "ds-flat-white", "hot"], ["ds-gulberg", "ds-americano", "iced", todayAt(9, 5, 70)], ["ds-gulberg", "ds-spanish", "iced", todayAt(9, 50, 25)]],
+    m_nida:   [["ds-modeltown", "ds-latte", "hot"], ["ds-modeltown", "ds-caramel", "iced"], ["ds-pine", "ds-chai", "hot"], ["ds-pine", "ds-latte", "iced"], ["ds-gulberg", "ds-mocha-101", "iced"], ["ds-gulberg", "ds-spanish", "iced"], ["ds-dha6", "ds-matcha", "iced"], ["ds-dha6", "ds-kunafa", "iced"]],
+  };
+  Object.entries(DS_HISTORY).forEach(([id, rows]) => {
+    const seen = new Set();
+    rows.forEach(([cafeId, drinkId, temp, at], k) => {
+      brandRedeem(byId[id], cafeId, drinkId, temp, at || before(k, rows.length), !seen.has(cafeId));
+      seen.add(cafeId);
+    });
+  });
+
   /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
      Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
   const handToday = {
     kiln: [
-      { memberId: "m_ayesha", drinkId: "kiln-flat" },
       { memberId: "m_zara",   drinkId: "kiln-flat" },
       { memberId: "m_zara",   drinkId: "kiln-cort" },
       { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
@@ -2753,7 +2986,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const dayStart = startOfToday - d * DAY;
       const isToday = d === 0;
       const todayUse = {};
-      cafes.forEach((cafe) => {
+      cafes.filter((c) => !c.brandId).forEach((cafe) => {
         const hand = isToday ? (handToday[cafe.id] || []) : [];
         const handCups = hand.reduce((n, s) => n + drinkCredits(cafe.id, s.drinkId), 0);
         // A normal day wobbles around the café’s average
@@ -2779,6 +3012,57 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       });
     }
   })();
+
+  /* Double Shot regulars: 90 members on Double Shot plans, generated under
+     the real rules (cups from the brand pool, 2 a day per branch), around
+     each branch's average day. Drinks weighted towards what sells.      */
+  const DS_POPULAR = [
+    ["ds-spanish", 10], ["ds-latte", 8], ["ds-americano", 6], ["ds-flat-white", 5], ["ds-cappuccino", 5], ["ds-caramel", 5],
+    ["ds-mocha-101", 4], ["ds-matcha", 4], ["ds-caramel-f", 4], ["ds-cortado", 3], ["ds-vanilla", 3], ["ds-hazelnut", 3], ["ds-chai", 3],
+    ["ds-honey", 2], ["ds-toffee-nut", 2], ["ds-dark-latte", 2], ["ds-salted-caramel", 2], ["ds-pistachio", 2], ["ds-java-chip", 2],
+    ["ds-v60", 2], ["ds-choc-classic", 2], ["ds-peach-tea", 2], ["ds-espresso", 2], ["ds-kunafa", 1], ["ds-ube-latte", 1], ["ds-frosted-toffee", 1], ["ds-coconut-latte", 1],
+  ];
+  const DS_WEIGHT = DS_POPULAR.reduce((n, [, w]) => n + w, 0);
+  const pickDrink = () => { let u = rand() * DS_WEIGHT; return (DS_POPULAR.find(([, w]) => (u -= w) <= 0) || DS_POPULAR[0])[0]; };
+  const dsRegulars = Array.from({ length: 90 }, (_, i) => {
+    const firstName = REGULAR_NAMES[(i * 7 + 3) % REGULAR_NAMES.length];
+    const id = `m_d${i}_${firstName.toLowerCase()}`;
+    const u = rand();
+    const plan = { type: "brand", brandId: DS.id, planId: u < 0.3 ? "ds8" : u < 0.8 ? "ds15" : "ds22" };
+    const m = { id, firstName, lastName: `${INITIALS[(i + 5) % INITIALS.length]}.`, pronoun: "them", plan, background: true, visits: {},
+      cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY };
+    members.push(m); byId[id] = m; purchase(m);
+    return m;
+  });
+  (function generateBrandMonth() {
+    const branches = cafes.filter((c) => c.brandId === DS.id);
+    const left = Object.fromEntries(dsRegulars.map((m) => [m.id, brandPlanCups(m.plan)]));
+    for (let d = 9; d >= 0; d--) {
+      const dayStart = startOfToday - d * DAY;
+      const isToday = d === 0;
+      const todayUse = {};
+      branches.forEach((cafe) => {
+        const target = isToday ? cafe.avgDailyCups : Math.round(cafe.avgDailyCups * (0.75 + rand() * 0.5));
+        const rows = [];
+        let guard = 0;
+        while (rows.length < target && guard++ < 600) {
+          const m = pick(dsRegulars);
+          const k = `${m.id}:${cafe.id}`;
+          if (left[m.id] < 1 || (todayUse[k] || 0) >= rules.dailyLimitPerCafe) continue;
+          left[m.id] -= 1; todayUse[k] = (todayUse[k] || 0) + 1;
+          const drinkId = pickDrink();
+          const item = dsItem(drinkId);
+          const temp = item.hot != null && item.iced != null ? (rand() < 0.55 ? "iced" : "hot") : item.hot != null ? "hot" : "iced";
+          const first = !(m.visits[cafe.id] > 0);
+          m.visits[cafe.id] = (m.visits[cafe.id] || 0) + 1;
+          rows.push({ m, drinkId, temp, first });
+        }
+        const times = dayTimes(cafe, dayStart, rows.length, isToday);
+        rows.forEach((r, i) => brandRedeem(r.m, cafe.id, r.drinkId, r.temp, times[i], r.first));
+      });
+    }
+  })();
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -2874,6 +3158,33 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       ],
     },
   };
+  // Double Shot branches: staff PINs per branch (presenter knowledge): the
+  // branch's number in the list, then 234 (counter) or 678 (manager).
+  // Gulberg 1234 / 1678, Cantt 2234 / 2678, Model Town 3234 / 3678, Phase 6
+  // 4234 / 4678, Lalak Jan 5234 / 5678, Pine Avenue 6234 / 6678, Dolmen 7234 / 7678.
+  // Payouts go to one head-office account; the statement splits by branch.
+  const DS_STAFF = [["Usman", "Hira"], ["Faraz", "Amna"], ["Danish", "Rida"], ["Saad", "Mahnoor"], ["Taimur", "Iqra"], ["Hamid", "Sara"], ["Ali", "Noor"]];
+  const DS_AVG_PAYOUT = [552, 547, 549, 556, 551, 545, 558]; // Rs a cup, from each branch's drink mix
+  cafes.filter((c) => c.brandId === DS.id).forEach((c, i) => {
+    const n = i + 1;
+    const [counter, manager] = DS_STAFF[i];
+    partner[c.id] = {
+      staff: [
+        { id: `st_${c.id}_c`, name: counter, role: "counter", pin: `${n}234` },
+        { id: `st_${c.id}_m`, name: manager, role: "manager", pin: `${n}678` },
+      ],
+      staffOnShift: `st_${c.id}_c`,
+      covers: { categories: ["espresso", "milk", "filter", "tea", "cold"], size: "any", extrasPaid: true },
+      limits: { cafePerDay: c.avgDailyCups * 10, perMemberPerDay: rules.dailyLimitPerCafe },
+      account: { label: "Double Shot head office account", last4: "7302" },
+      payoutDay: 5,
+      payouts: [1, 2, 3].map((k) => {
+        const cups = Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
+        return { month: monthStart(k), cups, amount: cups * DS_AVG_PAYOUT[i], paidAt: monthStart(k - 1) + 4 * DAY };
+      }),
+    };
+  });
+
   // What a member cup can cover; each café ticks its own
   const drinkCategories = [
     { id: "espresso", name: "Espresso and americano" },
@@ -2888,10 +3199,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     rules,
     tiers,
     areas,
+    brands,
     cafes,
     members,
     memberId: mumtaz.id,
-    partnerCafeId: "kiln",       // the café shown in the partner view
+    partnerCafeId: "ds-gulberg", // the café shown in the partner view: Double Shot Gulberg
     ledger,
     club,
     partner,
@@ -2916,13 +3228,16 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, session, waitlist, partner, snapshot,
+           builder, gift, rsvp, order, session, waitlist, partner, snapshot,
            tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
      explorer  one pool, any café, at most rules.explorerCapPerCafe a cycle
      mycafes   cups reserved per café, usable only there
+     brand     one pool for one brand (Double Shot), any of its branches;
+               a redemption records the branch, the drink, its price and
+               any top-up, so payouts can be paid per branch
 
    No storage. Café status, ledger entries and plan changes are handed to
    "transports" (store.addTransport); sync.js registers two:
@@ -2948,6 +3263,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     rules: clone(seed.rules),
     tiers: clone(seed.tiers),
     areas: clone(seed.areas),
+    brands: byId(clone(seed.brands || [])),
     cafeOrder: seed.cafes.map((c) => c.id),
     cafes: byId(clone(seed.cafes)),
     members: byId(clone(seed.members)),
@@ -3018,6 +3334,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     else if (type === "cafe:pause") send(type, { cafeId: payload.cafeId, until: payload.until, at: payload.at });
     else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
+    else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -3046,9 +3363,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       entries: state.ledger.filter((e) => e.live),
       plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
+      orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0;
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -3059,6 +3377,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     });
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
+    (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
     emit("snapshot", {}, { remote: true });
   }
 
@@ -3080,6 +3399,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     else if (type === "ledger") applyLedgerMessage(data);
     else if (type === "snapshot") applyRoomSnapshot(data);
     else if (type === "rsvp") applyRsvp(data, { remote: true });
+    else if (type === "order") applyOrder(data, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -3130,6 +3450,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         m.visits = m.visits || {};
         m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
         if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
+        // The drink they chose in the app has been served: clear it (on every device)
+        if (e.brandId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
+          m.order = null; m.orderAt = e.at;
+          emit("order", { memberId: m.id, order: null, at: e.at }, { remote: true });
+        }
       }
     });
     if (!added.length) return added;
@@ -3149,6 +3474,16 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   };
 
+  /** The club counts a brand as one café: one passport stamp for any branch. */
+  const venueOf = (cafeId) => state.cafes[cafeId]?.brandId || cafeId;
+  function venues() {
+    const seen = new Set();
+    return state.cafeOrder.map((id) => state.cafes[id]).filter((c) => !seen.has(venueOf(c.id)) && seen.add(venueOf(c.id))).map((c) => {
+      const b = state.brands[c.brandId];
+      return b ? { id: b.id, name: b.name, area: c.area, brandId: b.id } : c;
+    });
+  }
+
   /* -------------------------------------------------------------------
      Selectors (read-only views of state)
      ------------------------------------------------------------------- */
@@ -3161,6 +3496,50 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     area: (id) => state.areas.find((a) => a.id === id),
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
+
+    /* ---------------- Brands (Double Shot) ---------------- */
+    brand: (id) => state.brands[id] || null,
+    brandOf: (cafeId) => state.brands[state.cafes[cafeId]?.brandId] || null,
+    /** A brand's branches, in list order. */
+    branches: (brandId) => state.cafeOrder.map((id) => state.cafes[id]).filter((c) => c.brandId === brandId),
+    /** Cafés in the club's own plans (Explorer, My cafés): every café that isn't a brand branch. */
+    clubCafes: () => state.cafeOrder.map((id) => state.cafes[id]).filter((c) => !c.brandId),
+    /** "Double Shot · Gulberg Falcon Complex" for a branch, the name otherwise. */
+    placeName: (cafeId) => state.cafes[cafeId]?.label || state.cafes[cafeId]?.name || "",
+    menuItem: (brandId, drinkId) => state.brands[brandId]?.menu.find((d) => d.id === drinkId) || null,
+    /** The temperature actually served: the one asked for if the drink comes that way. */
+    servedTemp: (item, temp) => (temp === "iced" ? (item.iced != null ? "iced" : "hot") : (item.hot != null ? "hot" : "iced")),
+    /** "Iced Spanish Latte" when a drink comes both ways; the plain name otherwise. */
+    drinkLabel(item, temp) {
+      if (!item) return "Coffee";
+      const t = select.servedTemp(item, temp);
+      return item.hot != null && item.iced != null && t === "iced" ? `Iced ${item.name}` : item.name;
+    },
+    /** Counter price, what a cup covers, and the top-up at the till. */
+    drinkPrice(brandId, item, temp) {
+      const b = state.brands[brandId];
+      const price = item[select.servedTemp(item, temp)];
+      const topUp = Math.max(0, price - b.economics.coverUpTo);
+      return { price, topUp, included: topUp === 0, temp: select.servedTemp(item, temp) };
+    },
+    /** What a redemption pays the café. Brands: share of the drink's price, up to what a cup covers. */
+    entryPayout(e) {
+      if (e.brandId) {
+        const { coverUpTo, payoutShare } = state.brands[e.brandId].economics;
+        return Math.round(payoutShare * Math.min(e.price || 0, coverUpTo));
+      }
+      return e.credits * (state.cafes[e.cafeId]?.payoutPerCup || 0);
+    },
+    /** A redemption's drink, as served. */
+    entryDrinkName(e) {
+      if (e.brandId) return select.drinkLabel(select.menuItem(e.brandId, e.drinkId), e.temp);
+      return select.drink(e.cafeId, e.drinkId)?.name || "Coffee";
+    },
+    /** The drink a member chose in the app, if it's still fresh (3 hours). */
+    order(memberId = state.memberId, at = Date.now()) {
+      const m = state.members[memberId];
+      return m?.order && at - m.orderAt < 3 * 60 * MIN ? m.order : null;
+    },
 
     ledger: () => state.ledger,
     /** Every redemption, read from the ledger. */
@@ -3214,7 +3593,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     /** Explorer: cups left in the shared pool. My cafés members have no pool (null). */
     poolBalance(memberId = state.memberId) {
       const m = state.members[memberId];
-      return m.plan?.type === "explorer" ? sumCups(cycleEntries(memberId)) : null;
+      return m.plan?.type === "explorer" || m.plan?.type === "brand" ? sumCups(cycleEntries(memberId)) : null;
     },
 
     /** What a member can still use at one café this cycle, and how to say it. */
@@ -3222,6 +3601,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const m = state.members[memberId];
       const cap = state.rules.explorerCapPerCafe;
       if (!m.plan) return { type: null, reserved: 0, left: 0, of: 0, used: 0, cap, label: "No plan yet" };
+      if (m.plan.type === "brand") {
+        const b = state.brands[m.plan.brandId];
+        const bal = select.balance(memberId);
+        const here = state.cafes[cafeId]?.brandId === m.plan.brandId;
+        return { type: "brand", brandId: b.id, here, left: here ? Math.max(0, bal.left) : 0, of: bal.total, used: select.usedHereThisCycle(memberId, cafeId),
+          label: here ? `${bal.left} left · any ${b.name} branch` : `For ${b.name} only` };
+      }
       if (m.plan.type === "mycafes") {
         const bal = select.balance(memberId);
         const b = bal.perCafe[cafeId];
@@ -3251,6 +3637,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       // The café paused member cups (busy rush): nothing redeems until it ends
       if (select.isPaused(cafeId)) return no("paused");
       if (bal.left <= 0 || !m.plan) return no("no-cups");
+      // Brand cups work only at that brand; a brand takes only its own cups
+      const cafeBrand = state.cafes[cafeId]?.brandId || null;
+      if (m.plan.type === "brand" && !here.here) return no("not-brand");
+      if (cafeBrand && m.plan.type !== "brand") return no("brand-only");
       if (here.type === "mycafes" && !here.reserved && !here.bonus) return no("not-reserved");
       if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
       if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
@@ -3273,7 +3663,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const cupsToday = today.reduce((n, e) => n + e.credits, 0);
       const monthCups = here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + e.credits, 0);
       // Reserved here: My cafés members' purchases for this café in their current cycle
-      const reservers = Object.values(state.members).filter((m) => m.plan.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
+      const reservers = Object.values(state.members).filter((m) => m.plan?.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
       const reservedCups = reservers.reduce((n, m) => n + sumCups(cycleEntries(m.id).filter((e) => e.type === "purchase" && e.cafeId === cafeId)), 0);
       const reservedLeft = reservers.reduce((n, m) => n + Math.max(0, sumCups(cycleEntries(m.id).filter((e) => e.cafeId === cafeId))), 0);
       // Pending business decision: pay cafés a share of reserved cups that go unused (0 for now, not shown)
@@ -3284,9 +3674,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         cupsToday,
         newCustomersToday: today.filter((e) => e.firstVisit).length,
         payoutPerCup: cafe.payoutPerCup,
-        payoutToday: cupsToday * cafe.payoutPerCup,
+        payoutToday: today.reduce((n, e) => n + select.entryPayout(e), 0),
         monthCups,
-        payoutMonth: monthCups * cafe.payoutPerCup,
+        payoutMonth: here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + select.entryPayout(e), 0),
         reservedCups,
         reservedMembers: reservers.length,
         reservedLeft,
@@ -3319,7 +3709,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     /** Savings for a fixed tier vs. the average list price across cafés. */
     tierSavings(tierId) {
       const tier = select.tier(tierId);
-      const avg = select.cafes().reduce((n, c) => n + c.price, 0) / state.cafeOrder.length;
+      const club = select.clubCafes();
+      const avg = club.reduce((n, c) => n + c.price, 0) / club.length;
       return Math.max(0, roundTo(tier.cups * avg - tier.price, state.rules.roundTo));
     },
 
@@ -3343,7 +3734,28 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const cups = select.balance(member.id).total;
       if (!member.plan) return { type: null, typeName: "No plan", name: "No plan yet", cups: 0 };
       if (member.plan.type === "mycafes") return { type: "mycafes", typeName: "My cafés", name: "My cafés", cups };
+      if (member.plan.type === "brand") {
+        const b = state.brands[member.plan.brandId];
+        const bp = b.plans.find((x) => x.id === member.plan.planId);
+        return { type: "brand", brandId: b.id, typeName: b.name, name: `${bp.cups} cups`, cups, planCups: bp.cups };
+      }
       return { type: "explorer", typeName: "Explorer", name: select.tier(member.plan.tierId).name, cups };
+    },
+
+    /** One line for a member's plan: "Explorer · Regular", "My cafés", "Double Shot · 15 cups". */
+    planLabel(member) {
+      const p = select.memberPlan(member);
+      if (!p.type) return "No plan yet";
+      if (p.type === "explorer") return `Explorer · ${p.name}`;
+      if (p.type === "brand") return `${p.typeName} · ${p.planCups} cups`;
+      return "My cafés";
+    },
+    /** "Double Shot · 11 cups left · any branch" (brand plans), or null. */
+    brandBalanceLine(memberId = state.memberId) {
+      const m = state.members[memberId];
+      if (m?.plan?.type !== "brand") return null;
+      const left = Math.max(0, select.balance(memberId).left);
+      return `${state.brands[m.plan.brandId].name} · ${fmt.cups(left)} left · any branch`;
     },
 
     /** Open or closed right now, from the café’s hours. Handles closing after midnight. */
@@ -3382,7 +3794,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         if (statuses.length && !statuses.includes(c.status)) return false;
         if (tags.length && !tags.every((t) => c.tags.includes(t))) return false;
         if (!words.length) return true;
-        const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
+        const hay = norm([c.name, c.branch || "", select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
         return words.every((w) => hay.includes(w));
       });
     },
@@ -3391,6 +3803,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         plan: { type: "explorer", tierId } | { type: "mycafes", allocation } */
     quote(plan) {
       // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
+      if (plan.type === "brand") {
+        const b = state.brands[plan.brandId];
+        const bp = b.plans.find((x) => x.id === plan.planId);
+        return { name: `${bp.cups} cups`, typeName: b.name, brandId: b.id, cups: bp.cups, price: bp.price, perCup: bp.price / bp.cups, savings: 0, meetsMinimum: true, cupsShort: 0 };
+      }
       if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
         return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
@@ -3403,6 +3820,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const cur = state.members[memberId].plan;
       if (!cur || plan.type !== cur.type) return false;
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
+      if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
       const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
       return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
@@ -3424,10 +3842,12 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         if (new Date(e.at).getHours() < 9) morning += e.credits;
         const area = state.cafes[e.cafeId]?.area;
         if (area) byArea[area] = (byArea[area] || 0) + e.credits;
-        if (!firstAt[e.cafeId] || e.at < firstAt[e.cafeId]) firstAt[e.cafeId] = e.at;
+        const v = venueOf(e.cafeId);
+        if (!firstAt[v] || e.at < firstAt[v]) firstAt[v] = e.at;
       });
-      const allCafes = state.cafeOrder.length;
-      const cafes = state.cafeOrder.filter((id) => firstAt[id]).length;
+      const venueList = venues();
+      const allCafes = venueList.length;
+      const cafes = venueList.filter((v) => firstAt[v.id]).length;
       const founding = m.memberNo != null && m.memberNo <= C.foundingLimit;
       const goalOf = (g) => (g === "all" ? allCafes : g);
 
@@ -3457,7 +3877,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const passport = {
         count: cafes,
         total: allCafes,
-        stamps: state.cafeOrder.map((id) => ({ cafe: state.cafes[id], visited: !!firstAt[id], firstAt: firstAt[id] || null })),
+        stamps: venueList.map((v) => ({ cafe: v, visited: !!firstAt[v.id], firstAt: firstAt[v.id] || null })),
         rewards: marks,
         nextReward,
       };
@@ -3594,33 +4014,63 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 
     /** What a member cup covers here, in one plain sentence. */
     coversLine(cafeId = state.partnerCafeId) {
+      const b = select.brandOf(cafeId);
+      if (b) return `Any drink up to ${fmt.rs(b.economics.coverUpTo)}. Above that, the member pays the difference at the till.`;
       const c = state.partner[cafeId].covers;
       return `Any drink on your LCC list, ${c.size} size.${c.extrasPaid ? " Extras paid at the counter." : " Extras included."}`;
     },
 
     /** The café's day: counts, earnings, cups per hour, every redemption. */
-    cafeDay(cafeId = state.partnerCafeId) {
-      // BACKEND: GET /cafes/:id/day?date=today (ledger rows for this café)
+    cafeDay(cafeId = state.partnerCafeId, { scope = "branch" } = {}) {
+      // BACKEND: GET /cafes/:id/day?date=today (ledger rows for this café, or the whole brand)
       const cafe = state.cafes[cafeId];
       const since = startOfToday();
-      const entries = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since).sort((a, b) => b.at - a.at);
+      const ids = scope === "brand" && cafe.brandId ? select.branches(cafe.brandId).map((c) => c.id) : [cafeId];
+      const entries = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= since).sort((a, b) => b.at - a.at);
       const cups = entries.reduce((n, e) => n + e.credits, 0);
       const fresh = new Set(entries.filter((e) => e.firstVisit).map((e) => e.memberId));
       const back = new Set(entries.filter((e) => !fresh.has(e.memberId)).map((e) => e.memberId));
       const byHour = Array.from({ length: 16 }, (_, i) => ({ hour: 8 + i, cups: 0 }));
       entries.forEach((e) => { const h = new Date(e.at).getHours(); if (h >= 8 && h <= 23) byHour[h - 8].cups += e.credits; });
-      return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings: cups * cafe.payoutPerCup, rate: cafe.payoutPerCup, byHour };
+      const earnings = entries.reduce((n, e) => n + select.entryPayout(e), 0);
+      const topUps = entries.reduce((n, e) => n + (e.topUp || 0), 0);
+      return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings, topUps, rate: cafe.payoutPerCup, brand: !!cafe.brandId, byHour };
     },
 
     /** This month's payout so far, the next payout, and past payouts. */
-    cafePayouts(cafeId = state.partnerCafeId, at = Date.now()) {
-      // BACKEND: GET /cafes/:id/payouts (statement per calendar month)
+    cafePayouts(cafeId = state.partnerCafeId, at = Date.now(), { scope = "branch" } = {}) {
+      // BACKEND: GET /cafes/:id/payouts (statement per calendar month; brands split by branch)
       const cafe = state.cafes[cafeId];
       const P = state.partner[cafeId];
       const d = new Date(at); d.setHours(0, 0, 0, 0); d.setDate(1);
       const monthStart = d.getTime();
-      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
       const next = new Date(monthStart); next.setMonth(next.getMonth() + 1); next.setDate(P.payoutDay);
+      if (cafe.brandId) {
+        const b = state.brands[cafe.brandId];
+        const ids = scope === "brand" ? select.branches(b.id).map((c) => c.id) : [cafeId];
+        const month = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= monthStart);
+        const rows = ids.map((id) => {
+          const es = month.filter((e) => e.cafeId === id);
+          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), earned: es.reduce((n, e) => n + select.entryPayout(e), 0), topUps: es.reduce((n, e) => n + (e.topUp || 0), 0) };
+        });
+        const cups = rows.reduce((n, r) => n + r.cups, 0), earned = rows.reduce((n, r) => n + r.earned, 0);
+        // History: this branch's months, or every branch added up per month
+        const hist = {};
+        ids.forEach((id) => state.partner[id].payouts.forEach((p) => {
+          const h = (hist[p.month] = hist[p.month] || { month: p.month, cups: 0, amount: 0, paidAt: p.paidAt });
+          h.cups += p.cups; h.amount += p.amount ?? p.cups * state.cafes[id].payoutPerCup;
+        }));
+        return {
+          brand: b, scope, monthStart, cups, earned, rows,
+          perCup: cups ? earned / cups : 0,
+          maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare),
+          share: Math.round(b.economics.payoutShare * 100),
+          nextAt: next.getTime(),
+          account: P.account,
+          history: Object.values(hist).sort((x, y) => y.month - x.month),
+        };
+      }
+      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
       return {
         monthStart,
         cups,
@@ -3630,7 +4080,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         earned: cups * cafe.payoutPerCup,
         nextAt: next.getTime(),
         account: P.account,
-        history: P.payouts.map((p) => ({ ...p, amount: p.cups * cafe.payoutPerCup })),
+        history: P.payouts.map((p) => ({ ...p, amount: p.amount ?? p.cups * cafe.payoutPerCup })),
       };
     },
 
@@ -3651,6 +4101,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     "paused": (m, { cafeId }) => `Member cups are paused here until ${fmt.time(state.cafes[cafeId].pausedUntil)}. ${m.firstName} can pay at the counter, or come back after.`,
     "cafe-cap": (m, { cafeId }) => `Today’s member cups here are used up (${state.partner[cafeId].limits.cafePerDay} a day). They start again tomorrow.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
+    "not-brand": (m) => `${m.firstName}’s cups are for ${state.brands[m.plan.brandId].name}, at any of its branches. ${m.firstName} can pay here as usual.`,
+    "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups. ${m.firstName} can add a ${state.cafes[cafeId].name} plan in the app, or pay as usual.`,
     "not-reserved": (m) => `${m.firstName}’s cups are reserved for ${listNames(reservedCafes(m))}.`,
     "reserved-used": (m, { here }) => {
       const others = reservedCafes(m).filter((id) => select.balance(m.id).perCafe[id].left > 0);
@@ -3726,6 +4178,15 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     if (by[memberId] && by[memberId].at >= at) return; // newest answer wins
     by[memberId] = { going: !!going, at };
     emit("rsvp", { gatheringId, memberId, going: !!going, at }, opts);
+  }
+
+  /** The drink a member chose in the app ("Use a cup"). Newest wins. */
+  function applyOrder({ memberId, order, at }, opts) {
+    const m = state.members[memberId];
+    if (!m || (m.orderAt || 0) >= at) return;
+    m.order = order ? clone(order) : null;
+    m.orderAt = at;
+    emit("order", { memberId, order: m.order, at }, opts);
   }
 
   function addMember(m) {
@@ -3814,12 +4275,26 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     },
 
     /** Redeem by code (café view). Returns the lookup result plus the entry. */
-    redeem({ code, cafeId = state.partnerCafeId, drinkId }) {
+    redeem({ code, cafeId = state.partnerCafeId, drinkId, temp }) {
       const cafe = state.cafes[cafeId];
       const drink = select.drink(cafeId, drinkId) || cafe.drinks[0];
       const check = lookupCode(code, cafeId, drink.credits);
       if (!check.ok) return check;
       const member = check.member;
+      if (cafe.brandId) {
+        // BACKEND: POST /redeem { code, cafeId, drinkId, temp } -> one ledger row with price and top-up
+        const item = select.menuItem(cafe.brandId, drink.id);
+        const p = select.drinkPrice(cafe.brandId, item, temp);
+        const entry = {
+          id: uid("l"), type: "redeem", memberId: member.id, cafeId, brandId: cafe.brandId,
+          cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp,
+          firstVisit: !(member.visits && member.visits[cafeId] > 0), at: Date.now(), cycle: member.cycle, live: true,
+        };
+        const newStamp = !select.activity(member.id, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(cafeId));
+        appendEntries([entry]);
+        if (newStamp) grantPassportReward(member);
+        return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
+      }
       // BACKEND: POST /redeem { code, cafeId, drinkId } -> inserts one ledger row, returns it
       const entry = {
         id: uid("l"),
@@ -3835,10 +4310,18 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         live: true, // made in this session, not seeded
       };
       if (check.here.bonus) entry.bonus = true; // a My cafés member spending a free cup
-      const newStamp = !select.activity(member.id, ["redeem"]).some((e) => e.cafeId === cafeId);
+      const newStamp = !select.activity(member.id, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(cafeId));
       appendEntries([entry]);
       if (newStamp) grantPassportReward(member);
       return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
+    },
+
+    /** The member picks a drink in the app ("Use a cup"); the counter sees it with their code.
+        Passing no drink clears it ("I'll order at the counter"). Nothing is spent until the counter redeems. */
+    placeOrder({ brandId, drinkId, temp } = {}, memberId = state.memberId) {
+      // BACKEND: PUT /members/:id/order { brandId, drinkId, temp } (short-lived)
+      const item = drinkId ? select.menuItem(brandId, drinkId) : null;
+      applyOrder({ memberId, order: item ? { brandId, drinkId, temp: select.servedTemp(item, temp) } : null, at: Date.now() });
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -3866,7 +4349,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       }
       // New cycle
       const cycle = uid("c");
-      member.plan = plan.type === "explorer"
+      member.plan = plan.type === "brand"
+        ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
+        : plan.type === "explorer"
         ? { type: "explorer", tierId: select.tier(plan.tierId).id }
         : { type: "mycafes", allocation: Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0)) };
       member.cycle = cycle;
@@ -3874,7 +4359,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       member.renewsAt = addMonths(now, 1);
       member.planChangedAt = now;
       if (payment) member.payment = payment;
-      if (member.plan.type === "explorer") {
+      if (member.plan.type === "brand") {
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, brandId: plan.brandId, cups: select.quote(member.plan).cups, at: now, cycle, live: true });
+      } else if (member.plan.type === "explorer") {
         entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, at: now, cycle, live: true });
       } else {
         Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
@@ -5012,8 +5499,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       const cafes = store.select.cafes();
       const planMeta = () => {
         const a = store.select.member();
-        const p = store.select.memberPlan(a);
-        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan · renews ${fmt.shortDate(a.renewsAt)}`;
+        return `${store.select.planLabel(a)} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
       const kiln = store.select.cafe("kiln");
       el.innerHTML = html`
@@ -5272,12 +5758,21 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       let resetTimer = null, scanTimer = null;
       let pin = "";                // staff sign-in entry
       let wasPaused = false;       // so the tick only redraws the pause control when it ends
+      let scope = "branch";        // brands: Today and Payouts for "this branch" or "all branches"
 
       function freshRedeem() { return { state: "idle", code: "", message: "", lookup: null, result: null }; }
       const cafe = () => S.cafe(cafeId);
       const P = () => S.partner(cafeId);
       const staffOnShift = () => P().staff.find((x) => x.id === P().staffOnShift) || P().staff[0];
       const defaultDrink = () => cafe().drinks.find((d) => d.credits === 1) || cafe().drinks[0];
+      const brand = () => S.brandOf(cafeId);
+      /** The drink to ring up: the member's choice in the app, or a latte until staff pick. */
+      function drinkFor(member) {
+        const b = brand();
+        const o = S.order(member.id);
+        if (o && o.brandId === b.id) return { drinkId: o.drinkId, temp: o.temp, fromApp: true };
+        return { drinkId: "ds-latte", temp: "hot", fromApp: false };
+      }
 
       /* ---------------------------------------------------------------
          Shell
@@ -5288,10 +5783,14 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           <div class="surface cv">
             <header class="cv-head">
               <div class="cv-brand">
-                ${ui.logo("ring", { label: null, cls: "cv-brand__ring" })}
+                ${brand() ? html`<span class="monogram cv-brand__ring" aria-hidden="true">${brand().monogram}</span>` : ui.logo("ring", { label: null, cls: "cv-brand__ring" })}
                 <div>
-                  <h1 class="cv-name">${c.name}</h1>
-                  <p class="t-small t-muted">${S.area(c.area).name}</p>
+                  <h1 class="cv-name">${brand() ? `${brand().name} · ${c.short}` : c.name}</h1>
+                  ${brand()
+                    ? html`<label class="cv-branch"><span class="sr-only">Branch</span><span class="select"><select class="input" data-branch>
+                        ${S.branches(brand().id).map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.branch}</option>`)}
+                      </select></span></label>`
+                    : html`<p class="t-small t-muted">${S.area(c.area).name}</p>`}
                 </div>
               </div>
               <div class="cv-head__aside">
@@ -5320,7 +5819,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
                 <label class="cv-demo__cafe">
                   <span class="t-micro t-faint">Demo café</span>
                   <span class="select"><select class="input" data-viewing>
-                    ${S.cafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}
+                    ${(() => {
+                      // A brand is one choice here; its branches are picked in the header
+                      const firstBranch = (b) => (brand()?.id === b.id ? cafeId : S.branches(b.id)[0].id);
+                      const brands = [...new Set(S.cafes().filter((x) => x.brandId).map((x) => x.brandId))].map((id) => S.brand(id));
+                      return html`${brands.map((b) => html`<option value="${firstBranch(b)}" ${brand()?.id === b.id ? raw("selected") : ""}>${b.name} (${S.branches(b.id).length} branches)</option>`)}
+                        ${S.clubCafes().map((x) => html`<option value="${x.id}" ${x.id === cafeId ? raw("selected") : ""}>${x.name}</option>`)}`;
+                    })()}
                   </select></span>
                 </label>
               </div>
@@ -5412,9 +5917,42 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           return;
         }
 
+        if (r.state === "found" && brand()) {
+          const { member, left, usedToday, dailyLimit } = r.lookup;
+          const b = brand();
+          const club = member.memberNo != null ? S.club(member.id) : null;
+          const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
+          body.innerHTML = html`
+            <div class="cv-member enter">
+              ${clubLine ? html`<p class="cv-member__club num">${clubLine}</p>` : ""}
+              <p class="cv-member__name" id="member-name">${member.firstName}</p>
+              <dl class="cv-facts">
+                <div><dt>Plan</dt><dd>${S.planLabel(member)}</dd></div>
+                <div><dt>Cups left</dt><dd class="num">${left} <span class="t-faint">· any ${b.name} branch</span></dd></div>
+                <div><dt>Today here</dt><dd class="num">${usedToday} of ${dailyLimit}</dd></div>
+              </dl>
+              <div class="cv-order">
+                <div class="cv-order__head">
+                  <label class="eyebrow" for="cv-drink">Drink</label>
+                  <span class="badge" data-cv-from ${r.drink.fromApp ? "" : raw("hidden")}>Chosen in the app</span>
+                </div>
+                <span class="select"><select class="input" id="cv-drink" data-cv-drink>
+                  ${[...new Set(b.menu.map((d) => d.section))].map((sec) => html`<optgroup label="${sec}">
+                    ${b.menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === r.drink.drinkId ? raw("selected") : ""}>${d.name}</option>`)}
+                  </optgroup>`)}
+                </select></span>
+                <div data-cv-temp>${tempHtml()}</div>
+                <p class="cv-order__cover num" data-cv-cover aria-live="polite">${coverHtml()}</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--block btn--tall" data-redeem aria-describedby="member-name">Redeem 1 cup</button>
+              <button type="button" class="btn btn--link" data-reset>Not ${member.firstName}? Enter another code</button>
+            </div>`.s;
+          if (focus) $("[data-redeem]", body).focus();
+          return;
+        }
+
         if (r.state === "found") {
           const { member, left, here, usedToday, dailyLimit } = r.lookup;
-          const plan = S.memberPlan(member);
           const club = member.memberNo != null ? S.club(member.id) : null;
           const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
           const perks = club ? S.perksAt(member.id, cafeId) : [];
@@ -5426,7 +5964,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
               ${clubLine ? html`<p class="cv-member__club num">${clubLine}</p>` : ""}
               <p class="cv-member__name" id="member-name">${member.firstName}</p>
               <dl class="cv-facts">
-                <div><dt>Plan</dt><dd>${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}</dd></div>
+                <div><dt>Plan</dt><dd>${S.planLabel(member)}</dd></div>
                 <div><dt>Cups left</dt><dd class="num">${left} <span class="t-faint">· ${hereLine}</span></dd></div>
                 <div><dt>Today here</dt><dd class="num">${usedToday} of ${dailyLimit}</dd></div>
                 <div><dt>A cup covers</dt><dd>${S.coversLine(cafeId)}</dd></div>
@@ -5436,6 +5974,26 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
               <button type="button" class="btn btn--link" data-reset>Not ${member.firstName}? Enter another code</button>
             </div>`.s;
           if (focus) $("[data-redeem]", body).focus();
+          return;
+        }
+
+        if (r.state === "success" && entry0()?.brandId) {
+          const { member, entry } = r.result;
+          body.innerHTML = html`
+            <div class="cv-success" role="status">
+              <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+              <p class="cv-success__title">Cup redeemed for ${member.firstName}</p>
+              <p class="cv-success__drink">${S.entryDrinkName(entry)}</p>
+              ${entry.topUp
+                ? html`<p class="cv-topup num">Collect ${fmt.rs(entry.topUp)} top-up</p>`
+                : html`<p class="t-small t-muted">Fully covered by the cup.</p>`}
+              <p class="cv-success__ref num">Reference ${S.redemptionRef(entry)}</p>
+              <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
+              <p class="t-small t-faint num">${fmt.time(entry.at)} · ${member.firstName} has ${fmt.cups(S.balance(member.id).left)} left, any branch</p>
+              <button type="button" class="btn btn--secondary" data-reset>Next</button>
+              <span class="cv-success__timer" aria-hidden="true"></span>
+            </div>`.s;
+          if (focus) $("[data-reset]", body).focus({ preventScroll: true });
           return;
         }
 
@@ -5455,16 +6013,41 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         }
       }
 
+      const entry0 = () => r.result?.entry;
+      function tempHtml() {
+        const item = S.menuItem(brand().id, r.drink.drinkId);
+        if (item.hot != null && item.iced != null) {
+          return ui.segmented({ name: "cvtemp", label: "Hot or iced", value: S.servedTemp(item, r.drink.temp), options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] });
+        }
+        return html`<p class="t-small t-muted">${item.hot != null ? "Hot only" : "Iced only"}</p>`;
+      }
+      function coverHtml() {
+        const item = S.menuItem(brand().id, r.drink.drinkId);
+        const p = S.drinkPrice(brand().id, item, r.drink.temp);
+        return p.included
+          ? html`${S.drinkLabel(item, p.temp)}, ${fmt.rs(p.price)}: <strong>covered by the cup</strong>`
+          : html`${S.drinkLabel(item, p.temp)}, ${fmt.rs(p.price)}: <strong class="cv-topup">Collect ${fmt.rs(p.topUp)} top-up</strong>`;
+      }
+      function paintDrink({ temp = true } = {}) {
+        const t = $("[data-cv-temp]", el); if (t && temp) t.innerHTML = tempHtml().s;
+        const c = $("[data-cv-cover]", el); if (c) c.innerHTML = coverHtml().s;
+        const f = $("[data-cv-from]", el); if (f) f.hidden = !r.drink.fromApp;
+      }
+
       function check(code, { focus = true } = {}) {
         r.code = code;
+        const keep = r.state === "found" ? r.drink : null; // a re-check keeps what staff picked
         const res = store.lookupCode(code, cafeId, 1);
         r = res.ok ? { ...freshRedeem(), state: "found", code, lookup: res } : { ...freshRedeem(), state: "error", code, message: res.message };
+        if (res.ok && brand()) r.drink = keep && keep.memberId === res.member.id ? keep : { ...drinkFor(res.member), memberId: res.member.id };
         paintRedeem({ focus });
       }
 
       function redeemNow() {
         // store.actions.redeem carries the // BACKEND: POST /redeem seam
-        const res = A.redeem({ code: r.code, cafeId, drinkId: defaultDrink().id });
+        const res = brand()
+          ? A.redeem({ code: r.code, cafeId, drinkId: r.drink.drinkId, temp: r.drink.temp })
+          : A.redeem({ code: r.code, cafeId, drinkId: defaultDrink().id });
         if (!res.ok) {
           // e.g. the code expired, or the café paused, while the barista looked
           r = { ...freshRedeem(), state: "error", code: r.code, message: res.message };
@@ -5474,7 +6057,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         r = { ...freshRedeem(), state: "success", result: { member: res.member, entry: res.entry } };
         paintRedeem({ focus: true });
         clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS);
+        // A top-up to collect gets a little longer on screen
+        resetTimer = setTimeout(() => reset({ focus: el.contains(document.activeElement) }), RESET_AFTER_MS * (res.entry.topUp ? 1.75 : 1));
       }
 
       function reset({ focus = true } = {}) {
@@ -5498,7 +6082,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         list.innerHTML = rows.length
           ? html`${rows.map((e) => html`<li class="cv-row${e.id === newId ? " enter" : ""}">
               <span class="cv-row__time num">${fmt.time(e.at)}</span>
-              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
+              <span class="cv-row__main">${firstName(S.member(e.memberId))}${e.brandId ? html` <span class="t-faint">· ${S.entryDrinkName(e)}${e.topUp ? ` · +${fmt.rs(e.topUp)}` : ""}</span>` : ""}${e.firstVisit ? html` <span class="t-faint">· first visit</span>` : ""}</span>
               <span class="cv-row__ref num">${S.redemptionRef(e)}</span>
             </li>`)}`.s
           : html`<li class="cv-row"><span class="cv-row__main t-muted">No member cups yet today.</span></li>`.s;
@@ -5536,8 +6120,15 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       /* ---------------------------------------------------------------
          Today
          --------------------------------------------------------------- */
+      const scopeToggle = () => (brand()
+        ? ui.segmented({ name: "cvscope", label: "Show", value: scope, options: [{ value: "branch", label: "This branch" }, { value: "brand", label: "All branches" }] })
+        : "");
+      const payRule = () => { const e = brand().economics; return `${Math.round(e.payoutShare * 100)}% of each drink’s price, up to ${fmt.rs(Math.round(e.coverUpTo * e.payoutShare))}`; };
+
       function todayHtml() {
-        const d = S.cafeDay(cafeId);
+        const b = brand();
+        const all = b && scope === "brand";
+        const d = S.cafeDay(cafeId, { scope: all ? "brand" : "branch" });
         const max = Math.max(1, ...d.byHour.map((h) => h.cups));
         const nowHour = new Date().getHours();
         const hourLabel = (h) => fmt.clock(h * 60);
@@ -5545,13 +6136,14 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           <div class="cv-section">
             <div class="cv-section__head">
               <h2 class="cv-title">Today</h2>
-              <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+              <p class="t-small t-muted">${fmt.date(Date.now())}${b ? ` · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}` : ""}</p>
             </div>
+            ${scopeToggle()}
             <dl class="cv-stats">
               <div><dt>Cups redeemed</dt><dd class="num">${d.cups}</dd></div>
               <div><dt>New members</dt><dd class="num">${d.newMembers}</dd></div>
               <div><dt>Returning members</dt><dd class="num">${d.returningMembers}</dd></div>
-              <div><dt>Estimated earnings</dt><dd class="num">${fmt.rs(d.earnings)}</dd></div>
+              <div><dt>Estimated earnings</dt><dd class="num">${fmt.rs(d.earnings)}</dd>${b ? html`<dd class="t-small t-muted num">${fmt.rs(d.topUps)} in top-ups at the till</dd>` : ""}</div>
             </dl>
 
             <section aria-labelledby="hours-h">
@@ -5570,14 +6162,16 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
                 <button type="button" class="btn btn--secondary btn--compact" data-export>Export today (CSV)</button>
               </div>
               ${d.entries.length ? html`<table class="cv-table">
-                <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
+                <thead><tr><th scope="col">Time</th><th scope="col">Member</th>${b ? html`<th scope="col">Drink</th>` : ""}${all ? html`<th scope="col">Branch</th>` : ""}<th scope="col">Reference</th><th scope="col" class="r">Owed to you</th></tr></thead>
                 <tbody>${d.entries.map((e) => html`<tr>
                   <td class="num">${fmt.time(e.at)}</td>
                   <td>${firstName(S.member(e.memberId))}${e.firstVisit ? html` <span class="t-faint">· new</span>` : ""}</td>
+                  ${b ? html`<td>${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· +${fmt.rs(e.topUp)} top-up</span>` : ""}</td>` : ""}
+                  ${all ? html`<td>${S.cafe(e.cafeId).short}</td>` : ""}
                   <td class="num">${S.redemptionRef(e)}</td>
-                  <td class="num r">${fmt.rs(e.credits * d.rate)}</td>
+                  <td class="num r">${fmt.rs(S.entryPayout(e))}</td>
                 </tr>`)}</tbody>
-                <tfoot><tr><th scope="row" colspan="3">${fmt.cups(d.cups)} at ${fmt.rs(d.rate)} a cup</th><td class="num r">${fmt.rs(d.earnings)}</td></tr></tfoot>
+                <tfoot><tr><th scope="row" colspan="${2 + (b ? 1 : 0) + (all ? 1 : 0)}">${b ? `${fmt.cups(d.cups)} · ${payRule()}` : `${fmt.cups(d.cups)} at ${fmt.rs(d.rate)} a cup`}</th><td class="num r">${fmt.rs(d.earnings)}</td></tr></tfoot>
               </table>` : html`<p class="t-small t-muted">No member cups yet today.</p>`}
             </section>
           </div>`;
@@ -5586,7 +6180,55 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       /* ---------------------------------------------------------------
          Payouts
          --------------------------------------------------------------- */
+      function brandPayoutsHtml() {
+        const b = brand();
+        const all = scope === "brand";
+        const p = S.cafePayouts(cafeId, Date.now(), { scope: all ? "brand" : "branch" });
+        const month = (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        return html`
+          <div class="cv-section">
+            <div class="cv-section__head">
+              <h2 class="cv-title">Payouts</h2>
+              <p class="t-small t-muted">${month(p.monthStart)} so far · ${all ? `all ${S.branches(b.id).length} branches` : cafe().branch}</p>
+            </div>
+            ${scopeToggle()}
+            <dl class="cv-stats">
+              <div><dt>Cups redeemed</dt><dd class="num">${p.cups}</dd></div>
+              <div><dt>Paid per cup</dt><dd class="num">${fmt.rs(p.perCup)}</dd><dd class="t-small t-muted num">On average. ${payRule()}.</dd></div>
+              <div><dt>Earned so far</dt><dd class="num cv-highlight">${fmt.rs(p.earned)}</dd></div>
+              <div><dt>Next payout</dt><dd class="cv-stats__small num">${fmt.shortDate(p.nextAt)}</dd><dd class="t-small t-muted num">${p.account.label} ending ${p.account.last4}</dd></div>
+            </dl>
+
+            <section aria-labelledby="branches-h">
+              <h3 class="eyebrow" id="branches-h">${all ? "By branch" : "This branch"}, ${month(p.monthStart)}</h3>
+              <table class="cv-table">
+                <thead><tr><th scope="col">Branch</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Top-ups at the till</th><th scope="col" class="r">Payout</th></tr></thead>
+                <tbody>${p.rows.map((x) => html`<tr${x.cafe.id === cafeId && all ? raw(' class="is-here"') : ""}>
+                  <td>${x.cafe.branch}</td><td class="num r">${x.cups}</td><td class="num r">${fmt.rs(x.topUps)}</td><td class="num r">${fmt.rs(x.earned)}</td>
+                </tr>`)}</tbody>
+                ${all ? html`<tfoot><tr><th scope="row">Total</th><td class="num r">${p.cups}</td><td class="num r">${fmt.rs(p.rows.reduce((n, x) => n + x.topUps, 0))}</td><td class="num r">${fmt.rs(p.earned)}</td></tr></tfoot>` : ""}
+              </table>
+            </section>
+
+            <section aria-labelledby="history-h">
+              <div class="cv-section__bar">
+                <h3 class="eyebrow" id="history-h">Payout history${all ? ", all branches" : ""}</h3>
+                <button type="button" class="btn btn--secondary btn--compact" data-statement>Download statement (PDF)</button>
+              </div>
+              <table class="cv-table">
+                <thead><tr><th scope="col">Month</th><th scope="col" class="r">Cups</th><th scope="col" class="r">Amount</th><th scope="col" class="r">Status</th></tr></thead>
+                <tbody>${p.history.map((h) => html`<tr>
+                  <td>${month(h.month)}</td><td class="num r">${fmt.num(h.cups)}</td><td class="num r">${fmt.rs(h.amount)}</td>
+                  <td class="r"><span class="cv-paid">Paid</span> <span class="t-faint num">${fmt.shortDate(h.paidAt)}</span></td>
+                </tr>`)}</tbody>
+              </table>
+            </section>
+            <p class="t-small t-muted">Paid monthly on the ${S.partner(cafeId).payoutDay}th to one ${b.name} account, per cup redeemed: ${payRule()}. Top-ups are paid by the member at your till and stay with you.</p>
+          </div>`;
+      }
+
       function payoutsHtml() {
+        if (brand()) return brandPayoutsHtml();
         const p = S.cafePayouts(cafeId);
         const month = (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
         return html`
@@ -5631,7 +6273,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           <div class="cv-section cv-settings">
             <div class="cv-section__head"><h2 class="cv-title">Settings</h2></div>
 
-            <fieldset class="cv-set">
+            ${brand() ? html`<fieldset class="cv-set">
+              <legend class="eyebrow">What a member cup covers</legend>
+              <p class="t-body num">${S.coversLine(cafeId)}</p>
+              <p class="t-small t-muted num">Set by ${brand().name} for every branch. Your counter shows “Collect Rs X top-up” when a drink costs more. Payout: ${payRule()}.</p>
+            </fieldset>` : html`<fieldset class="cv-set">
               <legend class="eyebrow">What a member cup covers</legend>
               <div class="cv-checks">
                 ${S.drinkCategories().map((k) => html`<label class="cv-check">
@@ -5650,7 +6296,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
                 <span>Extras paid at the counter (extra shot, syrup, oat milk)</span>
               </label>
               <p class="t-small t-muted">Your counter shows: “${S.coversLine(cafeId)}”</p>
-            </fieldset>
+            </fieldset>`}
 
             <fieldset class="cv-set">
               <legend class="eyebrow">Limits</legend>
@@ -5773,6 +6419,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         if (tab) return showSection(tab.dataset.section);
         const busy = t.closest("[data-busy-option]");
         if (busy) return A.setBusyMode(cafeId, busy.dataset.busyOption);
+        const tseg = t.closest('[data-segmented="cvtemp"] .segmented__option');
+        if (tseg) { ui.selectSegment(tseg.parentElement, tseg.dataset.value); r.drink = { ...r.drink, temp: tseg.dataset.value, fromApp: false }; return paintDrink({ temp: false }); }
+        const sseg = t.closest('[data-segmented="cvscope"] .segmented__option');
+        if (sseg) { if (scope === sseg.dataset.value) return; scope = sseg.dataset.value; paintSection(); return $(`[data-segmented="cvscope"] [data-value="${scope}"]`, el)?.focus(); }
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-reset]")) return reset();
@@ -5831,7 +6481,12 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 
       const onChange = (e) => {
         const t = e.target;
-        if (t.matches("[data-viewing]")) return A.setPartnerCafe(t.value);
+        if (t.matches("[data-viewing]") || t.matches("[data-branch]")) return A.setPartnerCafe(t.value);
+        if (t.matches("[data-cv-drink]")) {
+          const item = S.menuItem(brand().id, t.value);
+          r.drink = { ...r.drink, drinkId: t.value, temp: S.servedTemp(item, r.drink.temp), fromApp: false };
+          return paintDrink();
+        }
         if (t.name === "cat") {
           const cats = $$('input[name="cat"]:checked', el).map((x) => x.value);
           if (!cats.length) { t.checked = true; return ui.toast("A member cup needs to cover at least one kind of drink.", { iconName: "info" }); }
@@ -5902,7 +6557,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           if (r.state === "found") check(r.code, { focus: false });
         }),
         store.on("redeem", ({ entry }) => {
-          if (entry.cafeId !== cafeId) return;
+          if (entry.cafeId !== cafeId) {
+            // Another branch of this brand: the all-branches views and brand-wide cups change
+            if (!brand() || entry.brandId !== brand().id) return;
+            if (scope === "brand" && (section === "today" || section === "payouts")) paintSection();
+            if (r.state === "found" && r.lookup.member.id === entry.memberId) check(r.code, { focus: false });
+            return;
+          }
           A.refreshAutoBusy(cafeId);
           paintBusy();   // the cup count in the busy line, even if the level holds
           paintRecent(entry.id);
@@ -5927,6 +6588,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         }),
         // A plan bought or switched (here or on a phone) changes reserved cups
         store.on("plan", () => { if (r.state === "found") check(r.code, { focus: false }); }),
+        // The member picked (or changed) a drink on their phone while the counter has them up
+        store.on("order", ({ memberId }) => {
+          if (r.state !== "found" || !brand() || r.lookup.member.id !== memberId) return;
+          r.drink = { ...drinkFor(r.lookup.member), memberId };
+          const sel = $("[data-cv-drink]", el); if (sel) sel.value = r.drink.drinkId;
+          paintDrink();
+        }),
         // A device that joined the room was filled in by another café window
         store.on("snapshot", () => { renderAll(); }),
       ];
@@ -5989,6 +6657,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+  const A = store.actions;
   // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
   const REG = (LCC.appScreens = LCC.appScreens || {});
 
@@ -6009,10 +6678,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   const MAP_W = 360, MAP_H = 560;
   const project = (x, y) => ({ x: 24 + (x - 260) * 0.58, y: 60 + (y - 250) * 1.1 });
   // Where each pin's name sits, so names stay inside the frame and don't collide (default: right)
-  const LABEL_SIDE = { slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below" };
+  const LABEL_SIDE = {
+    slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below",
+    "ds-gulberg": "left", "ds-cantt": "below", "ds-lalakjan": "left", "ds-dha6": "left", "ds-dolmen": "left", "ds-pine": "left", "ds-modeltown": "left",
+  };
   const AREA_LABELS = {
     gulberg: [236, 196], liberty: [92, 286], fortress: [292, 70],
-    dha: [300, 514], "model-town": [196, 512], "johar-town": [58, 530],
+    dha: [300, 540], "model-town": [196, 512], "johar-town": [58, 530], cantt: [318, 270],
   };
   const USUAL_HOUR = 18;
 
@@ -6102,6 +6774,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       /* ---------------- Routing inside the app ---------------- */
       function resolve(path) {
         const [a = "home", b] = path;
+        const brandId = b && (S.brand(b) ? b : S.cafe(b)?.brandId);
+        if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
@@ -6162,6 +6836,29 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         const c = S.cafe(cafeId);
         const open = S.openState(c);
         const usual = S.usualStatus(c, USUAL_HOUR).status;
+        const brand = S.brandOf(cafeId);
+        if (brand) {
+          const cover = brand.economics.coverUpTo;
+          $("[data-sheet-body]", el).innerHTML = html`
+            <div class="cafe-sheet">
+              <div class="stack" style="--stack-gap:var(--space-1)">
+                <h2 class="t-h2" id="cafe-sheet-title">${brand.name}</h2>
+                <p class="t-small t-muted">${c.branch} · ${c.distanceKm} km · one of ${S.branches(brand.id).length} branches</p>
+              </div>
+              <div>${ui.statusPill(c.id)}</div>
+              <div class="cafe-sheet__facts">
+                <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
+                <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
+              </div>
+              <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
+              <div class="cafe-sheet__actions">
+                <a class="btn btn--primary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
+                <button type="button" class="btn btn--secondary btn--block" data-directions="${c.id}">Directions</button>
+              </div>
+            </div>`.s;
+          ui.openSheet($("#cafe-sheet", el));
+          return;
+        }
         $("[data-sheet-body]", el).innerHTML = html`
           <div class="cafe-sheet">
             <div class="stack" style="--stack-gap:var(--space-1)">
@@ -6220,7 +6917,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
                   </div>
                 </div>
                 <div class="home__lines">
-                  <p class="t-body">cups left this month</p>
+                  <p class="t-body" data-home-line>${homeLine()}</p>
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
                 </div>
                 <div class="home__actions">
@@ -6237,11 +6934,19 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             ledger: ({ entries }) => {
               if (!entries.some((e) => e.memberId === member().id)) return;
               paintRing();
+              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
             },
-            member: () => { paintRing(); const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine(); },
+            member: () => {
+              paintRing();
+              const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine();
+              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
+            },
           },
         };
       }
+
+      /** Under the ring: "Double Shot · 11 cups left · any branch" on a brand plan. */
+      const homeLine = () => S.brandBalanceLine() || "cups left this month";
 
       function renewLine() {
         const m = member();
@@ -6280,7 +6985,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
-                ? html`<p class="t-body">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}, ${fmt.cups(plan.cups)} this month</p>
+                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : `, ${fmt.cups(plan.cups)} this month`}</p>
                     <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)} a month · ` : ""}renews on ${fmt.shortDate(m.renewsAt)}</p>
                     ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
                 : html`<p class="t-body">No plan yet</p>`}
@@ -6318,11 +7023,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
               <span class="badge${r.type === "reward" ? " badge--accent" : ""}">${r.type === "reward" ? "+" : "−"}${fmt.cups(Math.abs(r.cups))}</span>
             </li>`;
           }
-          const d = S.drink(r.cafeId, r.drinkId);
           return html`<li class="row${r.id === newId ? " enter" : ""}">
             <div class="row__main">
-              <div class="row__title">${d ? d.name : "Coffee"}</div>
-              <div class="row__meta">${c.name} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              <div class="row__title">${S.entryDrinkName(r)}</div>
+              <div class="row__meta">${S.placeName(r.cafeId)}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
             </div>
             <span class="badge">${fmt.cups(r.credits)}</span>
           </li>`;
@@ -6369,6 +7073,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             redeem: ({ entry, member: who }) => { if (who.id === member().id) showSuccess(entry); },
             member: () => paintMeta(),
             ledger: () => paintMeta(),
+            order: ({ memberId }) => { if (memberId !== member().id) return; const box = $("[data-pass-order]", view); if (box) box.innerHTML = orderHtml().s; },
           },
         };
 
@@ -6377,6 +7082,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           const plan = S.memberPlan(m2);
           const card = $("[data-pass-card]", view);
           card.innerHTML = html`
+            <div class="pass-order" data-pass-order>${orderHtml()}</div>
             <div class="pass-ring">
               <div class="pass-ring__bricks" data-pass-ring>${passRing()}</div>
               <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
@@ -6397,6 +7103,19 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           tickCountdown();
         }
 
+        /** The drink chosen in the app, with any top-up, shown above the QR. */
+        function orderHtml() {
+          const o = S.order();
+          if (!o) return "";
+          const item = S.menuItem(o.brandId, o.drinkId);
+          const p = S.drinkPrice(o.brandId, item, o.temp);
+          return html`
+            <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
+            <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>
+            <p class="t-small t-muted num">${p.included ? "Included in your cup" : `Cup + ${fmt.rs(p.topUp)}, paid at the till`}</p>
+            <p class="pass-order__acts"><a class="btn btn--link" href="#/app/cafes/${o.brandId}">Change</a><button type="button" class="btn btn--link" data-clear-order>Order at the counter instead</button></p>`;
+        }
+
         /** Caramel bricks around the QR: one per cup, used ones outlined. */
         function passRing() {
           const b = S.balance();
@@ -6408,6 +7127,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         function passCafes() {
           const b = S.balance();
           const cap = store.getState().rules.explorerCapPerCafe;
+          const brandLine = S.brandBalanceLine();
+          if (brandLine) return html`<p class="pass__brand num">${brandLine}</p>`;
           if (b.type === "mycafes") {
             return html`<p class="t-micro t-faint">Reserved at</p>
               <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
@@ -6469,11 +7190,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           if (!card) return;
           const m2 = member();
           const cafe = S.cafe(entry.cafeId);
-          const drink = S.drink(entry.cafeId, entry.drinkId);
           const b = S.balance();
           const before = b.left + entry.credits;
           const here = S.cafeBalance(m2.id, entry.cafeId);
           const hereLine = entry.bonus ? "That was a free cup from the club"
+            : here.type === "brand" ? `Your cups work at every ${cafe.name} branch`
             : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
             : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
@@ -6481,7 +7202,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${cafe.name}.</p>
-              <p class="t-body t-muted">${drink ? drink.name : "1 cup"} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
+              ${entry.topUp ? html`<p class="t-body num">Pay ${fmt.rs(entry.topUp)} at the till for the difference.</p>` : ""}
+              <p class="t-body t-muted">${S.entryDrinkName(entry)} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
               <p class="t-small t-faint num" data-success-here>${hereLine}</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
@@ -6497,8 +7219,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       }
       function pinLabel(c, status) {
         return mapMode === "now"
-          ? `${c.name}, ${fmt.statusLabel(status)}, ${fmt.updated(c.statusUpdatedAt)}`
-          : `${c.name}, usually ${fmt.statusLabel(status).toLowerCase()} at 6 pm`;
+          ? `${S.placeName(c.id)}, ${fmt.statusLabel(status)}, ${fmt.updated(c.statusUpdatedAt)}`
+          : `${S.placeName(c.id)}, usually ${fmt.statusLabel(status).toLowerCase()} at 6 pm`;
       }
       function pinHtml(c) {
         const p = project(c.x, c.y);
@@ -6506,7 +7228,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         return html`<button type="button" class="pin${LABEL_SIDE[c.id] ? ` pin--${LABEL_SIDE[c.id]}` : ""}" data-pin="${c.id}" data-status="${status}"
             style="left:${(p.x / MAP_W * 100).toFixed(2)}%;top:${(p.y / MAP_H * 100).toFixed(2)}%" aria-label="${pinLabel(c, status)}">
             <span class="pin__dot">${ui.cupIcon(status, { size: 18, cls: "pin__icon" })}</span>
-            <span class="pin__name" aria-hidden="true">${c.name}</span>
+            <span class="pin__name" aria-hidden="true">${c.pinName || c.name}</span>
           </button>`;
       }
       function mapNote() {
@@ -6575,6 +7297,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
+        if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
         if (t.closest("[data-pass-back]")) { active.cleanup?.(); active.cleanup = null; show(["pass"], { force: true }); return; }
         const start = t.closest("[data-start-plan]");
         if (start) { LCC.appPlan?.start({ addCafe: start.dataset.startPlan || null }); go("#/app/plan"); return; }
@@ -6583,7 +7306,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         const dir = t.closest("[data-directions]");
         if (dir) {
           // BACKEND: deep link to the phone's maps app with the café's coordinates
-          ui.toast(`Directions to ${S.cafe(dir.dataset.directions).name} open in your maps app.`, { iconName: "pin" });
+          ui.toast(`Directions to ${S.placeName(dir.dataset.directions)} open in your maps app.`, { iconName: "pin" });
         }
       };
 
@@ -6614,7 +7337,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order"].map((type) => store.on(type, dispatch(type)));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {
@@ -6712,9 +7435,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     function rowHtml(c) {
       const open = S.openState(c).open;
       return html`<li>
-        <a class="cafe-line" href="#/app/cafes/${c.id}" aria-label="${c.name}, ${S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
           <span class="cafe-line__name">${c.name}</span>
-          <span class="cafe-line__area">${S.area(c.area).name}</span>
+          <span class="cafe-line__area">${c.branch || S.area(c.area).name}</span>
           <span class="cafe-line__end" aria-hidden="true">
             ${ui.statusPill(c.id, { bare: true, time: false })}
             <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>
@@ -7035,6 +7758,269 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 
 </script>
 <script>
+/* ---- src/app-brand.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — app-brand.js
+   Member app: a brand partner's page (#/app/cafes/doubleshot, also
+   reached from any branch's row or pin). Your cups, the drinks menu with
+   a Hot / Iced toggle, ordering ("Use a cup"), branches and plans.
+
+   Cups belong to the brand, not a branch: they work at every branch.
+   Ordering only tells the counter what you'd like; the cup is spent when
+   the counter redeems your code (store.actions.placeOrder / redeem).
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, $, $$, icon } = ui;
+  const S = store.select;
+  const A = store.actions;
+  const REG = (LCC.appScreens = LCC.appScreens || {});
+
+  let menuTemp = "hot"; // the menu's Hot / Iced toggle, kept between visits
+
+  REG.brand = (ctx, brandId) => {
+    const { view, el } = ctx;
+    const b = S.brand(brandId);
+    const cover = b.economics.coverUpTo;
+    const sections = [...new Set(b.menu.map((d) => d.section))];
+    let sheet = null;
+    let picked = null; // { item, temp } while the order sheet is open
+    let onScroll = null;
+
+    const hasPlan = () => ctx.member().plan?.type === "brand" && ctx.member().plan.brandId === b.id;
+    const left = () => (hasPlan() ? Math.max(0, S.balance().left) : 0);
+    const priceTag = (item, temp) => {
+      const p = S.drinkPrice(b.id, item, temp);
+      return p.included ? html`<span class="badge">Included</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
+    };
+
+    /* ---------------- Your cups ---------------- */
+    function cupsHtml() {
+      const m = ctx.member();
+      if (hasPlan()) {
+        return html`<p class="brand-cups__line num">${S.brandBalanceLine()}</p>
+          <p class="t-small t-muted num">${S.planLabel(m)} plan · renews on ${fmt.shortDate(m.renewsAt)}. Pick a drink below, or just show your pass at the counter.</p>`;
+      }
+      return html`<p class="brand-cups__line">One plan, all ${S.branches(b.id).length} branches.</p>
+        <p class="t-small t-muted">${b.name} cups come with a ${b.name} plan and work at any branch.${m.plan ? ` Your ${S.planLabel(m)} plan covers the other partner cafés.` : ""}</p>
+        <a class="btn btn--secondary btn--compact" href="#brand-plans" data-to-plans>See ${b.name} plans</a>`;
+    }
+
+    /* ---------------- Menu ---------------- */
+    function menuHtml() {
+      return html`${sections.map((sec) => {
+        const items = b.menu.filter((d) => d.section === sec && d[menuTemp] != null);
+        if (!items.length) return "";
+        return html`<section class="menu-sec" aria-label="${sec}">
+          <h3 class="eyebrow menu-sec__title">${sec}</h3>
+          <ul role="list">
+            ${items.map((d) => html`<li>
+              <button type="button" class="menu-row" data-drink="${d.id}" aria-haspopup="dialog" aria-controls="order-sheet">
+                <span class="menu-row__main">
+                  <span class="row__title">${S.drinkLabel(d, menuTemp)}</span>
+                  <span class="row__meta num">${fmt.rs(d[menuTemp])}${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
+                </span>
+                ${priceTag(d, menuTemp)}
+              </button>
+            </li>`)}
+          </ul>
+        </section>`;
+      })}`;
+    }
+
+    /* ---------------- Branches ---------------- */
+    function branchesHtml() {
+      return html`<ul role="list">
+        ${S.branches(b.id).map((c) => {
+          const open = S.openState(c);
+          return html`<li>
+            <button type="button" class="row branch-row" data-open-cafe="${c.id}" aria-label="${c.branch}. ${open.label}. ${fmt.statusLabel(c.status)}. Details">
+              <span class="row__main">
+                <span class="row__title">${c.branch}</span>
+                <span class="row__meta num">${open.label} · ${c.distanceKm} km</span>
+              </span>
+              ${ui.statusPill(c.id, { bare: true, time: false })}
+            </button>
+          </li>`;
+        })}
+      </ul>`;
+    }
+
+    /* ---------------- Plans ---------------- */
+    function plansHtml() {
+      const cur = ctx.member().plan;
+      return html`<ul role="list" class="brand-plans">
+        ${b.plans.map((p) => {
+          const mine = cur?.type === "brand" && cur.brandId === b.id && cur.planId === p.id;
+          return html`<li class="card brand-plan${mine ? " is-mine" : ""}">
+            <div class="brand-plan__head">
+              <span class="t-h3 num">${fmt.cups(p.cups)}</span>
+              ${mine ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+              <span class="t-h3 num brand-plan__price">${fmt.rs(p.price)}</span>
+            </div>
+            <p class="t-small t-muted num">About ${fmt.rs(p.price / p.cups)} a cup, at any branch, every month.</p>
+            ${mine ? "" : html`<button type="button" class="btn btn--secondary btn--block" data-brand-plan="${p.id}">Choose ${p.cups} cups</button>`}
+          </li>`;
+        })}
+      </ul>`;
+    }
+
+    /* ---------------- Order sheet ---------------- */
+    function sheetHtml() {
+      const { item, temp } = picked;
+      const p = S.drinkPrice(b.id, item, temp);
+      const both = item.hot != null && item.iced != null;
+      const canUse = hasPlan() && left() > 0;
+      return html`
+        <div class="sheet__scrim" data-sheet-close></div>
+        <div class="sheet__panel">
+          <div class="sheet__handle" aria-hidden="true"></div>
+          <div class="sheet__body order-sheet">
+            <div class="stack" style="--stack-gap:var(--space-1)">
+              <p class="eyebrow">${item.section}</p>
+              <h2 class="t-h2" id="order-title" data-order-name>${S.drinkLabel(item, temp)}</h2>
+              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter</p>
+            </div>
+            ${both
+              ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
+              : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
+            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            ${canUse
+              ? html`<button type="button" class="btn btn--primary btn--block" data-use-cup>Use a cup</button>
+                  <p class="t-micro t-faint">The counter sees your drink when they scan your pass. Nothing is spent until they do.</p>`
+              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. Your plan renews soon." : `Choose a ${b.name} plan to use cups for this.`}</p>
+                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--primary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
+            <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
+          </div>
+        </div>`;
+    }
+
+    function openOrder(btn, drinkId) {
+      const item = S.menuItem(b.id, drinkId);
+      picked = { item, temp: S.servedTemp(item, menuTemp) };
+      btn.focus(); // closing returns here (Safari doesn't focus on tap)
+      sheet.innerHTML = sheetHtml().s;
+      ui.openSheet(sheet);
+    }
+    function paintOrder() {
+      const { item, temp } = picked;
+      const p = S.drinkPrice(b.id, item, temp);
+      $("[data-order-name]", sheet).textContent = S.drinkLabel(item, temp);
+      $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter`;
+      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`;
+    }
+    const toPlans = () => $("#brand-plans", view)?.scrollIntoView({ block: "start", behavior: ui.reducedMotion() ? "auto" : "smooth" });
+
+    function onSheetClick(e) {
+      const seg = e.target.closest('[data-segmented="ordertemp"] .segmented__option');
+      if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); picked.temp = seg.dataset.value; paintOrder(); return; }
+      if (e.target.closest("[data-use-cup]")) {
+        A.placeOrder({ brandId: b.id, drinkId: picked.item.id, temp: picked.temp });
+        ctx.go("#/app/pass");
+        return;
+      }
+      if (e.target.closest("[data-skip-order]")) { A.placeOrder({}); ctx.go("#/app/pass"); return; }
+      if (e.target.closest("[data-sheet-to-plans]")) { ui.closeSheet(sheet); toPlans(); }
+    }
+
+    function onClick(e) {
+      const seg = e.target.closest('[data-segmented="menutemp"] .segmented__option');
+      if (seg) {
+        if (seg.dataset.value === menuTemp) return;
+        menuTemp = seg.dataset.value;
+        ui.selectSegment(seg.parentElement, menuTemp);
+        $("[data-menu]", view).innerHTML = menuHtml().s;
+        return;
+      }
+      const d = e.target.closest("[data-drink]");
+      if (d) { openOrder(d, d.dataset.drink); return; }
+      if (e.target.closest("[data-to-plans]")) { e.preventDefault(); toPlans(); return; }
+      const pl = e.target.closest("[data-brand-plan]");
+      if (pl) { LCC.appPlan?.start({ mode: "brand", brandPlanId: pl.dataset.brandPlan }); ctx.go("#/app/plan"); }
+    }
+
+    const repaintMine = () => {
+      const set = (sel, markup) => { const n = $(sel, view); if (n) n.innerHTML = markup.s; };
+      set("[data-brand-cups]", cupsHtml());
+      set("[data-brand-plans]", plansHtml());
+    };
+
+    return {
+      html: html`
+        <div class="cafe-detail brand-page">
+          <div class="screen-bar" data-screen-bar>
+            <button type="button" class="icon-btn" data-back="#/app/cafes" aria-label="Back">${icon("arrowLeft")}</button>
+            <span class="screen-bar__title" aria-hidden="true">${b.name}</span>
+          </div>
+          <div class="app-screen brand">
+            <div class="brand__head">
+              <span class="monogram" aria-hidden="true">${b.monogram}</span>
+              <div class="stack" style="--stack-gap:var(--space-1)">
+                <p class="eyebrow">Partner · ${S.branches(b.id).length} branches</p>
+                <h1 class="t-h1" data-detail-title>${b.name}</h1>
+              </div>
+            </div>
+            <p class="t-body t-muted">${b.line}</p>
+            <div class="card brand-cups" data-brand-cups>${cupsHtml()}</div>
+
+            <section class="app-section" aria-labelledby="menu-h">
+              <div class="brand__bar">
+                <h2 class="eyebrow" id="menu-h">Drinks</h2>
+                ${ui.segmented({ name: "menutemp", label: "Hot or iced drinks", value: menuTemp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
+              </div>
+              <p class="t-small t-muted num">A cup covers any drink up to ${fmt.rs(cover)}. Above that, you pay the difference at the till.</p>
+              <div data-menu>${menuHtml()}</div>
+              <p class="t-micro t-faint">${b.menuNote}</p>
+            </section>
+
+            <section class="app-section" aria-labelledby="branches-h">
+              <h2 class="eyebrow app-section__title" id="branches-h">Branches</h2>
+              <div data-branches>${branchesHtml()}</div>
+            </section>
+
+            <section class="app-section" id="brand-plans" aria-labelledby="plans-h">
+              <h2 class="eyebrow app-section__title" id="plans-h">${b.name} plans</h2>
+              <div data-brand-plans>${plansHtml()}</div>
+            </section>
+          </div>
+        </div>`.s,
+      mount() {
+        sheet = document.createElement("div");
+        sheet.className = "sheet";
+        sheet.id = "order-sheet";
+        sheet.setAttribute("role", "dialog");
+        sheet.setAttribute("aria-modal", "true");
+        sheet.setAttribute("aria-labelledby", "order-title");
+        sheet.setAttribute("aria-hidden", "true");
+        $(".phone__screen", el).appendChild(sheet);
+        sheet.addEventListener("click", onSheetClick);
+        view.addEventListener("click", onClick);
+        // The bar shows the name once the big title scrolls away
+        const bar = $("[data-screen-bar]", view);
+        const title = $("[data-detail-title]", view);
+        onScroll = () => bar.classList.toggle("is-titled", title.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom);
+        view.addEventListener("scroll", onScroll, { passive: true });
+        return () => {
+          ui.closeSheet(sheet);
+          sheet.remove();
+          view.removeEventListener("click", onClick);
+          view.removeEventListener("scroll", onScroll);
+        };
+      },
+      on: {
+        ledger: repaintMine,
+        member: repaintMine,
+        plan: repaintMine,
+        tick: () => { const n = $("[data-branches]", view); if (n) n.innerHTML = branchesHtml().s; },
+      },
+    };
+  };
+})();
+
+</script>
+<script>
 /* ---- src/app-plan.js ---- */
 /* =====================================================================
    Lahore Coffee Club — app-plan.js
@@ -7057,8 +8043,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
      Draft: what the member is about to buy. The custom allocation is the
      store's builder, so the kit's builder shows the same numbers.
      ------------------------------------------------------------------- */
-  // mode: "explorer" (fixed tiers, one pool) or "mycafes" (cups reserved per café)
-  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null };
+  // mode: "explorer" (fixed tiers, one pool), "mycafes" (cups reserved per café)
+  // or "brand" (one brand's plan, any of its branches: Double Shot)
+  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null, brandId: "doubleshot", brandPlanId: "ds15" };
   const DEFAULT_ADD = 2; // cups added for a café chosen from its detail page
 
   const pay = {
@@ -7073,12 +8060,13 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 
   /** mode: open on "explorer" or "mycafes". keepBuilder: keep the builder as it is
       (the landing teaser hands over its cups) instead of loading the current plan. */
-  function start({ addCafe = null, mode = null, keepBuilder = false } = {}) {
+  function start({ addCafe = null, mode = null, keepBuilder = false, brandPlanId = null } = {}) {
     const st = store.getState();
     const cur = S.member().plan;
     draft.started = true;
     draft.mode = mode || (addCafe ? "mycafes" : cur?.type || "explorer");
     draft.tierId = cur?.tierId || "regular";
+    draft.brandPlanId = brandPlanId || (cur?.type === "brand" ? cur.planId : "ds15");
     draft.highlight = addCafe;
     if (cur?.type === "mycafes" && !keepBuilder) A.setBuilder(cur.allocation);
     if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
@@ -7091,7 +8079,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   LCC.appPlan = { start, draft };
 
   const draftPlan = () =>
-    draft.mode === "explorer"
+    draft.mode === "brand"
+      ? { type: "brand", brandId: draft.brandId, planId: draft.brandPlanId }
+      : draft.mode === "explorer"
       ? { type: "explorer", tierId: draft.tierId }
       : { type: "mycafes", allocation: { ...store.getState().builder } };
 
@@ -7145,14 +8135,34 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, ${fmt.rs(c.price)} at the counter`;
     }
 
+    function brandPlansHtml() {
+      const b = S.brand(draft.brandId);
+      const cur = S.member().plan;
+      return html`
+        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. A cup covers any drink up to ${fmt.rs(b.economics.coverUpTo)}; above that you pay the difference at the till.</p>
+        <fieldset class="tier-list">
+          <legend class="sr-only">${b.name} plans</legend>
+          ${b.plans.map((p) => html`
+            <label class="card tier">
+              <input class="sr-only" type="radio" name="dsplan" value="${p.id}" ${draft.brandPlanId === p.id ? raw("checked") : ""}>
+              <span class="tier__head">
+                <span class="t-h3 num">${fmt.cups(p.cups)}</span>
+                ${cur?.type === "brand" && cur.planId === p.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+                <span class="tier__price t-h3 num">${fmt.rs(p.price)}</span>
+              </span>
+              <span class="t-micro t-faint num">About ${fmt.rs(p.price / p.cups)} a cup, at any ${b.name} branch</span>
+            </label>`)}
+        </fieldset>`;
+    }
+
     function builderHtml() {
       return html`
         <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
-        <ul role="list" class="builder-list">${S.cafes().map(builderRowHtml)}</ul>`;
+        <ul role="list" class="builder-list">${S.clubCafes().map(builderRowHtml)}</ul>`;
     }
 
     function paintBody() {
-      $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
+      $("[data-plan-body]", view).innerHTML = (draft.mode === "brand" ? brandPlansHtml() : draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
     }
 
     function paintSummary(animate = true) {
@@ -7172,6 +8182,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       } else if (isCurrent()) {
         text = `You’re on this plan. It renews on ${fmt.shortDate(m.renewsAt)}.`;
         ok = false;
+      } else if (draft.mode === "brand") {
+        text = `About ${fmt.rs(q.perCup)} a cup, at any ${q.typeName} branch`;
       } else {
         text = `You save ${draft.mode === "explorer" ? "about " : ""}${fmt.rs(q.savings)} vs paying at the counter`;
       }
@@ -7204,6 +8216,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     }
 
     function onChange(e) {
+      if (e.target.name === "dsplan") { draft.brandPlanId = e.target.value; paintSummary(); return; }
       if (e.target.name !== "tier") return;
       draft.tierId = e.target.value;
       paintSummary();
@@ -7220,10 +8233,10 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
               ${m.plan
-                ? html`<p class="t-small t-muted num">You’re on ${S.memberPlan(m).type === "explorer" ? `Explorer ${S.memberPlan(m).name}` : "My cafés"}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
+                ? html`<p class="t-small t-muted num">You’re on ${S.planLabel(m)}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
                 : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }, { value: "brand", label: S.brand(draft.brandId).name }] })}
             <div data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -7364,7 +8377,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       }
       if (pay.phase === "success") {
         const mem = ctx.member();
-        const title = plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
+        const title = plan.type === "brand" ? `You’re on ${q.typeName}, ${q.name}.` : plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <h2 class="t-h2">${title}</h2>
@@ -7477,10 +8490,11 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
             <h1 class="t-h2">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
-                <span class="t-h3">${plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
+                <span class="t-h3">${plan.type === "brand" ? `${q.typeName} · ${q.name}` : plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
               <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
+              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.brand(plan.brandId).economics.coverUpTo)} included</p>` : ""}
               ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
@@ -8187,6 +9201,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
     const m = S.member();
     if (!m.plan) return [];
     if (m.plan.type === "explorer") return [{ id: null, label: "Your Explorer pool", left: S.poolBalance(), line: "They can use it at any partner café." }];
+    if (m.plan.type === "brand") { const b = S.brand(m.plan.brandId); return [{ id: null, label: `Your ${b.name} cups`, left: S.poolBalance(), line: `They can use them at any ${b.name} branch.` }]; }
     const b = S.balance();
     return Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => ({ id, label: S.cafe(id).name, left: x.left, line: `Reserved cups stay at ${S.cafe(id).name}. They can only use them there.` }));
   }
@@ -8867,12 +9882,12 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
           return html`<span class="pin${side ? ` pin--${side}` : ""}" data-lp-pin="${c.id}" data-status="${c.status}"
             style="left:${(p.x / M.width * 100).toFixed(2)}%;top:${(p.y / M.height * 100).toFixed(2)}%">
             <span class="pin__dot">${ui.cupIcon(c.status, { size: 18, cls: "pin__icon" })}</span>
-            <span class="pin__name">${c.name}</span>
+            <span class="pin__name">${c.pinName || c.name}</span>
           </span>`;
         })}
       </div>` : ""}
       <ul role="list" class="lp-map__list" aria-label="How busy each café is now">
-        ${S.cafes().map((c) => html`<li class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${S.area(c.area).name}</div></div>${ui.statusPill(c.id, { time: false })}</li>`)}
+        ${S.cafes().map((c) => html`<li class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${c.branch || S.area(c.area).name}</div></div>${ui.statusPill(c.id, { time: false })}</li>`)}
       </ul>
     </div>`;
   }

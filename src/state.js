@@ -10,13 +10,16 @@
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, session, waitlist, partner, snapshot,
+           builder, gift, rsvp, order, session, waitlist, partner, snapshot,
            tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
      explorer  one pool, any café, at most rules.explorerCapPerCafe a cycle
      mycafes   cups reserved per café, usable only there
+     brand     one pool for one brand (Double Shot), any of its branches;
+               a redemption records the branch, the drink, its price and
+               any top-up, so payouts can be paid per branch
 
    No storage. Café status, ledger entries and plan changes are handed to
    "transports" (store.addTransport); sync.js registers two:
@@ -42,6 +45,7 @@
     rules: clone(seed.rules),
     tiers: clone(seed.tiers),
     areas: clone(seed.areas),
+    brands: byId(clone(seed.brands || [])),
     cafeOrder: seed.cafes.map((c) => c.id),
     cafes: byId(clone(seed.cafes)),
     members: byId(clone(seed.members)),
@@ -112,6 +116,7 @@
     else if (type === "cafe:pause") send(type, { cafeId: payload.cafeId, until: payload.until, at: payload.at });
     else if (type === "ledger") send("ledger", { entries: payload.entries, plans: payload.plans || [] });
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
+    else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -140,9 +145,10 @@
       entries: state.ledger.filter((e) => e.live),
       plans: Object.values(state.members).filter((m) => m.planChangedAt).map(planMeta),
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
+      orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0;
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -153,6 +159,7 @@
     });
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
+    (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
     emit("snapshot", {}, { remote: true });
   }
 
@@ -174,6 +181,7 @@
     else if (type === "ledger") applyLedgerMessage(data);
     else if (type === "snapshot") applyRoomSnapshot(data);
     else if (type === "rsvp") applyRsvp(data, { remote: true });
+    else if (type === "order") applyOrder(data, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -224,6 +232,11 @@
         m.visits = m.visits || {};
         m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1; // lifetime, for loyalty
         if (m.cafesTried && !m.cafesTried.includes(e.cafeId)) m.cafesTried.push(e.cafeId);
+        // The drink they chose in the app has been served: clear it (on every device)
+        if (e.brandId && m.order && m.order.brandId === e.brandId && (m.orderAt || 0) <= e.at) {
+          m.order = null; m.orderAt = e.at;
+          emit("order", { memberId: m.id, order: null, at: e.at }, { remote: true });
+        }
       }
     });
     if (!added.length) return added;
@@ -243,6 +256,16 @@
     return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   };
 
+  /** The club counts a brand as one café: one passport stamp for any branch. */
+  const venueOf = (cafeId) => state.cafes[cafeId]?.brandId || cafeId;
+  function venues() {
+    const seen = new Set();
+    return state.cafeOrder.map((id) => state.cafes[id]).filter((c) => !seen.has(venueOf(c.id)) && seen.add(venueOf(c.id))).map((c) => {
+      const b = state.brands[c.brandId];
+      return b ? { id: b.id, name: b.name, area: c.area, brandId: b.id } : c;
+    });
+  }
+
   /* -------------------------------------------------------------------
      Selectors (read-only views of state)
      ------------------------------------------------------------------- */
@@ -255,6 +278,50 @@
     area: (id) => state.areas.find((a) => a.id === id),
     drink: (cafeId, drinkId) => (state.cafes[cafeId]?.drinks || []).find((d) => d.id === drinkId),
     partnerCafe: () => state.cafes[state.partnerCafeId],
+
+    /* ---------------- Brands (Double Shot) ---------------- */
+    brand: (id) => state.brands[id] || null,
+    brandOf: (cafeId) => state.brands[state.cafes[cafeId]?.brandId] || null,
+    /** A brand's branches, in list order. */
+    branches: (brandId) => state.cafeOrder.map((id) => state.cafes[id]).filter((c) => c.brandId === brandId),
+    /** Cafés in the club's own plans (Explorer, My cafés): every café that isn't a brand branch. */
+    clubCafes: () => state.cafeOrder.map((id) => state.cafes[id]).filter((c) => !c.brandId),
+    /** "Double Shot · Gulberg Falcon Complex" for a branch, the name otherwise. */
+    placeName: (cafeId) => state.cafes[cafeId]?.label || state.cafes[cafeId]?.name || "",
+    menuItem: (brandId, drinkId) => state.brands[brandId]?.menu.find((d) => d.id === drinkId) || null,
+    /** The temperature actually served: the one asked for if the drink comes that way. */
+    servedTemp: (item, temp) => (temp === "iced" ? (item.iced != null ? "iced" : "hot") : (item.hot != null ? "hot" : "iced")),
+    /** "Iced Spanish Latte" when a drink comes both ways; the plain name otherwise. */
+    drinkLabel(item, temp) {
+      if (!item) return "Coffee";
+      const t = select.servedTemp(item, temp);
+      return item.hot != null && item.iced != null && t === "iced" ? `Iced ${item.name}` : item.name;
+    },
+    /** Counter price, what a cup covers, and the top-up at the till. */
+    drinkPrice(brandId, item, temp) {
+      const b = state.brands[brandId];
+      const price = item[select.servedTemp(item, temp)];
+      const topUp = Math.max(0, price - b.economics.coverUpTo);
+      return { price, topUp, included: topUp === 0, temp: select.servedTemp(item, temp) };
+    },
+    /** What a redemption pays the café. Brands: share of the drink's price, up to what a cup covers. */
+    entryPayout(e) {
+      if (e.brandId) {
+        const { coverUpTo, payoutShare } = state.brands[e.brandId].economics;
+        return Math.round(payoutShare * Math.min(e.price || 0, coverUpTo));
+      }
+      return e.credits * (state.cafes[e.cafeId]?.payoutPerCup || 0);
+    },
+    /** A redemption's drink, as served. */
+    entryDrinkName(e) {
+      if (e.brandId) return select.drinkLabel(select.menuItem(e.brandId, e.drinkId), e.temp);
+      return select.drink(e.cafeId, e.drinkId)?.name || "Coffee";
+    },
+    /** The drink a member chose in the app, if it's still fresh (3 hours). */
+    order(memberId = state.memberId, at = Date.now()) {
+      const m = state.members[memberId];
+      return m?.order && at - m.orderAt < 3 * 60 * MIN ? m.order : null;
+    },
 
     ledger: () => state.ledger,
     /** Every redemption, read from the ledger. */
@@ -308,7 +375,7 @@
     /** Explorer: cups left in the shared pool. My cafés members have no pool (null). */
     poolBalance(memberId = state.memberId) {
       const m = state.members[memberId];
-      return m.plan?.type === "explorer" ? sumCups(cycleEntries(memberId)) : null;
+      return m.plan?.type === "explorer" || m.plan?.type === "brand" ? sumCups(cycleEntries(memberId)) : null;
     },
 
     /** What a member can still use at one café this cycle, and how to say it. */
@@ -316,6 +383,13 @@
       const m = state.members[memberId];
       const cap = state.rules.explorerCapPerCafe;
       if (!m.plan) return { type: null, reserved: 0, left: 0, of: 0, used: 0, cap, label: "No plan yet" };
+      if (m.plan.type === "brand") {
+        const b = state.brands[m.plan.brandId];
+        const bal = select.balance(memberId);
+        const here = state.cafes[cafeId]?.brandId === m.plan.brandId;
+        return { type: "brand", brandId: b.id, here, left: here ? Math.max(0, bal.left) : 0, of: bal.total, used: select.usedHereThisCycle(memberId, cafeId),
+          label: here ? `${bal.left} left · any ${b.name} branch` : `For ${b.name} only` };
+      }
       if (m.plan.type === "mycafes") {
         const bal = select.balance(memberId);
         const b = bal.perCafe[cafeId];
@@ -345,6 +419,10 @@
       // The café paused member cups (busy rush): nothing redeems until it ends
       if (select.isPaused(cafeId)) return no("paused");
       if (bal.left <= 0 || !m.plan) return no("no-cups");
+      // Brand cups work only at that brand; a brand takes only its own cups
+      const cafeBrand = state.cafes[cafeId]?.brandId || null;
+      if (m.plan.type === "brand" && !here.here) return no("not-brand");
+      if (cafeBrand && m.plan.type !== "brand") return no("brand-only");
       if (here.type === "mycafes" && !here.reserved && !here.bonus) return no("not-reserved");
       if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
       if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
@@ -367,7 +445,7 @@
       const cupsToday = today.reduce((n, e) => n + e.credits, 0);
       const monthCups = here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + e.credits, 0);
       // Reserved here: My cafés members' purchases for this café in their current cycle
-      const reservers = Object.values(state.members).filter((m) => m.plan.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
+      const reservers = Object.values(state.members).filter((m) => m.plan?.type === "mycafes" && cycleEntries(m.id).some((e) => e.type === "purchase" && e.cafeId === cafeId));
       const reservedCups = reservers.reduce((n, m) => n + sumCups(cycleEntries(m.id).filter((e) => e.type === "purchase" && e.cafeId === cafeId)), 0);
       const reservedLeft = reservers.reduce((n, m) => n + Math.max(0, sumCups(cycleEntries(m.id).filter((e) => e.cafeId === cafeId))), 0);
       // Pending business decision: pay cafés a share of reserved cups that go unused (0 for now, not shown)
@@ -378,9 +456,9 @@
         cupsToday,
         newCustomersToday: today.filter((e) => e.firstVisit).length,
         payoutPerCup: cafe.payoutPerCup,
-        payoutToday: cupsToday * cafe.payoutPerCup,
+        payoutToday: today.reduce((n, e) => n + select.entryPayout(e), 0),
         monthCups,
-        payoutMonth: monthCups * cafe.payoutPerCup,
+        payoutMonth: here.filter((e) => e.at >= monthStart.getTime()).reduce((n, e) => n + select.entryPayout(e), 0),
         reservedCups,
         reservedMembers: reservers.length,
         reservedLeft,
@@ -413,7 +491,8 @@
     /** Savings for a fixed tier vs. the average list price across cafés. */
     tierSavings(tierId) {
       const tier = select.tier(tierId);
-      const avg = select.cafes().reduce((n, c) => n + c.price, 0) / state.cafeOrder.length;
+      const club = select.clubCafes();
+      const avg = club.reduce((n, c) => n + c.price, 0) / club.length;
       return Math.max(0, roundTo(tier.cups * avg - tier.price, state.rules.roundTo));
     },
 
@@ -437,7 +516,28 @@
       const cups = select.balance(member.id).total;
       if (!member.plan) return { type: null, typeName: "No plan", name: "No plan yet", cups: 0 };
       if (member.plan.type === "mycafes") return { type: "mycafes", typeName: "My cafés", name: "My cafés", cups };
+      if (member.plan.type === "brand") {
+        const b = state.brands[member.plan.brandId];
+        const bp = b.plans.find((x) => x.id === member.plan.planId);
+        return { type: "brand", brandId: b.id, typeName: b.name, name: `${bp.cups} cups`, cups, planCups: bp.cups };
+      }
       return { type: "explorer", typeName: "Explorer", name: select.tier(member.plan.tierId).name, cups };
+    },
+
+    /** One line for a member's plan: "Explorer · Regular", "My cafés", "Double Shot · 15 cups". */
+    planLabel(member) {
+      const p = select.memberPlan(member);
+      if (!p.type) return "No plan yet";
+      if (p.type === "explorer") return `Explorer · ${p.name}`;
+      if (p.type === "brand") return `${p.typeName} · ${p.planCups} cups`;
+      return "My cafés";
+    },
+    /** "Double Shot · 11 cups left · any branch" (brand plans), or null. */
+    brandBalanceLine(memberId = state.memberId) {
+      const m = state.members[memberId];
+      if (m?.plan?.type !== "brand") return null;
+      const left = Math.max(0, select.balance(memberId).left);
+      return `${state.brands[m.plan.brandId].name} · ${fmt.cups(left)} left · any branch`;
     },
 
     /** Open or closed right now, from the café’s hours. Handles closing after midnight. */
@@ -476,7 +576,7 @@
         if (statuses.length && !statuses.includes(c.status)) return false;
         if (tags.length && !tags.every((t) => c.tags.includes(t))) return false;
         if (!words.length) return true;
-        const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
+        const hay = norm([c.name, c.branch || "", select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
         return words.every((w) => hay.includes(w));
       });
     },
@@ -485,6 +585,11 @@
         plan: { type: "explorer", tierId } | { type: "mycafes", allocation } */
     quote(plan) {
       // BACKEND: POST /plans/quote { plan } -> { name, cups, price, savings }
+      if (plan.type === "brand") {
+        const b = state.brands[plan.brandId];
+        const bp = b.plans.find((x) => x.id === plan.planId);
+        return { name: `${bp.cups} cups`, typeName: b.name, brandId: b.id, cups: bp.cups, price: bp.price, perCup: bp.price / bp.cups, savings: 0, meetsMinimum: true, cupsShort: 0 };
+      }
       if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
         return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
@@ -497,6 +602,7 @@
       const cur = state.members[memberId].plan;
       if (!cur || plan.type !== cur.type) return false;
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
+      if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
       const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
       return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
@@ -518,10 +624,12 @@
         if (new Date(e.at).getHours() < 9) morning += e.credits;
         const area = state.cafes[e.cafeId]?.area;
         if (area) byArea[area] = (byArea[area] || 0) + e.credits;
-        if (!firstAt[e.cafeId] || e.at < firstAt[e.cafeId]) firstAt[e.cafeId] = e.at;
+        const v = venueOf(e.cafeId);
+        if (!firstAt[v] || e.at < firstAt[v]) firstAt[v] = e.at;
       });
-      const allCafes = state.cafeOrder.length;
-      const cafes = state.cafeOrder.filter((id) => firstAt[id]).length;
+      const venueList = venues();
+      const allCafes = venueList.length;
+      const cafes = venueList.filter((v) => firstAt[v.id]).length;
       const founding = m.memberNo != null && m.memberNo <= C.foundingLimit;
       const goalOf = (g) => (g === "all" ? allCafes : g);
 
@@ -551,7 +659,7 @@
       const passport = {
         count: cafes,
         total: allCafes,
-        stamps: state.cafeOrder.map((id) => ({ cafe: state.cafes[id], visited: !!firstAt[id], firstAt: firstAt[id] || null })),
+        stamps: venueList.map((v) => ({ cafe: v, visited: !!firstAt[v.id], firstAt: firstAt[v.id] || null })),
         rewards: marks,
         nextReward,
       };
@@ -688,33 +796,63 @@
 
     /** What a member cup covers here, in one plain sentence. */
     coversLine(cafeId = state.partnerCafeId) {
+      const b = select.brandOf(cafeId);
+      if (b) return `Any drink up to ${fmt.rs(b.economics.coverUpTo)}. Above that, the member pays the difference at the till.`;
       const c = state.partner[cafeId].covers;
       return `Any drink on your LCC list, ${c.size} size.${c.extrasPaid ? " Extras paid at the counter." : " Extras included."}`;
     },
 
     /** The café's day: counts, earnings, cups per hour, every redemption. */
-    cafeDay(cafeId = state.partnerCafeId) {
-      // BACKEND: GET /cafes/:id/day?date=today (ledger rows for this café)
+    cafeDay(cafeId = state.partnerCafeId, { scope = "branch" } = {}) {
+      // BACKEND: GET /cafes/:id/day?date=today (ledger rows for this café, or the whole brand)
       const cafe = state.cafes[cafeId];
       const since = startOfToday();
-      const entries = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === cafeId && e.at >= since).sort((a, b) => b.at - a.at);
+      const ids = scope === "brand" && cafe.brandId ? select.branches(cafe.brandId).map((c) => c.id) : [cafeId];
+      const entries = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= since).sort((a, b) => b.at - a.at);
       const cups = entries.reduce((n, e) => n + e.credits, 0);
       const fresh = new Set(entries.filter((e) => e.firstVisit).map((e) => e.memberId));
       const back = new Set(entries.filter((e) => !fresh.has(e.memberId)).map((e) => e.memberId));
       const byHour = Array.from({ length: 16 }, (_, i) => ({ hour: 8 + i, cups: 0 }));
       entries.forEach((e) => { const h = new Date(e.at).getHours(); if (h >= 8 && h <= 23) byHour[h - 8].cups += e.credits; });
-      return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings: cups * cafe.payoutPerCup, rate: cafe.payoutPerCup, byHour };
+      const earnings = entries.reduce((n, e) => n + select.entryPayout(e), 0);
+      const topUps = entries.reduce((n, e) => n + (e.topUp || 0), 0);
+      return { entries, cups, newMembers: fresh.size, returningMembers: back.size, earnings, topUps, rate: cafe.payoutPerCup, brand: !!cafe.brandId, byHour };
     },
 
     /** This month's payout so far, the next payout, and past payouts. */
-    cafePayouts(cafeId = state.partnerCafeId, at = Date.now()) {
-      // BACKEND: GET /cafes/:id/payouts (statement per calendar month)
+    cafePayouts(cafeId = state.partnerCafeId, at = Date.now(), { scope = "branch" } = {}) {
+      // BACKEND: GET /cafes/:id/payouts (statement per calendar month; brands split by branch)
       const cafe = state.cafes[cafeId];
       const P = state.partner[cafeId];
       const d = new Date(at); d.setHours(0, 0, 0, 0); d.setDate(1);
       const monthStart = d.getTime();
-      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
       const next = new Date(monthStart); next.setMonth(next.getMonth() + 1); next.setDate(P.payoutDay);
+      if (cafe.brandId) {
+        const b = state.brands[cafe.brandId];
+        const ids = scope === "brand" ? select.branches(b.id).map((c) => c.id) : [cafeId];
+        const month = state.ledger.filter((e) => e.type === "redeem" && ids.includes(e.cafeId) && e.at >= monthStart);
+        const rows = ids.map((id) => {
+          const es = month.filter((e) => e.cafeId === id);
+          return { cafe: state.cafes[id], cups: es.reduce((n, e) => n + e.credits, 0), earned: es.reduce((n, e) => n + select.entryPayout(e), 0), topUps: es.reduce((n, e) => n + (e.topUp || 0), 0) };
+        });
+        const cups = rows.reduce((n, r) => n + r.cups, 0), earned = rows.reduce((n, r) => n + r.earned, 0);
+        // History: this branch's months, or every branch added up per month
+        const hist = {};
+        ids.forEach((id) => state.partner[id].payouts.forEach((p) => {
+          const h = (hist[p.month] = hist[p.month] || { month: p.month, cups: 0, amount: 0, paidAt: p.paidAt });
+          h.cups += p.cups; h.amount += p.amount ?? p.cups * state.cafes[id].payoutPerCup;
+        }));
+        return {
+          brand: b, scope, monthStart, cups, earned, rows,
+          perCup: cups ? earned / cups : 0,
+          maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare),
+          share: Math.round(b.economics.payoutShare * 100),
+          nextAt: next.getTime(),
+          account: P.account,
+          history: Object.values(hist).sort((x, y) => y.month - x.month),
+        };
+      }
+      const cups = state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= monthStart ? n + e.credits : n), 0);
       return {
         monthStart,
         cups,
@@ -724,7 +862,7 @@
         earned: cups * cafe.payoutPerCup,
         nextAt: next.getTime(),
         account: P.account,
-        history: P.payouts.map((p) => ({ ...p, amount: p.cups * cafe.payoutPerCup })),
+        history: P.payouts.map((p) => ({ ...p, amount: p.amount ?? p.cups * cafe.payoutPerCup })),
       };
     },
 
@@ -745,6 +883,8 @@
     "paused": (m, { cafeId }) => `Member cups are paused here until ${fmt.time(state.cafes[cafeId].pausedUntil)}. ${m.firstName} can pay at the counter, or come back after.`,
     "cafe-cap": (m, { cafeId }) => `Today’s member cups here are used up (${state.partner[cafeId].limits.cafePerDay} a day). They start again tomorrow.`,
     "no-cups": (m) => `${m.firstName} has no cups left this month. They can top up in the app.`,
+    "not-brand": (m) => `${m.firstName}’s cups are for ${state.brands[m.plan.brandId].name}, at any of its branches. ${m.firstName} can pay here as usual.`,
+    "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups. ${m.firstName} can add a ${state.cafes[cafeId].name} plan in the app, or pay as usual.`,
     "not-reserved": (m) => `${m.firstName}’s cups are reserved for ${listNames(reservedCafes(m))}.`,
     "reserved-used": (m, { here }) => {
       const others = reservedCafes(m).filter((id) => select.balance(m.id).perCafe[id].left > 0);
@@ -820,6 +960,15 @@
     if (by[memberId] && by[memberId].at >= at) return; // newest answer wins
     by[memberId] = { going: !!going, at };
     emit("rsvp", { gatheringId, memberId, going: !!going, at }, opts);
+  }
+
+  /** The drink a member chose in the app ("Use a cup"). Newest wins. */
+  function applyOrder({ memberId, order, at }, opts) {
+    const m = state.members[memberId];
+    if (!m || (m.orderAt || 0) >= at) return;
+    m.order = order ? clone(order) : null;
+    m.orderAt = at;
+    emit("order", { memberId, order: m.order, at }, opts);
   }
 
   function addMember(m) {
@@ -908,12 +1057,26 @@
     },
 
     /** Redeem by code (café view). Returns the lookup result plus the entry. */
-    redeem({ code, cafeId = state.partnerCafeId, drinkId }) {
+    redeem({ code, cafeId = state.partnerCafeId, drinkId, temp }) {
       const cafe = state.cafes[cafeId];
       const drink = select.drink(cafeId, drinkId) || cafe.drinks[0];
       const check = lookupCode(code, cafeId, drink.credits);
       if (!check.ok) return check;
       const member = check.member;
+      if (cafe.brandId) {
+        // BACKEND: POST /redeem { code, cafeId, drinkId, temp } -> one ledger row with price and top-up
+        const item = select.menuItem(cafe.brandId, drink.id);
+        const p = select.drinkPrice(cafe.brandId, item, temp);
+        const entry = {
+          id: uid("l"), type: "redeem", memberId: member.id, cafeId, brandId: cafe.brandId,
+          cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp,
+          firstVisit: !(member.visits && member.visits[cafeId] > 0), at: Date.now(), cycle: member.cycle, live: true,
+        };
+        const newStamp = !select.activity(member.id, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(cafeId));
+        appendEntries([entry]);
+        if (newStamp) grantPassportReward(member);
+        return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
+      }
       // BACKEND: POST /redeem { code, cafeId, drinkId } -> inserts one ledger row, returns it
       const entry = {
         id: uid("l"),
@@ -929,10 +1092,18 @@
         live: true, // made in this session, not seeded
       };
       if (check.here.bonus) entry.bonus = true; // a My cafés member spending a free cup
-      const newStamp = !select.activity(member.id, ["redeem"]).some((e) => e.cafeId === cafeId);
+      const newStamp = !select.activity(member.id, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(cafeId));
       appendEntries([entry]);
       if (newStamp) grantPassportReward(member);
       return { ...check, ok: true, entry, left: select.balance(member.id).left, here: select.cafeBalance(member.id, cafeId) };
+    },
+
+    /** The member picks a drink in the app ("Use a cup"); the counter sees it with their code.
+        Passing no drink clears it ("I'll order at the counter"). Nothing is spent until the counter redeems. */
+    placeOrder({ brandId, drinkId, temp } = {}, memberId = state.memberId) {
+      // BACKEND: PUT /members/:id/order { brandId, drinkId, temp } (short-lived)
+      const item = drinkId ? select.menuItem(brandId, drinkId) : null;
+      applyOrder({ memberId, order: item ? { brandId, drinkId, temp: select.servedTemp(item, temp) } : null, at: Date.now() });
     },
 
     /** Which café the partner view is showing (demo picker). */
@@ -960,7 +1131,9 @@
       }
       // New cycle
       const cycle = uid("c");
-      member.plan = plan.type === "explorer"
+      member.plan = plan.type === "brand"
+        ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
+        : plan.type === "explorer"
         ? { type: "explorer", tierId: select.tier(plan.tierId).id }
         : { type: "mycafes", allocation: Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0)) };
       member.cycle = cycle;
@@ -968,7 +1141,9 @@
       member.renewsAt = addMonths(now, 1);
       member.planChangedAt = now;
       if (payment) member.payment = payment;
-      if (member.plan.type === "explorer") {
+      if (member.plan.type === "brand") {
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, brandId: plan.brandId, cups: select.quote(member.plan).cups, at: now, cycle, live: true });
+      } else if (member.plan.type === "explorer") {
         entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, at: now, cycle, live: true });
       } else {
         Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));

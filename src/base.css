@@ -611,6 +611,22 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .status__label { font-weight: 500; color: var(--ink); }
 .status__time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .status--bare { height: auto; padding: 0; border: 0; background: none; }
+
+/* Monogram: a partner's initials in a hairline circle (no partner logos) */
+.monogram {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;          /* centres tracked text */
+}
 .status.is-changed .status__icon { animation: status-settle 600ms var(--ease); }
 @keyframes status-settle {
   0% { transform: scale(1); }

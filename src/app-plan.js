@@ -19,8 +19,9 @@
      Draft: what the member is about to buy. The custom allocation is the
      store's builder, so the kit's builder shows the same numbers.
      ------------------------------------------------------------------- */
-  // mode: "explorer" (fixed tiers, one pool) or "mycafes" (cups reserved per café)
-  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null };
+  // mode: "explorer" (fixed tiers, one pool), "mycafes" (cups reserved per café)
+  // or "brand" (one brand's plan, any of its branches: Double Shot)
+  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null, brandId: "doubleshot", brandPlanId: "ds15" };
   const DEFAULT_ADD = 2; // cups added for a café chosen from its detail page
 
   const pay = {
@@ -35,12 +36,13 @@
 
   /** mode: open on "explorer" or "mycafes". keepBuilder: keep the builder as it is
       (the landing teaser hands over its cups) instead of loading the current plan. */
-  function start({ addCafe = null, mode = null, keepBuilder = false } = {}) {
+  function start({ addCafe = null, mode = null, keepBuilder = false, brandPlanId = null } = {}) {
     const st = store.getState();
     const cur = S.member().plan;
     draft.started = true;
     draft.mode = mode || (addCafe ? "mycafes" : cur?.type || "explorer");
     draft.tierId = cur?.tierId || "regular";
+    draft.brandPlanId = brandPlanId || (cur?.type === "brand" ? cur.planId : "ds15");
     draft.highlight = addCafe;
     if (cur?.type === "mycafes" && !keepBuilder) A.setBuilder(cur.allocation);
     if (addCafe && !st.builder[addCafe]) A.setBuilderCups(addCafe, DEFAULT_ADD);
@@ -53,7 +55,9 @@
   LCC.appPlan = { start, draft };
 
   const draftPlan = () =>
-    draft.mode === "explorer"
+    draft.mode === "brand"
+      ? { type: "brand", brandId: draft.brandId, planId: draft.brandPlanId }
+      : draft.mode === "explorer"
       ? { type: "explorer", tierId: draft.tierId }
       : { type: "mycafes", allocation: { ...store.getState().builder } };
 
@@ -107,14 +111,34 @@
       return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, ${fmt.rs(c.price)} at the counter`;
     }
 
+    function brandPlansHtml() {
+      const b = S.brand(draft.brandId);
+      const cur = S.member().plan;
+      return html`
+        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. A cup covers any drink up to ${fmt.rs(b.economics.coverUpTo)}; above that you pay the difference at the till.</p>
+        <fieldset class="tier-list">
+          <legend class="sr-only">${b.name} plans</legend>
+          ${b.plans.map((p) => html`
+            <label class="card tier">
+              <input class="sr-only" type="radio" name="dsplan" value="${p.id}" ${draft.brandPlanId === p.id ? raw("checked") : ""}>
+              <span class="tier__head">
+                <span class="t-h3 num">${fmt.cups(p.cups)}</span>
+                ${cur?.type === "brand" && cur.planId === p.id ? html`<span class="badge badge--accent">Your plan</span>` : ""}
+                <span class="tier__price t-h3 num">${fmt.rs(p.price)}</span>
+              </span>
+              <span class="t-micro t-faint num">About ${fmt.rs(p.price / p.cups)} a cup, at any ${b.name} branch</span>
+            </label>`)}
+        </fieldset>`;
+    }
+
     function builderHtml() {
       return html`
         <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
-        <ul role="list" class="builder-list">${S.cafes().map(builderRowHtml)}</ul>`;
+        <ul role="list" class="builder-list">${S.clubCafes().map(builderRowHtml)}</ul>`;
     }
 
     function paintBody() {
-      $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
+      $("[data-plan-body]", view).innerHTML = (draft.mode === "brand" ? brandPlansHtml() : draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
     }
 
     function paintSummary(animate = true) {
@@ -134,6 +158,8 @@
       } else if (isCurrent()) {
         text = `You’re on this plan. It renews on ${fmt.shortDate(m.renewsAt)}.`;
         ok = false;
+      } else if (draft.mode === "brand") {
+        text = `About ${fmt.rs(q.perCup)} a cup, at any ${q.typeName} branch`;
       } else {
         text = `You save ${draft.mode === "explorer" ? "about " : ""}${fmt.rs(q.savings)} vs paying at the counter`;
       }
@@ -166,6 +192,7 @@
     }
 
     function onChange(e) {
+      if (e.target.name === "dsplan") { draft.brandPlanId = e.target.value; paintSummary(); return; }
       if (e.target.name !== "tier") return;
       draft.tierId = e.target.value;
       paintSummary();
@@ -182,10 +209,10 @@
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
               ${m.plan
-                ? html`<p class="t-small t-muted num">You’re on ${S.memberPlan(m).type === "explorer" ? `Explorer ${S.memberPlan(m).name}` : "My cafés"}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
+                ? html`<p class="t-small t-muted num">You’re on ${S.planLabel(m)}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
                 : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }, { value: "brand", label: S.brand(draft.brandId).name }] })}
             <div data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -326,7 +353,7 @@
       }
       if (pay.phase === "success") {
         const mem = ctx.member();
-        const title = plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
+        const title = plan.type === "brand" ? `You’re on ${q.typeName}, ${q.name}.` : plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <h2 class="t-h2">${title}</h2>
@@ -439,10 +466,11 @@
             <h1 class="t-h2">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
-                <span class="t-h3">${plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
+                <span class="t-h3">${plan.type === "brand" ? `${q.typeName} · ${q.name}` : plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
               <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
+              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.brand(plan.brandId).economics.coverUpTo)} included</p>` : ""}
               ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
