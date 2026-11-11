@@ -118,6 +118,10 @@
                   <div class="sheet__body" data-sheet-body></div>
                 </div>
               </div>
+              <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+                <div class="sheet__scrim" data-sheet-close></div>
+                <div class="sheet__panel" data-drawer-body></div>
+              </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
             </div>
           </div>
@@ -154,6 +158,7 @@
         replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
+        ui.closeSheet($("#profile-drawer", el));
         $$("[data-tab]", el).forEach((btn) => {
           const on = btn.dataset.tab === r.tab;
           btn.setAttribute("aria-selected", on);
@@ -221,56 +226,38 @@
       };
 
       /* Home ------------------------------------------------------------ */
+      // One calm, centred block: the brick ring, cups left, renewal, two actions.
+      // Recent activity, plan details and help live in the profile drawer.
       function homeScreen() {
         const m = member();
-        const near = S.cafes().slice().sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 4);
         return {
           html: html`
-            <div class="app-screen">
-              <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
-              <div class="app-head">
-                <div>
-                  <p class="t-small t-muted">${fmt.date(Date.now())}</p>
-                  <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
-                </div>
-                <span class="avatar" role="img" aria-label="${m.firstName} ${m.lastName || ""}">${m.initials || m.firstName[0]}</span>
+            <div class="app-screen home">
+              <div class="app-top">
+                <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
+                ${profileButton()}
+              </div>
+              <div>
+                <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+                <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
               </div>
 
-              <div class="ring-wrap">
-                <div class="ring" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
-                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 208, radius: 86, length: 24, stagger: true })}</div>
+              <div class="home__center">
+                <div class="ring ring--home" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
+                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 248, radius: 104, length: 26, stagger: true })}</div>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="t-small t-muted">of <span class="num" data-ring-total>${S.balance().total}</span> cups left</span>
                   </div>
                 </div>
-                <p class="t-small t-muted" data-plan-line>${planLine()}</p>
-                <div class="ring-actions">
-                  <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-                  <a class="btn btn--link" href="#/app/gift">${icon("gift", { size: 18 })}Send a gift</a>
+                <div class="home__lines">
+                  <p class="t-body">cups left this month</p>
+                  <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
+                </div>
+                <div class="home__actions">
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                  <a class="btn btn--secondary btn--block" href="#/app/gift">Send a gift</a>
                 </div>
               </div>
-
-              <section class="app-section" aria-labelledby="near-h">
-                <h2 class="eyebrow app-section__title" id="near-h">Near you</h2>
-                <ul role="list">
-                  ${near.map((c) => html`<li>
-                    <button type="button" class="row near-row" data-open-cafe="${c.id}" aria-label="${c.name}, ${S.area(c.area).name}. Open details">
-                      <span class="row__main">
-                        <span class="row__title">${c.name}</span>
-                        <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup · ${c.distanceKm} km</span>
-                        ${ui.statusPill(c.id)}
-                      </span>
-                      <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
-                    </button>
-                  </li>`)}
-                </ul>
-              </section>
-
-              <section class="app-section" aria-labelledby="recent-h">
-                <h2 class="eyebrow app-section__title" id="recent-h">Recent activity</h2>
-                <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
-              </section>
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
@@ -278,22 +265,70 @@
           on: {
             // Redemptions, gifts and free cups, from this window or another device
             ledger: ({ entries }) => {
-              const mine = entries.filter((e) => e.memberId === member().id);
-              if (!mine.length) return;
+              if (!entries.some((e) => e.memberId === member().id)) return;
               paintRing();
-              $("[data-recent]", view).innerHTML = recentRows(mine[mine.length - 1].id).s;
             },
-            member: () => { paintRing(); const l = $("[data-plan-line]", view); if (l) l.textContent = planLine(); },
+            member: () => { paintRing(); const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine(); },
           },
         };
       }
 
-      function planLine() {
+      function renewLine() {
         const m = member();
-        const p = S.memberPlan(m);
-        if (!p.type) return "No plan yet";
-        const bonus = S.balance().total - (p.type === "explorer" ? S.tier(m.plan.tierId).cups : Object.values(m.plan.allocation).reduce((a, b) => a + b, 0));
-        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan${bonus > 0 ? `, plus ${bonus} free` : ""} · renews on ${fmt.shortDate(m.renewsAt)}`;
+        return m.plan ? `Renews on ${fmt.shortDate(m.renewsAt)}` : "No plan yet";
+      }
+
+      /* Profile drawer ---------------------------------------------------- */
+      function profileButton() {
+        return html`<button type="button" class="icon-btn profile-btn" data-open-drawer aria-label="Profile and account" aria-haspopup="dialog" aria-controls="profile-drawer">${icon("user")}</button>`;
+      }
+
+      function drawerHtml() {
+        const m = member();
+        const club = S.club(m.id);
+        const plan = S.memberPlan(m);
+        const quote = m.plan ? S.quote(m.plan) : null;
+        const clubLine = [club.number, club.founding && "Founding Member", club.level.name].filter(Boolean).join(" · ");
+        return html`
+          <div class="drawer__bar">
+            <h2 class="t-h3" id="drawer-title">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h2>
+            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+          </div>
+          <div class="drawer__body">
+            <section class="drawer__section" aria-labelledby="dr-profile">
+              <h3 class="eyebrow" id="dr-profile">Profile</h3>
+              <p class="t-body">${clubLine}</p>
+              ${m.phone ? html`<p class="t-small t-muted num">${m.phone}</p>` : ""}
+              <a class="btn btn--link" href="#/app/club">Your member card</a>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-recent">
+              <h3 class="eyebrow" id="dr-recent">Recent activity</h3>
+              <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-plan">
+              <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
+              ${m.plan
+                ? html`<p class="t-body">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}, ${fmt.cups(plan.cups)} this month</p>
+                    <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)} a month · ` : ""}renews on ${fmt.shortDate(m.renewsAt)}</p>
+                    ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
+                : html`<p class="t-body">No plan yet</p>`}
+              <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-help">
+              <h3 class="eyebrow" id="dr-help">Help</h3>
+              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. Unused cups end with the month.</p>
+              <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
+            </section>
+          </div>`;
+      }
+
+      function openDrawer() {
+        const d = $("#profile-drawer", el);
+        $("[data-drawer-body]", d).innerHTML = drawerHtml().s;
+        ui.openSheet(d);
       }
 
       const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend" };
@@ -332,10 +367,9 @@
         const b = S.balance();
         const key = `${b.total}:${b.left}`;
         const bricks = $("[data-bricks]", ring);
-        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 208, radius: 86, length: 24 }).s;
+        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 248, radius: 104, length: 26 }).s;
         bricks.dataset.key = key;
         ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
-        $("[data-ring-total]", ring).textContent = b.total;
         ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
       }
 
@@ -564,6 +598,9 @@
         const t = e.target;
         const tab = t.closest("[data-tab]");
         if (tab) { location.hash = hrefFor(tab.dataset.tab); return; }
+        // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
+        const pb = t.closest("[data-open-drawer]");
+        if (pb) { pb.focus(); openDrawer(); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
@@ -601,6 +638,12 @@
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
+      // The drawer's recent activity follows the ledger while it is open
+      const offDrawer = store.on("ledger", ({ entries }) => {
+        const mine = entries.filter((e) => e.memberId === member().id);
+        const list = $("#profile-drawer [data-recent]", el);
+        if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
+      });
       const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp"].map((type) => store.on(type, dispatch(type)));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
@@ -611,6 +654,7 @@
       };
       const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
       let earned = earnedNow();
+      offs.push(offDrawer);
       offs.push(store.on("ledger", ({ entries, catchUp }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         if (!mine.length) return;

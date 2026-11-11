@@ -1324,19 +1324,6 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .app-section { margin-top: var(--space-6); }
 .app-section__title { margin-bottom: var(--space-2); }
 
-.avatar {
-  display: grid;
-  place-items: center;
-  width: var(--tap);
-  height: var(--tap);
-  border-radius: 50%;
-  background: var(--surface-2);
-  border: var(--hairline);
-  font-size: var(--fs-14);
-  font-weight: 500;
-  color: var(--ink-2);
-}
-
 /* Tab bar ------------------------------------------------------------- */
 .tabbar {
   flex: none;
@@ -1444,7 +1431,6 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .pass-success .check-draw { width: 72px; height: 72px; color: var(--primary); }
 
 /* Home: progress ring ------------------------------------------------- */
-.ring-wrap { display: grid; justify-items: center; gap: var(--space-3); margin-top: var(--space-5); }
 .ring { position: relative; width: 208px; height: 208px; }
 .ring__bricks, .ring__bricks svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
@@ -1459,16 +1445,52 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 @keyframes brick-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .ring__bricks .brick.is-full { animation: none; } }
 
-/* Home header: the horizontal monogram */
-.app-brand { width: 88px; margin-bottom: var(--space-4); }
+/* Home header: the horizontal monogram, profile button top right */
+.app-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.app-brand { width: 88px; }
+.profile-btn { margin-right: -10px; } /* optically flush with the screen edge */
+
+/* Home: one centred block in the middle of the screen; the header stays left */
+.app-view > .enter:has(> .home) { min-height: 100%; display: flex; flex-direction: column; }
+.home { flex: 1; display: flex; flex-direction: column; }
+.home__center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-5); padding-block: var(--space-7); text-align: center; }
+.ring--home { width: 248px; height: 248px; }
+.ring--home .ring__num { font-size: 80px; }
+.home__lines { display: grid; gap: var(--space-1); }
+.home__actions { display: grid; gap: var(--space-3); width: 100%; max-width: 280px; margin-top: var(--space-2); }
+
+/* Profile drawer: slides in from the right (a .sheet, so focus trap,
+   Escape and scrim come from ui.js; swipe right to close) */
+.sheet--drawer .sheet__panel {
+  top: 0; bottom: 0; left: auto; right: 0;
+  width: min(320px, 86%);
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border-top: 0;
+  border-left: var(--hairline);
+  border-radius: 0;
+  box-shadow: none;
+  transform: translateX(100%);
+}
+.sheet--drawer[data-open="true"] .sheet__panel { transform: translateX(var(--drag, 0px)); }
+.drawer__bar {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+  background: var(--surface);
+  border-bottom: var(--hairline);
+}
+.drawer__body { padding: 0 var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom)); }
+.drawer__section { display: grid; justify-items: start; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--hairline); }
+.drawer__section:last-child { border-bottom: 0; }
+.drawer__section > ul { width: 100%; }
+.drawer__section .eyebrow { margin-bottom: var(--space-1); }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__num { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 
-.near-row { width: 100%; text-align: left; cursor: pointer; border-bottom: var(--hairline); }
-li:last-child > .near-row { border-bottom: 0; }
-.near-row:hover .row__title { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.near-row .row__main { display: grid; gap: 6px; }
-.near-row .status { justify-self: start; }
 
 /* Map ----------------------------------------------------------------- */
 .map-head { padding: var(--space-5) var(--space-5) var(--space-3); display: grid; gap: var(--space-4); }
@@ -1576,25 +1598,42 @@ li:last-child > .near-row { border-bottom: 0; }
 .search__clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
 .search__clear[hidden] { display: none; }
 
-.chip-row {
-  display: flex;
-  gap: var(--space-2);
-  margin-inline: calc(-1 * var(--space-5));
-  padding: 4px var(--space-5);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.chip-row::-webkit-scrollbar { display: none; }
-.chip-row .chip { flex: none; }
-.chip-row__rule { flex: none; width: 1px; margin-block: 8px; background: var(--line-strong); }
 
-.cafe-list { margin-top: calc(-1 * var(--space-2)); }
-.cafe-row { width: 100%; text-decoration: none; color: inherit; border-bottom: var(--hairline); }
-.cafe-list li:last-child > .cafe-row { border-bottom: 0; }
-.cafe-row .row__main { display: grid; gap: 6px; }
-.cafe-row:hover .row__title { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.cafe-row__pills { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+/* Search sticks to the top while the list scrolls */
+.cafes__search { position: sticky; top: 0; z-index: 5; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-5)) 0; padding: var(--space-2) var(--space-5); background: var(--bg); }
+.cafes__tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); }
+.cafes__tools .input { height: 48px; border-radius: var(--radius-pill); }
+.cafes__filters { --btn-h: 48px; gap: var(--space-2); padding-inline: var(--space-4); }
+.cafes__filters svg { width: 18px; height: 18px; }
+.cafes__filters.is-on { border-color: var(--primary); }
+
+/* One line per café: name, area, busy (icon and word), open or closed */
+.cafe-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: var(--hairline);
+}
+.cafe-line__name { font-weight: 500; white-space: nowrap; }
+.cafe-line__area { font-size: var(--fs-14); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cafe-line__end { display: inline-flex; align-items: center; gap: var(--space-3); }
+.cafe-line__open { min-width: 3.4em; font-size: var(--fs-12); color: var(--ink-2); text-align: right; }
+.cafe-line__open.is-closed { color: var(--ink-4); }
+.cafe-line:hover .cafe-line__name { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.cafes__more { margin-top: var(--space-4); }
+.cafes__more[hidden] { display: none; }
 .cafes-empty { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-6) 0; }
+
+/* Filters sheet */
+.filters { display: grid; gap: var(--space-5); }
+.filters__row { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap); }
+.filters__group { display: grid; gap: var(--space-3); margin: 0; padding: 0; border: 0; min-width: 0; }
+.filters__group legend { padding: 0; margin-bottom: var(--space-3); }
+.filters__actions { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-3); padding-top: var(--space-2); }
 
 /* Café detail --------------------------------------------------------- */
 .cafe-detail { min-height: 100%; display: flex; flex-direction: column; }
@@ -3151,15 +3190,18 @@ li:last-child > .near-row { border-bottom: 0; }
     },
 
     /** Cafés tab: text search (name, area, drink) combined with filters.
-        Every filter narrows the list (AND); area is a single choice.    */
-    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false } = {}, at = Date.now()) {
-      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet
+        Every filter narrows the list (AND); area is a single choice.
+        statuses: busy levels to keep (any of); tags: all must match.    */
+    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false, statuses = [], tags = [] } = {}, at = Date.now()) {
+      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet,moderate&tag=Roastery
       const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
       const words = norm(query).split(/\s+/).filter(Boolean);
       return select.cafes().filter((c) => {
         if (areaId && c.area !== areaId) return false;
         if (openNow && !select.openState(c, at).open) return false;
         if (quietNow && c.status !== "quiet") return false;
+        if (statuses.length && !statuses.includes(c.status)) return false;
+        if (tags.length && !tags.every((t) => c.tags.includes(t))) return false;
         if (!words.length) return true;
         const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
         return words.every((w) => hay.includes(w));
@@ -3909,6 +3951,8 @@ li:last-child > .near-row { border-bottom: 0; }
     copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="1.5"/><path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"/>',
     share: '<path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/>',
     users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M3 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5M15.5 5.3a3.5 3.5 0 0 1 0 6.4M17.5 14.8c1.8.7 3 2.3 3.5 4.7"/>',
+    user: '<circle cx="12" cy="8.5" r="3.75"/><path d="M4.75 20c.9-3.75 3.75-5.75 7.25-5.75s6.35 2 7.25 5.75"/>',
+    sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
   };
   function icon(name, { size = 24, label } = {}) {
@@ -4089,6 +4133,7 @@ li:last-child > .near-row { border-bottom: 0; }
   function bindDrag(sheet) {
     if (sheet._dragBound) return;
     sheet._dragBound = true;
+    if (sheet.classList.contains("sheet--drawer")) { bindSwipe(sheet); return; }
     const handle = sheet.querySelector(".sheet__handle");
     if (!handle) return;
     let startY = 0, dy = 0, t0 = 0, active = false;
@@ -4112,6 +4157,39 @@ li:last-child > .near-row { border-bottom: 0; }
     };
     handle.addEventListener("pointerup", end);
     handle.addEventListener("pointercancel", end);
+  }
+
+  /* Side drawer (.sheet--drawer): swipe right on the panel to close.
+     Vertical moves are left alone, so the drawer still scrolls. */
+  function bindSwipe(sheet) {
+    const panel = sheet.querySelector(".sheet__panel");
+    let x0 = 0, y0 = 0, dx = 0, t0 = 0, mode = null; // null: undecided, "x": dragging, "y": scrolling
+    panel.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      x0 = e.clientX; y0 = e.clientY; dx = 0; t0 = performance.now(); mode = null;
+    });
+    panel.addEventListener("pointermove", (e) => {
+      if (mode === "y" || e.pointerType === "mouse") return;
+      const mx = e.clientX - x0, my = e.clientY - y0;
+      if (mode === null) {
+        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        mode = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+        if (mode === "x") { sheet.classList.add("is-dragging"); panel.setPointerCapture(e.pointerId); }
+        return;
+      }
+      dx = Math.max(0, mx);
+      sheet.style.setProperty("--drag", `${dx}px`);
+    });
+    const end = () => {
+      if (mode !== "x") { mode = null; return; }
+      mode = null;
+      sheet.classList.remove("is-dragging");
+      const velocity = dx / Math.max(1, performance.now() - t0);
+      if (dx > 80 || velocity > 0.5) closeSheet(sheet);
+      else sheet.style.setProperty("--drag", "0px");
+    };
+    panel.addEventListener("pointerup", end);
+    panel.addEventListener("pointercancel", end);
   }
 
   document.addEventListener("click", (e) => {
@@ -5781,6 +5859,10 @@ li:last-child > .near-row { border-bottom: 0; }
                   <div class="sheet__body" data-sheet-body></div>
                 </div>
               </div>
+              <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+                <div class="sheet__scrim" data-sheet-close></div>
+                <div class="sheet__panel" data-drawer-body></div>
+              </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
             </div>
           </div>
@@ -5817,6 +5899,7 @@ li:last-child > .near-row { border-bottom: 0; }
         replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
+        ui.closeSheet($("#profile-drawer", el));
         $$("[data-tab]", el).forEach((btn) => {
           const on = btn.dataset.tab === r.tab;
           btn.setAttribute("aria-selected", on);
@@ -5884,56 +5967,38 @@ li:last-child > .near-row { border-bottom: 0; }
       };
 
       /* Home ------------------------------------------------------------ */
+      // One calm, centred block: the brick ring, cups left, renewal, two actions.
+      // Recent activity, plan details and help live in the profile drawer.
       function homeScreen() {
         const m = member();
-        const near = S.cafes().slice().sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 4);
         return {
           html: html`
-            <div class="app-screen">
-              <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
-              <div class="app-head">
-                <div>
-                  <p class="t-small t-muted">${fmt.date(Date.now())}</p>
-                  <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
-                </div>
-                <span class="avatar" role="img" aria-label="${m.firstName} ${m.lastName || ""}">${m.initials || m.firstName[0]}</span>
+            <div class="app-screen home">
+              <div class="app-top">
+                <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
+                ${profileButton()}
+              </div>
+              <div>
+                <p class="t-small t-muted">${fmt.date(Date.now())}</p>
+                <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
               </div>
 
-              <div class="ring-wrap">
-                <div class="ring" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
-                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 208, radius: 86, length: 24, stagger: true })}</div>
+              <div class="home__center">
+                <div class="ring ring--home" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
+                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 248, radius: 104, length: 26, stagger: true })}</div>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="t-small t-muted">of <span class="num" data-ring-total>${S.balance().total}</span> cups left</span>
                   </div>
                 </div>
-                <p class="t-small t-muted" data-plan-line>${planLine()}</p>
-                <div class="ring-actions">
-                  <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-                  <a class="btn btn--link" href="#/app/gift">${icon("gift", { size: 18 })}Send a gift</a>
+                <div class="home__lines">
+                  <p class="t-body">cups left this month</p>
+                  <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
+                </div>
+                <div class="home__actions">
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                  <a class="btn btn--secondary btn--block" href="#/app/gift">Send a gift</a>
                 </div>
               </div>
-
-              <section class="app-section" aria-labelledby="near-h">
-                <h2 class="eyebrow app-section__title" id="near-h">Near you</h2>
-                <ul role="list">
-                  ${near.map((c) => html`<li>
-                    <button type="button" class="row near-row" data-open-cafe="${c.id}" aria-label="${c.name}, ${S.area(c.area).name}. Open details">
-                      <span class="row__main">
-                        <span class="row__title">${c.name}</span>
-                        <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup · ${c.distanceKm} km</span>
-                        ${ui.statusPill(c.id)}
-                      </span>
-                      <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
-                    </button>
-                  </li>`)}
-                </ul>
-              </section>
-
-              <section class="app-section" aria-labelledby="recent-h">
-                <h2 class="eyebrow app-section__title" id="recent-h">Recent activity</h2>
-                <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
-              </section>
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
@@ -5941,22 +6006,70 @@ li:last-child > .near-row { border-bottom: 0; }
           on: {
             // Redemptions, gifts and free cups, from this window or another device
             ledger: ({ entries }) => {
-              const mine = entries.filter((e) => e.memberId === member().id);
-              if (!mine.length) return;
+              if (!entries.some((e) => e.memberId === member().id)) return;
               paintRing();
-              $("[data-recent]", view).innerHTML = recentRows(mine[mine.length - 1].id).s;
             },
-            member: () => { paintRing(); const l = $("[data-plan-line]", view); if (l) l.textContent = planLine(); },
+            member: () => { paintRing(); const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine(); },
           },
         };
       }
 
-      function planLine() {
+      function renewLine() {
         const m = member();
-        const p = S.memberPlan(m);
-        if (!p.type) return "No plan yet";
-        const bonus = S.balance().total - (p.type === "explorer" ? S.tier(m.plan.tierId).cups : Object.values(m.plan.allocation).reduce((a, b) => a + b, 0));
-        return `${p.type === "explorer" ? `Explorer · ${p.name}` : "My cafés"} plan${bonus > 0 ? `, plus ${bonus} free` : ""} · renews on ${fmt.shortDate(m.renewsAt)}`;
+        return m.plan ? `Renews on ${fmt.shortDate(m.renewsAt)}` : "No plan yet";
+      }
+
+      /* Profile drawer ---------------------------------------------------- */
+      function profileButton() {
+        return html`<button type="button" class="icon-btn profile-btn" data-open-drawer aria-label="Profile and account" aria-haspopup="dialog" aria-controls="profile-drawer">${icon("user")}</button>`;
+      }
+
+      function drawerHtml() {
+        const m = member();
+        const club = S.club(m.id);
+        const plan = S.memberPlan(m);
+        const quote = m.plan ? S.quote(m.plan) : null;
+        const clubLine = [club.number, club.founding && "Founding Member", club.level.name].filter(Boolean).join(" · ");
+        return html`
+          <div class="drawer__bar">
+            <h2 class="t-h3" id="drawer-title">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h2>
+            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+          </div>
+          <div class="drawer__body">
+            <section class="drawer__section" aria-labelledby="dr-profile">
+              <h3 class="eyebrow" id="dr-profile">Profile</h3>
+              <p class="t-body">${clubLine}</p>
+              ${m.phone ? html`<p class="t-small t-muted num">${m.phone}</p>` : ""}
+              <a class="btn btn--link" href="#/app/club">Your member card</a>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-recent">
+              <h3 class="eyebrow" id="dr-recent">Recent activity</h3>
+              <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-plan">
+              <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
+              ${m.plan
+                ? html`<p class="t-body">${plan.type === "explorer" ? `Explorer · ${plan.name}` : "My cafés"}, ${fmt.cups(plan.cups)} this month</p>
+                    <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)} a month · ` : ""}renews on ${fmt.shortDate(m.renewsAt)}</p>
+                    ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
+                : html`<p class="t-body">No plan yet</p>`}
+              <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+            </section>
+
+            <section class="drawer__section" aria-labelledby="dr-help">
+              <h3 class="eyebrow" id="dr-help">Help</h3>
+              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. Unused cups end with the month.</p>
+              <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
+            </section>
+          </div>`;
+      }
+
+      function openDrawer() {
+        const d = $("#profile-drawer", el);
+        $("[data-drawer-body]", d).innerHTML = drawerHtml().s;
+        ui.openSheet(d);
       }
 
       const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend" };
@@ -5995,10 +6108,9 @@ li:last-child > .near-row { border-bottom: 0; }
         const b = S.balance();
         const key = `${b.total}:${b.left}`;
         const bricks = $("[data-bricks]", ring);
-        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 208, radius: 86, length: 24 }).s;
+        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 248, radius: 104, length: 26 }).s;
         bricks.dataset.key = key;
         ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
-        $("[data-ring-total]", ring).textContent = b.total;
         ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
       }
 
@@ -6227,6 +6339,9 @@ li:last-child > .near-row { border-bottom: 0; }
         const t = e.target;
         const tab = t.closest("[data-tab]");
         if (tab) { location.hash = hrefFor(tab.dataset.tab); return; }
+        // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
+        const pb = t.closest("[data-open-drawer]");
+        if (pb) { pb.focus(); openDrawer(); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
@@ -6264,6 +6379,12 @@ li:last-child > .near-row { border-bottom: 0; }
 
       // Store events go to whichever screen is showing
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
+      // The drawer's recent activity follows the ledger while it is open
+      const offDrawer = store.on("ledger", ({ entries }) => {
+        const mine = entries.filter((e) => e.memberId === member().id);
+        const list = $("#profile-drawer [data-recent]", el);
+        if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
+      });
       const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp"].map((type) => store.on(type, dispatch(type)));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
@@ -6274,6 +6395,7 @@ li:last-child > .near-row { border-bottom: 0; }
       };
       const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
       let earned = earnedNow();
+      offs.push(offDrawer);
       offs.push(store.on("ledger", ({ entries, catchUp }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         if (!mine.length) return;
@@ -6337,54 +6459,38 @@ li:last-child > .near-row { border-bottom: 0; }
   const EXPLORER_GOAL = 5;
 
   // Search and filters survive a trip into a café and back
-  const filters = { query: "", areaId: null, openNow: false, quietNow: false };
+  const filters = { query: "", areaId: null, openNow: false, statuses: [], tags: [] };
+  const PAGE = 6;
+  let shown = PAGE;
   let listScroll = 0;
 
-  /** A short badge for list rows: what this member's plan means here. */
-  function hereBadge(cafeId) {
-    const here = S.cafeBalance(S.member().id, cafeId);
-    if (here.type === "mycafes") return here.reserved ? html`<span class="badge badge--accent">${here.left} of ${here.reserved} reserved</span>` : "";
-    return here.used >= here.cap ? html`<span class="badge">${here.cap} of ${here.cap} this month</span>` : "";
-  }
+  /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
+  const sheetCount = (f = filters) => (f.openNow ? 1 : 0) + f.statuses.length + f.tags.length;
 
   /* -------------------------------------------------------------------
-     Cafés list
+     Cafés list: sticky search, area dropdown, Filters sheet, short rows
      ------------------------------------------------------------------- */
   REG.cafes = (ctx) => {
-    const { view } = ctx;
+    const { view, el } = ctx;
     const areas = store.getState().areas;
+    // Every tag a partner café uses, in a stable order
+    const allTags = [...new Set(S.cafes().flatMap((c) => c.tags))].sort();
+    let draft = null; // the sheet's choices until Apply
+    let sheet = null;
+    let painted = ""; // what the list shows (ids and open state), so the clock only repaints on a change
+    const signature = (results) => `${shown}|${results.map((c) => `${c.id}:${S.openState(c).open ? 1 : 0}`).join(",")}`;
 
-    function chip(label, attrs, pressed) {
-      return html`<button type="button" class="chip" ${ui.raw(attrs)} aria-pressed="${pressed}">${label}</button>`;
-    }
-
-    function rowHtml(c, i) {
-      const open = S.openState(c);
-      return html`<li class="enter" style="--i:${Math.min(i, 8)}">
-        <a class="row cafe-row" href="#/app/cafes/${c.id}">
-          <span class="row__main">
-            <span class="row__title">${c.name}</span>
-            <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup${open.open ? "" : " · Closed now"}</span>
-            <span class="cafe-row__pills">
-              ${ui.statusPill(c.id)}
-              ${hereBadge(c.id)}
-            </span>
+    function rowHtml(c) {
+      const open = S.openState(c).open;
+      return html`<li>
+        <a class="cafe-line" href="#/app/cafes/${c.id}" aria-label="${c.name}, ${S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+          <span class="cafe-line__name">${c.name}</span>
+          <span class="cafe-line__area">${S.area(c.area).name}</span>
+          <span class="cafe-line__end" aria-hidden="true">
+            ${ui.statusPill(c.id, { bare: true, time: false })}
+            <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>
           </span>
-          <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
         </a>
-      </li>`;
-    }
-
-    function emptyHtml() {
-      // e.g. “Nothing open and quiet in DHA right now.” / “Nothing in Liberty matches “mocha”.”
-      const adj = [filters.openNow && "open", filters.quietNow && "quiet"].filter(Boolean).join(" and ");
-      const where = filters.areaId ? ` in ${S.area(filters.areaId).name}` : "";
-      const q = filters.query.trim();
-      const line = `Nothing${adj ? ` ${adj}` : ""}${where}${q ? ` matches “${q}”` : ""}${adj ? " right now" : ""}.`;
-      return html`<li class="cafes-empty enter">
-        <p class="t-h3">${line}</p>
-        <p class="t-small t-muted">Lahore has more good coffee than this list. Try fewer filters, or a drink like “latte”.</p>
-        <button type="button" class="btn btn--secondary btn--compact" data-clear-filters>Clear filters</button>
       </li>`;
     }
 
@@ -6392,31 +6498,117 @@ li:last-child > .near-row { border-bottom: 0; }
       const list = $("[data-cafe-list]", view);
       if (!list) return;
       const results = S.searchCafes(filters);
-      list.innerHTML = results.length ? html`${results.map(rowHtml)}`.s : emptyHtml().s;
-      const any = filters.query || filters.areaId || filters.openNow || filters.quietNow;
+      painted = signature(results);
+      const any = filters.query || filters.areaId || sheetCount();
       $("[data-cafe-count]", view).textContent = any ? `${results.length} of ${S.cafes().length} cafés` : `${S.cafes().length} partner cafés`;
-      $$("[data-filter]", view).forEach((b) => b.setAttribute("aria-pressed", String(!!filters[b.dataset.filter])));
-      $$("[data-area]", view).forEach((b) => b.setAttribute("aria-pressed", String(filters.areaId === b.dataset.area)));
+      list.innerHTML = results.length
+        ? html`${results.slice(0, shown).map(rowHtml)}`.s
+        : html`<li class="cafes-empty">
+            <p class="t-body">No cafés match that. Try another area.</p>
+            ${any ? html`<button type="button" class="btn btn--secondary btn--compact" data-clear-filters>Clear search and filters</button>` : ""}
+          </li>`.s;
+      const more = $("[data-show-more]", view);
+      more.hidden = results.length <= shown;
+      more.textContent = `Show more (${Math.max(0, results.length - shown)})`;
+      const n = sheetCount();
+      const fb = $("[data-open-filters]", view);
+      $("[data-filter-label]", fb).textContent = n ? `Filters · ${n}` : "Filters";
+      fb.classList.toggle("is-on", n > 0);
+      fb.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
       $("[data-clear-search]", view).hidden = !filters.query;
+      $("[data-cafe-area]", view).value = filters.areaId || "";
+    }
+
+    // A new search or filter starts the list from the top again
+    const refilter = () => { shown = PAGE; paintList(); };
+
+    /* Filters sheet: lives on the phone screen (not in the scrolling view) */
+    function sheetHtml() {
+      const chip = (label, attrs, on) => html`<button type="button" class="chip" ${ui.raw(attrs)} aria-pressed="${on}">${label}</button>`;
+      return html`
+        <div class="sheet__scrim" data-sheet-close></div>
+        <div class="sheet__panel">
+          <div class="sheet__handle" aria-hidden="true"></div>
+          <div class="sheet__body filters">
+            <h2 class="t-h3" id="filters-title">Filters</h2>
+            <div class="filters__row">
+              <span id="f-open-l">Open now</span>
+              <button type="button" class="toggle" role="switch" aria-labelledby="f-open-l" aria-checked="${draft.openNow}" data-f-open></button>
+            </div>
+            <fieldset class="filters__group">
+              <legend class="eyebrow">Busy level</legend>
+              <div class="cluster" style="--cluster-gap:var(--space-2)">
+                ${store.statuses.map((st) => chip(html`${ui.cupIcon(st, { size: 14, cls: "" })}${fmt.statusLabel(st)}`, `data-f-status="${st}"`, draft.statuses.includes(st)))}
+              </div>
+            </fieldset>
+            <fieldset class="filters__group">
+              <legend class="eyebrow">What they offer</legend>
+              <div class="cluster" style="--cluster-gap:var(--space-2)">
+                ${allTags.map((t) => chip(t, `data-f-tag="${t}"`, draft.tags.includes(t)))}
+              </div>
+            </fieldset>
+            <div class="filters__actions">
+              <button type="button" class="btn btn--secondary" data-f-clear>Clear</button>
+              <button type="button" class="btn btn--primary" data-f-apply>Apply</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function openFilters() {
+      draft = { openNow: filters.openNow, statuses: [...filters.statuses], tags: [...filters.tags] };
+      sheet.innerHTML = sheetHtml().s;
+      ui.openSheet(sheet);
+    }
+
+    function paintDraft() {
+      $("[data-f-open]", sheet).setAttribute("aria-checked", String(draft.openNow));
+      $$("[data-f-status]", sheet).forEach((b) => b.setAttribute("aria-pressed", String(draft.statuses.includes(b.dataset.fStatus))));
+      $$("[data-f-tag]", sheet).forEach((b) => b.setAttribute("aria-pressed", String(draft.tags.includes(b.dataset.fTag))));
+    }
+
+    const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+
+    function onSheetClick(e) {
+      const t = e.target;
+      if (t.closest("[data-f-open]")) { draft.openNow = !draft.openNow; paintDraft(); return; }
+      const st = t.closest("[data-f-status]");
+      if (st) { draft.statuses = toggleIn(draft.statuses, st.dataset.fStatus); paintDraft(); return; }
+      const tag = t.closest("[data-f-tag]");
+      if (tag) { draft.tags = toggleIn(draft.tags, tag.dataset.fTag); paintDraft(); return; }
+      if (t.closest("[data-f-clear]")) { draft = { openNow: false, statuses: [], tags: [] }; paintDraft(); return; }
+      if (t.closest("[data-f-apply]")) {
+        Object.assign(filters, draft);
+        ui.closeSheet(sheet);
+        refilter();
+      }
     }
 
     function onInput(e) {
-      if (!e.target.matches("[data-cafe-q]")) return;
-      filters.query = e.target.value;
-      paintList();
+      if (e.target.matches("[data-cafe-q]")) { filters.query = e.target.value; refilter(); }
+    }
+    function onChange(e) {
+      if (e.target.matches("[data-cafe-area]")) { filters.areaId = e.target.value || null; refilter(); }
     }
 
     function onClick(e) {
       const t = e.target;
-      const f = t.closest("[data-filter]");
-      if (f) { filters[f.dataset.filter] = !filters[f.dataset.filter]; paintList(); return; }
-      const a = t.closest("[data-area]");
-      if (a) { filters.areaId = filters.areaId === a.dataset.area ? null : a.dataset.area; paintList(); return; }
-      if (t.closest("[data-clear-search]")) { filters.query = ""; $("[data-cafe-q]", view).value = ""; paintList(); $("[data-cafe-q]", view).focus(); return; }
-      if (t.closest("[data-clear-filters]")) {
-        Object.assign(filters, { query: "", areaId: null, openNow: false, quietNow: false });
-        $("[data-cafe-q]", view).value = "";
+      // Focus the button first, so closing the sheet returns there (Safari doesn't focus on tap)
+      const fb = t.closest("[data-open-filters]");
+      if (fb) { fb.focus(); openFilters(); return; }
+      if (t.closest("[data-show-more]")) {
+        const first = shown;
+        shown = S.searchCafes(filters).length;
         paintList();
+        // Keep keyboard focus in the list: on the first new café
+        $$("[data-cafe-list] a", view)[first]?.focus();
+        return;
+      }
+      if (t.closest("[data-clear-search]")) { filters.query = ""; $("[data-cafe-q]", view).value = ""; refilter(); $("[data-cafe-q]", view).focus(); return; }
+      if (t.closest("[data-clear-filters]")) {
+        Object.assign(filters, { query: "", areaId: null, openNow: false, statuses: [], tags: [] });
+        $("[data-cafe-q]", view).value = "";
+        refilter();
         $("[data-cafe-q]", view).focus();
       }
     }
@@ -6425,38 +6617,60 @@ li:last-child > .near-row { border-bottom: 0; }
       html: html`
         <div class="app-screen cafes">
           <h1 class="t-h2">Cafés</h1>
-          <div class="search">
-            <label class="sr-only" for="cafe-q">Search by café, area or drink</label>
-            ${icon("search", { size: 20 })}
-            <input class="input search__input" id="cafe-q" type="search" data-cafe-q placeholder="Café, area or drink" autocomplete="off" enterkeyhint="search" value="${filters.query}">
-            <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
+          <div class="cafes__search">
+            <div class="search">
+              <label class="sr-only" for="cafe-q">Search by café name or area</label>
+              ${icon("search", { size: 20 })}
+              <input class="input search__input" id="cafe-q" type="search" data-cafe-q placeholder="Café name or area" autocomplete="off" enterkeyhint="search" value="${filters.query}">
+              <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
+            </div>
           </div>
-          <div class="chip-row" role="group" aria-label="Filters">
-            ${chip("Open now", 'data-filter="openNow"', filters.openNow)}
-            ${chip("Quiet now", 'data-filter="quietNow"', filters.quietNow)}
-            <span class="chip-row__rule" aria-hidden="true"></span>
-            ${areas.map((a) => chip(a.name, `data-area="${a.id}"`, filters.areaId === a.id))}
+          <div class="cafes__tools">
+            <div class="select">
+              <label class="sr-only" for="cafe-area">Area</label>
+              <select class="input" id="cafe-area" data-cafe-area>
+                <option value="">All areas</option>
+                ${areas.map((a) => html`<option value="${a.id}">${a.name}</option>`)}
+              </select>
+            </div>
+            <button type="button" class="btn btn--secondary cafes__filters" data-open-filters aria-haspopup="dialog" aria-controls="filters-sheet">
+              ${icon("sliders", { size: 18 })}<span data-filter-label>Filters</span>
+            </button>
           </div>
-          <p class="t-small t-faint" data-cafe-count aria-live="polite"></p>
-          <ul role="list" class="cafe-list" data-cafe-list></ul>
+          <div>
+            <p class="sr-only" data-cafe-count aria-live="polite"></p>
+            <ul role="list" class="cafe-lines" data-cafe-list></ul>
+            <button type="button" class="btn btn--secondary btn--block cafes__more" data-show-more hidden>Show more</button>
+          </div>
         </div>`.s,
       mount() {
+        sheet = document.createElement("div");
+        sheet.className = "sheet";
+        sheet.id = "filters-sheet";
+        sheet.setAttribute("role", "dialog");
+        sheet.setAttribute("aria-modal", "true");
+        sheet.setAttribute("aria-labelledby", "filters-title");
+        sheet.setAttribute("aria-hidden", "true");
+        $(".phone__screen", el).appendChild(sheet);
+        sheet.addEventListener("click", onSheetClick);
         paintList();
         view.scrollTop = listScroll;
         view.addEventListener("input", onInput);
+        view.addEventListener("change", onChange);
         view.addEventListener("click", onClick);
         return () => {
           listScroll = view.scrollTop;
+          ui.closeSheet(sheet);
+          sheet.remove();
           view.removeEventListener("input", onInput);
+          view.removeEventListener("change", onChange);
           view.removeEventListener("click", onClick);
         };
       },
       on: {
-        // Pills update themselves; the list only changes when a filter depends on it
-        "cafe:status": () => { if (filters.quietNow) paintList(); },
-        tick: () => { if (filters.openNow) paintList(); },
-        plan: () => paintList(),
-        ledger: () => paintList(),
+        // Status words update themselves; the list only changes when a filter depends on it
+        "cafe:status": () => { if (filters.statuses.length) paintList(); },
+        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); }, // open / closed follows the clock
       },
     };
   };

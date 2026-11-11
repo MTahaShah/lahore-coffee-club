@@ -463,15 +463,18 @@
     },
 
     /** Cafés tab: text search (name, area, drink) combined with filters.
-        Every filter narrows the list (AND); area is a single choice.    */
-    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false } = {}, at = Date.now()) {
-      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet
+        Every filter narrows the list (AND); area is a single choice.
+        statuses: busy levels to keep (any of); tags: all must match.    */
+    searchCafes({ query = "", areaId = null, openNow = false, quietNow = false, statuses = [], tags = [] } = {}, at = Date.now()) {
+      // BACKEND: GET /cafes?q=:query&area=:areaId&open=1&status=quiet,moderate&tag=Roastery
       const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
       const words = norm(query).split(/\s+/).filter(Boolean);
       return select.cafes().filter((c) => {
         if (areaId && c.area !== areaId) return false;
         if (openNow && !select.openState(c, at).open) return false;
         if (quietNow && c.status !== "quiet") return false;
+        if (statuses.length && !statuses.includes(c.status)) return false;
+        if (tags.length && !tags.every((t) => c.tags.includes(t))) return false;
         if (!words.length) return true;
         const hay = norm([c.name, select.area(c.area).name, ...c.drinks.map((d) => d.name)].join(" "));
         return words.every((w) => hay.includes(w));

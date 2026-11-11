@@ -14,54 +14,38 @@
   const EXPLORER_GOAL = 5;
 
   // Search and filters survive a trip into a café and back
-  const filters = { query: "", areaId: null, openNow: false, quietNow: false };
+  const filters = { query: "", areaId: null, openNow: false, statuses: [], tags: [] };
+  const PAGE = 6;
+  let shown = PAGE;
   let listScroll = 0;
 
-  /** A short badge for list rows: what this member's plan means here. */
-  function hereBadge(cafeId) {
-    const here = S.cafeBalance(S.member().id, cafeId);
-    if (here.type === "mycafes") return here.reserved ? html`<span class="badge badge--accent">${here.left} of ${here.reserved} reserved</span>` : "";
-    return here.used >= here.cap ? html`<span class="badge">${here.cap} of ${here.cap} this month</span>` : "";
-  }
+  /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
+  const sheetCount = (f = filters) => (f.openNow ? 1 : 0) + f.statuses.length + f.tags.length;
 
   /* -------------------------------------------------------------------
-     Cafés list
+     Cafés list: sticky search, area dropdown, Filters sheet, short rows
      ------------------------------------------------------------------- */
   REG.cafes = (ctx) => {
-    const { view } = ctx;
+    const { view, el } = ctx;
     const areas = store.getState().areas;
+    // Every tag a partner café uses, in a stable order
+    const allTags = [...new Set(S.cafes().flatMap((c) => c.tags))].sort();
+    let draft = null; // the sheet's choices until Apply
+    let sheet = null;
+    let painted = ""; // what the list shows (ids and open state), so the clock only repaints on a change
+    const signature = (results) => `${shown}|${results.map((c) => `${c.id}:${S.openState(c).open ? 1 : 0}`).join(",")}`;
 
-    function chip(label, attrs, pressed) {
-      return html`<button type="button" class="chip" ${ui.raw(attrs)} aria-pressed="${pressed}">${label}</button>`;
-    }
-
-    function rowHtml(c, i) {
-      const open = S.openState(c);
-      return html`<li class="enter" style="--i:${Math.min(i, 8)}">
-        <a class="row cafe-row" href="#/app/cafes/${c.id}">
-          <span class="row__main">
-            <span class="row__title">${c.name}</span>
-            <span class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} a cup${open.open ? "" : " · Closed now"}</span>
-            <span class="cafe-row__pills">
-              ${ui.statusPill(c.id)}
-              ${hereBadge(c.id)}
-            </span>
+    function rowHtml(c) {
+      const open = S.openState(c).open;
+      return html`<li>
+        <a class="cafe-line" href="#/app/cafes/${c.id}" aria-label="${c.name}, ${S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+          <span class="cafe-line__name">${c.name}</span>
+          <span class="cafe-line__area">${S.area(c.area).name}</span>
+          <span class="cafe-line__end" aria-hidden="true">
+            ${ui.statusPill(c.id, { bare: true, time: false })}
+            <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>
           </span>
-          <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
         </a>
-      </li>`;
-    }
-
-    function emptyHtml() {
-      // e.g. “Nothing open and quiet in DHA right now.” / “Nothing in Liberty matches “mocha”.”
-      const adj = [filters.openNow && "open", filters.quietNow && "quiet"].filter(Boolean).join(" and ");
-      const where = filters.areaId ? ` in ${S.area(filters.areaId).name}` : "";
-      const q = filters.query.trim();
-      const line = `Nothing${adj ? ` ${adj}` : ""}${where}${q ? ` matches “${q}”` : ""}${adj ? " right now" : ""}.`;
-      return html`<li class="cafes-empty enter">
-        <p class="t-h3">${line}</p>
-        <p class="t-small t-muted">Lahore has more good coffee than this list. Try fewer filters, or a drink like “latte”.</p>
-        <button type="button" class="btn btn--secondary btn--compact" data-clear-filters>Clear filters</button>
       </li>`;
     }
 
@@ -69,31 +53,117 @@
       const list = $("[data-cafe-list]", view);
       if (!list) return;
       const results = S.searchCafes(filters);
-      list.innerHTML = results.length ? html`${results.map(rowHtml)}`.s : emptyHtml().s;
-      const any = filters.query || filters.areaId || filters.openNow || filters.quietNow;
+      painted = signature(results);
+      const any = filters.query || filters.areaId || sheetCount();
       $("[data-cafe-count]", view).textContent = any ? `${results.length} of ${S.cafes().length} cafés` : `${S.cafes().length} partner cafés`;
-      $$("[data-filter]", view).forEach((b) => b.setAttribute("aria-pressed", String(!!filters[b.dataset.filter])));
-      $$("[data-area]", view).forEach((b) => b.setAttribute("aria-pressed", String(filters.areaId === b.dataset.area)));
+      list.innerHTML = results.length
+        ? html`${results.slice(0, shown).map(rowHtml)}`.s
+        : html`<li class="cafes-empty">
+            <p class="t-body">No cafés match that. Try another area.</p>
+            ${any ? html`<button type="button" class="btn btn--secondary btn--compact" data-clear-filters>Clear search and filters</button>` : ""}
+          </li>`.s;
+      const more = $("[data-show-more]", view);
+      more.hidden = results.length <= shown;
+      more.textContent = `Show more (${Math.max(0, results.length - shown)})`;
+      const n = sheetCount();
+      const fb = $("[data-open-filters]", view);
+      $("[data-filter-label]", fb).textContent = n ? `Filters · ${n}` : "Filters";
+      fb.classList.toggle("is-on", n > 0);
+      fb.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
       $("[data-clear-search]", view).hidden = !filters.query;
+      $("[data-cafe-area]", view).value = filters.areaId || "";
+    }
+
+    // A new search or filter starts the list from the top again
+    const refilter = () => { shown = PAGE; paintList(); };
+
+    /* Filters sheet: lives on the phone screen (not in the scrolling view) */
+    function sheetHtml() {
+      const chip = (label, attrs, on) => html`<button type="button" class="chip" ${ui.raw(attrs)} aria-pressed="${on}">${label}</button>`;
+      return html`
+        <div class="sheet__scrim" data-sheet-close></div>
+        <div class="sheet__panel">
+          <div class="sheet__handle" aria-hidden="true"></div>
+          <div class="sheet__body filters">
+            <h2 class="t-h3" id="filters-title">Filters</h2>
+            <div class="filters__row">
+              <span id="f-open-l">Open now</span>
+              <button type="button" class="toggle" role="switch" aria-labelledby="f-open-l" aria-checked="${draft.openNow}" data-f-open></button>
+            </div>
+            <fieldset class="filters__group">
+              <legend class="eyebrow">Busy level</legend>
+              <div class="cluster" style="--cluster-gap:var(--space-2)">
+                ${store.statuses.map((st) => chip(html`${ui.cupIcon(st, { size: 14, cls: "" })}${fmt.statusLabel(st)}`, `data-f-status="${st}"`, draft.statuses.includes(st)))}
+              </div>
+            </fieldset>
+            <fieldset class="filters__group">
+              <legend class="eyebrow">What they offer</legend>
+              <div class="cluster" style="--cluster-gap:var(--space-2)">
+                ${allTags.map((t) => chip(t, `data-f-tag="${t}"`, draft.tags.includes(t)))}
+              </div>
+            </fieldset>
+            <div class="filters__actions">
+              <button type="button" class="btn btn--secondary" data-f-clear>Clear</button>
+              <button type="button" class="btn btn--primary" data-f-apply>Apply</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function openFilters() {
+      draft = { openNow: filters.openNow, statuses: [...filters.statuses], tags: [...filters.tags] };
+      sheet.innerHTML = sheetHtml().s;
+      ui.openSheet(sheet);
+    }
+
+    function paintDraft() {
+      $("[data-f-open]", sheet).setAttribute("aria-checked", String(draft.openNow));
+      $$("[data-f-status]", sheet).forEach((b) => b.setAttribute("aria-pressed", String(draft.statuses.includes(b.dataset.fStatus))));
+      $$("[data-f-tag]", sheet).forEach((b) => b.setAttribute("aria-pressed", String(draft.tags.includes(b.dataset.fTag))));
+    }
+
+    const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+
+    function onSheetClick(e) {
+      const t = e.target;
+      if (t.closest("[data-f-open]")) { draft.openNow = !draft.openNow; paintDraft(); return; }
+      const st = t.closest("[data-f-status]");
+      if (st) { draft.statuses = toggleIn(draft.statuses, st.dataset.fStatus); paintDraft(); return; }
+      const tag = t.closest("[data-f-tag]");
+      if (tag) { draft.tags = toggleIn(draft.tags, tag.dataset.fTag); paintDraft(); return; }
+      if (t.closest("[data-f-clear]")) { draft = { openNow: false, statuses: [], tags: [] }; paintDraft(); return; }
+      if (t.closest("[data-f-apply]")) {
+        Object.assign(filters, draft);
+        ui.closeSheet(sheet);
+        refilter();
+      }
     }
 
     function onInput(e) {
-      if (!e.target.matches("[data-cafe-q]")) return;
-      filters.query = e.target.value;
-      paintList();
+      if (e.target.matches("[data-cafe-q]")) { filters.query = e.target.value; refilter(); }
+    }
+    function onChange(e) {
+      if (e.target.matches("[data-cafe-area]")) { filters.areaId = e.target.value || null; refilter(); }
     }
 
     function onClick(e) {
       const t = e.target;
-      const f = t.closest("[data-filter]");
-      if (f) { filters[f.dataset.filter] = !filters[f.dataset.filter]; paintList(); return; }
-      const a = t.closest("[data-area]");
-      if (a) { filters.areaId = filters.areaId === a.dataset.area ? null : a.dataset.area; paintList(); return; }
-      if (t.closest("[data-clear-search]")) { filters.query = ""; $("[data-cafe-q]", view).value = ""; paintList(); $("[data-cafe-q]", view).focus(); return; }
-      if (t.closest("[data-clear-filters]")) {
-        Object.assign(filters, { query: "", areaId: null, openNow: false, quietNow: false });
-        $("[data-cafe-q]", view).value = "";
+      // Focus the button first, so closing the sheet returns there (Safari doesn't focus on tap)
+      const fb = t.closest("[data-open-filters]");
+      if (fb) { fb.focus(); openFilters(); return; }
+      if (t.closest("[data-show-more]")) {
+        const first = shown;
+        shown = S.searchCafes(filters).length;
         paintList();
+        // Keep keyboard focus in the list: on the first new café
+        $$("[data-cafe-list] a", view)[first]?.focus();
+        return;
+      }
+      if (t.closest("[data-clear-search]")) { filters.query = ""; $("[data-cafe-q]", view).value = ""; refilter(); $("[data-cafe-q]", view).focus(); return; }
+      if (t.closest("[data-clear-filters]")) {
+        Object.assign(filters, { query: "", areaId: null, openNow: false, statuses: [], tags: [] });
+        $("[data-cafe-q]", view).value = "";
+        refilter();
         $("[data-cafe-q]", view).focus();
       }
     }
@@ -102,38 +172,60 @@
       html: html`
         <div class="app-screen cafes">
           <h1 class="t-h2">Cafés</h1>
-          <div class="search">
-            <label class="sr-only" for="cafe-q">Search by café, area or drink</label>
-            ${icon("search", { size: 20 })}
-            <input class="input search__input" id="cafe-q" type="search" data-cafe-q placeholder="Café, area or drink" autocomplete="off" enterkeyhint="search" value="${filters.query}">
-            <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
+          <div class="cafes__search">
+            <div class="search">
+              <label class="sr-only" for="cafe-q">Search by café name or area</label>
+              ${icon("search", { size: 20 })}
+              <input class="input search__input" id="cafe-q" type="search" data-cafe-q placeholder="Café name or area" autocomplete="off" enterkeyhint="search" value="${filters.query}">
+              <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
+            </div>
           </div>
-          <div class="chip-row" role="group" aria-label="Filters">
-            ${chip("Open now", 'data-filter="openNow"', filters.openNow)}
-            ${chip("Quiet now", 'data-filter="quietNow"', filters.quietNow)}
-            <span class="chip-row__rule" aria-hidden="true"></span>
-            ${areas.map((a) => chip(a.name, `data-area="${a.id}"`, filters.areaId === a.id))}
+          <div class="cafes__tools">
+            <div class="select">
+              <label class="sr-only" for="cafe-area">Area</label>
+              <select class="input" id="cafe-area" data-cafe-area>
+                <option value="">All areas</option>
+                ${areas.map((a) => html`<option value="${a.id}">${a.name}</option>`)}
+              </select>
+            </div>
+            <button type="button" class="btn btn--secondary cafes__filters" data-open-filters aria-haspopup="dialog" aria-controls="filters-sheet">
+              ${icon("sliders", { size: 18 })}<span data-filter-label>Filters</span>
+            </button>
           </div>
-          <p class="t-small t-faint" data-cafe-count aria-live="polite"></p>
-          <ul role="list" class="cafe-list" data-cafe-list></ul>
+          <div>
+            <p class="sr-only" data-cafe-count aria-live="polite"></p>
+            <ul role="list" class="cafe-lines" data-cafe-list></ul>
+            <button type="button" class="btn btn--secondary btn--block cafes__more" data-show-more hidden>Show more</button>
+          </div>
         </div>`.s,
       mount() {
+        sheet = document.createElement("div");
+        sheet.className = "sheet";
+        sheet.id = "filters-sheet";
+        sheet.setAttribute("role", "dialog");
+        sheet.setAttribute("aria-modal", "true");
+        sheet.setAttribute("aria-labelledby", "filters-title");
+        sheet.setAttribute("aria-hidden", "true");
+        $(".phone__screen", el).appendChild(sheet);
+        sheet.addEventListener("click", onSheetClick);
         paintList();
         view.scrollTop = listScroll;
         view.addEventListener("input", onInput);
+        view.addEventListener("change", onChange);
         view.addEventListener("click", onClick);
         return () => {
           listScroll = view.scrollTop;
+          ui.closeSheet(sheet);
+          sheet.remove();
           view.removeEventListener("input", onInput);
+          view.removeEventListener("change", onChange);
           view.removeEventListener("click", onClick);
         };
       },
       on: {
-        // Pills update themselves; the list only changes when a filter depends on it
-        "cafe:status": () => { if (filters.quietNow) paintList(); },
-        tick: () => { if (filters.openNow) paintList(); },
-        plan: () => paintList(),
-        ledger: () => paintList(),
+        // Status words update themselves; the list only changes when a filter depends on it
+        "cafe:status": () => { if (filters.statuses.length) paintList(); },
+        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); }, // open / closed follows the clock
       },
     };
   };

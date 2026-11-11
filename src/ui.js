@@ -53,6 +53,8 @@
     copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="1.5"/><path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"/>',
     share: '<path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/>',
     users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M3 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5M15.5 5.3a3.5 3.5 0 0 1 0 6.4M17.5 14.8c1.8.7 3 2.3 3.5 4.7"/>',
+    user: '<circle cx="12" cy="8.5" r="3.75"/><path d="M4.75 20c.9-3.75 3.75-5.75 7.25-5.75s6.35 2 7.25 5.75"/>',
+    sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
   };
   function icon(name, { size = 24, label } = {}) {
@@ -233,6 +235,7 @@
   function bindDrag(sheet) {
     if (sheet._dragBound) return;
     sheet._dragBound = true;
+    if (sheet.classList.contains("sheet--drawer")) { bindSwipe(sheet); return; }
     const handle = sheet.querySelector(".sheet__handle");
     if (!handle) return;
     let startY = 0, dy = 0, t0 = 0, active = false;
@@ -256,6 +259,39 @@
     };
     handle.addEventListener("pointerup", end);
     handle.addEventListener("pointercancel", end);
+  }
+
+  /* Side drawer (.sheet--drawer): swipe right on the panel to close.
+     Vertical moves are left alone, so the drawer still scrolls. */
+  function bindSwipe(sheet) {
+    const panel = sheet.querySelector(".sheet__panel");
+    let x0 = 0, y0 = 0, dx = 0, t0 = 0, mode = null; // null: undecided, "x": dragging, "y": scrolling
+    panel.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      x0 = e.clientX; y0 = e.clientY; dx = 0; t0 = performance.now(); mode = null;
+    });
+    panel.addEventListener("pointermove", (e) => {
+      if (mode === "y" || e.pointerType === "mouse") return;
+      const mx = e.clientX - x0, my = e.clientY - y0;
+      if (mode === null) {
+        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        mode = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+        if (mode === "x") { sheet.classList.add("is-dragging"); panel.setPointerCapture(e.pointerId); }
+        return;
+      }
+      dx = Math.max(0, mx);
+      sheet.style.setProperty("--drag", `${dx}px`);
+    });
+    const end = () => {
+      if (mode !== "x") { mode = null; return; }
+      mode = null;
+      sheet.classList.remove("is-dragging");
+      const velocity = dx / Math.max(1, performance.now() - t0);
+      if (dx > 80 || velocity > 0.5) closeSheet(sheet);
+      else sheet.style.setProperty("--drag", "0px");
+    };
+    panel.addEventListener("pointerup", end);
+    panel.addEventListener("pointercancel", end);
   }
 
   document.addEventListener("click", (e) => {
