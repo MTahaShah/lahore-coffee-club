@@ -76,16 +76,227 @@
     "all-lahore": '<path d="M12 3.5v1.5M10.6 5h2.8l-.4 3.5h-2zM10 8.5h4l1 11H9zM6 19.5h12M11 13.5h2"/>',
     morning: '<path d="M4 17h16M7.5 17a4.5 4.5 0 0 1 9 0M12 8.5v2M6.6 11.6l1.3 1.1M17.4 11.6l-1.3 1.1M8.5 20h7"/>',
     gulberg: '<path d="M12 20s5.5-5 5.5-9.5a5.5 5.5 0 0 0-11 0C6.5 15 12 20 12 20z"/><path d="M12 8v5M10 10.5h4"/>',
+    dha: '<path d="M12 20s5.5-5 5.5-9.5a5.5 5.5 0 0 0-11 0C6.5 15 12 20 12 20z"/><rect x="10" y="8.5" width="4" height="4" rx=".75"/>',
+    familiar: '<circle cx="12" cy="12" r="8.5"/><path d="M8.25 10h6.5v2.25a3 3 0 0 1-3 3h-.5a3 3 0 0 1-3-3V10zM14.75 10.75h.6a1.35 1.35 0 0 1 0 2.7h-.6"/>',
+    "first-light": '<path d="M3.5 16.5h17M7.5 19.5h9M8 16.5a4 4 0 0 1 8 0M12 7v2.5M6.3 9.8l1.5 1.3M17.7 9.8l-1.5 1.3"/>',
   };
   const mark = (id) => raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${MARKS[id] || ""}</svg>`);
 
   const bar = (have, goal, label) => html`<div class="pbar" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${Math.min(have, goal)}"><span style="--p:${Math.min(1, have / goal).toFixed(3)}"></span></div>`;
 
   /* -------------------------------------------------------------------
+     Coffee passport: a closed book that opens to an ID page and stamp
+     pages (4 stamps a page). Stamps come from select.club().passport.
+     ------------------------------------------------------------------- */
+  const book = { open: false, page: 0 }; // survives repaints and tab switches
+  const STAMPS_PER_PAGE = 4;
+  const TILT = [-6, 4, -3, 7, -5, 3, -7, 5];
+  const FLIP_MS = 360;
+  const stampDate = (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }).toUpperCase();
+
+  function bookPages(c) {
+    const stamps = c.passport.stamps;
+    const pages = [];
+    for (let i = 0; i < stamps.length; i += STAMPS_PER_PAGE) pages.push(stamps.slice(i, i + STAMPS_PER_PAGE).map((s, j) => ({ ...s, n: i + j })));
+    return pages; // the ID page comes first, so page numbers are index + 2
+  }
+
+  function idPageHtml(c) {
+    const m = c.member;
+    const plan = S.memberPlan(m);
+    return html`
+      <div class="pbook__head"><span>Coffee passport</span><span class="num">1</span></div>
+      <div class="pid">
+        <span class="pid__photo" aria-hidden="true">${m.initials || (m.firstName || "?")[0]}</span>
+        <dl class="pid__fields">
+          <div><dt>Name</dt><dd>${fullName(m)}</dd></div>
+          <div><dt>Member since</dt><dd>${fmt.monthYear(c.since)}</dd></div>
+          <div><dt>Plan</dt><dd>${plan.type === "explorer" ? `Explorer · ${plan.name}` : plan.name}</dd></div>
+        </dl>
+      </div>
+      <div class="pid__no"><span class="pid__label">Member no.</span><span class="pid__digits num">${String(c.memberNo ?? 0).padStart(4, "0")}</span></div>
+      <div class="pid__sign" aria-hidden="true"><span class="pid__line"></span><span class="pid__label">Holder’s signature</span></div>`;
+  }
+
+  function stampPageHtml(stamps, pageNo, total) {
+    const first = stamps[0].n + 1, last = stamps[stamps.length - 1].n + 1;
+    return html`
+      <div class="pbook__head"><span>Stamps · cafés ${first}–${last} of ${total}</span><span class="num">${pageNo}</span></div>
+      <ul class="pstamps" role="list">
+        ${stamps.map((s) => s.visited
+          ? html`<li class="pstamp pstamp--${s.n % 3 === 1 ? "rect" : "round"}" style="--tilt:${TILT[s.n % TILT.length]}deg">
+              <span class="pstamp__ink">
+                <span class="pstamp__name">${shortName(s.cafe)}</span>
+                <span class="pstamp__area">${S.area(s.cafe.area).name}</span>
+                <span class="pstamp__date num">${stampDate(s.firstAt)}</span>
+              </span>
+              <span class="sr-only">, first cup ${fmt.longDate(s.firstAt)}</span>
+            </li>`
+          : html`<li class="pstamp is-empty">
+              <span class="pstamp__ink">
+                <span class="pstamp__name">${shortName(s.cafe)}</span>
+                <span class="pstamp__date">Not yet</span>
+              </span>
+              <span class="sr-only">, not visited yet</span>
+            </li>`)}
+      </ul>`;
+  }
+
+  function passportBookHtml(c) {
+    const p = c.passport;
+    const pages = [idPageHtml(c), ...bookPages(c).map((st, i) => stampPageHtml(st, i + 2, p.total))];
+    book.page = Math.min(book.page, pages.length - 1);
+    const rewardLine = p.nextReward
+      ? `A free cup at ${p.nextReward === p.total ? `all ${p.total}` : p.nextReward} cafés. ${p.nextReward - p.count === 1 ? "One more to go." : `${p.nextReward - p.count} more to go.`}`
+      : `Every partner café, visited. Both free cups are yours.`;
+    return html`
+      <div class="pbook-stage">
+        <div class="pbook${book.open ? " is-open" : ""}" data-pbook data-pages-total="${pages.length}">
+          ${pages.map((pg, i) => html`<section class="pbook__page${i === book.page ? " is-current" : ""}" data-page="${i}" tabindex="-1"
+              aria-label="Passport page ${i + 1} of ${pages.length}" ${!book.open || i !== book.page ? raw("hidden") : ""}>${pg}</section>`)}
+          <button type="button" class="pbook__cover theme-dark" data-pbook-open aria-label="Open your coffee passport" ${book.open ? raw("hidden") : ""}>
+            <span class="pbook__frame" aria-hidden="true"></span>
+            <span class="pbook__foil pbook__foil--club">Lahore Coffee Club</span>
+            <span class="pbook__crest">${ui.logo("ring", { label: null })}</span>
+            <span class="pbook__foil pbook__foil--title">Coffee Passport</span>
+            <span class="pbook__holder">${fullName(c.member)}</span>
+          </button>
+        </div>
+      </div>
+      <div class="pbook__controls" data-pbook-controls ${book.open ? "" : raw("hidden")}>
+        <button type="button" class="btn btn--secondary btn--compact" data-pbook-turn="-1" aria-disabled="${book.page === 0}">${icon("arrowLeft", { size: 18 })}Previous</button>
+        <p class="t-small t-muted num" data-pbook-at aria-live="polite">Page ${book.page + 1} of ${pages.length}</p>
+        <button type="button" class="btn btn--secondary btn--compact" data-pbook-turn="1" aria-disabled="${book.page === pages.length - 1}">Next${icon("chevronRight", { size: 18 })}</button>
+      </div>
+      <div class="passport__foot">
+        <div class="passport__head">
+          <p class="t-h3 num"><span class="passport__count">${p.count}</span> of ${p.total} cafés</p>
+          <p class="t-small t-muted">${rewardLine}</p>
+        </div>
+        <button type="button" class="btn btn--link" data-pbook-close ${book.open ? "" : raw("hidden")}>Close passport</button>
+      </div>`;
+  }
+
+  /** Book behaviour on one rendered passport (open, turn, close, swipe). */
+  function bindBook(root) {
+    let busy = false;
+    const $book = () => $("[data-pbook]", root);
+    const total = () => Number($book().dataset.pagesTotal);
+    const pageEl = (i) => $(`[data-page="${i}"]`, root);
+    const still = () => ui.reducedMotion();
+    // Wait for a transition, with a timer in case transitionend never fires
+    const after = (el, ms = FLIP_MS) => new Promise((done) => {
+      let t = null;
+      const end = (e) => { if (e && e.target !== el) return; el.removeEventListener("transitionend", end); clearTimeout(t); done(); };
+      el.addEventListener("transitionend", end);
+      t = setTimeout(end, ms + 120);
+    });
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    function paintControls() {
+      const n = total();
+      $("[data-pbook-at]", root).textContent = `Page ${book.page + 1} of ${n}`;
+      $('[data-pbook-turn="-1"]', root).setAttribute("aria-disabled", String(book.page === 0));
+      $('[data-pbook-turn="1"]', root).setAttribute("aria-disabled", String(book.page === n - 1));
+    }
+
+    async function open() {
+      if (busy || book.open) return;
+      busy = true;
+      const cover = $("[data-pbook-open]", root);
+      const first = pageEl(book.page);
+      first.hidden = false;
+      cover.classList.add(still() ? "is-fading" : "is-flipping");
+      await frame();
+      cover.classList.add("is-away");
+      await after(cover);
+      cover.hidden = true;
+      cover.classList.remove("is-fading", "is-flipping", "is-away");
+      book.open = true;
+      $book().classList.add("is-open");
+      $("[data-pbook-controls]", root).hidden = false;
+      $("[data-pbook-close]", root).hidden = false;
+      paintControls();
+      first.focus({ preventScroll: true });
+      busy = false;
+    }
+
+    async function close() {
+      if (busy || !book.open) return;
+      busy = true;
+      const cover = $("[data-pbook-open]", root);
+      cover.classList.add(still() ? "is-fading" : "is-flipping", "is-away");
+      cover.hidden = false;
+      await frame();
+      cover.classList.remove("is-away");
+      await after(cover);
+      cover.classList.remove("is-fading", "is-flipping");
+      pageEl(book.page).hidden = true;
+      book.open = false;
+      $book().classList.remove("is-open");
+      $("[data-pbook-controls]", root).hidden = true;
+      $("[data-pbook-close]", root).hidden = true;
+      cover.focus({ preventScroll: true });
+      busy = false;
+    }
+
+    // Next: the current page turns away over the next one, hinged on the left.
+    // Previous: the earlier page turns back in on top. Reduced motion: crossfade.
+    async function turn(dir) {
+      if (busy || !book.open) return;
+      const from = book.page, to = from + dir;
+      if (to < 0 || to >= total()) return;
+      busy = true;
+      const a = pageEl(from), b = pageEl(to);
+      const moving = dir > 0 && !still() ? a : b;
+      b.hidden = false;
+      moving.classList.add("is-top", still() ? "is-fading" : "is-flipping");
+      if (moving === b) b.classList.add("is-away");
+      await frame();
+      moving.classList.toggle("is-away", moving === a);
+      await after(moving);
+      a.hidden = true;
+      [a, b].forEach((el) => el.classList.remove("is-top", "is-fading", "is-flipping", "is-away", "is-current"));
+      b.classList.add("is-current");
+      book.page = to;
+      paintControls();
+      busy = false;
+    }
+
+    // Swipe left for the next page, right for the previous one
+    let x0 = null, y0 = 0;
+    const onDown = (e) => { if (book.open) { x0 = e.clientX; y0 = e.clientY; } };
+    const onUp = (e) => {
+      if (x0 == null) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) turn(dx < 0 ? 1 : -1);
+    };
+    const onClick = (e) => {
+      if (e.target.closest("[data-pbook-open]")) { open(); return; }
+      if (e.target.closest("[data-pbook-close]")) { close(); return; }
+      const t = e.target.closest("[data-pbook-turn]");
+      if (t && t.getAttribute("aria-disabled") !== "true") turn(Number(t.dataset.pbookTurn));
+    };
+    const onKey = (e) => {
+      if (!book.open || !e.target.closest("[data-pbook], [data-pbook-controls]")) return;
+      if (e.key === "ArrowRight") { e.preventDefault(); turn(1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); turn(-1); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); }
+    };
+    root.addEventListener("pointerdown", onDown);
+    root.addEventListener("pointerup", onUp);
+    root.addEventListener("pointercancel", () => { x0 = null; });
+    root.addEventListener("click", onClick);
+    root.addEventListener("keydown", onKey);
+  }
+
+  /* -------------------------------------------------------------------
      Club tab
      ------------------------------------------------------------------- */
   REG.club = (ctx) => {
-    const { view } = ctx;
+    const { view, el } = ctx;
+    let badgeSheet = null;
 
     function statusHtml(c) {
       const levels = c.levels;
@@ -109,40 +320,50 @@
           : html`<p class="t-small t-muted">The top of the club. Every perk is yours.</p>`}`;
     }
 
-    function passportHtml(c) {
-      const p = c.passport;
-      const tilt = [-5, 3, -2, 6, -4, 2, -6, 4];
-      const rewardLine = p.nextReward
-        ? `A free cup at ${p.nextReward === p.total ? `all ${p.total}` : p.nextReward} cafés. ${p.nextReward - p.count === 1 ? "One more to go." : `${p.nextReward - p.count} more to go.`}`
-        : `Every partner café, visited. Both free cups are yours.`;
-      return html`
-        <div class="passport__head">
-          <p class="t-h3 num"><span class="passport__count">${p.count}</span> of ${p.total} cafés</p>
-          <p class="t-small t-muted">${rewardLine}</p>
-        </div>
-        <ul class="passport" role="list">
-          ${p.stamps.map((s, i) => html`<li class="stamp${s.visited ? " is-stamped" : ""}" style="--tilt:${tilt[i % tilt.length]}deg">
-            <span class="stamp__ring" aria-hidden="true"></span>
-            <span class="stamp__name">${shortName(s.cafe)}</span>
-            <span class="stamp__date num">${s.visited ? fmt.shortDate(s.firstAt) : "Not yet"}</span>
-            <span class="sr-only">${s.visited ? `, first cup ${fmt.longDate(s.firstAt)}` : ", not visited yet"}</span>
-          </li>`)}
-        </ul>`;
+    function badgesRowHtml(c) {
+      const earned = c.badges.filter((b) => b.earned).length;
+      return html`<button type="button" class="row badges-row" data-open-badges aria-haspopup="dialog" aria-controls="badges-sheet">
+        <span class="badge-mark is-earned">${icon("award", { size: 22 })}</span>
+        <span class="row__main"><span class="row__title">Badges · ${earned} of ${c.badges.length}</span></span>
+        <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+      </button>`;
     }
 
-    function badgesHtml(c) {
-      return html`<ul role="list" class="badge-list">
-        ${c.badges.map((b) => html`<li class="row badge-row${b.earned ? " is-earned" : ""}">
-          <span class="badge-mark">${mark(b.id)}</span>
-          <span class="row__main">
-            <span class="row__title">${b.name}</span>
-            <span class="row__meta">${b.how}</span>
-          </span>
-          ${b.earned
-            ? html`<span class="badge badge--accent">Earned</span>`
-            : html`<span class="row__trail num" aria-label="${b.have} of ${b.goal}">${b.have} of ${b.goal}</span>`}
-        </li>`)}
-      </ul>`;
+    function badgeSheetHtml() {
+      const c = S.club();
+      const earned = c.badges.filter((b) => b.earned).sort((a, b) => (b.earnedAt || 0) - (a.earnedAt || 0));
+      const todo = c.badges.filter((b) => !b.earned);
+      // Progress only where counting means something (not a one-off like Founding or a first cup)
+      const progress = (b) => (b.goal > 1 && b.metric !== "founding" ? ` · ${b.have} of ${b.goal}` : "");
+      return html`
+        <div class="sheet__scrim" data-sheet-close></div>
+        <div class="sheet__panel">
+          <div class="sheet__handle" aria-hidden="true"></div>
+          <div class="sheet__body badges-sheet">
+            <div class="badges-sheet__bar">
+              <h2 class="t-h3" id="badges-title">Badges</h2>
+              <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+            </div>
+            <section aria-labelledby="badges-earned-h">
+              <h3 class="eyebrow" id="badges-earned-h">Earned · ${earned.length}</h3>
+              ${earned.length
+                ? html`<ul role="list">${earned.map((b) => html`<li class="row badge-row is-earned">
+                    <span class="badge-mark">${mark(b.id)}</span>
+                    <span class="row__main"><span class="row__title">${b.name}</span><span class="row__meta num">${b.earnedAt ? `Earned ${fmt.longDate(b.earnedAt)} ${new Date(b.earnedAt).getFullYear()}` : "Earned"}</span></span>
+                  </li>`)}</ul>`
+                : html`<p class="t-small t-muted">None yet. Your first cup earns the first one.</p>`}
+            </section>
+            <section aria-labelledby="badges-todo-h">
+              <h3 class="eyebrow" id="badges-todo-h">Still to earn · ${todo.length}</h3>
+              ${todo.length
+                ? html`<ul role="list">${todo.map((b) => html`<li class="row badge-row">
+                    <span class="badge-mark">${mark(b.id)}</span>
+                    <span class="row__main"><span class="row__title">${b.name}</span><span class="row__meta num">${b.how.replace(/\.$/, "")}${progress(b)}</span></span>
+                  </li>`)}</ul>`
+                : html`<p class="t-small t-muted">Every badge, earned.</p>`}
+            </section>
+          </div>
+        </div>`;
     }
 
     function perksHtml(c) {
@@ -225,16 +446,17 @@
             <p class="eyebrow">The club</p>
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
           </div>
+
+          <section aria-labelledby="passport-h">
+            <h2 class="sr-only" id="passport-h">Lahore coffee passport</h2>
+            <div class="passport" data-club="passport">${passportBookHtml(c)}</div>
+          </section>
+
           <div data-club-card>${memberCard(c.member.id)}</div>
 
           <section class="app-section" aria-labelledby="status-h">
             <h2 class="eyebrow app-section__title" id="status-h">Your status</h2>
             <div data-club="status">${statusHtml(c)}</div>
-          </section>
-
-          <section class="app-section" aria-labelledby="passport-h">
-            <h2 class="eyebrow app-section__title" id="passport-h">Lahore coffee passport</h2>
-            <div data-club="passport">${passportHtml(c)}</div>
           </section>
 
           <section class="app-section" aria-labelledby="gather-h">
@@ -247,9 +469,8 @@
             <div data-club="perks">${perksHtml(c)}</div>
           </section>
 
-          <section class="app-section" aria-labelledby="badges-h">
-            <h2 class="eyebrow app-section__title" id="badges-h">Badges</h2>
-            <div data-club="badges">${badgesHtml(c)}</div>
+          <section class="app-section" aria-label="Badges">
+            <div data-club="badges">${badgesRowHtml(c)}</div>
           </section>
 
           <section class="app-section stack" style="--stack-gap:var(--space-3)" aria-label="Share the club">
@@ -267,15 +488,28 @@
       const c = S.club();
       const set = (key, markup) => { const n = $(`[data-club="${key}"]`, view); if (n) n.innerHTML = markup.s; };
       set("status", statusHtml(c));
-      set("passport", passportHtml(c));
-      set("badges", badgesHtml(c));
+      set("passport", passportBookHtml(c));
+      set("badges", badgesRowHtml(c));
+      if (badgeSheet && badgeSheet.dataset.open === "true") {
+        const body = $(".sheet__body", badgeSheet), top = body.scrollTop;
+        badgeSheet.innerHTML = badgeSheetHtml().s;
+        $(".sheet__body", badgeSheet).scrollTop = top;
+      }
       set("perks", perksHtml(c));
       const card = $("[data-club-card]", view);
       if (card) card.innerHTML = memberCard(c.member.id).s;
     }
     const repaintGathering = () => { const n = $('[data-club="gathering"]', view); if (n) n.innerHTML = gatheringHtml().s; };
 
+    function openBadges(btn) {
+      btn.focus(); // so closing returns here (Safari doesn't focus on tap)
+      badgeSheet.innerHTML = badgeSheetHtml().s;
+      ui.openSheet(badgeSheet);
+    }
+
     function onClick(e) {
+      const ob = e.target.closest("[data-open-badges]");
+      if (ob) { openBadges(ob); return; }
       const r = e.target.closest("[data-rsvp]");
       if (r) {
         const g = S.gatherings().next;
@@ -297,8 +531,22 @@
     return {
       html: bodyHtml().s,
       mount() {
+        // The passport container stays put across repaints, so its listeners do too
+        bindBook($('[data-club="passport"]', view));
+        badgeSheet = document.createElement("div");
+        badgeSheet.className = "sheet";
+        badgeSheet.id = "badges-sheet";
+        badgeSheet.setAttribute("role", "dialog");
+        badgeSheet.setAttribute("aria-modal", "true");
+        badgeSheet.setAttribute("aria-labelledby", "badges-title");
+        badgeSheet.setAttribute("aria-hidden", "true");
+        $(".phone__screen", el).appendChild(badgeSheet);
         view.addEventListener("click", onClick);
-        return () => view.removeEventListener("click", onClick);
+        return () => {
+          ui.closeSheet(badgeSheet);
+          badgeSheet.remove();
+          view.removeEventListener("click", onClick);
+        };
       },
       on: {
         ledger: ({ entries }) => { if (entries.some((e) => e.memberId === S.member().id)) repaint(); },

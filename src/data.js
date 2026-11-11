@@ -502,6 +502,9 @@
       { id: "all-lahore", name: "All of Lahore",   how: "Have a cup at every partner café.",    metric: "cafes",        goal: "all" },
       { id: "morning",    name: "Morning person",  how: "10 cups before 9 am.",                 metric: "morning",      goal: 10 },
       { id: "gulberg",    name: "Gulberg local",   how: "10 cups at cafés in Gulberg.",         metric: "area:gulberg", goal: 10 },
+      { id: "dha",        name: "DHA local",       how: "10 cups at cafés in DHA.",             metric: "area:dha",     goal: 10 },
+      { id: "familiar",   name: "Familiar face",   how: "50 cups with the club.",               metric: "cups",         goal: 50 },
+      { id: "first-light", name: "First light",    how: "30 cups before 9 am.",                 metric: "morning",      goal: 30 },
     ],
     // Funded by each café, not by plans. for: local (Local and up) | connoisseur | founding
     perks: [

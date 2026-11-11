@@ -564,10 +564,32 @@
         if (key.startsWith("area:")) return byArea[key.slice(5)] || 0;
         return 0;
       };
+      // When each badge was earned: replay the redeems in order until its goal is met
+      const earnedAt = {};
+      if (founding) earnedAt.founding = m.memberSince || m.cycleStartedAt || null;
+      {
+        const run = { cups: 0, morning: 0, cafes: new Set(), area: {} };
+        const runMetric = (key) => {
+          if (key === "cups") return run.cups;
+          if (key === "cafes") return run.cafes.size;
+          if (key === "morning") return run.morning;
+          if (key.startsWith("area:")) return run.area[key.slice(5)] || 0;
+          return 0;
+        };
+        redeems.slice().sort((a, b) => a.at - b.at).forEach((e) => {
+          run.cups += e.credits;
+          if (new Date(e.at).getHours() < 9) run.morning += e.credits;
+          run.cafes.add(e.cafeId);
+          const area = state.cafes[e.cafeId]?.area;
+          if (area) run.area[area] = (run.area[area] || 0) + e.credits;
+          C.badges.forEach((b) => { if (!earnedAt[b.id] && b.metric !== "founding" && runMetric(b.metric) >= goalOf(b.goal)) earnedAt[b.id] = e.at; });
+        });
+      }
       const badges = C.badges.map((b) => {
         const goal = goalOf(b.goal);
         const have = metric(b.metric);
-        return { ...b, goal, have: Math.min(have, goal), earned: have >= goal };
+        const earned = have >= goal;
+        return { ...b, goal, have: Math.min(have, goal), earned, earnedAt: earned ? earnedAt[b.id] || null : null };
       });
 
       const rank = (id) => C.levels.findIndex((l) => l.id === id);

@@ -246,6 +246,15 @@ next pass until asked.**
 - Member numbers: first 500 are Founding; new members get
   `club.membersIssued + 1` (No. 0487 in the demo). Invite code = first name
   + number (MUMTAZ42).
+- Club tab: the passport is a book at the top (black cover, cream foil
+  type, the ring logo; opens with a 360ms rotateY flip, crossfade with
+  reduced motion). Page 1 is an ID page, then 4 stamps a page from
+  `select.club().passport`. Stamps are ink in `--accent-text` (an accent
+  use added on request). Badges are one "Badges · X of Y" row that opens a
+  sheet (Earned with dates, Still to earn with progress). Earned dates are
+  replayed from redeem entries in `select.club` (`badge.earnedAt`).
+  Badges added: DHA local, Familiar face (50 cups), First light (30 cups
+  before 9 am).
 - Gatherings: next one is the second Saturday ahead (Maple, 9 am, 30 seats,
   19 taken); Founding Members and Connoisseurs RSVP before the general
   opening a week ahead. RSVPs sync (`rsvp` message, newest wins, in join
