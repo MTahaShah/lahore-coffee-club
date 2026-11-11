@@ -3,8 +3,10 @@
    Member app: the Club tab (#/app/club) and gifting (#/app/gift).
 
    Everything on the Club tab is earned by use and read from the ledger
-   through store.select.club(): status, passport, badges and perks. The
-   member card is shared with onboarding (LCC.memberCard).
+   through store.select.club(): status, passport, badges and perks. Beans
+   (points) sit at the top, from store.select.beans(); invitations from
+   store.select.invitations(). The member card is shared with onboarding
+   (LCC.memberCard).
    ===================================================================== */
 (function () {
   "use strict";
@@ -148,8 +150,8 @@
     const pages = [idPageHtml(c), ...bookPages(c).map((st, i) => stampPageHtml(st, i + 2, p.total))];
     book.page = Math.min(book.page, pages.length - 1);
     const rewardLine = p.nextReward
-      ? `A free cup at ${p.nextReward === p.total ? `all ${p.total}` : p.nextReward} cafés. ${p.nextReward - p.count === 1 ? "One more to go." : `${p.nextReward - p.count} more to go.`}`
-      : `Every partner café, visited. Both free cups are yours.`;
+      ? `A complimentary cup at ${p.nextReward === p.total ? `all ${p.total}` : p.nextReward} cafés. ${p.nextReward - p.count === 1 ? "One more to go." : `${p.nextReward - p.count} more to go.`}`
+      : `Every partner café, visited. Both complimentary cups are yours.`;
     return html`
       <div class="pbook-stage">
         <div class="pbook${book.open ? " is-open" : ""}" data-pbook data-pages-total="${pages.length}">
@@ -307,6 +309,97 @@
   REG.club = (ctx) => {
     const { view, el } = ctx;
     let badgeSheet = null;
+    let beansSheet = null;
+    let confirming = null; // reward id waiting for a second tap
+    let confirmTimer = null;
+
+    /* Beans: balance and the way to the next complimentary drink */
+    function beansHtml() {
+      const b = S.beans();
+      return html`<button type="button" class="beans" data-open-beans aria-haspopup="dialog" aria-controls="beans-sheet" aria-label="${b.balance} Beans. ${b.line}. Rewards and history">
+        <span class="beans__row">
+          <span class="beans__icon" aria-hidden="true">${icon("bean", { size: 24 })}</span>
+          <span class="beans__num num">${fmt.num(b.balance)}</span>
+          <span class="beans__word">Beans</span>
+          <span class="beans__go" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+        </span>
+        <span class="beans__bar" aria-hidden="true"><span style="--p:${b.progress.toFixed(3)}"></span></span>
+        <span class="t-small t-muted num">${b.line}</span>
+      </button>`;
+    }
+
+    function beansSheetHtml() {
+      const b = S.beans();
+      const R = b.rules;
+      return html`
+        <div class="sheet__scrim" data-sheet-close></div>
+        <div class="sheet__panel">
+          <div class="sheet__handle" aria-hidden="true"></div>
+          <div class="sheet__body beans-sheet">
+            <div class="badges-sheet__bar">
+              <h2 class="t-h3" id="beans-title">Beans</h2>
+              <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+            </div>
+            <p class="beans-sheet__bal"><span aria-hidden="true">${icon("bean", { size: 28 })}</span><span class="num">${fmt.num(b.balance)}</span> Beans</p>
+            <p class="t-small t-muted num">${R.perDrink} Beans for every drink, at the counter or collected for pickup. ${R.referral} each when a friend joins with your code and buys a plan or pays for an order. Hosting a table adds ${R.hostPerFriend} for every friend who joins it.</p>
+
+            <section aria-labelledby="beans-rw-h">
+              <h3 class="eyebrow" id="beans-rw-h">Rewards</h3>
+              <ol class="beans-ladder" role="list">
+                ${b.rewards.map((r) => {
+                  const kept = r.gathering?.going;
+                  const where = r.gathering ? `${fmt.date(r.gathering.at)}, ${fmt.time(r.gathering.at)} at ${r.gathering.cafe.name}.` : "";
+                  return html`<li class="beans-step${r.reached ? " is-reached" : ""}">
+                    <span class="beans-step__cost num">${r.beans}</span>
+                    <span class="beans-step__main">
+                      <span class="row__title">${r.title}</span>
+                      <span class="row__meta">${r.line}${where ? ` ${where}` : ""}</span>
+                    </span>
+                    ${kept ? html`<span class="badge">Seat kept</span>`
+                      : r.reached ? html`<button type="button" class="btn ${confirming === r.id ? "btn--primary" : "btn--secondary"} btn--compact num" data-redeem-beans="${r.id}">${confirming === r.id ? `Use ${r.beans} Beans` : "Redeem"}</button>`
+                      : html`<span class="t-small t-faint num">${r.beans - b.balance} to go</span>`}
+                  </li>`;
+                })}
+              </ol>
+            </section>
+
+            <section aria-labelledby="beans-h-h">
+              <h3 class="eyebrow" id="beans-h-h">History</h3>
+              ${b.history.length ? html`<ul role="list">${b.history.slice(0, 30).map((h) => html`<li class="row">
+                  <span class="row__main"><span class="row__title">${h.title}</span><span class="row__meta">${h.meta} · ${fmt.shortDate(h.at)}</span></span>
+                  <span class="row__trail num">${h.beans > 0 ? "+" : "−"}${Math.abs(h.beans)}</span>
+                </li>`)}</ul>` : html`<p class="t-small t-muted">Your first Beans come with your first cup.</p>`}
+            </section>
+          </div>
+        </div>`;
+    }
+    function paintBeansSheet() {
+      if (!beansSheet || beansSheet.dataset.open !== "true") return;
+      const body = $(".sheet__body", beansSheet), top = body.scrollTop;
+      const focusId = document.activeElement?.dataset?.redeemBeans;
+      beansSheet.innerHTML = beansSheetHtml().s;
+      $(".sheet__body", beansSheet).scrollTop = top;
+      if (focusId) $(`[data-redeem-beans="${focusId}"]`, beansSheet)?.focus({ preventScroll: true });
+    }
+    function onBeansClick(e) {
+      const btn = e.target.closest("[data-redeem-beans]");
+      if (!btn) return;
+      const id = btn.dataset.redeemBeans;
+      // Two taps: Redeem, then "Use 150 Beans"
+      if (confirming !== id) {
+        confirming = id;
+        clearTimeout(confirmTimer);
+        confirmTimer = setTimeout(() => { confirming = null; paintBeansSheet(); }, 5000);
+        return paintBeansSheet();
+      }
+      confirming = null; clearTimeout(confirmTimer);
+      const res = A.redeemBeans(id);
+      if (!res.ok) { ctx.toast(res.message, { iconName: "info" }); return paintBeansSheet(); }
+      const r = res.reward;
+      ctx.toast(r.gathering ? `Your seat is kept. ${fmt.longDate(r.gathering.at)}, ${fmt.time(r.gathering.at)}.` : `${r.title} added to your cups.`, { iconName: r.gathering ? "calendar" : "bean", duration: 4200 });
+      paintBeansSheet();
+    }
+
     stack.open = false;
     stack.front = null;
 
@@ -525,19 +618,32 @@
     }
 
     function inviteHtml(c) {
-      const url = `${LIVE_URL()}#/app/welcome?invite=${c.inviteCode}`;
-      const msg = `I’m a member of Lahore Coffee Club: one monthly pass for independent cafés across Lahore. Join with my code ${c.inviteCode} and we both get a free cup.\n${url}`;
+      const code = c.inviteCode;
+      const n = S.beans().rules.referral;
+      const url = `${LIVE_URL()}#/app/welcome?invite=${code}`;
+      const msg = `I’ve been using Lahore Coffee Club. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
+      const invites = S.invitations(c.member.id);
       return html`<div class="card invite">
         <div class="stack" style="--stack-gap:var(--space-1)">
           <h3 class="t-h3">Invite a friend</h3>
-          <p class="t-small t-muted">When they join with your code, you both get a free cup.</p>
+          <p class="t-small t-muted num">When a friend joins with your code and buys a plan or pays for an order, you each receive ${n} Beans.</p>
         </div>
         <div class="invite__code">
           <span class="t-micro t-faint">Your code</span>
-          <span class="invite__value num" data-invite-code>${c.inviteCode}</span>
-          <button type="button" class="icon-btn" data-copy="${c.inviteCode}" aria-label="Copy your invite code">${icon("copy", { size: 20 })}</button>
+          <span class="invite__value num" data-invite-code>${code}</span>
+          <button type="button" class="icon-btn" data-copy="${code}" aria-label="Copy your invitation code">${icon("copy", { size: 20 })}</button>
         </div>
         <a class="btn btn--secondary btn--block" href="${waLink(msg)}" target="_blank" rel="noopener">${icon("share")}Share on WhatsApp</a>
+        ${invites.length ? html`<div>
+          <p class="t-micro t-faint">Your invitations</p>
+          <ul role="list" class="invite__list">${invites.map((x) => html`<li class="row">
+            <span class="row__main">
+              <span class="row__title">${[x.member.firstName, x.member.lastName].filter(Boolean).join(" ")}</span>
+              <span class="row__meta num">${x.rewardedAt ? `Rewarded ${fmt.shortDate(x.rewardedAt)} · +${n} Beans each` : `Joined ${fmt.shortDate(x.joinedAt)} · Beans after their first plan or paid order`}</span>
+            </span>
+            <span class="badge${x.rewardedAt ? " badge--accent" : ""}">${x.status}</span>
+          </li>`)}</ul>
+        </div>` : ""}
       </div>`;
     }
 
@@ -545,6 +651,7 @@
       const c = S.club();
       return html`
         <div class="app-screen club">
+          <div data-club="beans">${beansHtml()}</div>
           <div class="stack" style="--stack-gap:var(--space-1)">
             <p class="eyebrow">The club</p>
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
@@ -576,7 +683,7 @@
           </section>
 
           <section class="app-section stack" style="--stack-gap:var(--space-3)" aria-label="Share the club">
-            ${inviteHtml(c)}
+            <div data-club="invite">${inviteHtml(c)}</div>
             <a class="row gift-link" href="#/app/gift">
               <span class="badge-mark">${icon("gift", { size: 22 })}</span>
               <span class="row__main"><span class="row__title">Send a gift</span><span class="row__meta">Give a friend up to ${rules().giftMaxCups} cups from your month</span></span>
@@ -598,6 +705,9 @@
         $(".sheet__body", badgeSheet).scrollTop = top;
       }
       set("perks", perksHtml(c));
+      set("beans", beansHtml());
+      set("invite", inviteHtml(c));
+      paintBeansSheet();
       const card = $("[data-club-card]", view);
       if (card) card.innerHTML = memberCard(c.member.id).s;
     }
@@ -612,6 +722,8 @@
     function onClick(e) {
       const ob = e.target.closest("[data-open-badges]");
       if (ob) { openBadges(ob); return; }
+      const bb = e.target.closest("[data-open-beans]");
+      if (bb) { bb.focus(); confirming = null; beansSheet.innerHTML = beansSheetHtml().s; ui.openSheet(beansSheet); return; }
       const r = e.target.closest("[data-rsvp]");
       if (r) {
         const g = S.gatherings().next;
@@ -644,18 +756,31 @@
         badgeSheet.setAttribute("aria-labelledby", "badges-title");
         badgeSheet.setAttribute("aria-hidden", "true");
         $(".phone__screen", el).appendChild(badgeSheet);
+        beansSheet = document.createElement("div");
+        beansSheet.className = "sheet";
+        beansSheet.id = "beans-sheet";
+        beansSheet.setAttribute("role", "dialog");
+        beansSheet.setAttribute("aria-modal", "true");
+        beansSheet.setAttribute("aria-labelledby", "beans-title");
+        beansSheet.setAttribute("aria-hidden", "true");
+        $(".phone__screen", el).appendChild(beansSheet);
+        beansSheet.addEventListener("click", onBeansClick);
         view.addEventListener("click", onClick);
         return () => {
+          clearTimeout(confirmTimer);
           unbindPerks();
           ui.closeSheet(badgeSheet);
           badgeSheet.remove();
+          ui.closeSheet(beansSheet);
+          beansSheet.remove();
           view.removeEventListener("click", onClick);
         };
       },
       on: {
         ledger: ({ entries }) => { if (entries.some((e) => e.memberId === S.member().id)) repaint(); },
         member: repaint,
-        rsvp: repaintGathering,
+        pickup: repaint, // a collected order earns Beans
+        rsvp: () => { repaintGathering(); paintBeansSheet(); },
         tick: repaintGathering, // priority window can open while the tab is showing
       },
     };

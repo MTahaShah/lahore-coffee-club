@@ -332,3 +332,10 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .cv-reject .btn--secondary { --btn-h: 56px; }
 .cv-reject .btn--link { justify-self: start; }
 .cv-table-wrap { overflow-x: auto; }
+
+/* Table orders: a name on each drink */
+.cv-items { display: grid; border-block: var(--hairline); }
+.cv-items li { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr) auto; gap: var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-bottom: var(--hairline); font-size: var(--fs-16); }
+.cv-items li:last-child { border-bottom: 0; }
+.cv-items__who { font-weight: 700; }
+.cv-items__total { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--fs-16); }

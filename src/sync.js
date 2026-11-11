@@ -20,7 +20,9 @@
    gift, reward, hold, release) with the plan header of any member whose
    plan changed. Entries are append-only with stable ids, so applying one
    twice is harmless. Pickup orders travel whole (`pickup`); a status only
-   moves forward, so a late or repeated message can't undo one.
+   moves forward, so a late or repeated message can't undo one. Tables
+   (group orders) travel whole too (`group`); drinks merge by id, so
+   several phones can add at once.
 
    Join handshake: a window that joins says “hello”. A café window answers
    with statuses plus this session’s ledger entries and plan changes; any

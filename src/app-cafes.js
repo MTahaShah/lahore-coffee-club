@@ -263,9 +263,9 @@
           <div class="visits__item">
             <div class="visits__head">
               <span class="row__title">${total ? `${total} ${total === 1 ? "visit" : "visits"} here` : "You haven’t been yet"}</span>
-              <span class="t-small t-muted num">${loyal.visits} of ${loyal.goal} to a free cup</span>
+              <span class="t-small t-muted num">${loyal.visits} of ${loyal.goal} to a complimentary cup</span>
             </div>
-            ${meter(loyal.visits, loyal.goal, `${loyal.visits} of ${loyal.goal} visits to a free cup`)}
+            ${meter(loyal.visits, loyal.goal, `${loyal.visits} of ${loyal.goal} visits to a complimentary cup`)}
             ${loyal.freeCupsEarned ? html`<p class="t-micro t-faint">${fmt.cups(loyal.freeCupsEarned)} on the house so far.</p>` : ""}
           </div>
           <div class="visits__item">

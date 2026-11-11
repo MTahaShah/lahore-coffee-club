@@ -532,3 +532,14 @@ li:last-child > .branch-row { border-bottom: 0; }
 .order-flow .method.is-off .row__meta { color: var(--ink-2); }
 .order-sum strong { color: var(--ink); font-weight: 500; }
 .order-flow .sticky-action .t-micro { text-align: center; }
+
+/* Tables (group orders) ----------------------------------------------------- */
+.table__clock { font-size: var(--fs-14); color: var(--ink-2); }
+.table__share { display: grid; gap: var(--space-3); }
+.table__share .btn--link { justify-self: center; }
+.table__mine { display: flex; align-items: center; gap: var(--space-2); }
+.table__wait { justify-items: center; text-align: center; padding-top: var(--space-8); }
+.table .row.is-mine .row__title { font-weight: 700; }
+.order-flow .segmented { width: 100%; }
+.pay-state .beans-plus { justify-content: center; }
+.pass-success .beans-plus { margin-top: var(--space-1); }

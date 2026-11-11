@@ -10,8 +10,8 @@
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, order, pickup, session, waitlist, partner,
-           snapshot, tick (every 30s)
+           builder, gift, rsvp, order, pickup, group, session, waitlist,
+           partner, snapshot, tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
@@ -26,6 +26,14 @@
    writes a `release` (+cups); collected writes the release plus an
    ordinary `redeem`, so it pays out exactly like a cup at the counter.
    Paid orders don't touch cups: the café gets the price minus the LCC fee.
+
+   Group orders (state.groups): a host opens a table, friends add a drink
+   each within a few minutes (cup, online, or covered by the host), then
+   the host sends it as one pickup order with items[].
+
+   Beans (points): derived like balances, never stored. Earned from redeem
+   entries, collected orders and referrals; spending writes a `beans`
+   ledger entry (0 cups). Rules in data.js `beans`.
 
    No storage. Café status, ledger entries and plan changes are handed to
    "transports" (store.addTransport); sync.js registers two:
@@ -46,6 +54,7 @@
   const OPEN = ["placed", "making", "ready"];        // pickup orders still in the café's queue
   // A status only moves forward; the finished ones never change again (so sync can't undo them)
   const PICKUP_RANK = { placed: 0, making: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31, no look-alikes
   const PICKUP_NEXT = { making: ["placed"], ready: ["placed", "making"], collected: ["ready"], rejected: ["placed", "making"], cancelled: ["placed"] };
 
   /* -------------------------------------------------------------------
@@ -69,6 +78,8 @@
     drinkCategories: clone(seed.drinkCategories || []),
     gifts: [],
     orders: byId(clone(seed.orders || [])), // pickup orders, id -> order
+    groups: {},                              // group orders still gathering drinks, id -> group
+    beansRules: clone(seed.beans),
     waitlist: [],
     partnerRequests: [],
   };
@@ -129,14 +140,19 @@
     else if (type === "rsvp") send("rsvp", { gatheringId: payload.gatheringId, memberId: payload.memberId, going: payload.going, at: payload.at });
     else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
     else if (type === "pickup") send("pickup", { order: payload.order });
+    else if (type === "group") send("group", { group: payload.group });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
   function planMeta(m) {
     const meta = { memberId: m.id, plan: clone(m.plan), cycle: m.cycle, cycleStartedAt: m.cycleStartedAt, renewsAt: m.renewsAt, payment: clone(m.payment || null), changedAt: m.planChangedAt || 0 };
     // A member who joined in this session: other devices need to know who they are
-    if (m.live) meta.profile = { firstName: m.firstName, lastName: m.lastName, initials: m.initials, pronoun: m.pronoun, area: m.area, memberNo: m.memberNo, memberSince: m.memberSince };
+    if (m.live) meta.profile = profileOf(m);
     return meta;
+  }
+  /** Who a member is, for devices that have never seen them (members who joined in this session). */
+  function profileOf(m) {
+    return { firstName: m.firstName, lastName: m.lastName, initials: m.initials, pronoun: m.pronoun, area: m.area, memberNo: m.memberNo, memberSince: m.memberSince, invitedBy: m.invitedBy || null, cycle: m.cycle };
   }
   /** Newest plan change wins; a seed plan (changedAt 0) never overwrites a live one. */
   function applyPlanMeta(meta) {
@@ -159,9 +175,10 @@
       rsvps: Object.entries(state.rsvps).flatMap(([gatheringId, by]) => Object.entries(by).map(([memberId, r]) => ({ gatheringId, memberId, ...r }))),
       orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
       pickups: Object.values(state.orders).filter((o) => o.live),
+      groups: Object.values(state.groups).filter((g) => g.live),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live);
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live) || Object.values(state.groups).some((g) => g.live);
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -173,6 +190,7 @@
     applyLedgerMessage(snap, { catchUp: true });
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
     (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
+    (snap.groups || []).forEach((g) => applyGroup(g, { remote: true }, { quiet: true }));
     (snap.pickups || []).forEach((o) => applyPickup(o, { remote: true }, { quiet: true }));
     emit("snapshot", {}, { remote: true });
   }
@@ -197,6 +215,7 @@
     else if (type === "rsvp") applyRsvp(data, { remote: true });
     else if (type === "order") applyOrder(data, { remote: true });
     else if (type === "pickup") applyPickup(data.order, { remote: true });
+    else if (type === "group") applyGroup(data.group, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -228,6 +247,21 @@
   const ledgerIds = new Set(state.ledger.map((e) => e.id));
   const byMember = new Map(); // memberId -> entries (an index, rebuilt from the ledger)
   state.ledger.forEach((e) => { if (!byMember.has(e.memberId)) byMember.set(e.memberId, []); byMember.get(e.memberId).push(e); });
+
+  /** Cups held right now: open single orders, drinks at open tables, and tables still gathering. */
+  function openCupLines() {
+    const out = [];
+    Object.values(state.orders).forEach((o) => {
+      if (!OPEN.includes(o.status)) return;
+      if (o.items) o.items.forEach((i) => { if (i.pay === "cup") out.push({ memberId: i.memberId, cafeId: o.cafeId, credits: i.credits, at: i.at, cycle: i.cycle }); });
+      else if (o.pay === "cup") out.push({ memberId: o.memberId, cafeId: o.cafeId, credits: o.credits, at: o.placedAt, cycle: o.cycle });
+    });
+    Object.values(state.groups).forEach((g) => {
+      if (g.status !== "open") return;
+      Object.values(g.items).forEach((i) => { if (i.pay === "cup") out.push({ memberId: i.memberId, cafeId: g.cafeId, credits: i.credits, at: i.at, cycle: i.cycle }); });
+    });
+    return out;
+  }
 
   /** Add entries (idempotent by id, so a message that arrives twice counts once).
       catchUp: entries from a join snapshot. They update balances quietly,
@@ -413,7 +447,7 @@
         const b = bal.perCafe[cafeId];
         const reserved = b?.reserved || 0;
         // Nothing reserved left here, but a free cup to spend: use that
-        if ((!reserved || b.left <= 0) && bal.bonus > 0) return { type: "mycafes", reserved, left: bal.bonus, of: reserved, bonus: true, label: `${fmt.cups(bal.bonus)} free, any café` };
+        if ((!reserved || b.left <= 0) && bal.bonus > 0) return { type: "mycafes", reserved, left: bal.bonus, of: reserved, bonus: true, label: `${fmt.cups(bal.bonus)} complimentary, any café` };
         if (!reserved) return { type: "mycafes", reserved: 0, left: 0, of: 0, label: "Not in their plan" };
         return { type: "mycafes", reserved: b.reserved, left: b.left, of: b.reserved, label: `${b.left} of ${b.reserved} reserved here` };
       }
@@ -746,7 +780,7 @@
         badges,
         perks,
         // BACKEND: invite codes are issued per member and checked at sign-up
-        inviteCode: `${(m.firstName || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 8)}${m.memberNo ?? ""}`,
+        inviteCode: select.inviteCode(m),
       };
     },
 
@@ -757,9 +791,10 @@
 
     /** Who an invite code belongs to, if anyone. */
     inviter(code) {
-      const c = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const norm = (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const c = norm(code);
       if (!c) return null;
-      return Object.values(state.members).find((m) => m.memberNo != null && !m.background && select.club(m.id).inviteCode === c) || null;
+      return Object.values(state.members).find((m) => m.memberNo != null && !m.background && norm(select.inviteCode(m)) === c) || null;
     },
 
     /** One gathering, as this member sees it: seats, RSVP state, priority window. */
@@ -784,7 +819,8 @@
       };
     },
     gatherings(at = Date.now()) {
-      const all = state.club.gatherings.slice().sort((a, b) => a.at - b.at);
+      // Invitation-only evenings (Beans) aren't listed
+      const all = state.club.gatherings.filter((g) => !g.inviteOnly).sort((a, b) => a.at - b.at);
       return { next: all.find((g) => g.at >= at) || null, past: all.filter((g) => g.at < at).reverse() };
     },
 
@@ -800,7 +836,7 @@
     cafeCupsToday(cafeId) {
       const since = startOfToday();
       return state.ledger.reduce((n, e) => (e.type === "redeem" && e.cafeId === cafeId && e.at >= since ? n + e.credits : n), 0)
-        + Object.values(state.orders).reduce((n, o) => (o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status) && o.placedAt >= since ? n + o.credits : n), 0);
+        + openCupLines().reduce((n, l) => (l.cafeId === cafeId && l.at >= since ? n + l.credits : n), 0);
     },
 
     /** Auto busy level: estimated from cups redeemed here in the last 30 min. */
@@ -903,6 +939,7 @@
     },
     /** The drink as served: "Iced Spanish Latte". */
     pickupDrinkName(o) {
+      if (o.items) return `${o.items.length} ${o.items.length === 1 ? "drink" : "drinks"}`;
       if (o.brandId) return select.drinkLabel(select.menuItem(o.brandId, o.drinkId), o.temp);
       return select.drink(o.cafeId, o.drinkId)?.name || "Coffee";
     },
@@ -912,10 +949,20 @@
     pickupRef: (o) => (o.pay === "cup" ? select.redemptionRef({ id: `rd_${o.id}` }) : `LCC-${1000 + (fnv1a(o.id) % 9000)}`),
     isPickupOpen: (o) => OPEN.includes(o.status),
 
-    /** A member's orders, newest first. */
+    /** A member's orders (their own, or a table they're at), newest first. */
     memberPickups(memberId = state.memberId) {
-      return Object.values(state.orders).filter((o) => o.memberId === memberId).sort((a, b) => b.placedAt - a.placedAt);
+      return Object.values(state.orders).filter((o) => o.memberId === memberId || o.items?.some((i) => i.memberId === memberId)).sort((a, b) => b.placedAt - a.placedAt);
     },
+    /** One drink on a table, by name: "Iced Spanish Latte". */
+    itemDrinkName(cafeId, i) {
+      const c = state.cafes[cafeId];
+      return c?.brandId ? select.drinkLabel(select.menuItem(c.brandId, i.drinkId), i.temp) : select.drink(cafeId, i.drinkId)?.name || "Coffee";
+    },
+    group: (id) => state.groups[id] || null,
+    /** A table's drinks in the order they were added. */
+    groupItems: (g) => Object.values(g?.items || {}).sort((a, b) => a.at - b.at),
+    /** Friends at a table: everyone who added a drink, except the host. */
+    groupFriends: (g) => Object.values(g.items || {}).filter((i) => i.memberId !== g.hostId).length,
     /** A café's live queue, oldest first. */
     pickupQueue(cafeId) {
       // BACKEND: GET /cafes/:id/orders?status=placed,making,ready (live via Postgres Changes)
@@ -928,8 +975,7 @@
     },
     /** Cups a member's open cup orders hold at a café (optionally placed since, or in one cycle). */
     heldCups(memberId, cafeId, { since = 0, cycle = null } = {}) {
-      return Object.values(state.orders).reduce((n, o) => (o.memberId === memberId && o.cafeId === cafeId && o.pay === "cup" && OPEN.includes(o.status)
-        && o.placedAt >= since && (!cycle || o.cycle === cycle) ? n + o.credits : n), 0);
+      return openCupLines().reduce((n, l) => (l.memberId === memberId && l.cafeId === cafeId && l.at >= since && (!cycle || l.cycle === cycle) ? n + l.credits : n), 0);
     },
     /** Can the member still cancel? Within the cancel window, and only before the café starts. */
     canCancelPickup(o, at = Date.now()) {
@@ -968,6 +1014,7 @@
     },
     /** What one drink costs here, and whether a cup can pay for it. */
     pickupQuote(memberId, cafeId, drinkId, temp) {
+      // memberId null: a guest at a group table (no cups; pays online, or the host covers)
       const cafe = state.cafes[cafeId];
       let q;
       if (cafe.brandId) {
@@ -978,6 +1025,7 @@
         const d = select.drink(cafeId, drinkId) || cafe.drinks[0];
         q = { drinkId: d.id, temp: null, name: d.name, price: d.price, credits: d.credits, topUp: 0 };
       }
+      if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
       return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
@@ -986,13 +1034,87 @@
     paidOrders(cafeIds, since = 0) {
       const share = state.rules.orderFeeShare;
       const list = Object.values(state.orders).filter((o) => o.status === "collected" && cafeIds.includes(o.cafeId) && (o.times?.collected || o.updatedAt) >= since && o.amount > 0);
-      const full = list.filter((o) => o.pay === "paid");
+      const full = list.filter((o) => o.pay === "paid" || o.items);
       const gross = list.reduce((n, o) => n + o.amount, 0);
       const net = list.reduce((n, o) => n + select.pickupPayout(o), 0);
       return { count: full.length, gross, fee: gross - net, net, topUps: list.filter((o) => o.pay === "cup").reduce((n, o) => n + o.amount, 0), feePct: Math.round(share * 100) };
     },
     /** What the café gets for what a member paid online (full price, or a top-up): less the LCC fee. */
     pickupPayout: (o) => Math.round((o.amount || 0) * (1 - state.rules.orderFeeShare)),
+
+    /* ---------------- Referrals ---------------- */
+
+    /** A member's invitation code: first name and three letters, "MUMTAZ-7Q2". */
+    inviteCode(m) {
+      if (!m) return "";
+      const h = fnv1a(`${m.id}:invite`);
+      const tail = [0, 1, 2].map((k) => CODE_CHARS[Math.floor(h / 31 ** k) % 31]).join("");
+      return `${(m.firstName || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 8)}-${tail}`;
+    },
+    /** When a friend counts for the referral Beans: their first plan purchase or paid order. */
+    referralAt(m) {
+      if (!m) return null;
+      const times = (byMember.get(m.id) || []).filter((e) => e.type === "purchase").map((e) => e.at);
+      Object.values(state.orders).forEach((o) => {
+        if (o.status === "cancelled" || o.status === "rejected") return;
+        if (o.memberId === m.id && o.pay === "paid") times.push(o.placedAt);
+        (o.items || []).forEach((i) => { if (i.memberId === m.id && i.pay === "online") times.push(o.placedAt); });
+      });
+      return times.length ? Math.min(...times) : null;
+    },
+    /** Friends who joined with this member's code: Joined, then Rewarded. */
+    invitations(memberId = state.memberId) {
+      // BACKEND: SELECT … FROM members WHERE invited_by = :id
+      return Object.values(state.members).filter((f) => f.invitedBy === memberId).map((f) => {
+        const at = select.referralAt(f);
+        return { member: f, joinedAt: f.memberSince || f.cycleStartedAt || 0, rewardedAt: at, status: at ? "Rewarded" : "Joined" };
+      }).sort((a, b) => b.joinedAt - a.joinedAt);
+    },
+
+    /* ---------------- Beans ---------------- */
+
+    /** Balance, history and rewards. Earned: each drink (counter or collected
+        pickup), referrals once the friend qualifies, the host's extra for a
+        table. Spent: `beans` entries in the ledger. */
+    beans(memberId = state.memberId) {
+      // BACKEND: a view over the ledger and orders (same rules), per member
+      const B = state.beansRules;
+      const m = state.members[memberId];
+      const rows = [];
+      const add = (at, beans, title, meta) => { if (at >= B.launchedAt) rows.push({ at, beans, title, meta }); };
+      (byMember.get(memberId) || []).forEach((e) => {
+        if (e.type === "redeem" && !e.orderId) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · at the counter`);
+        if (e.type === "beans") rows.push({ at: e.at, beans: e.beans, title: e.title, meta: e.meta, spend: e.beans < 0 });
+      });
+      Object.values(state.orders).forEach((o) => {
+        if (o.status !== "collected") return;
+        const at = o.times?.collected || o.updatedAt;
+        const place = select.pickupPlace(o.cafeId);
+        if (o.items) {
+          o.items.filter((i) => i.memberId === memberId).forEach((i) => add(at, B.perDrink, select.itemDrinkName(o.cafeId, i), `${place} · table order`));
+          const friends = o.items.filter((i) => i.memberId !== o.memberId).length;
+          if (o.memberId === memberId && friends) add(at + 1, friends * B.hostPerFriend, `${friends} ${friends === 1 ? "friend" : "friends"} at your table`, place);
+        } else if (o.memberId === memberId) add(at, B.perDrink, select.pickupDrinkName(o), `${place} · pickup`);
+      });
+      Object.values(state.members).forEach((f) => {
+        if (f.invitedBy !== memberId) return;
+        const at = select.referralAt(f);
+        if (at) add(at, B.referral, `${f.firstName} joined with your code`, "Invitation");
+      });
+      if (m?.invitedBy) {
+        const at = select.referralAt(m);
+        if (at) add(at, B.referral, `Welcome, from ${state.members[m.invitedBy]?.firstName || "a member"}’s invitation`, "Invitation");
+      }
+      rows.sort((a, b) => b.at - a.at);
+      const balance = rows.reduce((n, r) => n + r.beans, 0);
+      const rewards = B.rewards.map((r) => ({ ...r, reached: balance >= r.beans, gathering: r.gatheringId ? select.gathering(r.gatheringId, memberId) : null }));
+      const next = rewards.find((r) => !r.reached) || null;
+      const drink = rewards[0];
+      const line = balance < drink.beans
+        ? `${drink.beans - balance} Beans to your next complimentary drink`
+        : next ? `A complimentary drink is ready · ${next.beans - balance} Beans to ${next.short}` : "Every reward is within reach";
+      return { balance, history: rows, rewards, next, progress: Math.min(1, balance / (next || rewards[rewards.length - 1]).beans), line, perDrink: B.perDrink, rules: B };
+    },
 
     loyalty(cafeId, memberId = state.memberId) {
       const goal = 5;
@@ -1116,10 +1238,36 @@
   /** A pickup order from this or another device. Newer status wins; finished ones stay finished. */
   function applyPickup(o, opts, { quiet = false } = {}) {
     if (!o || !o.id || !state.cafes[o.cafeId] || !(o.status in PICKUP_RANK)) return;
+    learnProfiles(o.profiles);
     const cur = state.orders[o.id];
     if (cur && PICKUP_RANK[o.status] <= PICKUP_RANK[cur.status]) return;
     state.orders[o.id] = clone(o);
     emit("pickup", { order: state.orders[o.id], prev: cur?.status || null, quiet }, opts);
+  }
+
+  /** Members who joined in this session travel with their orders, so other devices know them. */
+  function learnProfiles(profiles) {
+    Object.entries(profiles || {}).forEach(([id, p]) => { if (!state.members[id]) addMember({ id, ...p }); });
+  }
+  const profilesFor = (ids) => Object.fromEntries(ids.map((id) => state.members[id]).filter((m) => m?.live).map((m) => [m.id, profileOf(m)]));
+
+  /** A table gathering drinks, from this or another device. Drinks merge by id
+      (several phones add at once); the header's newest change wins; a sent or
+      cancelled table stays that way. */
+  const GROUP_RANK = { open: 0, sent: 1, cancelled: 1 };
+  function applyGroup(g, opts, { quiet = false } = {}) {
+    if (!g || !g.id || !state.cafes[g.cafeId] || !(g.status in GROUP_RANK)) return;
+    learnProfiles(g.profiles);
+    const cur = state.groups[g.id];
+    const added = [];
+    if (!cur) { state.groups[g.id] = clone(g); added.push(...Object.values(g.items || {})); }
+    else {
+      Object.values(g.items || {}).forEach((i) => { if (!cur.items[i.id]) { cur.items[i.id] = clone(i); added.push(i); } });
+      const newer = GROUP_RANK[g.status] > GROUP_RANK[cur.status] || (GROUP_RANK[g.status] === GROUP_RANK[cur.status] && (g.updatedAt || 0) > (cur.updatedAt || 0));
+      if (newer) { const { items, ...head } = clone(g); Object.assign(cur, head); }
+      if (!newer && !added.length) return;
+    }
+    emit("group", { group: state.groups[g.id], added, quiet }, opts);
   }
 
   /** Move an order on. Cup orders write the ledger: release on cancel or reject;
@@ -1129,27 +1277,30 @@
     if (!o || !(PICKUP_NEXT[status] || []).includes(o.status)) return { ok: false, order: o };
     const now = Date.now();
     const entries = [];
-    let newStamp = false;
-    const member = state.members[o.memberId];
-    if (o.pay === "cup" && member && ["cancelled", "rejected", "collected"].includes(status)) {
+    const stamped = [];
+    // One line per cup: the order itself, or each cup drink at a table
+    const lines = (o.items ? o.items.map((i) => ({ ...i, key: i.id, itemId: i.id })) : [{ ...o, key: o.id }])
+      .filter((l) => l.pay === "cup" && state.members[l.memberId]);
+    if (["cancelled", "rejected", "collected"].includes(status)) lines.forEach((l) => {
       // BACKEND: the release (and redeem) are ledger inserts in the same transaction as the status change
-      const extra = o.bonus ? { bonus: true } : {};
-      entries.push({ id: `rl_${o.id}`, type: "release", memberId: o.memberId, cafeId: o.cafeId, cups: o.credits, credits: o.credits, orderId: o.id, at: now, cycle: o.cycle, live: true, ...extra });
+      const member = state.members[l.memberId];
+      const extra = { ...(l.bonus ? { bonus: true } : {}), ...(l.itemId ? { itemId: l.itemId } : {}) };
+      entries.push({ id: `rl_${l.key}`, type: "release", memberId: l.memberId, cafeId: o.cafeId, cups: l.credits, credits: l.credits, orderId: o.id, at: now, cycle: l.cycle, live: true, ...extra });
       if (status === "collected") {
-        newStamp = !select.activity(o.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId));
+        if (!select.activity(l.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId))) stamped.push(member);
         entries.push({
-          id: `rd_${o.id}`, type: "redeem", memberId: o.memberId, cafeId: o.cafeId, cups: -o.credits, credits: o.credits, drinkId: o.drinkId,
-          ...(o.brandId ? { brandId: o.brandId, temp: o.temp, price: o.price, topUp: o.topUp, topUpOnline: o.topUp > 0 } : {}),
-          firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: o.cycle, live: true, ...extra,
+          id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
+          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}),
+          firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: l.cycle, live: true, ...extra,
         });
       }
-    }
+    });
     const prev = o.status;
     Object.assign(o, { status, updatedAt: now, times: { ...o.times, [status]: now } });
     if (reason) o.reason = reason;
-    if (o.payment && (status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
+    if ((status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
     appendEntries(entries);
-    if (newStamp) grantPassportReward(member);
+    stamped.forEach(grantPassportReward);
     emit("pickup", { order: o, prev });
     return { ok: true, order: o };
   }
@@ -1159,6 +1310,17 @@
     state.members[member.id] = member;
     if (member.memberNo > state.club.membersIssued) state.club.membersIssued = member.memberNo;
     return member;
+  }
+
+  /** Simulated wallet or card payment (1.6 s). A wallet number ending in 0000 fails. */
+  function simulatePayment({ method, account = "", amount = 0 }) {
+    const digits = String(account).replace(/\D/g, "");
+    // BACKEND: POST /payments { method, account, amount } -> wallet or card provider
+    return new Promise((resolve) => setTimeout(() => {
+      if (method !== "card" && digits.endsWith("0000")) return resolve({ ok: false, reason: "declined", message: "The payment didn’t go through. Nothing was taken." });
+      const labels = { jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card" };
+      resolve({ ok: true, payment: { method: labels[method] || method, last4: digits.slice(-4), amount } });
+    }, 1600));
   }
 
   const giftCode = () => Array.from({ length: 6 }, () => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join("");
@@ -1305,7 +1467,7 @@
         id: uid("o"), memberId, memberName: m.firstName, cafeId, brandId: q.brandId, drinkId: q.drinkId, temp: q.temp, price: q.price,
         credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
         bonus: cup && q.cup.bonus, asap: !!asap || !pickupAt, pickupAt: when, status: "placed", placedAt: now, updatedAt: now, times: { placed: now },
-        cycle: m.cycle, live: true,
+        cycle: m.cycle, live: true, profiles: profilesFor([memberId]),
       };
       state.orders[order.id] = order;
       if (cup) appendEntries([{ id: `hd_${order.id}`, type: "hold", memberId, cafeId, cups: -q.credits, credits: q.credits, orderId: order.id, at: now, cycle: m.cycle, live: true, ...(order.bonus ? { bonus: true } : {}) }]);
@@ -1509,19 +1671,146 @@
       emit("member", { member: m });
     },
 
-    /** Invite reward: a free cup each for the new member and whoever invited them. */
-    claimInvite(code) {
-      const member = select.member();
+    /** A new member joined with an invitation code: Joined now. Both get the
+        referral Beans once they buy a plan or pay for an order (select.beans). */
+    claimInvite(code, memberId = state.memberId) {
+      const member = state.members[memberId];
       const inviter = select.inviter(code);
-      if (!inviter || inviter.id === member.id || !member.plan) return { ok: false };
-      // BACKEND: POST /invites/claim { code } -> two reward rows, once per new member
-      const at = Date.now();
-      const n = state.club.inviteReward;
-      appendEntries([
-        { id: `rw_${member.id}_invited`, type: "reward", reason: "invited", memberId: member.id, cafeId: null, cups: n, at, cycle: member.cycle, live: true, inviterId: inviter.id },
-        { id: `rw_${inviter.id}_invite_${member.id}`, type: "reward", reason: "invite", memberId: inviter.id, cafeId: null, cups: n, at, cycle: inviter.cycle, live: true, friendName: member.firstName },
-      ]);
+      if (!member || !inviter || inviter.id === member.id || member.invitedBy) return { ok: false };
+      // BACKEND: POST /invites/claim { code } -> members.invited_by (once per new member)
+      member.invitedBy = inviter.id;
+      emit("member", { member });
       return { ok: true, inviter };
+    },
+
+    /** Spend Beans on a reward. Drinks become cups (a `reward` entry), funded
+        like any cup; the evening keeps a seat at the members' evening. */
+    redeemBeans(rewardId, memberId = state.memberId) {
+      const m = state.members[memberId];
+      const b = select.beans(memberId);
+      const r = b.rewards.find((x) => x.id === rewardId);
+      if (!m || !r) return { ok: false, message: "That reward isn’t available." };
+      if (b.balance < r.beans) return { ok: false, message: `${r.beans - b.balance} more Beans for this one.` };
+      if (r.cups && !m.plan) return { ok: false, message: "Choose a plan first. Complimentary drinks join your cups." };
+      if (r.gathering && (r.gathering.going || r.gathering.past)) return { ok: false, message: r.gathering.going ? "Your seat is already kept." : "That evening has passed." };
+      const at = Date.now();
+      const id = uid("bn");
+      // BACKEND: POST /beans/redeem { reward } -> ledger rows in one transaction
+      const entries = [{ id, type: "beans", memberId, cafeId: null, cups: 0, beans: -r.beans, title: r.title, meta: "Redeemed", reward: r.id, at, cycle: m.cycle, live: true }];
+      if (r.cups) entries.push({ id: `${id}_cups`, type: "reward", reason: "beans", memberId, cafeId: null, cups: r.cups, at, cycle: m.cycle, live: true });
+      appendEntries(entries);
+      if (r.gathering) applyRsvp({ gatheringId: r.gathering.id, memberId, going: true, at });
+      return { ok: true, reward: r };
+    },
+
+    /* ---------------- Group orders ---------------- */
+
+    /** The host opens a table: café, pickup time, and whether they cover it. */
+    startGroup({ cafeId, asap = true, pickupAt = null, covered = false }, memberId = state.memberId) {
+      // BACKEND: POST /tables { cafeId, pickupAt, covered } -> a short-lived row and a share link
+      const m = state.members[memberId];
+      const avail = select.pickupAvailable(cafeId);
+      if (!m || !avail.ok) return { ok: false, message: avail.message };
+      const now = Date.now();
+      const g = {
+        id: uid("tb"), hostId: m.id, hostName: m.firstName, cafeId, brandId: state.cafes[cafeId].brandId || null,
+        asap: !!asap || !pickupAt, pickupAt: asap || !pickupAt ? null : pickupAt, covered: !!covered,
+        createdAt: now, closesAt: now + state.beansRules.groupJoinMinutes * MIN, status: "open", orderId: null,
+        items: {}, updatedAt: now, live: true, profiles: profilesFor([m.id]),
+      };
+      state.groups[g.id] = g;
+      emit("group", { group: g, added: [] });
+      return { ok: true, group: g };
+    },
+
+    /** Someone adds their drink. pay: "cup" or "online" (or "host" when covered). memberId null: a guest. */
+    joinGroup(groupId, { name = "", drinkId, temp, pay = "cup", payment = null }, memberId = state.memberId) {
+      // BACKEND: POST /tables/:id/items { drinkId, temp, pay, paymentId } (+ hold row for a cup)
+      const g = state.groups[groupId];
+      if (!g || g.status !== "open") return { ok: false, message: "This table has already gone to the café." };
+      if (Date.now() > g.closesAt) return { ok: false, message: "The time to add a drink is up." };
+      const m = memberId ? state.members[memberId] : null;
+      const q = select.pickupQuote(m ? m.id : null, g.cafeId, drinkId, temp);
+      const mode = g.covered ? "host" : pay;
+      if (mode === "cup" && !q.cup.ok) return { ok: false, message: q.cup.message };
+      const who = m ? m.firstName : String(name).trim();
+      if (!who) return { ok: false, message: "Add your name, so the café knows whose drink it is." };
+      const now = Date.now();
+      const item = {
+        id: uid("ti"), memberId: m ? m.id : null, name: who, drinkId: q.drinkId, temp: q.temp, price: q.price,
+        credits: mode === "cup" ? q.credits : 0, topUp: mode === "cup" ? q.topUp : 0, pay: mode,
+        amount: mode === "cup" ? q.topUp : mode === "online" ? q.price : 0, payment, bonus: mode === "cup" && q.cup.bonus, cycle: m ? m.cycle : null, at: now,
+      };
+      g.items[item.id] = item;
+      if (m?.live) g.profiles = { ...(g.profiles || {}), ...profilesFor([m.id]) };
+      if (mode === "cup") appendEntries([{ id: `hd_${item.id}`, type: "hold", memberId: m.id, cafeId: g.cafeId, cups: -item.credits, credits: item.credits, orderId: `o_${g.id}`, itemId: item.id, at: now, cycle: m.cycle, live: true, ...(item.bonus ? { bonus: true } : {}) }]);
+      emit("group", { group: g, added: [item] });
+      return { ok: true, item };
+    },
+
+    /** Simulated payment for one drink at a table, then it's added. */
+    checkoutGroupItem(groupId, join, { method, account = "" }, memberId = state.memberId) {
+      const g = state.groups[groupId];
+      const q = g ? select.pickupQuote(memberId, g.cafeId, join.drinkId, join.temp) : null;
+      const amount = !q ? 0 : join.pay === "cup" ? q.topUp : q.price;
+      return simulatePayment({ method, account, amount }).then((res) => (res.ok ? actions.joinGroup(groupId, { ...join, payment: res.payment }, memberId) : res));
+    },
+
+    /** The host covers the table: friends just choose; the host pays when sending. */
+    setGroupCovered(groupId, covered) {
+      const g = state.groups[groupId];
+      if (!g || g.status !== "open" || g.hostId !== state.memberId) return { ok: false };
+      if (!covered && Object.values(g.items).some((i) => i.pay === "host")) return { ok: false, message: "Some drinks were added on you, so the table stays covered." };
+      g.covered = !!covered; g.updatedAt = Date.now();
+      emit("group", { group: g, added: [] });
+      return { ok: true };
+    },
+
+    /** The host cancels a table before sending it. Cups go back; payments are refunded. */
+    cancelGroup(groupId) {
+      const g = state.groups[groupId];
+      if (!g || g.status !== "open" || g.hostId !== state.memberId) return { ok: false };
+      const now = Date.now();
+      appendEntries(Object.values(g.items).filter((i) => i.pay === "cup" && state.members[i.memberId]).map((i) => ({
+        id: `rl_${i.id}`, type: "release", memberId: i.memberId, cafeId: g.cafeId, cups: i.credits, credits: i.credits, orderId: `o_${g.id}`, itemId: i.id, at: now, cycle: i.cycle, live: true, ...(i.bonus ? { bonus: true } : {}),
+      })));
+      g.status = "cancelled"; g.updatedAt = now;
+      emit("group", { group: g, added: [] });
+      return { ok: true };
+    },
+
+    /** What the host pays to send a covered table. */
+    groupCoverDue: (groupId) => Object.values(state.groups[groupId]?.items || {}).filter((i) => i.pay === "host").reduce((n, i) => n + i.price, 0),
+
+    /** The host sends the table to the café: one pickup order, a name on each drink. */
+    sendGroup(groupId, { payment = null } = {}) {
+      // BACKEND: POST /tables/:id/send -> one orders row with its items
+      const g = state.groups[groupId];
+      if (!g || g.status !== "open" || g.hostId !== state.memberId) return { ok: false, message: "This table has already gone to the café." };
+      const list = select.groupItems(g);
+      if (!list.length) return { ok: false, message: "Add at least one drink first." };
+      const due = actions.groupCoverDue(groupId);
+      if (due && !payment) return { ok: false, needsPayment: due };
+      const avail = select.pickupAvailable(g.cafeId);
+      if (!avail.ok) return { ok: false, message: avail.message };
+      const now = Date.now();
+      const items = list.map((i) => (i.pay === "host" ? { ...i, amount: i.price } : { ...i }));
+      const order = {
+        id: `o_${g.id}`, groupId: g.id, memberId: g.hostId, memberName: g.hostName, cafeId: g.cafeId, brandId: g.brandId, items,
+        price: items.reduce((n, i) => n + i.price, 0), credits: 0, topUp: 0, pay: "group", amount: items.reduce((n, i) => n + i.amount, 0),
+        payment, covered: g.covered, asap: g.asap, pickupAt: g.asap ? now + state.rules.orderAsapMinutes * MIN : g.pickupAt,
+        status: "placed", placedAt: now, updatedAt: now, times: { placed: now }, live: true, profiles: g.profiles || {},
+      };
+      state.orders[order.id] = order;
+      g.status = "sent"; g.orderId = order.id; g.updatedAt = now;
+      emit("group", { group: g, added: [] });
+      emit("pickup", { order, prev: null });
+      return { ok: true, order };
+    },
+
+    /** Simulated payment for a covered table, then it's sent. */
+    checkoutGroupSend(groupId, { method, account = "" }) {
+      return simulatePayment({ method, account, amount: actions.groupCoverDue(groupId) }).then((res) => (res.ok ? actions.sendGroup(groupId, { payment: res.payment }) : res));
     },
 
     /** Presenter: back to Mumtaz, exactly as she was. */

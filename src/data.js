@@ -739,9 +739,8 @@
   const club = {
     foundingLimit: 500,         // the first 500 member numbers are Founding Members
     membersIssued: 486,         // the next new member gets No. 0487. BACKEND: a sequence
-    // Free cup when the passport reaches these counts ("all" = every partner café)
+    // Complimentary cup when the passport reaches these counts ("all" = every partner café)
     passportRewards: [5, "all"],
-    inviteReward: 1,            // cups each, for the member and the friend they invite
     levels: [
       { id: "member",      name: "Member",      plural: "Members",      cups: 0,   cafes: 0,  line: "Everyone starts here." },
       { id: "local",       name: "Local",       plural: "Locals",       cups: 30,  cafes: 0,  line: "30 cups with the club." },
@@ -762,8 +761,8 @@
     // Funded by each café, not by plans. for: local (Local and up) | connoisseur | founding
     perks: [
       { id: "kiln-shot",      cafeId: "kiln",     for: "local",       text: "An extra shot in any drink, on the house" },
-      { id: "kiln-pastry",    cafeId: "kiln",     for: "connoisseur", text: "A free pastry with your coffee, once a week" },
-      { id: "noon-refill",    cafeId: "noon",     for: "local",       text: "A free refill on filter coffee" },
+      { id: "kiln-pastry",    cafeId: "kiln",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
+      { id: "noon-refill",    cafeId: "noon",     for: "local",       text: "A complimentary refill on filter coffee" },
       { id: "ember-croissant", cafeId: "ember",   for: "local",       text: "Half-price croissants before 10 am" },
       { id: "slowpour-first", cafeId: "slowpour", for: "connoisseur", text: "The first pour of every new single origin" },
       { id: "maple-beans",    cafeId: "maple",    for: "founding",    text: "A bag of the house roast on your club anniversary" },
@@ -791,8 +790,44 @@
         came: 22,
         line: "Three brew methods, one coffee, and a long argument about which was best.",
       },
+      {
+        // By invitation only: 600 Beans (see beans.rewards). Not listed under Gatherings.
+        id: "gather-members-evening",
+        kind: "Members’ evening",
+        title: "An evening at Noon",
+        cafeId: "noon",
+        at: saturdayFrom(now + 21 * DAY, 1) + 19 * 60 * MIN,
+        seats: 20,
+        taken: 7,
+        priorityDays: 0,
+        inviteOnly: true,
+        line: "A late tasting with Noon’s roaster, a small plate menu, and the room to ourselves.",
+      },
     ],
   };
+
+  /* Beans: points for using the club. All the rules in one place;
+     state.js derives every balance from the ledger and orders.        */
+  const beans = {
+    launchedAt: new Date(new Date(startOfToday).setDate(1)).getTime(), // Beans count from the 1st of this month
+    perDrink: 10,          // each drink redeemed at the counter, or collected as a pickup order
+    referral: 100,         // each, for the member and their friend, after the friend's first plan or paid order
+    hostPerFriend: 5,      // group orders: extra for the host, per friend who joins the table
+    groupJoinMinutes: 10,  // friends add their drink within this window
+    rewards: [
+      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any drink up to Rs 880, added to your cups.", cups: 1 },
+      { id: "guest",   beans: 400, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
+      { id: "evening", beans: 600, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
+    ],
+  };
+
+  /* Referrals: one friend of Mumtaz's has bought a plan (Rewarded), one
+     has joined but not yet bought anything (Joined).                  */
+  dsRegulars[11].invitedBy = mumtaz.id;
+  members.push({
+    id: "m_saad_r", firstName: "Saad", lastName: "R.", pronoun: "them", plan: null, background: true, visits: {},
+    invitedBy: mumtaz.id, memberNo: 471, memberSince: daysAgo(2, 140), cycle: cycleOf("m_saad_r"), cycleStartedAt: daysAgo(2, 140), renewsAt: daysAgo(2, 140) + 30 * DAY,
+  });
 
   /* Partner settings (café view) ------------------------------------------
      Kiln & Bean is the demo café, so it has real-looking settings. Other
@@ -869,6 +904,7 @@
     ledger,
     orders,
     club,
+    beans,
     partner,
     drinkCategories,
     // Builder default for the “My cafés” plan

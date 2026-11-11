@@ -84,8 +84,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
   under the real rules), club rules (levels, badges, perks, gatherings)
 - `state.js` — one store with pub-sub (`store.on`, `actions`, `select`), the
   ledger and derived balances, pricing, pass codes, redemption rules, the
-  club (`select.club`, gatherings, RSVPs), gifts, pickup orders
-  (`state.orders`), presenter sessions, `LCC.fmt` formatting
+  club (`select.club`, gatherings, RSVPs), Beans (`select.beans`),
+  referrals (`select.invitations`), gifts, pickup orders (`state.orders`),
+  group orders (`state.groups`), presenter sessions, `LCC.fmt` formatting
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher (with the presenter Demo menu),
@@ -105,10 +106,12 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app-plan.js` — plan picker (Explorer / My cafés), simulated payment
   (`#/app/plan`, `#/app/plan/pay`); shares its payment helpers as
   `LCC.payKit`
-- `app-order.js` — pickup orders (`#/app/order`, `#/app/order/pay`) and the
-  order status card (Home, profile drawer); `LCC.appOrder`
-- `app-club.js` — Club tab (`#/app/club`: member card, status, passport,
-  badges, perks, gatherings, invite) and gifting (`#/app/gift`)
+- `app-order.js` — pickup orders (`#/app/order`, `#/app/order/pay`), group
+  orders (`#/app/group/:id`), the order status card (Home, profile
+  drawer); `LCC.appOrder`
+- `app-club.js` — Club tab (`#/app/club`: Beans at the top with their sheet,
+  member card, status, passport, badges, perks, gatherings, invite with
+  statuses) and gifting (`#/app/gift`)
 - `app-welcome.js` — onboarding (`#/app/welcome`) and card issue
   (`#/app/welcome/card`); `LCC.onboarding`
 - `club.css` — styles for the Club tab, gifting and onboarding
@@ -144,8 +147,9 @@ This order overrides any order implied by the spec.
 6. [x] Landing page and waitlist
 7. [x] Explorer and My cafés plans, cups ledger
 8. [x] Pickup orders: order ahead with a cup or online payment, café queue
+9. [x] Club: Beans, referrals, group orders
 
-Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8 (6 and 7 came first on request).
+Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9 (6 and 7 came first on request).
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
@@ -205,10 +209,12 @@ next pass until asked.**
 
 ## Ledger
 
-- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release,
+- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release|beans,
   memberId, cafeId|null, cups, at, cycle }`. `cups` is signed (purchase,
   reward and release +, the rest −). `hold` / `release` belong to pickup
-  orders (they carry `orderId`; see Pickup orders). Redeem entries also carry `drinkId`, `credits`,
+  orders (they carry `orderId`, and `itemId` at a table; see Pickup
+  orders). `beans` entries have 0 cups and carry `beans` (signed),
+  `title`, `meta`: Beans spent on rewards (see Beans). Redeem entries also carry `drinkId`, `credits`,
   `firstVisit` (and `bonus` when a free cup is spent); the café's redemption
   list is read from them. Gift entries carry `giftCode` and `toName`; reward
   entries a `reason` (`passport-5`, `passport-all`, `invite`, `invited`).
@@ -233,7 +239,8 @@ next pass until asked.**
   computer) and Supabase Realtime Broadcast (other devices). Messages are
   de-duplicated by id; incoming ones go through `store.applyRemote`, which
   never re-sends.
-- What travels: pickup orders (`pickup`, the whole order; status only moves
+- What travels: tables (`group`, the whole table; drinks merge by id,
+  header newest wins, sent / cancelled stay; in join snapshots); pickup orders (`pickup`, the whole order; status only moves
   forward, finished ones never change; in join snapshots); café status (`cafe:status`); ledger entries of every type
   with a plan header for members whose plan changed (`ledger`; newest
   `changedAt` wins; members who joined in this session also send their
@@ -292,6 +299,55 @@ next pass until asked.**
 - // BACKEND: an orders table (Postgres Changes for the queue), holds and
   releases as ledger inserts in the same transaction, refunds through the
   payment provider.
+
+## Club: Beans, referrals, group orders (Pass 9)
+
+- Tone: understated. No exclamation marks; "complimentary", never "free"
+  (all member-facing "free cup" copy was changed to "complimentary cup").
+- The tab was already named Club (Pass 5); nothing to rename.
+- Beans rules: one block in `data.js` `beans` (`launchedAt` = the 1st of
+  this month; `perDrink` 10; `referral` 100; `hostPerFriend` 5;
+  `groupJoinMinutes` 10; `rewards` 150 drink / 400 drinks for two / 600
+  members' evening).
+- Beans are derived, never stored (`select.beans`): +10 per counter
+  redeem (no `orderId`), +10 per drink of a collected pickup order or
+  table (cup, paid or covered), host +5 per friend at a collected table,
+  +100 to both for a referral at the friend's first purchase or paid
+  order. Only spends are written: a `beans` ledger entry (−cost), plus a
+  `reward` entry (reason `beans`, +1 or +2 cups) so a complimentary drink
+  is funded like any cup, or an RSVP for the evening. Drinks need a plan.
+  Earned when collected, not when ordered (so cancelled orders earn none).
+- Mumtaz starts on 130 Beans (four cups this month and Fatima's referral):
+  20 to her first complimentary drink, so one more cup gets her there.
+- The members' evening (`gather-members-evening`, Noon, `inviteOnly`) is
+  not listed under Gatherings; 600 Beans keeps a seat (synced RSVP).
+- Club tab: Beans at the top (number, 2px progress line, the next reward
+  in words) opening a sheet: the ladder, Redeem (two taps: Redeem, then
+  "Use 150 Beans"), history. Success states show a quiet "+10 Beans"
+  (pass after a counter cup, the Collected toast). The bean icon is
+  `ui.icon("bean")`, in `--accent-text` (an accent use).
+- Referrals: codes are first name + 3 letters from the member id
+  (`select.inviteCode`, MUMTAZ-JB9), replacing MUMTAZ42. Onboarding's
+  "Have an invitation code?" sets `member.invitedBy` when the member is
+  created (Joined); Rewarded is derived (`select.invitations`). The old
+  free-cup invite reward is gone (old `invite` reward entries still read).
+  Seeded: Fatima (Double Shot regular, Rewarded) and Saad R. (no plan,
+  Joined). `invitedBy` travels in the synced profile.
+- Group orders ("For your Circle" on the order screen): the host picks café,
+  branch and time, and optionally "I'll cover the table". `#/app/group/:id`
+  is one screen for everyone: the share link (WhatsApp, copy; always the
+  live site with the room), drinks so far with names, "Add your drink"
+  (cup or pay online; nothing to pay when covered), and for the host
+  (on the device that opened it) Send to the café (paying for covered
+  drinks first) and Cancel. Joining closes after 10 minutes; the host
+  sends by hand. A device whose member is the host but didn't open the
+  table joins as a guest with a name (the demo's second phone). Cup drinks
+  hold a cup on join (`hd_<itemId>`, `orderId` `o_<tableId>`).
+- Sent tables are one pickup order (`o_<tableId>`, `pay: "group"`,
+  `items[]` with `name`, `memberId|null`, `pay: cup|online|host`, `amount`).
+  The café ticket shows a name on each drink, the total and "N of N paid".
+  Collected writes release + redeem per cup drink; paid and covered
+  amounts go to Payouts as one paid order (less the 5% fee).
 
 ## Decisions
 
@@ -352,12 +408,13 @@ next pass until asked.**
   morning cups. Three earlier months on My cafés (Kiln 6, Noon 4, Slow Pour
   3) are seeded in the ledger. A cup at a fifth café gives a free cup.
 - Ledger type `reward` (+cups, cafeId null): passport at 5 and at all cafés
-  (fixed ids, so once only), invites (both sides). Rewards count in the
+  (fixed ids, so once only), Beans rewards (reason `beans`). Invites no
+  longer give cups (Beans instead, Pass 9). Rewards count in the
   month's total; My cafés members spend them from `balance().bonus`
   (redeem entries carry `bonus: true`).
 - Member numbers: first 500 are Founding; new members get
   `club.membersIssued + 1` (No. 0487 in the demo). Invite code = first name
-  + number (MUMTAZ42).
+  + three letters (MUMTAZ-JB9; see Pass 9).
 - Club tab: the passport is a book at the top (black cover, cream foil
   type, the ring logo; opens with a 360ms rotateY flip, crossfade with
   reduced motion). Page 1 is an ID page, then 4 stamps a page from

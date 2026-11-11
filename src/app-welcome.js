@@ -75,7 +75,7 @@
           <div class="welcome-intro__mark">${ui.logo("wordmark")}</div>
           <h1 class="t-display welcome-intro__title">A membership for the city’s best cafés.</h1>
           <p class="t-body t-muted">One monthly pass, eight independent cafés, and a club that meets once a month.</p>
-          ${inviter ? html`<p class="welcome-invite">${icon("gift", { size: 18 })}<span>${inviter.firstName} invited you. You’ll both get a free cup when you join.</span></p>` : ""}
+          ${inviter ? html`<p class="welcome-invite">${icon("bean", { size: 18 })}<span>${inviter.firstName} invited you. You’ll both receive ${S.beans().rules.referral} Beans after your first plan or paid order.</span></p>` : ""}
           <button type="button" class="btn btn--primary btn--block" data-ob-next>Get started</button>
         </div>`;
       }
@@ -101,7 +101,7 @@
           <h1 class="t-h2">What should we call you?</h1>
           <p class="t-small t-muted">This goes on your member card, and baristas see your first name.</p>
           ${field({ id: "name", label: "Your name", value: ob.name, autocomplete: "name", placeholder: "Ayesha Khan" })}
-          ${field({ id: "invite", label: "Invite code (optional)", value: ob.invite, autocomplete: "off", hint: "From a member who invited you. You both get a free cup.", cls: "num" })}
+          ${field({ id: "invite", label: "Have an invitation code?", value: ob.invite, autocomplete: "off", placeholder: "Optional", hint: `From the member who invited you. You’ll both receive ${S.beans().rules.referral} Beans after your first plan or paid order.`, cls: "num" })}
           <button type="submit" class="btn btn--primary btn--block">Continue</button>
         </form>`;
       }
@@ -172,6 +172,8 @@
         // Went back a step after creating the member: update them, don't make another
         if (ob.memberId && S.member().id === ob.memberId) A.updateNewMember(ob.memberId, profile);
         else ob.memberId = A.beginNewMember(profile).id;
+        // Joined with a code: the inviter sees "Joined" now, "Rewarded" after the first plan or paid order
+        if (ob.invite && !ob.inviteClaimed) ob.inviteClaimed = A.claimInvite(ob.invite).ok;
         LCC.appPlan.start({ mode: "explorer" });
         ctx.go("#/app/plan");
       }
@@ -247,7 +249,6 @@
     // Done: the tab bar comes back from here on
     const first = !ob.issued;
     ob.issued = true;
-    if (first && ob.invite && !ob.inviteClaimed) { A.claimInvite(ob.invite); ob.inviteClaimed = true; }
     const c = S.club(m.id);
     const p = S.memberPlan(m);
     const inviter = ob.invite && S.inviter(ob.invite);
@@ -261,7 +262,8 @@
             <p class="t-body t-muted">${c.founding
               ? `That makes you one of our Founding Members, the first ${store.getState().club.foundingLimit}. It stays on your card for good.`
               : "Your number is yours for as long as you’re a member."}</p>
-            <p class="t-small t-muted num">${p.type === "explorer" ? `Explorer ${p.name}` : "My cafés"} · ${fmt.cups(S.balance(m.id).total)} this month${inviter ? `, including a free one from ${inviter.firstName}’s invite` : ""}.</p>
+            <p class="t-small t-muted num">${p.type === "explorer" ? `Explorer ${p.name}` : p.type === "brand" ? S.planLabel(m) : "My cafés"} · ${fmt.cups(S.balance(m.id).total)} this month.</p>
+            ${inviter && m.invitedBy ? html`<p class="t-small num beans-plus">${icon("bean", { size: 16 })}+${S.beans().rules.referral} Beans, from ${inviter.firstName}’s invitation</p>` : ""}
           </div>
           <div class="issued__actions">
             <button type="button" class="btn btn--primary btn--block" data-issued-go="#/app/pass">Show my pass</button>

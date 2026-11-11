@@ -2,7 +2,7 @@
 // keeps a copy for offline use. Network first, so online you always get
 // the latest build; the cache is only used when the network fails.
 // Bump CACHE_VERSION to drop every older cache on the next visit.
-const CACHE_VERSION = "lcc-v3";
+const CACHE_VERSION = "lcc-v4";
 const PRECACHE = ["./", "./index.html", "./cafe.html", "./manifest.json", "./manifest-cafe.json", "./icons/app-icon-192.png", "./icons/app-icon-512.png"];
 
 // Install: save the page and icons so the app opens offline from the start

@@ -4,7 +4,7 @@
 
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
             #/app/map · #/app/club · #/app/gift · #/app/plan
-            #/app/plan/pay · #/app/order · #/app/order/pay
+            #/app/plan/pay · #/app/order · #/app/order/pay · #/app/group/:id
             #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
    app-cafes.js, the plan picker and payment in app-plan.js, the Club
@@ -142,6 +142,7 @@
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
@@ -404,14 +405,14 @@
         ui.openSheet(d);
       }
 
-      const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend" };
+      const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend", beans: "from your Beans" };
       function recentRows(newId) {
         const rows = S.activity().slice(0, 3);
         if (!rows.length) return html`<li class="row"><div class="row__main row__meta">No cups used yet. Your first one is waiting.</div></li>`;
         return html`${rows.map((r) => {
           const c = S.cafe(r.cafeId);
           if (r.type !== "redeem") {
-            const title = r.type === "gift" ? `Gift to ${r.toName || "a friend"}` : `Free cup: ${REWARD_LINES[r.reason] || "from the club"}`;
+            const title = r.type === "gift" ? `Gift to ${r.toName || "a friend"}` : `Complimentary cup: ${REWARD_LINES[r.reason] || "from the club"}`;
             const where = r.type === "gift" ? (c ? `For ${c.name}` : "For any partner café") : "Any partner café";
             return html`<li class="row${r.id === newId ? " enter" : ""}">
               <div class="row__main">
@@ -591,7 +592,7 @@
           const b = S.balance();
           const before = b.left + entry.credits;
           const here = S.cafeBalance(m2.id, entry.cafeId);
-          const hereLine = entry.bonus ? "That was a free cup from the club"
+          const hereLine = entry.bonus ? "That was a complimentary cup from the club"
             : here.type === "brand" ? `Your cups work at every ${cafe.name} branch`
             : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
@@ -603,6 +604,7 @@
               ${entry.topUp ? html`<p class="t-body num">Pay ${fmt.rs(entry.topUp)} at the till for the difference.</p>` : ""}
               <p class="t-body t-muted">${S.entryDrinkName(entry)} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
               <p class="t-small t-faint num" data-success-here>${hereLine}</p>
+              <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
           setTimeout(() => ui.animateNumber($("[data-success-cups]", view), b.left, { duration: 600 }), ui.reducedMotion() ? 0 : 450);
@@ -764,7 +766,7 @@
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot"].map((type) => store.on(type, dispatch(type)));
 
       // Pickup orders: the drawer follows along, and the café's moves get a word
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
@@ -772,11 +774,19 @@
         const box = $("#profile-drawer [data-drawer-pickups]", el);
         if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
         if (quiet || prev === order.status) return;
-        const name = S.pickupDrinkName(order), place = S.pickupPlace(order.cafeId);
-        if (order.status === "ready") ui.toast(`Your ${name} is ready at ${place}.`, { iconName: "check", duration: 6000 });
-        else if (order.status === "making" && prev === "placed") ui.toast(`${place} is making your ${name}.`, { iconName: "clock" });
-        else if (order.status === "rejected") ui.toast(`${place} couldn’t make your ${name}. ${LCC.appOrder.backLine(order)}`, { iconName: "info", duration: 6000 });
-        else if (order.status === "collected") ui.toast(`Collected. Enjoy your ${name}.`);
+        const place = S.pickupPlace(order.cafeId);
+        const me = member().id;
+        const mineAt = order.items ? order.items.find((i) => i.memberId === me) : null;
+        // A table: "your table's order"; otherwise the drink by name
+        const name = order.items ? (mineAt ? S.itemDrinkName(order.cafeId, mineAt) : "table’s order") : S.pickupDrinkName(order);
+        const your = order.items && order.memberId === me ? "Your table’s order" : `Your ${name}`;
+        const earned = order.items
+          ? (mineAt ? S.beans().perDrink : 0) + (order.memberId === me ? order.items.filter((i) => i.memberId !== me).length * S.beans().rules.hostPerFriend : 0)
+          : S.beans().perDrink;
+        if (order.status === "ready") ui.toast(`${your} is ready at ${place}.`, { iconName: "check", duration: 6000 });
+        else if (order.status === "making" && prev === "placed") ui.toast(`${place} is making ${your.replace(/^Your/, "your")}.`, { iconName: "clock" });
+        else if (order.status === "rejected") ui.toast(`${place} couldn’t make ${your.replace(/^Your/, "your")}. ${LCC.appOrder.backLine(order)}`, { iconName: "info", duration: 6000 });
+        else if (order.status === "collected") ui.toast(`Collected. Enjoy your ${order.items && !mineAt ? "table" : name}.${earned ? ` +${earned} Beans` : ""}`, { iconName: earned ? "bean" : "check" });
       }));
       // The drawer's cancel countdown, while it's open
       const drawerTimer = setInterval(() => {
@@ -788,9 +798,9 @@
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {
-        "passport-5": "Fifth café on your passport. A free cup is on us.",
-        "passport-all": "Every partner café on your passport. A free cup is on us.",
-        invite: "A friend joined with your code. A free cup is on us.",
+        "passport-5": "Fifth café on your passport. A complimentary cup is yours.",
+        "passport-all": "Every partner café on your passport. A complimentary cup is yours.",
+        invite: "A friend joined with your code. A complimentary cup is yours.",
       };
       const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
       let earned = earnedNow();

@@ -363,3 +363,35 @@
 .badge-row .row__main, .gather-past .row__main, .gift-link .row__main { display: grid; gap: 2px; }
 [data-gift-body] [role="status"]:focus { outline: none; }
 .welcome-intro__mark { width: 160px; margin-bottom: var(--space-2); }
+
+/* Beans -------------------------------------------------------------------- */
+.beans {
+  display: grid; gap: var(--space-2); width: 100%;
+  padding: var(--space-4) 0; text-align: left; cursor: pointer;
+  border-bottom: var(--hairline);
+}
+.beans__row { display: flex; align-items: center; gap: var(--space-2); }
+.beans__icon { display: grid; color: var(--accent-text); }      /* accent: the bean */
+.beans__num { font-size: var(--fs-28); line-height: 1; letter-spacing: -0.01em; }
+.beans__word { font-size: var(--fs-16); color: var(--ink-2); }
+.beans__go { margin-left: auto; color: var(--ink-3); }
+.beans__bar { position: relative; height: 2px; border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.beans__bar > span { position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0)); background: var(--ink); transition: transform var(--dur-3) var(--ease); }
+@media (prefers-reduced-motion: reduce) { .beans__bar > span { transition: none; } }
+.beans:hover .beans__go { color: var(--ink); }
+
+.beans-sheet { display: grid; gap: var(--space-5); }
+.beans-sheet__bal { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-16); color: var(--ink-2); }
+.beans-sheet__bal > span:first-child { display: grid; color: var(--accent-text); }
+.beans-sheet__bal .num { font-size: var(--fs-40); line-height: 1; color: var(--ink); }
+.beans-ladder { display: grid; }
+.beans-step { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: var(--hairline); }
+.beans-step:last-child { border-bottom: 0; }
+.beans-step__cost { font-size: var(--fs-20); color: var(--ink-3); }
+.beans-step.is-reached .beans-step__cost { color: var(--ink); }
+.beans-step__main { display: grid; gap: 2px; }
+.beans-sheet .row__trail { color: var(--ink); }
+.beans-plus { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--ink-2); }
+.beans-plus svg { color: var(--accent-text); }
+.invite__list { margin-top: var(--space-1); }
+.beans-sheet .row__main, .invite__list .row__main, .table .row__main, .beans-step__main { display: grid; gap: 2px; }

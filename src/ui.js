@@ -56,6 +56,8 @@
     user: '<circle cx="12" cy="8.5" r="3.75"/><path d="M4.75 20c.9-3.75 3.75-5.75 7.25-5.75s6.35 2 7.25 5.75"/>',
     sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6"/>',
+    // A coffee bean: an oval on the diagonal with its S-shaped crease (Beans, the club's points)
+    bean: '<ellipse cx="12" cy="12" rx="6" ry="8.75" transform="rotate(40 12 12)"/><path d="M15.9 6.9c-2.6 1.2-2.4 3.6-3.6 5.1s-3.5 1.6-4.2 5.1"/>',
   };
   function icon(name, { size = 24, label } = {}) {
     const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true" focusable="false"';

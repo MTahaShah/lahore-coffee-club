@@ -267,7 +267,7 @@
               ${sectionHead(4, "gifting", "Gifting and loyalty")}
               <div class="lp-two">
                 <div><h3 class="t-h3">Send a cup</h3><p class="t-body t-muted">Give a friend up to three cups from your month, for one café or any of them. They get a link on WhatsApp, and the gift keeps for 60 days.</p></div>
-                <div><h3 class="t-h3">Come back, get one free</h3><p class="t-body t-muted">Every fifth visit to the same café, the next cup is on the house, paid for by the café, not your plan. Try five different cafés and you earn the Explorer badge.</p></div>
+                <div><h3 class="t-h3">Come back for a complimentary cup</h3><p class="t-body t-muted">Every fifth visit to the same café, the next cup is on the house, paid for by the café, not your plan. Try five different cafés and you earn the Explorer badge.</p></div>
               </div>
             </section>
 

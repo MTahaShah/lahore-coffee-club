@@ -264,7 +264,7 @@
           const club = member.memberNo != null ? S.club(member.id) : null;
           const clubLine = club ? [club.number, club.founding && "Founding Member", club.level.id !== "member" && club.level.name].filter(Boolean).join(" · ") : "";
           const perks = club ? S.perksAt(member.id, cafeId) : [];
-          const hereLine = here.bonus ? "Free cup from the club"
+          const hereLine = here.bonus ? "Complimentary cup from the club"
             : here.type === "mycafes" ? `${here.left} of ${here.reserved} reserved here`
             : `${Math.max(0, here.cap - here.used)} of ${here.cap} left here this month`;
           body.innerHTML = html`
@@ -441,6 +441,20 @@
         if (tab) tab.setAttribute("aria-label", n ? `Orders, ${n} new` : "Orders");
       }
 
+      /** A table: each drink with a name, the total, and how many are paid. */
+      function tableHtml(o) {
+        const paid = o.items.filter((i) => ["cup", "online", "host"].includes(i.pay)).length;
+        const parts = [["cup", "cup"], ["online", "paid online"], ["host", `covered by ${o.memberName}`]]
+          .map(([k, w]) => [o.items.filter((i) => i.pay === k).length, w]).filter(([n]) => n).map(([n, w]) => `${n} ${w === "cup" ? (n === 1 ? "cup" : "cups") : w}`);
+        return html`<ul class="cv-items" role="list">${o.items.map((i) => html`<li>
+            <span class="cv-items__who">${i.name}</span>
+            <span class="cv-items__drink">${S.itemDrinkName(o.cafeId, i)}</span>
+            <span class="t-faint num">${i.pay === "cup" ? (i.topUp ? `Cup + ${fmt.rs(i.topUp)}` : "Cup") : i.pay === "online" ? "Paid" : "Covered"}</span>
+          </li>`)}</ul>
+          <p class="cv-items__total num"><span>Total ${fmt.rs(o.price)}</span><span>${paid} of ${o.items.length} paid</span></p>
+          <p class="t-small t-muted num">${parts.join(", ")}. Nothing to collect.</p>`;
+      }
+
       function ticketPayLine(o) {
         if (o.pay === "cup") return o.topUp ? `Member cup. ${fmt.rs(o.topUp)} top-up paid online, nothing to collect.` : "Member cup. Nothing to collect.";
         return `Paid online, ${fmt.rs(o.amount)}. Nothing to collect.`;
@@ -450,7 +464,7 @@
         const code = S.pickupCode(o);
         const acts = rejecting === o.id
           ? html`<div class="cv-reject" role="group" aria-label="Why can’t you make it?">
-              <p class="t-small">Why can’t you make it? ${o.memberName} is told, and ${o.pay === "cup" ? "gets the cup back" : "refunded"}.</p>
+              <p class="t-small">Why can’t you make it? ${o.items ? "Everyone at the table is told, cups go back and payments are refunded" : `${o.memberName} is told, and ${o.pay === "cup" ? "gets the cup back" : "refunded"}`}.</p>
               <div class="cv-reject__opts">
                 ${Object.entries(store.pickupReasons).map(([id, label]) => html`<button type="button" class="btn btn--secondary" data-reject="${o.id}" data-reason="${id}">${label}</button>`)}
               </div>
@@ -463,16 +477,16 @@
         return html`<li class="cv-ticket${fresh ? " enter" : ""}" data-ticket="${o.id}" data-status="${o.status}" aria-labelledby="tk-${o.id}">
           <div class="cv-ticket__top">
             <span class="cv-ticket__state">${STATE_LABEL[o.status]}</span>
-            <span class="badge">${o.pay === "cup" ? "Cup" : "Paid"}</span>
+            <span class="badge">${o.items ? `Table · ${o.items.length}` : o.pay === "cup" ? "Cup" : "Paid"}</span>
           </div>
-          <p class="cv-ticket__name" id="tk-${o.id}">${o.memberName}</p>
-          <p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>
+          <p class="cv-ticket__name" id="tk-${o.id}">${o.items ? `${o.memberName}’s table` : o.memberName}</p>
+          ${o.items ? tableHtml(o) : html`<p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>`}
           <dl class="cv-ticket__facts">
             <div><dt>Pickup</dt><dd class="num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)}</dd></div>
             <div><dt>Code</dt><dd class="num cv-ticket__code" aria-label="${code.split("").join(" ")}">${spaced(code)}</dd></div>
             <div><dt>Placed</dt><dd><span data-rel-time="${o.placedAt}">${fmt.ago(o.placedAt)}</span></dd></div>
           </dl>
-          <p class="t-small t-muted num">${ticketPayLine(o)}</p>
+          ${o.items ? "" : html`<p class="t-small t-muted num">${ticketPayLine(o)}</p>`}
           <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong> <span class="t-muted num">· Reference ${S.pickupRef(o)}</span></p>
           ${acts}
         </li>`;
@@ -498,7 +512,7 @@
               <ol class="cv-list" role="list">
                 ${done.length ? done.map((o) => html`<li class="cv-row">
                   <span class="cv-row__time num">${fmt.time(o.updatedAt)}</span>
-                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
+                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.items ? "table" : o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
                   <span class="cv-row__ref num">${o.status === "collected" ? S.pickupRef(o) : ""}</span>
                 </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">Nothing collected yet today.</span></li>`}
               </ol>
@@ -842,7 +856,7 @@
         if (rj) {
           rejecting = null;
           const res = A.rejectPickup(rj.dataset.reject, rj.dataset.reason);
-          if (res.ok) ui.toast(`Order rejected. ${res.order.memberName} has been told${res.order.pay === "cup" ? " and has the cup back" : " and will be refunded"}.`, { duration: 4200 });
+          if (res.ok) ui.toast(res.order.items ? "Table rejected. Everyone has been told." : `Order rejected. ${res.order.memberName} has been told${res.order.pay === "cup" ? " and has the cup back" : " and will be refunded"}.`, { duration: 4200 });
           return paintOrders();
         }
         if (t.closest("[data-sim-scan]")) return simulateScan(t.closest("[data-sim-scan]"));
