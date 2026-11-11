@@ -86,7 +86,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   ledger and derived balances, pricing, pass codes, redemption rules, the
   club (`select.club`, gatherings, RSVPs), Beans (`select.beans`),
   referrals (`select.invitations`), gifts, pickup orders (`state.orders`),
-  group orders (`state.groups`), presenter sessions, `LCC.fmt` formatting
+  group orders (`state.groups`), Circles (`state.circles`, `rounds`,
+  `acks`, `member.privacy`), presenter sessions, `LCC.fmt` formatting
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher (with the presenter Demo menu),
@@ -112,6 +113,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app-club.js` — Club tab (`#/app/club`: Beans at the top with their sheet,
   member card, status, passport, badges, perks, gatherings, invite with
   statuses) and gifting (`#/app/gift`)
+- `app-circles.js` — Circles: the Club tab's Circles section
+  (`LCC.appCircles`), a Circle (`#/app/circle/:id`) and its invitation
+  link (`#/app/circle/:id/join`)
 - `app-welcome.js` — onboarding (`#/app/welcome`) and card issue
   (`#/app/welcome/card`); `LCC.onboarding`
 - `club.css` — styles for the Club tab, gifting and onboarding
@@ -148,8 +152,10 @@ This order overrides any order implied by the spec.
 7. [x] Explorer and My cafés plans, cups ledger
 8. [x] Pickup orders: order ahead with a cup or online payment, café queue
 9. [x] Club: Beans, referrals, group orders
+10. [x] Club: Circles with rounds, activity and the brick-ring mark
 
-Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9 (6 and 7 came first on request).
+Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
+The user's "Pass E" is Pass 9 here.
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
@@ -239,7 +245,9 @@ next pass until asked.**
   computer) and Supabase Realtime Broadcast (other devices). Messages are
   de-duplicated by id; incoming ones go through `store.applyRemote`, which
   never re-sends.
-- What travels: tables (`group`, the whole table; drinks merge by id,
+- What travels: Circles (`circle`, newest `updatedAt` wins; `round`,
+  answers merge per member; `ack`, add or undo, newest wins per member and entry; `privacy`,
+  newest wins; all in join snapshots); tables (`group`, the whole table; drinks merge by id,
   header newest wins, sent / cancelled stay; in join snapshots); pickup orders (`pickup`, the whole order; status only moves
   forward, finished ones never change; in join snapshots); café status (`cafe:status`); ledger entries of every type
   with a plan header for members whose plan changed (`ledger`; newest
@@ -348,6 +356,43 @@ next pass until asked.**
   The café ticket shows a name on each drink, the total and "N of N paid".
   Collected writes release + redeem per cup drink; paid and covered
   amounts go to Payouts as one paid order (less the 5% fee).
+
+## Circles (Pass 10)
+
+- Small private groups in the Club tab, up to `circleRules.maxMembers` (12)
+  (`data.js` `circleRules`). "Start a Circle" names it (you host);
+  "Add them to your circle" shares the invitation link on WhatsApp
+  (`#/app/circle/:id/join`, always the live site with the room). The host
+  can remove members; anyone can leave (a leaving host hands over to the
+  longest-standing member; the last one out closes it).
+- The mark: `ui.brickRing({ total: 12, filled: members })`, one brick per
+  member slot, joined filled (accent), empty slots hairline outlines.
+  Small (48px) in the Club list, large (200px, "5 of 12") on the page.
+- Activity ("This week", `circleRules.activityDays` 7): drinks after the
+  fact (counter cups, pickups, table drinks) as "Hira · Iced Matcha at
+  Double Shot Phase 6 · 2 hr ago", new passport stamps and badges, all
+  derived (`select.circleActivity`). One acknowledgement per member per
+  entry (thin-line cup and a count; `state.acks[key][memberId]`); tapping
+  again takes it back. Adding and undoing sync the same way (`ack` with
+  `on`; the newest change per member and entry wins).
+- Rounds (`state.rounds`): "Call a round" (café or branch, a time today).
+  "I'll be there" / "Not this time"; who's coming. "Order together" turns
+  it into a table (`LCC.appOrder.startTable`, `round.groupId`), so the
+  others get "Add your drink to the table". Attending = said yes and had a
+  drink there from an hour before to three hours after: +5 Beans
+  (`beans.roundAttend`, derived in `select.beans`).
+- This month: cafés explored together (a brand counts once), the streak
+  (calendar weeks running with a round two or more came to), and "Most
+  explored" by cafés, never by cups (`select.circleMonth`).
+- Privacy (drawer): "Share my coffee with my Circles" (on by default) and
+  "Hide which branch" (`member.privacy`, synced). No live location
+  anywhere: only the café and the time, after the fact.
+- Seed: The Gulberg Circle (Mumtaz hosts) with Hira, Usman, Mahnoor and
+  Faraz (background members with codes-free plans and lifetime visits), a
+  week of coffee, Mahnoor's fifth-café stamp and Explorer badge today, three
+  past rounds a week apart (three weeks running), a round Hira called for
+  later today (Double Shot Phase 6), a few acknowledgements. Faraz hides
+  his branch. Mumtaz's Beans stay 130.
 
 ## Decisions
 

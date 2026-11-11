@@ -2434,6 +2434,79 @@ li:last-child > .branch-row { border-bottom: 0; }
 .invite__list { margin-top: var(--space-1); }
 .beans-sheet .row__main, .invite__list .row__main, .table .row__main, .beans-step__main { display: grid; gap: 2px; }
 
+/* Circles ------------------------------------------------------------------
+   The mark is the brick ring (ui.brickRing): one brick per member slot.
+   Joined members are filled bricks (accent), empty slots hairline outlines. */
+.circle-ring { position: relative; display: inline-grid; place-items: center; flex: none; width: 48px; height: 48px; }
+.circle-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.circle-ring .brick-ring { --brick-line: var(--line-strong); }
+.circle-ring--lg { width: 200px; height: 200px; }
+.circle-ring__center { display: grid; justify-items: center; gap: 2px; }
+.circle-ring__n { font-size: var(--fs-40); line-height: 1; }
+
+.circle-list { display: grid; }
+.circle-row { display: flex; align-items: center; gap: var(--space-3); width: 100%; color: inherit; text-decoration: none; }
+.circle-row .row__main, .circle-page .row__main { display: grid; gap: 2px; }
+.circle-start .btn--link { justify-self: center; }
+
+.circle-hero { display: grid; justify-items: center; gap: var(--space-4); text-align: center; padding-top: var(--space-2); }
+.circle-hero .btn--link { margin-top: calc(-1 * var(--space-2)); }
+.circle-people { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-3); }
+.circle-people li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--ink-2); }
+.circle-people__mark {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  border: var(--hairline); font-size: var(--fs-12); letter-spacing: 0.04em; color: var(--ink);
+}
+
+.round { display: grid; gap: var(--space-3); }
+.round__answers { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.round .btn--link { justify-self: start; }
+.round-call .btn--link { justify-self: center; }
+
+.circle-month { display: grid; gap: var(--space-3); }
+.circle-month__n { font-size: var(--fs-16); color: var(--ink-2); }
+.circle-month__n .num { font-size: var(--fs-40); line-height: 1; color: var(--ink); margin-right: 4px; }
+.circle-rank { display: grid; margin-top: var(--space-1); }
+.circle-rank li { display: grid; grid-template-columns: 20px 1fr auto; gap: var(--space-2); align-items: baseline; padding: var(--space-2) 0; border-bottom: var(--hairline); }
+.circle-rank li:last-child { border-bottom: 0; }
+
+.circle-act { display: grid; }
+.circle-act__row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: var(--hairline); }
+.circle-act__row:last-child { border-bottom: 0; }
+.circle-act__text { flex: 1; min-width: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--ink-2); }
+.circle-act__text strong { color: var(--ink); font-weight: 500; }
+/* One quiet acknowledgement: a thin-line cup and a count */
+.ack {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  min-width: 44px; min-height: 32px; padding: 0 var(--space-2); justify-content: center;
+  border-radius: var(--radius-pill); color: var(--ink-3); font-size: var(--fs-12);
+}
+.ack:not(:disabled):hover { color: var(--ink); background: var(--surface-2); }
+.ack[aria-pressed="true"] { color: var(--ink); }
+.ack:disabled { cursor: default; }
+.ack__icon { flex: none; }
+.circle-leave { display: flex; justify-content: space-between; gap: var(--space-3); }
+.circle-leave .btn--link { --btn-h: 36px; font-size: var(--fs-14); color: var(--ink-2); }
+
+/* Privacy switches (drawer) */
+.switch-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) 0; cursor: pointer; }
+.switch-row__text { flex: 1; display: grid; gap: 2px; }
+.switch-row.is-off { opacity: 0.5; cursor: default; }
+.switch {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none;
+  width: 44px; height: 26px; margin: 0; border-radius: var(--radius-pill);
+  background: var(--line-strong); cursor: pointer; transition: background-color var(--dur-1) var(--ease);
+}
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); transition: transform var(--dur-1) var(--ease);
+}
+.switch:checked { background: var(--primary); }
+.switch:checked::after { transform: translateX(18px); background: var(--on-primary); }
+.switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.switch:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+
 /* ---- src/landing.css ---- */
 /* =====================================================================
    Lahore Coffee Club — landing.css
@@ -3345,6 +3418,98 @@ li:last-child > .branch-row { border-bottom: 0; }
     });
   })();
 
+  /* A Circle: Mumtaz and four friends --------------------------------
+     Their week of coffee (activity), earlier visits (for passport stamps
+     and badges), three past rounds in three weeks running (the streak)
+     and one round called for later today. Faraz hides which branch.
+     Entries have fixed ids so acknowledgements can point at them.      */
+  const circleMember = (id, firstName, lastName, plan, memberNo, months) => {
+    const m = { id, firstName, lastName, initials: `${firstName[0]}${lastName[0]}`, pronoun: "them", plan, background: true, visits: {},
+      memberNo, memberSince: daysAgo(30 * months), cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY };
+    members.push(m); byId[id] = m; purchase(m);
+    return m;
+  };
+  const hira    = circleMember("m_c_hira",    "Hira",    "Khalid", { type: "brand", brandId: DS.id, planId: "ds15" }, 58, 7);
+  const usman   = circleMember("m_c_usman",   "Usman",   "Aslam",  { type: "explorer", tierId: "regular" }, 144, 6);
+  const mahnoor = circleMember("m_c_mahnoor", "Mahnoor", "Sheikh", { type: "explorer", tierId: "regular" }, 233, 5);
+  const faraz   = circleMember("m_c_faraz",   "Faraz",   "Malik",  { type: "brand", brandId: DS.id, planId: "ds8" }, 312, 4);
+  faraz.privacy = { share: true, hideBranch: true };
+  mumtaz.privacy = { share: true, hideBranch: false };
+  const circleCup = (key, m, cafeId, drinkId, at, temp = "hot", prev = false) => {
+    const cyc = prev ? `${m.cycle}_prev` : m.cycle;
+    const first = !(m.visits[cafeId] > 0);
+    m.visits[cafeId] = (m.visits[cafeId] || 0) + 1;
+    if (cafeById[cafeId].brandId) {
+      const d = dsItem(drinkId);
+      const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
+      ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price: d[t],
+        topUp: Math.max(0, d[t] - DS.economics.coverUpTo), firstVisit: first, at, cycle: cyc });
+    } else {
+      const credits = drinkCredits(cafeId, drinkId);
+      ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit: first, at, cycle: cyc });
+    }
+  };
+  // Earlier months (lifetime: stamps and badges)
+  [["kiln", "kiln-flat"], ["slowpour", null], ["noon", null], ["ember", "ember-latte"]].forEach(([c, d], i) =>
+    circleCup(`mah_old${i}`, mahnoor, c, d || cafeById[c].drinks[0].id, daysAgo(40 + i * 6, 600), "hot", true));
+  [["kiln", "kiln-cort"], ["noon", null], ["grind", null], ["maple", "maple-latte"], ["quiethours", null]].forEach(([c, d], i) =>
+    circleCup(`usm_old${i}`, usman, c, d || cafeById[c].drinks[0].id, daysAgo(35 + i * 5, 500), "hot", true));
+  ["ds-gulberg", "ds-dha6", "ds-pine"].forEach((c, i) => circleCup(`hir_old${i}`, hira, c, "ds-spanish", daysAgo(30 + i * 4, 700), "iced", true));
+  ["ds-cantt", "ds-dolmen"].forEach((c, i) => circleCup(`far_old${i}`, faraz, c, "ds-americano", daysAgo(33 + i * 3, 800), "hot", true));
+  // Past rounds, a week apart: 21, 14 and 7 days ago (the streak)
+  circleCup("r3_usm", usman, "kiln", "kiln-flat", clockAgo(21, 18, 10), "hot", true);
+  circleCup("r3_mah", mahnoor, "kiln", "kiln-cort", clockAgo(21, 18, 20), "hot", true);
+  circleCup("r2_hir", hira, "ds-gulberg", "ds-matcha", clockAgo(14, 17, 10), "iced", true);
+  circleCup("r2_far", faraz, "ds-gulberg", "ds-latte", clockAgo(14, 17, 25), "hot", true);
+  circleCup("r1_usm", usman, "ember", "ember-mocha", clockAgo(7, 17, 5));
+  circleCup("r1_mah", mahnoor, "ember", "ember-latte", clockAgo(7, 17, 15));
+  // This week
+  circleCup("hir_1", hira, "ds-pine", "ds-flat-white", daysAgo(5, 200));
+  circleCup("hir_2", hira, "ds-gulberg", "ds-spanish", daysAgo(2, 300), "iced");
+  circleCup("hir_3", hira, "ds-dha6", "ds-matcha", minsAgo(120), "iced");
+  circleCup("usm_1", usman, "grind", cafeById.grind.drinks[0].id, daysAgo(6, 100));
+  circleCup("usm_2", usman, "noon", cafeById.noon.drinks[0].id, daysAgo(3, 240));
+  circleCup("usm_3", usman, "thirdfloor", "tf-spanish", daysAgo(1, 90));
+  circleCup("mah_1", mahnoor, "slowpour", cafeById.slowpour.drinks[0].id, daysAgo(3, 420));
+  circleCup("mah_2", mahnoor, "maple", "maple-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
+  circleCup("far_1", faraz, "ds-cantt", "ds-cortado", daysAgo(4, 330));
+  circleCup("far_2", faraz, "ds-dolmen", "ds-caramel-f", daysAgo(1, 200), "iced");
+
+  const circleSince = daysAgo(60);
+  const nextRoundAt = (() => {
+    const five = startOfToday + 17 * 60 * MIN;
+    const soon = Math.ceil((now + 2 * 60 * MIN) / (60 * MIN)) * 60 * MIN;
+    return Math.max(five, soon);
+  })();
+  const circles = [{
+    id: "circle-gulberg", name: "The Gulberg Circle", hostId: mumtaz.id, createdAt: circleSince, updatedAt: 0,
+    members: {
+      [mumtaz.id]: { joinedAt: circleSince },
+      [hira.id]: { joinedAt: circleSince + 2 * 60 * MIN },
+      [usman.id]: { joinedAt: circleSince + DAY },
+      [mahnoor.id]: { joinedAt: circleSince + 3 * DAY },
+      [faraz.id]: { joinedAt: daysAgo(25) },
+    },
+  }];
+  const answer = (going, at) => ({ going, at });
+  const rounds = [
+    { id: "round-kiln", circleId: "circle-gulberg", callerId: usman.id, cafeId: "kiln", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
+      answers: { [usman.id]: answer(true, clockAgo(21, 11, 0)), [mahnoor.id]: answer(true, clockAgo(21, 12, 0)), [hira.id]: answer(false, clockAgo(21, 13, 0)) } },
+    { id: "round-ds-gulberg", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-gulberg", at: clockAgo(14, 17, 0), createdAt: clockAgo(14, 10, 0), updatedAt: 0, groupId: null,
+      answers: { [hira.id]: answer(true, clockAgo(14, 10, 0)), [faraz.id]: answer(true, clockAgo(14, 12, 30)), [mumtaz.id]: answer(false, clockAgo(14, 13, 0)) } },
+    { id: "round-ember", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "ember", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
+      answers: { [mahnoor.id]: answer(true, clockAgo(7, 9, 0)), [usman.id]: answer(true, clockAgo(7, 9, 40)), [faraz.id]: answer(false, clockAgo(7, 11, 0)) } },
+    { id: "round-today", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-dha6", at: nextRoundAt, createdAt: minsAgo(55), updatedAt: 0, groupId: null,
+      answers: { [hira.id]: answer(true, minsAgo(55)), [faraz.id]: answer(true, minsAgo(40)), [usman.id]: answer(false, minsAgo(25)) } },
+  ];
+  // One quiet acknowledgement per member per entry: key -> memberId -> at
+  const acks = {
+    "e:sc_hir_3": { [usman.id]: minsAgo(100), [mahnoor.id]: minsAgo(80) },
+    "s:m_c_mahnoor:maple": { [hira.id]: minsAgo(200) },
+    "b:m_c_mahnoor:explorer": { [faraz.id]: minsAgo(190), [hira.id]: minsAgo(185) },
+    "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
+  };
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -3433,6 +3598,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     perDrink: 10,          // each drink redeemed at the counter, or collected as a pickup order
     referral: 100,         // each, for the member and their friend, after the friend's first plan or paid order
     hostPerFriend: 5,      // group orders: extra for the host, per friend who joins the table
+    roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
       { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any drink up to Rs 880, added to your cups.", cups: 1 },
@@ -3525,6 +3691,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     orders,
     club,
     beans,
+    circles,
+    rounds,
+    acks,
+    // Circles: at most this many members; activity shows this many days
+    circleRules: { maxMembers: 12, activityDays: 7 },
     partner,
     drinkCategories,
     // Builder default for the “My cafés” plan
@@ -3547,8 +3718,8 @@ li:last-child > .branch-row { border-bottom: 0; }
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, order, pickup, group, session, waitlist,
-           partner, snapshot, tick (every 30s)
+           builder, gift, rsvp, order, pickup, group, circle, round, ack,
+           privacy, session, waitlist, partner, snapshot, tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
@@ -3567,6 +3738,11 @@ li:last-child > .branch-row { border-bottom: 0; }
    Group orders (state.groups): a host opens a table, friends add a drink
    each within a few minutes (cup, online, or covered by the host), then
    the host sends it as one pickup order with items[].
+
+   Circles (state.circles): small private groups (up to 12) who see each
+   other's coffee after the fact (café and time, never live location),
+   call rounds (state.rounds) and acknowledge each other's entries
+   (state.acks). Members choose what they share (member.privacy).
 
    Beans (points): derived like balances, never stored. Earned from redeem
    entries, collected orders and referrals; spending writes a `beans`
@@ -3591,6 +3767,11 @@ li:last-child > .branch-row { border-bottom: 0; }
   const OPEN = ["placed", "making", "ready"];        // pickup orders still in the café's queue
   // A status only moves forward; the finished ones never change again (so sync can't undo them)
   const PICKUP_RANK = { placed: 0, making: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const liveAcks = new Map(); // "key|member" -> latest change in this session (for join snapshots)
+  const ackAt = {};           // "key|member" -> time of the latest change seen (newest wins, undo included)
+  const NUM_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  /** Monday 00:00 of a timestamp's week (streaks count calendar weeks). */
+  const weekOf = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
   const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31, no look-alikes
   const PICKUP_NEXT = { making: ["placed"], ready: ["placed", "making"], collected: ["ready"], rejected: ["placed", "making"], cancelled: ["placed"] };
 
@@ -3617,6 +3798,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     orders: byId(clone(seed.orders || [])), // pickup orders, id -> order
     groups: {},                              // group orders still gathering drinks, id -> group
     beansRules: clone(seed.beans),
+    circles: byId(clone(seed.circles || [])),  // id -> { name, hostId, members: { memberId: { joinedAt } } }
+    rounds: byId(clone(seed.rounds || [])),    // id -> { circleId, callerId, cafeId, at, answers, groupId }
+    acks: clone(seed.acks || {}),              // entry key -> memberId -> at
+    circleRules: clone(seed.circleRules || { maxMembers: 12, activityDays: 7 }),
     waitlist: [],
     partnerRequests: [],
   };
@@ -3678,6 +3863,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
     else if (type === "pickup") send("pickup", { order: payload.order });
     else if (type === "group") send("group", { group: payload.group });
+    else if (type === "circle") send("circle", { circle: payload.circle });
+    else if (type === "round") send("round", { round: payload.round });
+    else if (type === "ack") send("ack", { key: payload.key, memberId: payload.memberId, at: payload.at, on: payload.on });
+    else if (type === "privacy") send("privacy", { memberId: payload.memberId, privacy: payload.privacy, at: payload.at });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -3713,9 +3902,14 @@ li:last-child > .branch-row { border-bottom: 0; }
       orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
       pickups: Object.values(state.orders).filter((o) => o.live),
       groups: Object.values(state.groups).filter((g) => g.live),
+      circles: Object.values(state.circles).filter((c) => c.updatedAt),
+      rounds: Object.values(state.rounds).filter((r) => r.updatedAt),
+      acks: [...liveAcks.values()],
+      privacy: Object.values(state.members).filter((m) => m.privacyAt).map((m) => ({ memberId: m.id, privacy: m.privacy, at: m.privacyAt })),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live) || Object.values(state.groups).some((g) => g.live);
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live) || Object.values(state.groups).some((g) => g.live)
+    || Object.values(state.circles).some((c) => c.updatedAt) || Object.values(state.rounds).some((r) => r.updatedAt) || liveAcks.size > 0;
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -3728,6 +3922,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
     (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
     (snap.groups || []).forEach((g) => applyGroup(g, { remote: true }, { quiet: true }));
+    (snap.circles || []).forEach((c) => applyCircle(c, { remote: true }));
+    (snap.rounds || []).forEach((r) => applyRound(r, { remote: true }));
+    (snap.acks || []).forEach((a) => applyAck(a, { remote: true }));
+    (snap.privacy || []).forEach((x) => applyPrivacy(x, { remote: true }));
     (snap.pickups || []).forEach((o) => applyPickup(o, { remote: true }, { quiet: true }));
     emit("snapshot", {}, { remote: true });
   }
@@ -3753,6 +3951,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     else if (type === "order") applyOrder(data, { remote: true });
     else if (type === "pickup") applyPickup(data.order, { remote: true });
     else if (type === "group") applyGroup(data.group, { remote: true });
+    else if (type === "circle") applyCircle(data.circle, { remote: true });
+    else if (type === "round") applyRound(data.round, { remote: true });
+    else if (type === "ack") applyAck(data, { remote: true });
+    else if (type === "privacy") applyPrivacy(data, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -4633,6 +4835,11 @@ li:last-child > .branch-row { border-bottom: 0; }
           if (o.memberId === memberId && friends) add(at + 1, friends * B.hostPerFriend, `${friends} ${friends === 1 ? "friend" : "friends"} at your table`, place);
         } else if (o.memberId === memberId) add(at, B.perDrink, select.pickupDrinkName(o), `${place} · pickup`);
       });
+      // Circles: a round you said yes to and came to
+      Object.values(state.rounds).forEach((r) => {
+        const at = select.roundAttendedAt(r, memberId);
+        if (at) add(at + 2, B.roundAttend, `Round at ${select.pickupPlace(r.cafeId)}`, state.circles[r.circleId]?.name || "Circle");
+      });
       Object.values(state.members).forEach((f) => {
         if (f.invitedBy !== memberId) return;
         const at = select.referralAt(f);
@@ -4651,6 +4858,99 @@ li:last-child > .branch-row { border-bottom: 0; }
         ? `${drink.beans - balance} Beans to your next complimentary drink`
         : next ? `A complimentary drink is ready · ${next.beans - balance} Beans to ${next.short}` : "Every reward is within reach";
       return { balance, history: rows, rewards, next, progress: Math.min(1, balance / (next || rewards[rewards.length - 1]).beans), line, perDrink: B.perDrink, rules: B };
+    },
+
+    /* ---------------- Circles ---------------- */
+
+    /** What a member shares with their Circles. Defaults: share, show the branch. */
+    privacy: (memberId = state.memberId) => ({ share: true, hideBranch: false, ...(state.members[memberId]?.privacy || {}) }),
+    circle: (id) => state.circles[id] || null,
+    circleRules: () => state.circleRules,
+    /** The Circles a member is in, oldest first. */
+    circlesOf(memberId = state.memberId) {
+      return Object.values(state.circles).filter((c) => !c.closed && c.members[memberId]).sort((a, b) => a.createdAt - b.createdAt);
+    },
+    /** Members of a Circle, in the order they joined (host first). */
+    circleMembers(c) {
+      return Object.entries(c?.members || {}).sort((a, b) => (a[0] === c.hostId ? -1 : b[0] === c.hostId ? 1 : a[1].joinedAt - b[1].joinedAt))
+        .map(([id]) => state.members[id]).filter(Boolean);
+    },
+    /** Where someone had coffee, as their Circles see it: the branch, or just the brand if they hide it. */
+    circlePlace(memberId, cafeId) {
+      const c = state.cafes[cafeId];
+      return c?.brandId && select.privacy(memberId).hideBranch ? state.brands[c.brandId].name : select.pickupPlace(cafeId);
+    },
+    /** Drinks a member has had (after the fact): counter cups, pickup cups, paid pickups and table drinks. */
+    memberDrinks(memberId, since = 0) {
+      // BACKEND: a view over the ledger and orders; only the café and the time, never a location
+      const out = [];
+      (byMember.get(memberId) || []).forEach((e) => {
+        if (e.type === "redeem" && e.at >= since) out.push({ key: `e:${e.id}`, memberId, cafeId: e.cafeId, at: e.at, drink: select.entryDrinkName(e) });
+      });
+      Object.values(state.orders).forEach((o) => {
+        if (o.status !== "collected") return;
+        const at = o.times?.collected || o.updatedAt;
+        if (at < since) return;
+        if (o.items) o.items.forEach((i) => { if (i.memberId === memberId && i.pay !== "cup") out.push({ key: `o:${o.id}:${i.id}`, memberId, cafeId: o.cafeId, at, drink: select.itemDrinkName(o.cafeId, i) }); });
+        else if (o.memberId === memberId && o.pay === "paid") out.push({ key: `o:${o.id}`, memberId, cafeId: o.cafeId, at, drink: select.pickupDrinkName(o) });
+      });
+      return out;
+    },
+    /** The Circle's last few days: drinks, new passport stamps and badges, newest first, with acknowledgements. */
+    circleActivity(c, at = Date.now(), viewerId = state.memberId) {
+      const since = at - state.circleRules.activityDays * 24 * 60 * MIN;
+      const rows = [];
+      select.circleMembers(c).filter((m) => select.privacy(m.id).share).forEach((m) => {
+        select.memberDrinks(m.id, since).forEach((d) => rows.push({ ...d, kind: "drink", member: m, text: `${d.drink} at ${select.circlePlace(m.id, d.cafeId)}` }));
+        const club = select.club(m.id);
+        club.passport.stamps.filter((st) => st.firstAt && st.firstAt >= since).forEach((st) => rows.push({ key: `s:${m.id}:${st.cafe.id}`, kind: "stamp", member: m, at: st.firstAt + 1, text: `New passport stamp: ${st.cafe.name}` }));
+        club.badges.filter((b) => b.earned && b.earnedAt && b.earnedAt >= since).forEach((b) => rows.push({ key: `b:${m.id}:${b.id}`, kind: "badge", member: m, at: b.earnedAt + 2, text: `Badge earned: ${b.name}` }));
+      });
+      return rows.sort((a, b) => b.at - a.at).map((r) => {
+        const by = state.acks[r.key] || {};
+        return { ...r, acks: Object.keys(by).length, acked: !!by[viewerId], own: r.member.id === viewerId };
+      });
+    },
+    /** Cafés the Circle has visited this month, and who has explored the most (never cups). */
+    circleMonth(c, at = Date.now()) {
+      const d = new Date(at); d.setHours(0, 0, 0, 0); d.setDate(1);
+      const since = d.getTime();
+      const venues = new Set();
+      const ranking = select.circleMembers(c).filter((m) => select.privacy(m.id).share).map((m) => {
+        const mine = new Set(select.memberDrinks(m.id, since).map((x) => venueOf(x.cafeId)));
+        mine.forEach((v) => venues.add(v));
+        return { member: m, cafes: mine.size };
+      }).filter((r) => r.cafes > 0).sort((a, b) => b.cafes - a.cafes || a.member.firstName.localeCompare(b.member.firstName));
+      const names = [...venues].map((v) => state.brands[v]?.name || state.cafes[v]?.name).filter(Boolean);
+      return { cafes: venues.size, names, ranking, streak: select.circleStreak(c, at) };
+    },
+    /** Weeks running in which the Circle met: a round two or more members came to. */
+    circleStreak(c, at = Date.now()) {
+      const weeks = new Set(Object.values(state.rounds).filter((r) => r.circleId === c.id && r.at <= at && select.roundAttendees(r).length >= 2).map((r) => weekOf(r.at)));
+      const WEEK = 7 * 24 * 60 * MIN;
+      let w = weekOf(at);
+      if (!weeks.has(w)) w = weekOf(w - 1); // this week isn't over yet: count from last week
+      let n = 0;
+      while (weeks.has(w)) { n++; w = weekOf(w - WEEK + 12 * 60 * MIN); }
+      const line = n >= 2 ? `Your Circle has met ${NUM_WORDS[n] || n} weeks running.`
+        : n === 1 ? "Your Circle met last week. Call a round to keep it going."
+        : "Call a round to start a streak.";
+      return { weeks: n, line };
+    },
+    /** When a member came to a round: said yes, and had a drink there from an hour before to three hours after. */
+    roundAttendedAt(r, memberId) {
+      if (!r.answers?.[memberId]?.going) return null;
+      const hit = select.memberDrinks(memberId, r.at - 60 * MIN).find((d) => d.cafeId === r.cafeId && d.at <= r.at + 3 * 60 * MIN);
+      return hit ? hit.at : null;
+    },
+    roundAttendees: (r) => Object.keys(r.answers || {}).filter((id) => select.roundAttendedAt(r, id)),
+    /** A Circle's rounds: coming up (newest call first) and past. */
+    roundsOf(circleId, at = Date.now()) {
+      const all = Object.values(state.rounds).filter((r) => r.circleId === circleId && !r.cancelled);
+      return {
+        upcoming: all.filter((r) => r.at + 2 * 60 * MIN >= at).sort((a, b) => a.at - b.at),
+        past: all.filter((r) => r.at + 2 * 60 * MIN < at).sort((a, b) => b.at - a.at),
+      };
     },
 
     loyalty(cafeId, memberId = state.memberId) {
@@ -4805,6 +5105,45 @@ li:last-child > .branch-row { border-bottom: 0; }
       if (!newer && !added.length) return;
     }
     emit("group", { group: state.groups[g.id], added, quiet }, opts);
+  }
+
+  /** A Circle from another device: the newest change wins (members joining, leaving, removed). */
+  function applyCircle(c, opts) {
+    if (!c || !c.id) return;
+    learnProfiles(c.profiles);
+    const cur = state.circles[c.id];
+    if (cur && (c.updatedAt || 0) <= (cur.updatedAt || 0)) return;
+    state.circles[c.id] = clone(c);
+    emit("circle", { circle: state.circles[c.id] }, opts);
+  }
+  /** A round: answers merge per member (newest wins); the header's newest change wins. */
+  function applyRound(r, opts) {
+    if (!r || !r.id || !state.cafes[r.cafeId]) return;
+    const cur = state.rounds[r.id];
+    if (!cur) { state.rounds[r.id] = clone(r); emit("round", { round: state.rounds[r.id] }, opts); return; }
+    let changed = false;
+    Object.entries(r.answers || {}).forEach(([id, a]) => { if (!cur.answers[id] || cur.answers[id].at < a.at) { cur.answers[id] = { ...a }; changed = true; } });
+    if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { const { answers, ...head } = clone(r); Object.assign(cur, head); changed = true; }
+    if (changed) emit("round", { round: cur }, opts);
+  }
+  /** One acknowledgement per member per entry; tapping again takes it back.
+      on: true adds, false removes. The newest change per member and entry wins. */
+  function applyAck({ key, memberId, at, on = true }, opts) {
+    if (!key || !memberId || !at) return;
+    const id = `${key}|${memberId}`;
+    const seen = ackAt[id] ?? state.acks[key]?.[memberId] ?? 0;
+    if (at <= seen) return;
+    ackAt[id] = at;
+    const by = (state.acks[key] = state.acks[key] || {});
+    if (on) by[memberId] = at; else delete by[memberId];
+    liveAcks.set(id, { key, memberId, at, on: !!on });
+    emit("ack", { key, memberId, at, on: !!on }, opts);
+  }
+  function applyPrivacy({ memberId, privacy, at }, opts) {
+    const m = state.members[memberId];
+    if (!m || (m.privacyAt || 0) >= at) return;
+    m.privacy = { ...privacy }; m.privacyAt = at;
+    emit("privacy", { memberId, privacy: m.privacy, at }, opts);
   }
 
   /** Move an order on. Cup orders write the ledger: release on cancel or reject;
@@ -5238,6 +5577,99 @@ li:last-child > .branch-row { border-bottom: 0; }
       appendEntries(entries);
       if (r.gathering) applyRsvp({ gatheringId: r.gathering.id, memberId, going: true, at });
       return { ok: true, reward: r };
+    },
+
+    /* ---------------- Circles ---------------- */
+
+    /** Start a Circle: you're its host and first member. */
+    createCircle(name, memberId = state.memberId) {
+      // BACKEND: POST /circles { name } -> circle row + an invitation link
+      const m = state.members[memberId];
+      const clean = String(name || "").trim().replace(/\s+/g, " ").slice(0, 40);
+      if (!m || clean.length < 2) return { ok: false, message: "Give your Circle a name." };
+      const now = Date.now();
+      const c = { id: uid("cc"), name: clean, hostId: m.id, createdAt: now, updatedAt: now, members: { [m.id]: { joinedAt: now } }, live: true, profiles: profilesFor([m.id]) };
+      state.circles[c.id] = c;
+      emit("circle", { circle: c });
+      return { ok: true, circle: c };
+    },
+    /** Join by link. Up to circleRules.maxMembers. */
+    joinCircle(circleId, memberId = state.memberId) {
+      // BACKEND: POST /circles/:id/members (checked against the invitation link)
+      const c = state.circles[circleId];
+      const m = state.members[memberId];
+      if (!c || c.closed || !m) return { ok: false, message: "That Circle isn’t available." };
+      if (c.members[memberId]) return { ok: true, circle: c };
+      if (Object.keys(c.members).length >= state.circleRules.maxMembers) return { ok: false, message: `This Circle is full. A Circle has up to ${state.circleRules.maxMembers} members.` };
+      c.members[memberId] = { joinedAt: Date.now() };
+      c.profiles = { ...(c.profiles || {}), ...profilesFor([memberId]) };
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true, circle: c };
+    },
+    /** Leave at any time. A host who leaves hands the Circle to the longest-standing member. */
+    leaveCircle(circleId, memberId = state.memberId) {
+      // BACKEND: DELETE /circles/:id/members/me
+      const c = state.circles[circleId];
+      if (!c || !c.members[memberId]) return { ok: false };
+      delete c.members[memberId];
+      const left = Object.entries(c.members).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
+      if (!left.length) c.closed = true;
+      else if (c.hostId === memberId) c.hostId = left[0][0];
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true };
+    },
+    /** The host removes a member. */
+    removeFromCircle(circleId, memberId) {
+      // BACKEND: DELETE /circles/:id/members/:memberId (host only)
+      const c = state.circles[circleId];
+      if (!c || c.hostId !== state.memberId || memberId === c.hostId || !c.members[memberId]) return { ok: false };
+      delete c.members[memberId];
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true };
+    },
+    /** Call a round: a café and a time. The caller is coming. */
+    callRound(circleId, { cafeId, at }, memberId = state.memberId) {
+      // BACKEND: POST /circles/:id/rounds { cafeId, at }
+      const c = state.circles[circleId];
+      if (!c || !c.members[memberId] || !state.cafes[cafeId] || !at) return { ok: false, message: "Choose a café and a time." };
+      const now = Date.now();
+      const r = { id: uid("rd"), circleId, callerId: memberId, cafeId, at, createdAt: now, updatedAt: now, groupId: null, answers: { [memberId]: { going: true, at: now } }, live: true };
+      state.rounds[r.id] = r;
+      emit("round", { round: r });
+      return { ok: true, round: r };
+    },
+    /** "I'll be there" or "Not this time". */
+    answerRound(roundId, going, memberId = state.memberId) {
+      const r = state.rounds[roundId];
+      if (!r || !state.circles[r.circleId]?.members[memberId]) return { ok: false };
+      r.answers[memberId] = { going: !!going, at: Date.now() };
+      r.updatedAt = Math.max(r.updatedAt || 0, 1); // so join snapshots carry it
+      emit("round", { round: r });
+      return { ok: true };
+    },
+    /** A round becomes a table (group order) that everyone coming can add to. */
+    setRoundTable(roundId, groupId) {
+      const r = state.rounds[roundId];
+      if (!r) return { ok: false };
+      r.groupId = groupId; r.updatedAt = Date.now();
+      emit("round", { round: r });
+      return { ok: true };
+    },
+    /** One quiet acknowledgement of a Circle entry; tap again to take it back. */
+    acknowledge(key, memberId = state.memberId) {
+      // BACKEND: PUT / DELETE /circles/acks/:key (unique per member and entry)
+      const on = !state.acks[key]?.[memberId];
+      applyAck({ key, memberId, at: Math.max(Date.now(), (ackAt[`${key}|${memberId}`] || 0) + 1), on });
+      return { ok: true, on };
+    },
+    /** Share my coffee with my Circles, hide which branch. */
+    setPrivacy(patch, memberId = state.memberId) {
+      // BACKEND: PATCH /me/privacy
+      applyPrivacy({ memberId, privacy: { ...select.privacy(memberId), ...patch }, at: Date.now() });
+      emit("member", { member: state.members[memberId] });
     },
 
     /* ---------------- Group orders ---------------- */
@@ -6210,7 +6642,9 @@ li:last-child > .branch-row { border-bottom: 0; }
    twice is harmless. Pickup orders travel whole (`pickup`); a status only
    moves forward, so a late or repeated message can't undo one. Tables
    (group orders) travel whole too (`group`); drinks merge by id, so
-   several phones can add at once.
+   several phones can add at once. Circles: `circle` (newest change wins),
+   `round` (answers merge per member), `ack` (add or undo; newest wins),
+   `privacy` (newest wins).
 
    Join handshake: a window that joins says “hello”. A café window answers
    with statuses plus this session’s ledger entries and plan changes; any
@@ -7695,6 +8129,7 @@ li:last-child > .branch-row { border-bottom: 0; }
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
             #/app/map · #/app/club · #/app/gift · #/app/plan
             #/app/plan/pay · #/app/order · #/app/order/pay · #/app/group/:id
+            #/app/circle/:id · #/app/circle/:id/join
             #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
    app-cafes.js, the plan picker and payment in app-plan.js, the Club
@@ -7832,6 +8267,8 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "circle" && b && path[2] === "join" && REG.circleJoin) return { key: `circle/${b}/join`, tab: "club", flow: true, make: () => REG.circleJoin(ctx, b) };
+        if (a === "circle" && b && REG.circle) return { key: `circle/${b}`, tab: "club", make: () => REG.circle(ctx, b) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -8075,6 +8512,11 @@ li:last-child > .branch-row { border-bottom: 0; }
               <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
             </section>
 
+            <section class="drawer__section" aria-labelledby="dr-privacy">
+              <h3 class="eyebrow" id="dr-privacy">Privacy</h3>
+              ${privacyHtml()}
+            </section>
+
             <section class="drawer__section drawer__appearance" aria-labelledby="dr-look">
               <h3 class="eyebrow" id="dr-look">Appearance</h3>
               ${ui.segmented({ name: "flavour", label: "Colour theme", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
@@ -8087,6 +8529,17 @@ li:last-child > .branch-row { border-bottom: 0; }
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
+      }
+
+      /** Circles see the café and the time after the fact; never a location. */
+      function privacyHtml() {
+        const p = S.privacy();
+        const sw = (key, on, title, line, disabled = false) => html`<label class="switch-row${disabled ? " is-off" : ""}">
+          <span class="switch-row__text"><span class="row__title">${title}</span><span class="row__meta">${line}</span></span>
+          <input type="checkbox" role="switch" class="switch" data-privacy="${key}" ${on ? raw("checked") : ""} ${disabled ? raw("disabled") : ""}>
+        </label>`;
+        return html`${sw("share", p.share, "Share my coffee with my Circles", "The café and the time, after you’ve had it. Never where you are now.")}
+          ${sw("hideBranch", p.hideBranch, "Hide which branch", "Your Circles see “Double Shot”, not the branch.", !p.share)}`;
       }
 
       function openDrawer() {
@@ -8440,6 +8893,16 @@ li:last-child > .branch-row { border-bottom: 0; }
         location.hash = hrefFor(ids[i]);
       };
 
+      // Drawer: privacy switches
+      const onChange = (e) => {
+        const t = e.target;
+        if (!t.matches("[data-privacy]")) return;
+        A.setPrivacy({ [t.dataset.privacy]: t.checked });
+        const box = t.closest(".drawer__section");
+        if (box) { $$(".switch-row", box).forEach((n) => n.remove()); box.insertAdjacentHTML("beforeend", privacyHtml().s); $(`[data-privacy="${t.dataset.privacy}"]`, box)?.focus(); }
+        ui.toast(t.dataset.privacy === "share" ? (t.checked ? "Your Circles can see your coffee again." : "Your coffee is now private.") : (t.checked ? "Your Circles see the café, not the branch." : "Your Circles see the branch."));
+      };
+      el.addEventListener("change", onChange);
       el.addEventListener("click", onClick);
       el.addEventListener("keydown", onKeydown);
 
@@ -8456,7 +8919,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
       // Pickup orders: the drawer follows along, and the café's moves get a word
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
@@ -8531,6 +8994,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (typeof active.cleanup === "function") active.cleanup();
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);
+        el.removeEventListener("change", onChange);
         el.removeEventListener("keydown", onKeydown);
         window.removeEventListener("resize", fit);
         api = null;
@@ -9910,7 +10374,14 @@ li:last-child > .branch-row { border-bottom: 0; }
     return expired;
   }
 
-  LCC.appOrder = { start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine, openTables };
+  /** A table for a Circle's round: café and time already chosen; this device hosts it. */
+  function startTable({ cafeId, pickupAt }) {
+    const res = A.startGroup({ cafeId, asap: false, pickupAt });
+    if (res.ok) hosted.add(res.group.id);
+    return res;
+  }
+
+  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine, openTables };
 
   /* -------------------------------------------------------------------
      Simulated payment fields, shared by the order, table and cover forms.
@@ -11324,6 +11795,11 @@ li:last-child > .branch-row { border-bottom: 0; }
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
           </div>
 
+          <section class="app-section" aria-labelledby="circles-h">
+            <h2 class="eyebrow app-section__title" id="circles-h">Circles</h2>
+            <div class="stack" style="--stack-gap:var(--space-3)" data-club-circles>${LCC.appCircles ? LCC.appCircles.sectionHtml() : ""}</div>
+          </section>
+
           <section aria-labelledby="passport-h">
             <h2 class="sr-only" id="passport-h">Lahore coffee passport</h2>
             <div class="passport" data-club="passport">${passportBookHtml(c)}</div>
@@ -11433,7 +11909,9 @@ li:last-child > .branch-row { border-bottom: 0; }
         $(".phone__screen", el).appendChild(beansSheet);
         beansSheet.addEventListener("click", onBeansClick);
         view.addEventListener("click", onClick);
+        const unbindCircles = LCC.appCircles ? LCC.appCircles.bindSection(view, ctx) : () => {};
         return () => {
+          unbindCircles();
           clearTimeout(confirmTimer);
           unbindPerks();
           ui.closeSheet(badgeSheet);
@@ -11693,6 +12171,425 @@ li:last-child > .branch-row { border-bottom: 0; }
   };
 
   LCC.appClub = { waLink, formatPhone };
+})();
+
+</script>
+<script>
+/* ---- src/app-circles.js ---- */
+/* =====================================================================
+   Lahore Coffee Club — app-circles.js
+   Circles: small private groups (up to 12) inside the Club tab.
+
+     Club tab           your Circles (a small brick ring each), Start a Circle
+     #/app/circle/:id   the Circle: the large ring, members, rounds,
+                        this month (cafés explored, the streak), activity
+     #/app/circle/:id/join   the invitation link ("Add them to your circle")
+
+   The mark is the brick ring (ui.brickRing): one brick per member slot,
+   joined members filled, empty slots outlined. The logo isn't redrawn.
+
+   Privacy: members see each other's café and time, after the fact, never
+   a location. Each member chooses in the drawer whether to share at all
+   and whether to hide the branch (store.select.privacy).
+   ===================================================================== */
+(function () {
+  "use strict";
+  const LCC = window.LCC;
+  const { store, fmt, ui } = LCC;
+  const { html, raw, $, icon } = ui;
+  const S = store.select;
+  const A = store.actions;
+  const REG = (LCC.appScreens = LCC.appScreens || {});
+  const max = () => S.circleRules().maxMembers;
+  const LIVE = () => (LCC.sync ? LCC.sync.liveUrl : `${location.href.split("#")[0]}`);
+  const joinUrl = (c) => `${LIVE()}${LCC.sync ? LCC.sync.withRoom(`#/app/circle/${c.id}/join`) : `#/app/circle/${c.id}/join`}`;
+  const shareText = (c) => `Join ${c.name}, my Circle on Lahore Coffee Club. We see where each other has had coffee, and call rounds together: ${joinUrl(c)}`;
+  const waHref = (c) => `https://wa.me/?text=${encodeURIComponent(shareText(c))}`;
+  const count = (c) => Object.keys(c.members).length;
+
+  /** The mark: one brick per member slot. */
+  function ringHtml(c, { large = false } = {}) {
+    const n = count(c);
+    const svg = large
+      ? ui.brickRing({ total: max(), filled: n, size: 200, radius: 82, length: 24, twist: 14 })
+      : ui.brickRing({ total: max(), filled: n, size: 48, radius: 18, length: 9, twist: 14 });
+    return html`<span class="circle-ring${large ? " circle-ring--lg" : ""}" role="img" aria-label="${n} of ${max()} members">
+      ${svg}
+      ${large ? html`<span class="circle-ring__center" aria-hidden="true"><span class="circle-ring__n num">${n}</span><span class="t-micro t-faint num">of ${max()}</span></span>` : ""}
+    </span>`;
+  }
+
+  /* -------------------------------------------------------------------
+     Club tab section
+     ------------------------------------------------------------------- */
+  const form = { open: false, name: "", error: "" };
+  function sectionHtml() {
+    const list = S.circlesOf();
+    return html`
+      ${list.length ? html`<ul role="list" class="circle-list">${list.map((c) => {
+        const mo = S.circleMonth(c);
+        return html`<li><a class="row circle-row" href="#/app/circle/${c.id}">
+          ${ringHtml(c)}
+          <span class="row__main"><span class="row__title">${c.name}</span><span class="row__meta num">${count(c)} of ${max()} · ${mo.cafes} ${mo.cafes === 1 ? "café" : "cafés"} this month</span></span>
+          <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+        </a></li>`;
+      })}</ul>` : html`<p class="t-small t-muted">A Circle is a few people you have coffee with. You see each other’s cafés, after the fact, and call rounds together.</p>`}
+      ${form.open
+        ? html`<form class="stack circle-start" style="--stack-gap:var(--space-3)" data-circle-form novalidate>
+            <div class="field" data-invalid="${!!form.error}">
+              <label class="field__label" for="circle-name">Name your Circle</label>
+              <input class="input" id="circle-name" name="circlename" value="${form.name}" maxlength="40" placeholder="The Gulberg Circle" autocomplete="off" aria-describedby="circle-name-err">
+              <p class="field__error" id="circle-name-err">${form.error}</p>
+            </div>
+            <button type="submit" class="btn btn--primary btn--block">Start the Circle</button>
+            <button type="button" class="btn btn--link" data-circle-cancel>Not now</button>
+          </form>`
+        : html`<button type="button" class="btn btn--secondary btn--block" data-circle-start>Start a Circle</button>`}`;
+  }
+
+  /** Wires the Club tab section; returns a cleanup. */
+  function bindSection(root, ctx) {
+    const box = () => $("[data-club-circles]", root);
+    const paint = () => { const b = box(); if (b) b.innerHTML = sectionHtml().s; };
+    const onClick = (e) => {
+      if (e.target.closest("[data-circle-start]")) { form.open = true; form.error = ""; paint(); return $("#circle-name", root)?.focus(); }
+      if (e.target.closest("[data-circle-cancel]")) { form.open = false; paint(); return $("[data-circle-start]", root)?.focus(); }
+    };
+    const onInput = (e) => { if (e.target.name === "circlename") form.name = e.target.value; };
+    const onSubmit = (e) => {
+      if (!e.target.matches("[data-circle-form]")) return;
+      e.preventDefault();
+      const res = A.createCircle(form.name);
+      if (!res.ok) { form.error = res.message; paint(); return $("#circle-name", root)?.focus(); }
+      form.open = false; form.name = ""; form.error = "";
+      ctx.go(`#/app/circle/${res.circle.id}`);
+    };
+    root.addEventListener("click", onClick);
+    root.addEventListener("input", onInput);
+    root.addEventListener("submit", onSubmit);
+    const offs = ["circle", "privacy", "ledger", "pickup"].map((t) => store.on(t, () => { if (!box()?.contains(document.activeElement)) paint(); }));
+    return () => {
+      root.removeEventListener("click", onClick);
+      root.removeEventListener("input", onInput);
+      root.removeEventListener("submit", onSubmit);
+      offs.forEach((off) => off());
+    };
+  }
+  LCC.appCircles = { sectionHtml, bindSection, ringHtml };
+
+  /* -------------------------------------------------------------------
+     #/app/circle/:id
+     ------------------------------------------------------------------- */
+  REG.circle = (ctx, circleId) => {
+    const { view } = ctx;
+    const call = { open: false, cafeId: null, at: "", error: "" };
+    let manage = false;
+    const c = () => S.circle(circleId);
+    const me = () => ctx.member().id;
+    const isHost = () => c()?.hostId === me();
+    const name = (m) => (m.id === me() ? "You" : m.firstName);
+
+    function headHtml() {
+      const cc = c();
+      const host = S.member(cc.hostId);
+      return html`<div class="circle-hero">
+        ${ringHtml(cc, { large: true })}
+        <div class="stack" style="--stack-gap:var(--space-1)">
+          <p class="eyebrow">Circle</p>
+          <h1 class="t-h2" data-detail-title>${cc.name}</h1>
+          <p class="t-small t-muted num">${count(cc)} of ${max()} members · hosted by ${host ? name(host).replace(/^You$/, "you") : "a member"}</p>
+        </div>
+        <ul role="list" class="circle-people">${S.circleMembers(cc).map((m) => html`<li><span class="circle-people__mark" aria-hidden="true">${(m.initials || m.firstName[0]).slice(0, 2)}</span><span>${name(m)}</span></li>`)}</ul>
+        ${count(cc) < max()
+          ? html`<a class="btn btn--secondary btn--block" href="${waHref(cc)}" target="_blank" rel="noopener">${icon("share")}Add them to your circle</a>
+             <button type="button" class="btn btn--link" data-circle-copy>Copy the invitation link</button>`
+          : html`<p class="t-small t-muted">This Circle is full, ${max()} of ${max()}.</p>`}
+      </div>`;
+    }
+
+    /* Rounds -------------------------------------------------------- */
+    function roundHtml(r) {
+      const caller = S.member(r.callerId);
+      const place = S.pickupPlace(r.cafeId);
+      const ans = Object.entries(r.answers || {}).map(([id, a]) => ({ m: S.member(id), going: a.going })).filter((x) => x.m);
+      const coming = ans.filter((x) => x.going).map((x) => name(x.m));
+      const notThis = ans.filter((x) => !x.going).map((x) => name(x.m));
+      const mine = r.answers?.[me()];
+      const today = new Date(r.at).toDateString() === new Date().toDateString();
+      const when = `${today ? "" : `${fmt.date(r.at)}, `}${fmt.time(r.at)}`;
+      const table = r.groupId ? S.group(r.groupId) : null;
+      const beans = S.beans().rules.roundAttend;
+      return html`<article class="round card" aria-label="Round at ${place}">
+        <p class="t-body">${caller ? (caller.id === me() ? "You" : caller.firstName) : "A member"} called a round: <strong>${place}</strong> at <span class="num">${when}</span>.</p>
+        <p class="t-small t-muted">${coming.length ? `Coming: ${coming.join(", ")}` : "No one yet"}${notThis.length ? ` · Not this time: ${notThis.join(", ")}` : ""}</p>
+        <div class="round__answers" role="group" aria-label="Will you be there?">
+          <button type="button" class="btn btn--compact ${mine?.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="1" aria-pressed="${!!mine?.going}">I’ll be there</button>
+          <button type="button" class="btn btn--compact ${mine && !mine.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="0" aria-pressed="${!!mine && !mine.going}">Not this time</button>
+        </div>
+        ${mine?.going
+          ? table && table.status !== "cancelled"
+            ? html`<a class="btn btn--link" href="#/app/group/${table.id}">${table.status === "open" ? "Add your drink to the table" : "See the table"}</a>`
+            : html`<button type="button" class="btn btn--secondary btn--block" data-round-table="${r.id}">Order together</button>
+                <p class="t-micro t-faint">Starts a table at ${place} for ${fmt.time(r.at)}. Everyone coming adds their own drink.</p>`
+          : ""}
+        <p class="t-micro t-faint num">+${beans} Beans for everyone who comes.</p>
+      </article>`;
+    }
+
+    function callHtml() {
+      if (!call.open) return html`<button type="button" class="btn btn--primary btn--block" data-round-call>Call a round</button>`;
+      if (!call.cafeId) call.cafeId = ctx.member().plan?.type === "brand" ? S.branches(ctx.member().plan.brandId)[0].id : S.clubCafes()[0].id;
+      const t = S.pickupTimes(call.cafeId);
+      if (!t.slots.some((x) => String(x.at) === String(call.at))) call.at = t.slots[0] ? String(t.slots[0].at) : "";
+      const brands = [...new Set(S.cafes().filter((x) => x.brandId).map((x) => x.brandId))].map(S.brand);
+      return html`<form class="stack round-call" style="--stack-gap:var(--space-4)" data-round-form novalidate>
+        <div class="field">
+          <label class="field__label" for="round-cafe">Café</label>
+          <span class="select"><select class="input" id="round-cafe" data-round-cafe>
+            ${brands.map((b) => html`<optgroup label="${b.name}">${S.branches(b.id).map((x) => html`<option value="${x.id}" ${x.id === call.cafeId ? raw("selected") : ""}>${b.name} · ${x.branch}</option>`)}</optgroup>`)}
+            <optgroup label="Partner cafés">${S.clubCafes().map((x) => html`<option value="${x.id}" ${x.id === call.cafeId ? raw("selected") : ""}>${x.name}</option>`)}</optgroup>
+          </select></span>
+        </div>
+        ${t.slots.length
+          ? html`<div class="field">
+              <label class="field__label" for="round-at">Time, today</label>
+              <span class="select"><select class="input num" id="round-at" data-round-at>${t.slots.map((x) => html`<option value="${x.at}" ${String(x.at) === String(call.at) ? raw("selected") : ""}>${x.label}</option>`)}</select></span>
+            </div>
+            <p class="t-small t-muted num">“${ctx.member().firstName} called a round: ${S.pickupPlace(call.cafeId)} at ${fmt.time(Number(call.at))}.”</p>`
+          : html`<p class="t-small t-muted">${S.pickupPlace(call.cafeId)} has closed for today. Choose another café.</p>`}
+        <p class="cv-error" role="alert">${call.error}</p>
+        <button type="submit" class="btn btn--primary btn--block" ${t.slots.length ? "" : raw("disabled")}>Call the round</button>
+        <button type="button" class="btn btn--link" data-round-cancel>Not now</button>
+      </form>`;
+    }
+
+    function roundsHtml() {
+      const { upcoming } = S.roundsOf(circleId);
+      return html`${upcoming.map(roundHtml)}<div data-round-call-box>${callHtml()}</div>`;
+    }
+
+    /* This month ---------------------------------------------------- */
+    function monthHtml() {
+      const mo = S.circleMonth(c());
+      return html`<div class="circle-month">
+        <p class="circle-month__n"><span class="num">${mo.cafes}</span> ${mo.cafes === 1 ? "café" : "cafés"} explored together</p>
+        ${mo.names.length ? html`<p class="t-small t-muted">${mo.names.join(", ")}.</p>` : ""}
+        <p class="t-small">${mo.streak.line}</p>
+        ${mo.ranking.length ? html`<div>
+          <p class="t-micro t-faint">Most explored</p>
+          <ol role="list" class="circle-rank">${mo.ranking.map((r, i) => html`<li><span class="num t-faint">${i + 1}</span><span>${name(r.member)}</span><span class="t-small t-muted num">${r.cafes} ${r.cafes === 1 ? "café" : "cafés"}</span></li>`)}</ol>
+        </div>` : ""}
+      </div>`;
+    }
+
+    /* Activity ------------------------------------------------------ */
+    function activityHtml() {
+      const rows = S.circleActivity(c());
+      const mine = S.privacy(me());
+      return html`${!mine.share ? html`<p class="t-small t-muted">You’re not sharing your coffee with your Circles. Change it in your profile.</p>` : ""}
+        ${rows.length ? html`<ul role="list" class="circle-act">${rows.map((r) => html`<li class="circle-act__row">
+          <p class="circle-act__text"><strong>${name(r.member)}</strong> · ${r.text} · <span class="t-muted" data-rel-time="${r.at}">${fmt.ago(r.at)}</span></p>
+          <button type="button" class="ack" data-ack="${r.key}" aria-pressed="${r.acked}" ${r.own ? raw("disabled") : ""}
+            aria-label="${r.own ? "Acknowledgements" : r.acked ? "Acknowledged. Tap to take it back" : "Acknowledge"}${r.acks ? `, ${r.acks}` : ""}">
+            ${ui.cupIcon(r.acked ? "moderate" : "quiet", { size: 16, cls: "ack__icon" })}<span class="num">${r.acks || ""}</span>
+          </button>
+        </li>`)}</ul>` : html`<p class="t-small t-muted">Nothing this week yet.</p>`}`;
+    }
+
+    /* Members (manage) ---------------------------------------------- */
+    function membersHtml() {
+      const cc = c();
+      return html`${manage && isHost() ? html`<ul role="list">${S.circleMembers(cc).filter((m) => m.id !== cc.hostId).map((m) => html`<li class="row">
+          <span class="row__main"><span class="row__title">${m.firstName} ${m.lastName || ""}</span><span class="row__meta">Joined ${fmt.shortDate(cc.members[m.id].joinedAt)}</span></span>
+          <button type="button" class="btn btn--link" data-circle-remove="${m.id}">Remove</button>
+        </li>`)}</ul>` : ""}
+        <div class="circle-leave">
+          ${isHost() && count(cc) > 1 ? html`<button type="button" class="btn btn--link" data-circle-manage>${manage ? "Done" : "Manage members"}</button>` : ""}
+          <button type="button" class="btn btn--link" data-circle-leave>Leave this Circle</button>
+        </div>
+        <p class="t-micro t-faint">Your Circle sees the café and the time, after you’ve had your coffee. Never where you are.</p>`;
+    }
+
+    function bodyHtml() {
+      const cc = c();
+      if (!cc || cc.closed || !cc.members[me()]) {
+        return html`<div class="stack" style="--stack-gap:var(--space-3)">
+          <h1 class="t-h2">${cc && !cc.closed ? `You’re not in ${cc.name}.` : "This Circle isn’t here."}</h1>
+          <p class="t-small t-muted">${cc && !cc.closed ? "Ask a member for the invitation link." : "It may have closed, or it hasn’t reached this phone yet."}</p>
+          <a class="btn btn--secondary" href="#/app/club">Back to the club</a>
+        </div>`;
+      }
+      return html`<div data-c-head>${headHtml()}</div>
+        <section class="app-section" aria-labelledby="c-rounds-h">
+          <h2 class="eyebrow app-section__title" id="c-rounds-h">Rounds</h2>
+          <div class="stack" style="--stack-gap:var(--space-3)" data-c-rounds>${roundsHtml()}</div>
+        </section>
+        <section class="app-section" aria-labelledby="c-month-h">
+          <h2 class="eyebrow app-section__title" id="c-month-h">This month</h2>
+          <div data-c-month>${monthHtml()}</div>
+        </section>
+        <section class="app-section" aria-labelledby="c-act-h">
+          <h2 class="eyebrow app-section__title" id="c-act-h">This week</h2>
+          <div data-c-act>${activityHtml()}</div>
+        </section>
+        <section class="app-section" aria-label="Membership">
+          <div data-c-members>${membersHtml()}</div>
+        </section>`;
+    }
+
+    const set = (sel, markup) => { const n = $(sel, view); if (n && !n.contains(document.activeElement)) n.innerHTML = markup.s; };
+    function paint({ all = false } = {}) {
+      const body = $("[data-c-body]", view);
+      if (!body) return;
+      if (all || !$("[data-c-head]", body)) { body.innerHTML = bodyHtml().s; return; }
+      if (!c() || c().closed || !c().members[me()]) { body.innerHTML = bodyHtml().s; return; }
+      set("[data-c-head]", headHtml());
+      if (!call.open) set("[data-c-rounds]", roundsHtml());
+      set("[data-c-month]", monthHtml());
+      set("[data-c-act]", activityHtml());
+      set("[data-c-members]", membersHtml());
+    }
+    const paintRounds = (focusSel) => { const n = $("[data-c-rounds]", view); if (n) n.innerHTML = roundsHtml().s; if (focusSel) $(focusSel, view)?.focus(); };
+
+    function onClick(e) {
+      const t = e.target;
+      const ans = t.closest("[data-round-answer]");
+      if (ans) {
+        const going = ans.dataset.going === "1";
+        A.answerRound(ans.dataset.roundAnswer, going);
+        ctx.toast(going ? "You’re coming. The others can see it." : "Noted. Maybe next time.", { iconName: going ? "calendar" : "check" });
+        return paintRounds(`[data-round-answer="${ans.dataset.roundAnswer}"][data-going="${ans.dataset.going}"]`);
+      }
+      const rt = t.closest("[data-round-table]");
+      if (rt) {
+        const r = store.getState().rounds[rt.dataset.roundTable];
+        const res = LCC.appOrder.startTable({ cafeId: r.cafeId, pickupAt: r.at });
+        if (!res.ok) return ctx.toast(res.message, { iconName: "info" });
+        A.setRoundTable(r.id, res.group.id);
+        return ctx.go(`#/app/group/${res.group.id}`);
+      }
+      if (t.closest("[data-round-call]")) { call.open = true; call.error = ""; paintRounds("#round-cafe"); return; }
+      if (t.closest("[data-round-cancel]")) { call.open = false; paintRounds("[data-round-call]"); return; }
+      const ack = t.closest("[data-ack]");
+      if (ack) { A.acknowledge(ack.dataset.ack); set("[data-c-act]", activityHtml()); return $(`[data-ack="${ack.dataset.ack}"]`, view)?.focus(); }
+      if (t.closest("[data-circle-manage]")) { manage = !manage; const n = $("[data-c-members]", view); n.innerHTML = membersHtml().s; return $("[data-circle-manage]", view)?.focus(); }
+      const rm = t.closest("[data-circle-remove]");
+      if (rm) {
+        const who = S.member(rm.dataset.circleRemove);
+        if (A.removeFromCircle(circleId, rm.dataset.circleRemove).ok) { ctx.toast(`${who.firstName} is no longer in ${c().name}.`); paint({ all: true }); }
+        return;
+      }
+      if (t.closest("[data-circle-leave]")) {
+        const nm = c().name;
+        if (A.leaveCircle(circleId).ok) { ctx.toast(`You’ve left ${nm}.`); ctx.go("#/app/club", { replace: true }); }
+        return;
+      }
+      if (t.closest("[data-circle-copy]")) {
+        const url = joinUrl(c());
+        try { navigator.clipboard.writeText(url).then(() => ctx.toast("Invitation link copied.", { iconName: "copy" }), () => ctx.toast(url, { iconName: "copy", duration: 6000 })); }
+        catch (_) { ctx.toast(url, { iconName: "copy", duration: 6000 }); }
+      }
+    }
+    function onChange(e) {
+      const t = e.target;
+      if (t.matches("[data-round-cafe]")) { call.cafeId = t.value; call.at = ""; return paintRounds("#round-cafe"); }
+      if (t.matches("[data-round-at]")) { call.at = t.value; return paintRounds("#round-at"); }
+    }
+    function onSubmit(e) {
+      if (!e.target.matches("[data-round-form]")) return;
+      e.preventDefault();
+      const res = A.callRound(circleId, { cafeId: call.cafeId, at: Number(call.at) });
+      if (!res.ok) { call.error = res.message; return paintRounds(); }
+      call.open = false;
+      ctx.toast(`Round called: ${S.pickupPlace(res.round.cafeId)} at ${fmt.time(res.round.at)}.`, { iconName: "calendar" });
+      paintRounds();
+    }
+
+    let onScroll = null;
+    return {
+      html: html`
+        <div class="cafe-detail circle-page">
+          <div class="screen-bar" data-screen-bar>
+            <button type="button" class="icon-btn" data-back="#/app/club" aria-label="Back">${icon("arrowLeft")}</button>
+            <span class="screen-bar__title" aria-hidden="true">${c()?.name || "Circle"}</span>
+          </div>
+          <div class="app-screen" data-c-body>${bodyHtml()}</div>
+        </div>`.s,
+      mount() {
+        view.addEventListener("click", onClick);
+        view.addEventListener("change", onChange);
+        view.addEventListener("submit", onSubmit);
+        const bar = $("[data-screen-bar]", view);
+        onScroll = () => { const title = $("[data-detail-title]", view); if (title) bar.classList.toggle("is-titled", title.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom); };
+        view.addEventListener("scroll", onScroll, { passive: true });
+        return () => {
+          view.removeEventListener("click", onClick);
+          view.removeEventListener("change", onChange);
+          view.removeEventListener("submit", onSubmit);
+          view.removeEventListener("scroll", onScroll);
+        };
+      },
+      on: {
+        circle: ({ circle }) => { if (circle.id === circleId) paint(); },
+        round: ({ round }) => { if (round.circleId === circleId) paint(); },
+        ack: () => set("[data-c-act]", activityHtml()),
+        privacy: () => paint(),
+        ledger: () => paint(),
+        pickup: () => paint(),
+        group: () => { if (!call.open) set("[data-c-rounds]", roundsHtml()); },
+        snapshot: () => paint({ all: true }),
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
+     #/app/circle/:id/join  (the invitation link)
+     ------------------------------------------------------------------- */
+  REG.circleJoin = (ctx, circleId) => {
+    const { view } = ctx;
+    const c = () => S.circle(circleId);
+    function bodyHtml() {
+      const cc = c();
+      const m = ctx.member();
+      if (!cc || cc.closed) {
+        return html`<div class="stack table__wait" style="--stack-gap:var(--space-3)">
+          <span class="spinner" aria-hidden="true"></span>
+          <h1 class="t-h2">Finding the Circle…</h1>
+          <p class="t-small t-muted">It appears as soon as a member’s phone is online. Keep this open.</p>
+        </div>`;
+      }
+      const host = S.member(cc.hostId);
+      const inIt = !!cc.members[m.id];
+      const full = count(cc) >= max();
+      return html`<div class="circle-hero circle-join">
+        ${ringHtml(cc, { large: true })}
+        <div class="stack" style="--stack-gap:var(--space-2)">
+          <p class="eyebrow">An invitation</p>
+          <h1 class="t-h2">${inIt ? `You’re in ${cc.name}.` : `${host ? host.firstName : "A member"} would like you in ${cc.name}.`}</h1>
+          <p class="t-small t-muted">Members see where each other has had coffee: the café and the time, after the fact. Never where you are. You can leave at any time.</p>
+        </div>
+        ${inIt ? html`<a class="btn btn--primary btn--block" href="#/app/circle/${cc.id}">Open the Circle</a>`
+          : full ? html`<p class="t-small">This Circle is full, ${max()} of ${max()}.</p>`
+          : html`<button type="button" class="btn btn--primary btn--block" data-circle-join>Join as ${m.firstName}</button>`}
+      </div>`;
+    }
+    const paint = () => { $("[data-cj-body]", view).innerHTML = bodyHtml().s; };
+    function onClick(e) {
+      if (!e.target.closest("[data-circle-join]")) return;
+      const res = A.joinCircle(circleId);
+      if (!res.ok) return ctx.toast(res.message, { iconName: "info" });
+      ctx.toast(`Welcome to ${res.circle.name}.`);
+      ctx.go(`#/app/circle/${circleId}`, { replace: true });
+    }
+    return {
+      html: html`<div class="flow">
+          <div class="screen-bar"><button type="button" class="icon-btn" data-back="#/app/club" aria-label="Back">${icon("arrowLeft")}</button></div>
+          <div class="app-screen flow__body" data-cj-body>${bodyHtml()}</div>
+        </div>`.s,
+      mount() { view.addEventListener("click", onClick); return () => view.removeEventListener("click", onClick); },
+      on: { circle: paint, snapshot: paint },
+    };
+  };
 })();
 
 </script>

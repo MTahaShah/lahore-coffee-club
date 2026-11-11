@@ -10,8 +10,8 @@
      store.select.cafe("kiln").status;
 
    Events: cafe:status, cafe:viewing, ledger, redeem, pass, member, plan,
-           builder, gift, rsvp, order, pickup, group, session, waitlist,
-           partner, snapshot, tick (every 30s)
+           builder, gift, rsvp, order, pickup, group, circle, round, ack,
+           privacy, session, waitlist, partner, snapshot, tick (every 30s)
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
@@ -30,6 +30,11 @@
    Group orders (state.groups): a host opens a table, friends add a drink
    each within a few minutes (cup, online, or covered by the host), then
    the host sends it as one pickup order with items[].
+
+   Circles (state.circles): small private groups (up to 12) who see each
+   other's coffee after the fact (café and time, never live location),
+   call rounds (state.rounds) and acknowledge each other's entries
+   (state.acks). Members choose what they share (member.privacy).
 
    Beans (points): derived like balances, never stored. Earned from redeem
    entries, collected orders and referrals; spending writes a `beans`
@@ -54,6 +59,11 @@
   const OPEN = ["placed", "making", "ready"];        // pickup orders still in the café's queue
   // A status only moves forward; the finished ones never change again (so sync can't undo them)
   const PICKUP_RANK = { placed: 0, making: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const liveAcks = new Map(); // "key|member" -> latest change in this session (for join snapshots)
+  const ackAt = {};           // "key|member" -> time of the latest change seen (newest wins, undo included)
+  const NUM_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  /** Monday 00:00 of a timestamp's week (streaks count calendar weeks). */
+  const weekOf = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
   const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31, no look-alikes
   const PICKUP_NEXT = { making: ["placed"], ready: ["placed", "making"], collected: ["ready"], rejected: ["placed", "making"], cancelled: ["placed"] };
 
@@ -80,6 +90,10 @@
     orders: byId(clone(seed.orders || [])), // pickup orders, id -> order
     groups: {},                              // group orders still gathering drinks, id -> group
     beansRules: clone(seed.beans),
+    circles: byId(clone(seed.circles || [])),  // id -> { name, hostId, members: { memberId: { joinedAt } } }
+    rounds: byId(clone(seed.rounds || [])),    // id -> { circleId, callerId, cafeId, at, answers, groupId }
+    acks: clone(seed.acks || {}),              // entry key -> memberId -> at
+    circleRules: clone(seed.circleRules || { maxMembers: 12, activityDays: 7 }),
     waitlist: [],
     partnerRequests: [],
   };
@@ -141,6 +155,10 @@
     else if (type === "order") send("order", { memberId: payload.memberId, order: payload.order, at: payload.at });
     else if (type === "pickup") send("pickup", { order: payload.order });
     else if (type === "group") send("group", { group: payload.group });
+    else if (type === "circle") send("circle", { circle: payload.circle });
+    else if (type === "round") send("round", { round: payload.round });
+    else if (type === "ack") send("ack", { key: payload.key, memberId: payload.memberId, at: payload.at, on: payload.on });
+    else if (type === "privacy") send("privacy", { memberId: payload.memberId, privacy: payload.privacy, at: payload.at });
   }
 
   /** A member's plan header: which plan, which cycle. Travels with purchase entries. */
@@ -176,9 +194,14 @@
       orders: Object.values(state.members).filter((m) => m.orderAt).map((m) => ({ memberId: m.id, order: m.order || null, at: m.orderAt })),
       pickups: Object.values(state.orders).filter((o) => o.live),
       groups: Object.values(state.groups).filter((g) => g.live),
+      circles: Object.values(state.circles).filter((c) => c.updatedAt),
+      rounds: Object.values(state.rounds).filter((r) => r.updatedAt),
+      acks: [...liveAcks.values()],
+      privacy: Object.values(state.members).filter((m) => m.privacyAt).map((m) => ({ memberId: m.id, privacy: m.privacy, at: m.privacyAt })),
     };
   }
-  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live) || Object.values(state.groups).some((g) => g.live);
+  const hasLiveData = () => state.ledger.some((e) => e.live) || Object.keys(state.rsvps).length > 0 || Object.values(state.members).some((m) => m.orderAt) || Object.values(state.orders).some((o) => o.live) || Object.values(state.groups).some((g) => g.live)
+    || Object.values(state.circles).some((c) => c.updatedAt) || Object.values(state.rounds).some((r) => r.updatedAt) || liveAcks.size > 0;
 
   function applyRoomSnapshot(snap) {
     if (!snap) return;
@@ -191,6 +214,10 @@
     (snap.rsvps || []).forEach((r) => applyRsvp(r, { remote: true }));
     (snap.orders || []).forEach((o) => applyOrder(o, { remote: true }));
     (snap.groups || []).forEach((g) => applyGroup(g, { remote: true }, { quiet: true }));
+    (snap.circles || []).forEach((c) => applyCircle(c, { remote: true }));
+    (snap.rounds || []).forEach((r) => applyRound(r, { remote: true }));
+    (snap.acks || []).forEach((a) => applyAck(a, { remote: true }));
+    (snap.privacy || []).forEach((x) => applyPrivacy(x, { remote: true }));
     (snap.pickups || []).forEach((o) => applyPickup(o, { remote: true }, { quiet: true }));
     emit("snapshot", {}, { remote: true });
   }
@@ -216,6 +243,10 @@
     else if (type === "order") applyOrder(data, { remote: true });
     else if (type === "pickup") applyPickup(data.order, { remote: true });
     else if (type === "group") applyGroup(data.group, { remote: true });
+    else if (type === "circle") applyCircle(data.circle, { remote: true });
+    else if (type === "round") applyRound(data.round, { remote: true });
+    else if (type === "ack") applyAck(data, { remote: true });
+    else if (type === "privacy") applyPrivacy(data, { remote: true });
   }
 
   /* -------------------------------------------------------------------
@@ -1096,6 +1127,11 @@
           if (o.memberId === memberId && friends) add(at + 1, friends * B.hostPerFriend, `${friends} ${friends === 1 ? "friend" : "friends"} at your table`, place);
         } else if (o.memberId === memberId) add(at, B.perDrink, select.pickupDrinkName(o), `${place} · pickup`);
       });
+      // Circles: a round you said yes to and came to
+      Object.values(state.rounds).forEach((r) => {
+        const at = select.roundAttendedAt(r, memberId);
+        if (at) add(at + 2, B.roundAttend, `Round at ${select.pickupPlace(r.cafeId)}`, state.circles[r.circleId]?.name || "Circle");
+      });
       Object.values(state.members).forEach((f) => {
         if (f.invitedBy !== memberId) return;
         const at = select.referralAt(f);
@@ -1114,6 +1150,99 @@
         ? `${drink.beans - balance} Beans to your next complimentary drink`
         : next ? `A complimentary drink is ready · ${next.beans - balance} Beans to ${next.short}` : "Every reward is within reach";
       return { balance, history: rows, rewards, next, progress: Math.min(1, balance / (next || rewards[rewards.length - 1]).beans), line, perDrink: B.perDrink, rules: B };
+    },
+
+    /* ---------------- Circles ---------------- */
+
+    /** What a member shares with their Circles. Defaults: share, show the branch. */
+    privacy: (memberId = state.memberId) => ({ share: true, hideBranch: false, ...(state.members[memberId]?.privacy || {}) }),
+    circle: (id) => state.circles[id] || null,
+    circleRules: () => state.circleRules,
+    /** The Circles a member is in, oldest first. */
+    circlesOf(memberId = state.memberId) {
+      return Object.values(state.circles).filter((c) => !c.closed && c.members[memberId]).sort((a, b) => a.createdAt - b.createdAt);
+    },
+    /** Members of a Circle, in the order they joined (host first). */
+    circleMembers(c) {
+      return Object.entries(c?.members || {}).sort((a, b) => (a[0] === c.hostId ? -1 : b[0] === c.hostId ? 1 : a[1].joinedAt - b[1].joinedAt))
+        .map(([id]) => state.members[id]).filter(Boolean);
+    },
+    /** Where someone had coffee, as their Circles see it: the branch, or just the brand if they hide it. */
+    circlePlace(memberId, cafeId) {
+      const c = state.cafes[cafeId];
+      return c?.brandId && select.privacy(memberId).hideBranch ? state.brands[c.brandId].name : select.pickupPlace(cafeId);
+    },
+    /** Drinks a member has had (after the fact): counter cups, pickup cups, paid pickups and table drinks. */
+    memberDrinks(memberId, since = 0) {
+      // BACKEND: a view over the ledger and orders; only the café and the time, never a location
+      const out = [];
+      (byMember.get(memberId) || []).forEach((e) => {
+        if (e.type === "redeem" && e.at >= since) out.push({ key: `e:${e.id}`, memberId, cafeId: e.cafeId, at: e.at, drink: select.entryDrinkName(e) });
+      });
+      Object.values(state.orders).forEach((o) => {
+        if (o.status !== "collected") return;
+        const at = o.times?.collected || o.updatedAt;
+        if (at < since) return;
+        if (o.items) o.items.forEach((i) => { if (i.memberId === memberId && i.pay !== "cup") out.push({ key: `o:${o.id}:${i.id}`, memberId, cafeId: o.cafeId, at, drink: select.itemDrinkName(o.cafeId, i) }); });
+        else if (o.memberId === memberId && o.pay === "paid") out.push({ key: `o:${o.id}`, memberId, cafeId: o.cafeId, at, drink: select.pickupDrinkName(o) });
+      });
+      return out;
+    },
+    /** The Circle's last few days: drinks, new passport stamps and badges, newest first, with acknowledgements. */
+    circleActivity(c, at = Date.now(), viewerId = state.memberId) {
+      const since = at - state.circleRules.activityDays * 24 * 60 * MIN;
+      const rows = [];
+      select.circleMembers(c).filter((m) => select.privacy(m.id).share).forEach((m) => {
+        select.memberDrinks(m.id, since).forEach((d) => rows.push({ ...d, kind: "drink", member: m, text: `${d.drink} at ${select.circlePlace(m.id, d.cafeId)}` }));
+        const club = select.club(m.id);
+        club.passport.stamps.filter((st) => st.firstAt && st.firstAt >= since).forEach((st) => rows.push({ key: `s:${m.id}:${st.cafe.id}`, kind: "stamp", member: m, at: st.firstAt + 1, text: `New passport stamp: ${st.cafe.name}` }));
+        club.badges.filter((b) => b.earned && b.earnedAt && b.earnedAt >= since).forEach((b) => rows.push({ key: `b:${m.id}:${b.id}`, kind: "badge", member: m, at: b.earnedAt + 2, text: `Badge earned: ${b.name}` }));
+      });
+      return rows.sort((a, b) => b.at - a.at).map((r) => {
+        const by = state.acks[r.key] || {};
+        return { ...r, acks: Object.keys(by).length, acked: !!by[viewerId], own: r.member.id === viewerId };
+      });
+    },
+    /** Cafés the Circle has visited this month, and who has explored the most (never cups). */
+    circleMonth(c, at = Date.now()) {
+      const d = new Date(at); d.setHours(0, 0, 0, 0); d.setDate(1);
+      const since = d.getTime();
+      const venues = new Set();
+      const ranking = select.circleMembers(c).filter((m) => select.privacy(m.id).share).map((m) => {
+        const mine = new Set(select.memberDrinks(m.id, since).map((x) => venueOf(x.cafeId)));
+        mine.forEach((v) => venues.add(v));
+        return { member: m, cafes: mine.size };
+      }).filter((r) => r.cafes > 0).sort((a, b) => b.cafes - a.cafes || a.member.firstName.localeCompare(b.member.firstName));
+      const names = [...venues].map((v) => state.brands[v]?.name || state.cafes[v]?.name).filter(Boolean);
+      return { cafes: venues.size, names, ranking, streak: select.circleStreak(c, at) };
+    },
+    /** Weeks running in which the Circle met: a round two or more members came to. */
+    circleStreak(c, at = Date.now()) {
+      const weeks = new Set(Object.values(state.rounds).filter((r) => r.circleId === c.id && r.at <= at && select.roundAttendees(r).length >= 2).map((r) => weekOf(r.at)));
+      const WEEK = 7 * 24 * 60 * MIN;
+      let w = weekOf(at);
+      if (!weeks.has(w)) w = weekOf(w - 1); // this week isn't over yet: count from last week
+      let n = 0;
+      while (weeks.has(w)) { n++; w = weekOf(w - WEEK + 12 * 60 * MIN); }
+      const line = n >= 2 ? `Your Circle has met ${NUM_WORDS[n] || n} weeks running.`
+        : n === 1 ? "Your Circle met last week. Call a round to keep it going."
+        : "Call a round to start a streak.";
+      return { weeks: n, line };
+    },
+    /** When a member came to a round: said yes, and had a drink there from an hour before to three hours after. */
+    roundAttendedAt(r, memberId) {
+      if (!r.answers?.[memberId]?.going) return null;
+      const hit = select.memberDrinks(memberId, r.at - 60 * MIN).find((d) => d.cafeId === r.cafeId && d.at <= r.at + 3 * 60 * MIN);
+      return hit ? hit.at : null;
+    },
+    roundAttendees: (r) => Object.keys(r.answers || {}).filter((id) => select.roundAttendedAt(r, id)),
+    /** A Circle's rounds: coming up (newest call first) and past. */
+    roundsOf(circleId, at = Date.now()) {
+      const all = Object.values(state.rounds).filter((r) => r.circleId === circleId && !r.cancelled);
+      return {
+        upcoming: all.filter((r) => r.at + 2 * 60 * MIN >= at).sort((a, b) => a.at - b.at),
+        past: all.filter((r) => r.at + 2 * 60 * MIN < at).sort((a, b) => b.at - a.at),
+      };
     },
 
     loyalty(cafeId, memberId = state.memberId) {
@@ -1268,6 +1397,45 @@
       if (!newer && !added.length) return;
     }
     emit("group", { group: state.groups[g.id], added, quiet }, opts);
+  }
+
+  /** A Circle from another device: the newest change wins (members joining, leaving, removed). */
+  function applyCircle(c, opts) {
+    if (!c || !c.id) return;
+    learnProfiles(c.profiles);
+    const cur = state.circles[c.id];
+    if (cur && (c.updatedAt || 0) <= (cur.updatedAt || 0)) return;
+    state.circles[c.id] = clone(c);
+    emit("circle", { circle: state.circles[c.id] }, opts);
+  }
+  /** A round: answers merge per member (newest wins); the header's newest change wins. */
+  function applyRound(r, opts) {
+    if (!r || !r.id || !state.cafes[r.cafeId]) return;
+    const cur = state.rounds[r.id];
+    if (!cur) { state.rounds[r.id] = clone(r); emit("round", { round: state.rounds[r.id] }, opts); return; }
+    let changed = false;
+    Object.entries(r.answers || {}).forEach(([id, a]) => { if (!cur.answers[id] || cur.answers[id].at < a.at) { cur.answers[id] = { ...a }; changed = true; } });
+    if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { const { answers, ...head } = clone(r); Object.assign(cur, head); changed = true; }
+    if (changed) emit("round", { round: cur }, opts);
+  }
+  /** One acknowledgement per member per entry; tapping again takes it back.
+      on: true adds, false removes. The newest change per member and entry wins. */
+  function applyAck({ key, memberId, at, on = true }, opts) {
+    if (!key || !memberId || !at) return;
+    const id = `${key}|${memberId}`;
+    const seen = ackAt[id] ?? state.acks[key]?.[memberId] ?? 0;
+    if (at <= seen) return;
+    ackAt[id] = at;
+    const by = (state.acks[key] = state.acks[key] || {});
+    if (on) by[memberId] = at; else delete by[memberId];
+    liveAcks.set(id, { key, memberId, at, on: !!on });
+    emit("ack", { key, memberId, at, on: !!on }, opts);
+  }
+  function applyPrivacy({ memberId, privacy, at }, opts) {
+    const m = state.members[memberId];
+    if (!m || (m.privacyAt || 0) >= at) return;
+    m.privacy = { ...privacy }; m.privacyAt = at;
+    emit("privacy", { memberId, privacy: m.privacy, at }, opts);
   }
 
   /** Move an order on. Cup orders write the ledger: release on cancel or reject;
@@ -1701,6 +1869,99 @@
       appendEntries(entries);
       if (r.gathering) applyRsvp({ gatheringId: r.gathering.id, memberId, going: true, at });
       return { ok: true, reward: r };
+    },
+
+    /* ---------------- Circles ---------------- */
+
+    /** Start a Circle: you're its host and first member. */
+    createCircle(name, memberId = state.memberId) {
+      // BACKEND: POST /circles { name } -> circle row + an invitation link
+      const m = state.members[memberId];
+      const clean = String(name || "").trim().replace(/\s+/g, " ").slice(0, 40);
+      if (!m || clean.length < 2) return { ok: false, message: "Give your Circle a name." };
+      const now = Date.now();
+      const c = { id: uid("cc"), name: clean, hostId: m.id, createdAt: now, updatedAt: now, members: { [m.id]: { joinedAt: now } }, live: true, profiles: profilesFor([m.id]) };
+      state.circles[c.id] = c;
+      emit("circle", { circle: c });
+      return { ok: true, circle: c };
+    },
+    /** Join by link. Up to circleRules.maxMembers. */
+    joinCircle(circleId, memberId = state.memberId) {
+      // BACKEND: POST /circles/:id/members (checked against the invitation link)
+      const c = state.circles[circleId];
+      const m = state.members[memberId];
+      if (!c || c.closed || !m) return { ok: false, message: "That Circle isn’t available." };
+      if (c.members[memberId]) return { ok: true, circle: c };
+      if (Object.keys(c.members).length >= state.circleRules.maxMembers) return { ok: false, message: `This Circle is full. A Circle has up to ${state.circleRules.maxMembers} members.` };
+      c.members[memberId] = { joinedAt: Date.now() };
+      c.profiles = { ...(c.profiles || {}), ...profilesFor([memberId]) };
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true, circle: c };
+    },
+    /** Leave at any time. A host who leaves hands the Circle to the longest-standing member. */
+    leaveCircle(circleId, memberId = state.memberId) {
+      // BACKEND: DELETE /circles/:id/members/me
+      const c = state.circles[circleId];
+      if (!c || !c.members[memberId]) return { ok: false };
+      delete c.members[memberId];
+      const left = Object.entries(c.members).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
+      if (!left.length) c.closed = true;
+      else if (c.hostId === memberId) c.hostId = left[0][0];
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true };
+    },
+    /** The host removes a member. */
+    removeFromCircle(circleId, memberId) {
+      // BACKEND: DELETE /circles/:id/members/:memberId (host only)
+      const c = state.circles[circleId];
+      if (!c || c.hostId !== state.memberId || memberId === c.hostId || !c.members[memberId]) return { ok: false };
+      delete c.members[memberId];
+      c.updatedAt = Date.now();
+      emit("circle", { circle: c });
+      return { ok: true };
+    },
+    /** Call a round: a café and a time. The caller is coming. */
+    callRound(circleId, { cafeId, at }, memberId = state.memberId) {
+      // BACKEND: POST /circles/:id/rounds { cafeId, at }
+      const c = state.circles[circleId];
+      if (!c || !c.members[memberId] || !state.cafes[cafeId] || !at) return { ok: false, message: "Choose a café and a time." };
+      const now = Date.now();
+      const r = { id: uid("rd"), circleId, callerId: memberId, cafeId, at, createdAt: now, updatedAt: now, groupId: null, answers: { [memberId]: { going: true, at: now } }, live: true };
+      state.rounds[r.id] = r;
+      emit("round", { round: r });
+      return { ok: true, round: r };
+    },
+    /** "I'll be there" or "Not this time". */
+    answerRound(roundId, going, memberId = state.memberId) {
+      const r = state.rounds[roundId];
+      if (!r || !state.circles[r.circleId]?.members[memberId]) return { ok: false };
+      r.answers[memberId] = { going: !!going, at: Date.now() };
+      r.updatedAt = Math.max(r.updatedAt || 0, 1); // so join snapshots carry it
+      emit("round", { round: r });
+      return { ok: true };
+    },
+    /** A round becomes a table (group order) that everyone coming can add to. */
+    setRoundTable(roundId, groupId) {
+      const r = state.rounds[roundId];
+      if (!r) return { ok: false };
+      r.groupId = groupId; r.updatedAt = Date.now();
+      emit("round", { round: r });
+      return { ok: true };
+    },
+    /** One quiet acknowledgement of a Circle entry; tap again to take it back. */
+    acknowledge(key, memberId = state.memberId) {
+      // BACKEND: PUT / DELETE /circles/acks/:key (unique per member and entry)
+      const on = !state.acks[key]?.[memberId];
+      applyAck({ key, memberId, at: Math.max(Date.now(), (ackAt[`${key}|${memberId}`] || 0) + 1), on });
+      return { ok: true, on };
+    },
+    /** Share my coffee with my Circles, hide which branch. */
+    setPrivacy(patch, memberId = state.memberId) {
+      // BACKEND: PATCH /me/privacy
+      applyPrivacy({ memberId, privacy: { ...select.privacy(memberId), ...patch }, at: Date.now() });
+      emit("member", { member: state.members[memberId] });
     },
 
     /* ---------------- Group orders ---------------- */

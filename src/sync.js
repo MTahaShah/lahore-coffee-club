@@ -22,7 +22,9 @@
    twice is harmless. Pickup orders travel whole (`pickup`); a status only
    moves forward, so a late or repeated message can't undo one. Tables
    (group orders) travel whole too (`group`); drinks merge by id, so
-   several phones can add at once.
+   several phones can add at once. Circles: `circle` (newest change wins),
+   `round` (answers merge per member), `ack` (add or undo; newest wins),
+   `privacy` (newest wins).
 
    Join handshake: a window that joins says “hello”. A café window answers
    with statuses plus this session’s ledger entries and plan changes; any

@@ -208,7 +208,14 @@
     return expired;
   }
 
-  LCC.appOrder = { start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine, openTables };
+  /** A table for a Circle's round: café and time already chosen; this device hosts it. */
+  function startTable({ cafeId, pickupAt }) {
+    const res = A.startGroup({ cafeId, asap: false, pickupAt });
+    if (res.ok) hosted.add(res.group.id);
+    return res;
+  }
+
+  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine, openTables };
 
   /* -------------------------------------------------------------------
      Simulated payment fields, shared by the order, table and cover forms.

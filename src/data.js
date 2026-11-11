@@ -725,6 +725,98 @@
     });
   })();
 
+  /* A Circle: Mumtaz and four friends --------------------------------
+     Their week of coffee (activity), earlier visits (for passport stamps
+     and badges), three past rounds in three weeks running (the streak)
+     and one round called for later today. Faraz hides which branch.
+     Entries have fixed ids so acknowledgements can point at them.      */
+  const circleMember = (id, firstName, lastName, plan, memberNo, months) => {
+    const m = { id, firstName, lastName, initials: `${firstName[0]}${lastName[0]}`, pronoun: "them", plan, background: true, visits: {},
+      memberNo, memberSince: daysAgo(30 * months), cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY };
+    members.push(m); byId[id] = m; purchase(m);
+    return m;
+  };
+  const hira    = circleMember("m_c_hira",    "Hira",    "Khalid", { type: "brand", brandId: DS.id, planId: "ds15" }, 58, 7);
+  const usman   = circleMember("m_c_usman",   "Usman",   "Aslam",  { type: "explorer", tierId: "regular" }, 144, 6);
+  const mahnoor = circleMember("m_c_mahnoor", "Mahnoor", "Sheikh", { type: "explorer", tierId: "regular" }, 233, 5);
+  const faraz   = circleMember("m_c_faraz",   "Faraz",   "Malik",  { type: "brand", brandId: DS.id, planId: "ds8" }, 312, 4);
+  faraz.privacy = { share: true, hideBranch: true };
+  mumtaz.privacy = { share: true, hideBranch: false };
+  const circleCup = (key, m, cafeId, drinkId, at, temp = "hot", prev = false) => {
+    const cyc = prev ? `${m.cycle}_prev` : m.cycle;
+    const first = !(m.visits[cafeId] > 0);
+    m.visits[cafeId] = (m.visits[cafeId] || 0) + 1;
+    if (cafeById[cafeId].brandId) {
+      const d = dsItem(drinkId);
+      const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
+      ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price: d[t],
+        topUp: Math.max(0, d[t] - DS.economics.coverUpTo), firstVisit: first, at, cycle: cyc });
+    } else {
+      const credits = drinkCredits(cafeId, drinkId);
+      ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit: first, at, cycle: cyc });
+    }
+  };
+  // Earlier months (lifetime: stamps and badges)
+  [["kiln", "kiln-flat"], ["slowpour", null], ["noon", null], ["ember", "ember-latte"]].forEach(([c, d], i) =>
+    circleCup(`mah_old${i}`, mahnoor, c, d || cafeById[c].drinks[0].id, daysAgo(40 + i * 6, 600), "hot", true));
+  [["kiln", "kiln-cort"], ["noon", null], ["grind", null], ["maple", "maple-latte"], ["quiethours", null]].forEach(([c, d], i) =>
+    circleCup(`usm_old${i}`, usman, c, d || cafeById[c].drinks[0].id, daysAgo(35 + i * 5, 500), "hot", true));
+  ["ds-gulberg", "ds-dha6", "ds-pine"].forEach((c, i) => circleCup(`hir_old${i}`, hira, c, "ds-spanish", daysAgo(30 + i * 4, 700), "iced", true));
+  ["ds-cantt", "ds-dolmen"].forEach((c, i) => circleCup(`far_old${i}`, faraz, c, "ds-americano", daysAgo(33 + i * 3, 800), "hot", true));
+  // Past rounds, a week apart: 21, 14 and 7 days ago (the streak)
+  circleCup("r3_usm", usman, "kiln", "kiln-flat", clockAgo(21, 18, 10), "hot", true);
+  circleCup("r3_mah", mahnoor, "kiln", "kiln-cort", clockAgo(21, 18, 20), "hot", true);
+  circleCup("r2_hir", hira, "ds-gulberg", "ds-matcha", clockAgo(14, 17, 10), "iced", true);
+  circleCup("r2_far", faraz, "ds-gulberg", "ds-latte", clockAgo(14, 17, 25), "hot", true);
+  circleCup("r1_usm", usman, "ember", "ember-mocha", clockAgo(7, 17, 5));
+  circleCup("r1_mah", mahnoor, "ember", "ember-latte", clockAgo(7, 17, 15));
+  // This week
+  circleCup("hir_1", hira, "ds-pine", "ds-flat-white", daysAgo(5, 200));
+  circleCup("hir_2", hira, "ds-gulberg", "ds-spanish", daysAgo(2, 300), "iced");
+  circleCup("hir_3", hira, "ds-dha6", "ds-matcha", minsAgo(120), "iced");
+  circleCup("usm_1", usman, "grind", cafeById.grind.drinks[0].id, daysAgo(6, 100));
+  circleCup("usm_2", usman, "noon", cafeById.noon.drinks[0].id, daysAgo(3, 240));
+  circleCup("usm_3", usman, "thirdfloor", "tf-spanish", daysAgo(1, 90));
+  circleCup("mah_1", mahnoor, "slowpour", cafeById.slowpour.drinks[0].id, daysAgo(3, 420));
+  circleCup("mah_2", mahnoor, "maple", "maple-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
+  circleCup("far_1", faraz, "ds-cantt", "ds-cortado", daysAgo(4, 330));
+  circleCup("far_2", faraz, "ds-dolmen", "ds-caramel-f", daysAgo(1, 200), "iced");
+
+  const circleSince = daysAgo(60);
+  const nextRoundAt = (() => {
+    const five = startOfToday + 17 * 60 * MIN;
+    const soon = Math.ceil((now + 2 * 60 * MIN) / (60 * MIN)) * 60 * MIN;
+    return Math.max(five, soon);
+  })();
+  const circles = [{
+    id: "circle-gulberg", name: "The Gulberg Circle", hostId: mumtaz.id, createdAt: circleSince, updatedAt: 0,
+    members: {
+      [mumtaz.id]: { joinedAt: circleSince },
+      [hira.id]: { joinedAt: circleSince + 2 * 60 * MIN },
+      [usman.id]: { joinedAt: circleSince + DAY },
+      [mahnoor.id]: { joinedAt: circleSince + 3 * DAY },
+      [faraz.id]: { joinedAt: daysAgo(25) },
+    },
+  }];
+  const answer = (going, at) => ({ going, at });
+  const rounds = [
+    { id: "round-kiln", circleId: "circle-gulberg", callerId: usman.id, cafeId: "kiln", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
+      answers: { [usman.id]: answer(true, clockAgo(21, 11, 0)), [mahnoor.id]: answer(true, clockAgo(21, 12, 0)), [hira.id]: answer(false, clockAgo(21, 13, 0)) } },
+    { id: "round-ds-gulberg", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-gulberg", at: clockAgo(14, 17, 0), createdAt: clockAgo(14, 10, 0), updatedAt: 0, groupId: null,
+      answers: { [hira.id]: answer(true, clockAgo(14, 10, 0)), [faraz.id]: answer(true, clockAgo(14, 12, 30)), [mumtaz.id]: answer(false, clockAgo(14, 13, 0)) } },
+    { id: "round-ember", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "ember", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
+      answers: { [mahnoor.id]: answer(true, clockAgo(7, 9, 0)), [usman.id]: answer(true, clockAgo(7, 9, 40)), [faraz.id]: answer(false, clockAgo(7, 11, 0)) } },
+    { id: "round-today", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-dha6", at: nextRoundAt, createdAt: minsAgo(55), updatedAt: 0, groupId: null,
+      answers: { [hira.id]: answer(true, minsAgo(55)), [faraz.id]: answer(true, minsAgo(40)), [usman.id]: answer(false, minsAgo(25)) } },
+  ];
+  // One quiet acknowledgement per member per entry: key -> memberId -> at
+  const acks = {
+    "e:sc_hir_3": { [usman.id]: minsAgo(100), [mahnoor.id]: minsAgo(80) },
+    "s:m_c_mahnoor:maple": { [hira.id]: minsAgo(200) },
+    "b:m_c_mahnoor:explorer": { [faraz.id]: minsAgo(190), [hira.id]: minsAgo(185) },
+    "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
+  };
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -813,6 +905,7 @@
     perDrink: 10,          // each drink redeemed at the counter, or collected as a pickup order
     referral: 100,         // each, for the member and their friend, after the friend's first plan or paid order
     hostPerFriend: 5,      // group orders: extra for the host, per friend who joins the table
+    roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
       { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any drink up to Rs 880, added to your cups.", cups: 1 },
@@ -905,6 +998,11 @@
     orders,
     club,
     beans,
+    circles,
+    rounds,
+    acks,
+    // Circles: at most this many members; activity shows this many days
+    circleRules: { maxMembers: 12, activityDays: 7 },
     partner,
     drinkCategories,
     // Builder default for the “My cafés” plan

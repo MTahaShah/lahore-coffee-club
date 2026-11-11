@@ -71,6 +71,7 @@ JS_FILES=(
   app-plan.js
   app-order.js
   app-club.js
+  app-circles.js
   app-welcome.js
   landing.js
 )

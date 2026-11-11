@@ -657,6 +657,11 @@
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
           </div>
 
+          <section class="app-section" aria-labelledby="circles-h">
+            <h2 class="eyebrow app-section__title" id="circles-h">Circles</h2>
+            <div class="stack" style="--stack-gap:var(--space-3)" data-club-circles>${LCC.appCircles ? LCC.appCircles.sectionHtml() : ""}</div>
+          </section>
+
           <section aria-labelledby="passport-h">
             <h2 class="sr-only" id="passport-h">Lahore coffee passport</h2>
             <div class="passport" data-club="passport">${passportBookHtml(c)}</div>
@@ -766,7 +771,9 @@
         $(".phone__screen", el).appendChild(beansSheet);
         beansSheet.addEventListener("click", onBeansClick);
         view.addEventListener("click", onClick);
+        const unbindCircles = LCC.appCircles ? LCC.appCircles.bindSection(view, ctx) : () => {};
         return () => {
+          unbindCircles();
           clearTimeout(confirmTimer);
           unbindPerks();
           ui.closeSheet(badgeSheet);

@@ -5,6 +5,7 @@
    Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
             #/app/map · #/app/club · #/app/gift · #/app/plan
             #/app/plan/pay · #/app/order · #/app/order/pay · #/app/group/:id
+            #/app/circle/:id · #/app/circle/:id/join
             #/app/welcome · #/app/welcome/card
    This file owns the shell, tabs, Home, Pass and Map. Cafés live in
    app-cafes.js, the plan picker and payment in app-plan.js, the Club
@@ -142,6 +143,8 @@
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
+        if (a === "circle" && b && path[2] === "join" && REG.circleJoin) return { key: `circle/${b}/join`, tab: "club", flow: true, make: () => REG.circleJoin(ctx, b) };
+        if (a === "circle" && b && REG.circle) return { key: `circle/${b}`, tab: "club", make: () => REG.circle(ctx, b) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -385,6 +388,11 @@
               <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
             </section>
 
+            <section class="drawer__section" aria-labelledby="dr-privacy">
+              <h3 class="eyebrow" id="dr-privacy">Privacy</h3>
+              ${privacyHtml()}
+            </section>
+
             <section class="drawer__section drawer__appearance" aria-labelledby="dr-look">
               <h3 class="eyebrow" id="dr-look">Appearance</h3>
               ${ui.segmented({ name: "flavour", label: "Colour theme", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
@@ -397,6 +405,17 @@
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
+      }
+
+      /** Circles see the café and the time after the fact; never a location. */
+      function privacyHtml() {
+        const p = S.privacy();
+        const sw = (key, on, title, line, disabled = false) => html`<label class="switch-row${disabled ? " is-off" : ""}">
+          <span class="switch-row__text"><span class="row__title">${title}</span><span class="row__meta">${line}</span></span>
+          <input type="checkbox" role="switch" class="switch" data-privacy="${key}" ${on ? raw("checked") : ""} ${disabled ? raw("disabled") : ""}>
+        </label>`;
+        return html`${sw("share", p.share, "Share my coffee with my Circles", "The café and the time, after you’ve had it. Never where you are now.")}
+          ${sw("hideBranch", p.hideBranch, "Hide which branch", "Your Circles see “Double Shot”, not the branch.", !p.share)}`;
       }
 
       function openDrawer() {
@@ -750,6 +769,16 @@
         location.hash = hrefFor(ids[i]);
       };
 
+      // Drawer: privacy switches
+      const onChange = (e) => {
+        const t = e.target;
+        if (!t.matches("[data-privacy]")) return;
+        A.setPrivacy({ [t.dataset.privacy]: t.checked });
+        const box = t.closest(".drawer__section");
+        if (box) { $$(".switch-row", box).forEach((n) => n.remove()); box.insertAdjacentHTML("beforeend", privacyHtml().s); $(`[data-privacy="${t.dataset.privacy}"]`, box)?.focus(); }
+        ui.toast(t.dataset.privacy === "share" ? (t.checked ? "Your Circles can see your coffee again." : "Your coffee is now private.") : (t.checked ? "Your Circles see the café, not the branch." : "Your Circles see the branch."));
+      };
+      el.addEventListener("change", onChange);
       el.addEventListener("click", onClick);
       el.addEventListener("keydown", onKeydown);
 
@@ -766,7 +795,7 @@
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
       // Pickup orders: the drawer follows along, and the café's moves get a word
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
@@ -841,6 +870,7 @@
         if (typeof active.cleanup === "function") active.cleanup();
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);
+        el.removeEventListener("change", onChange);
         el.removeEventListener("keydown", onKeydown);
         window.removeEventListener("resize", fit);
         api = null;
