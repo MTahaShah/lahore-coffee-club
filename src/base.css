@@ -37,6 +37,12 @@
   --white: #FFFFFF;
   --cream: #FFF7E8;
   --accent: #CFAB71;         /* caramel */
+  /* Member card: the same in light and dark */
+  --card-bg: #0B0B0B;
+  --card-ring: #CFAB71;      /* caramel, lit on the rings only */
+  --card-ink: #FFF7E8;
+  --card-muted: rgba(255, 247, 232, 0.62);
+  --card-edge: rgba(255, 247, 232, 0.10);
   --accent-deep: #713105;    /* cinnamon */
   --espresso: #341100;
   --mocha: #7F5E35;
@@ -222,6 +228,12 @@
   --logo-face: #3F5A22;
   --logo-side: #26361A;
   --logo-top: #6E8B3D;
+  /* Member card in Matcha: near-black green, matcha rings, foam type */
+  --card-bg: #0F140E;
+  --card-ring: #93B35A;
+  --card-ink: #E8EDDD;
+  --card-muted: rgba(232, 237, 221, 0.62);
+  --card-edge: rgba(232, 237, 221, 0.10);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-flavour="matcha"]:not([data-theme="light"]) {

@@ -6,7 +6,7 @@
    through store.select.club(): status, passport, badges and perks. Beans
    (points) sit at the top, from store.select.beans(); invitations from
    store.select.invitations(). The member card is shared with onboarding
-   (LCC.memberCard).
+   and the profile drawer (LCC.memberCard).
    ===================================================================== */
 (function () {
   "use strict";
@@ -28,45 +28,72 @@
   const fullName = (m) => [m.firstName, m.lastName].filter(Boolean).join(" ");
 
   /* -------------------------------------------------------------------
-     Member card (Club tab, café-free; onboarding issues it)
+     Member card (Club tab, profile drawer; onboarding issues it)
+     Built in code so the name and number are live. Black (near-black green
+     in Matcha) with about 22 hairline rings whose gradient catches the
+     light at top right and bottom left. Tap to turn it over.
      ------------------------------------------------------------------- */
-  // A seal with its words set on a circle. Thin lines, no fill.
-  function seal() {
-    return html`<svg class="mcard__seal" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs><path id="seal-ring" d="M32 32 m-23 0 a23 23 0 1 1 46 0 a23 23 0 1 1 -46 0"/></defs>
-      <circle cx="32" cy="32" r="30.5"/>
-      <circle cx="32" cy="32" r="16"/>
-      <text><textPath href="#seal-ring" startOffset="0" textLength="140" lengthAdjust="spacing">FOUNDING MEMBER · LAHORE · </textPath></text>
-      <path d="M25.5 29h12v3.6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V29zM37.5 30.5h1.2a2.1 2.1 0 0 1 0 4.2h-1.4"/>
-    </svg>`;
+  let cardSeq = 0;
+  const cardNo = (c) => (c.memberNo != null ? `LCC-${String(c.memberNo).padStart(4, "0")}` : "LCC");
+
+  /** Concentric rings; the gradient is per ring (bounding box), so each one is lit on the same diagonal. */
+  function cardRings(cx, faint = false) {
+    const id = `mcard-g${++cardSeq}`;
+    const rings = [];
+    for (let i = 0; i < 22; i++) rings.push(`<circle cx="${cx}" cy="100" r="${(18 + i * 4.5).toFixed(1)}"/>`);
+    return raw(`<svg class="mcard__rings${faint ? " mcard__rings--faint" : ""}" viewBox="0 0 350 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="${id}" x1="1" y1="0" x2="0" y2="1">
+        <stop offset="0" class="mcard__lit"/><stop offset="0.28" class="mcard__dim"/><stop offset="0.72" class="mcard__dim"/><stop offset="1" class="mcard__lit"/>
+      </linearGradient></defs>
+      <g stroke="url(#${id})">${rings.join("")}</g>
+    </svg>`);
   }
 
-  function memberCard(memberId, { issuing = false } = {}) {
+  function memberCard(memberId, { issuing = false, flipped = false } = {}) {
     const c = S.club(memberId);
     const m = c.member;
-    const label = `Lahore Coffee Club member card. ${c.number}, ${fullName(m)}, member since ${fmt.monthYear(c.since)}, ${c.level.name}${c.founding ? ", Founding Member" : ""}`;
-    return html`<div class="mcard${c.founding ? " mcard--founding" : ""}${issuing ? " is-issuing" : ""}" role="img" aria-label="${label}">
-      <svg class="mcard__rings" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-        <circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="92"/><circle cx="200" cy="200" r="124"/><circle cx="200" cy="200" r="156"/>
-      </svg>
-      <div class="mcard__top">
-        <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
-        ${c.founding ? seal() : ""}
-      </div>
-      <p class="mcard__no"><span class="mcard__no-label">No.</span> <span class="num" data-card-no>${String(c.memberNo).padStart(4, "0")}</span></p>
-      <div class="mcard__foot">
-        <div class="mcard__who">
-          <span class="mcard__name">${fullName(m)}</span>
-          <span class="mcard__meta">Since ${fmt.monthYear(c.since)}</span>
+    const title = c.founding ? "Founding Member" : c.level.name;
+    const no = cardNo(c);
+    const plan = m.plan ? S.planLabel(m) : "No plan yet";
+    const circles = S.circlesOf(m.id).length;
+    const front = `Lahore Coffee Club member card, ${fullName(m)}, ${title}, ${no}`;
+    const back = `Back of the card: member since ${fmt.monthYear(c.since)}, ${plan}, ${circles === 1 ? "1 Circle" : `${circles} Circles`}. Show your pass at any partner café.`;
+    return html`<div class="mcard${flipped ? " is-flipped" : ""}${issuing ? " is-issuing" : ""}" data-mcard>
+      <div class="mcard__inner">
+        <div class="mcard__face mcard__face--front" role="img" aria-label="${front}" aria-hidden="${flipped ? "true" : "false"}">
+          ${cardRings(162)}
+          <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
+          <span class="mcard__who"><span class="mcard__name">${fullName(m)}</span><span class="mcard__title">${title}</span></span>
+          <span class="mcard__no num" data-card-no>${no}</span>
         </div>
-        <div class="mcard__status">
-          ${c.founding && c.level.id !== "member" ? html`<span class="mcard__meta">Founding Member</span>` : ""}
-          <span class="mcard__level${c.founding && c.level.id === "member" ? " mcard__level--long" : ""}">${c.founding && c.level.id === "member" ? "Founding Member" : c.level.name}</span>
+        <div class="mcard__face mcard__face--back" role="img" aria-label="${back}" aria-hidden="${flipped ? "false" : "true"}">
+          ${cardRings(300, true)}
+          <dl class="mcard__facts">
+            <div><dt>Member since</dt><dd>${fmt.monthYear(c.since)}</dd></div>
+            <div><dt>Plan</dt><dd>${plan}</dd></div>
+            <div><dt>Circles</dt><dd class="num">${circles}</dd></div>
+          </dl>
+          <p class="mcard__hint">Show your pass at any partner café</p>
+          <span class="mcard__no num">${no}</span>
         </div>
       </div>
+      <button type="button" class="mcard__flip" data-card-flip aria-label="${flipped ? "Turn the card back to the front" : "Turn the card over"}"></button>
     </div>`;
   }
   LCC.memberCard = memberCard;
+
+  // One listener for every card (Club tab, drawer, onboarding): tap to turn it over
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest("[data-card-flip]");
+    if (!btn) return;
+    const card = btn.closest("[data-mcard]");
+    const on = !card.classList.contains("is-flipped");
+    card.classList.toggle("is-flipped", on);
+    card.classList.remove("is-issuing");
+    card.querySelector(".mcard__face--front").setAttribute("aria-hidden", String(on));
+    card.querySelector(".mcard__face--back").setAttribute("aria-hidden", String(!on));
+    btn.setAttribute("aria-label", on ? "Turn the card back to the front" : "Turn the card over");
+  });
 
   /* -------------------------------------------------------------------
      Badge marks: 24px grid, 1.5px stroke, like the icon set
@@ -714,7 +741,7 @@
       set("invite", inviteHtml(c));
       paintBeansSheet();
       const card = $("[data-club-card]", view);
-      if (card) card.innerHTML = memberCard(c.member.id).s;
+      if (card) card.innerHTML = memberCard(c.member.id, { flipped: !!$(".mcard.is-flipped", card) }).s;
     }
     const repaintGathering = () => { const n = $('[data-club="gathering"]', view); if (n) n.innerHTML = gatheringHtml().s; };
 

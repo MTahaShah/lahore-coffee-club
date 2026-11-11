@@ -483,6 +483,19 @@ next pass until asked.**
 - Presenter "Demo" menu in the switcher: "Start as a new member" and "Back
   to Mumtaz's demo" (`actions.beginNewMember` / `restoreDemo`; Mumtaz's
   data is never touched, except a free cup if her invite code is used).
+- Member card (redesign, ref `docs/ref/member-card.png`): `LCC.memberCard`
+  in `app-club.js`, built in code, 7:4, radius 16, no shadow. 22 hairline
+  rings centred a little left, lit at top right and bottom left by a
+  per-ring gradient; the wordmark (unaltered, it carries "COFFEE CLUB")
+  top right; name and "Founding Member" (or the level) bottom left;
+  `LCC-0042` bottom right. Card tokens `--card-bg`, `--card-ring`,
+  `--card-ink`, `--card-muted`, `--card-edge` in `base.css` (coffee
+  #0B0B0B / caramel / cream; Matcha #0F140E / #93B35A / foam), the same in
+  light and dark. Shown at the top of the profile drawer, on the Club tab
+  and the onboarding issue screen; type scales with the card width (cqw).
+  Tap (a real button over the card) turns it over, 400ms rotateY,
+  crossfade with reduced motion: member since, plan, Circles, "Show your
+  pass at any partner café". The old seal is gone.
 - Café view after lookup: "No. 0042 · Founding Member · Local" and any perk
   claimable at that café.
 - Café view (redesign): Counter scans or takes a 6-digit code, shows what a

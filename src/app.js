@@ -351,19 +351,17 @@
 
       function drawerHtml() {
         const m = member();
-        const club = S.club(m.id);
         const plan = S.memberPlan(m);
         const quote = m.plan ? S.quote(m.plan) : null;
-        const clubLine = [club.number, club.founding && "Founding Member", club.level.name].filter(Boolean).join(" · ");
         return html`
           <div class="drawer__bar">
             <h2 class="t-h3" id="drawer-title">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h2>
             <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
           </div>
           <div class="drawer__body">
+            <div class="drawer__card">${LCC.memberCard ? LCC.memberCard(m.id) : ""}</div>
             <section class="drawer__section" aria-labelledby="dr-profile">
               <h3 class="eyebrow" id="dr-profile">Profile</h3>
-              <p class="t-body">${clubLine}</p>
               ${m.phone ? html`<p class="t-small t-muted num">${m.phone}</p>` : ""}
               <a class="btn btn--link" href="#/app/club">Your member card</a>
             </section>

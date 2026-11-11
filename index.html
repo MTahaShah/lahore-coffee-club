@@ -70,6 +70,12 @@
   --white: #FFFFFF;
   --cream: #FFF7E8;
   --accent: #CFAB71;         /* caramel */
+  /* Member card: the same in light and dark */
+  --card-bg: #0B0B0B;
+  --card-ring: #CFAB71;      /* caramel, lit on the rings only */
+  --card-ink: #FFF7E8;
+  --card-muted: rgba(255, 247, 232, 0.62);
+  --card-edge: rgba(255, 247, 232, 0.10);
   --accent-deep: #713105;    /* cinnamon */
   --espresso: #341100;
   --mocha: #7F5E35;
@@ -255,6 +261,12 @@
   --logo-face: #3F5A22;
   --logo-side: #26361A;
   --logo-top: #6E8B3D;
+  /* Member card in Matcha: near-black green, matcha rings, foam type */
+  --card-bg: #0F140E;
+  --card-ring: #93B35A;
+  --card-ink: #E8EDDD;
+  --card-muted: rgba(232, 237, 221, 0.62);
+  --card-edge: rgba(232, 237, 221, 0.10);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-flavour="matcha"]:not([data-theme="light"]) {
@@ -2047,56 +2059,93 @@ li:last-child > .branch-row { border-bottom: 0; }
 .ring-actions .btn--link svg { width: 18px; height: 18px; }
 
 /* Member card -----------------------------------------------------------
-   Black with cream type in both modes (a hairline shows its edge on
-   black). The one accent: the caramel Founding Member seal. */
+   Built in code, about 7:4. Black (near-black green in Matcha, tokens in
+   base.css) in both modes, a hairline edge, no shadow. About 22 hairline
+   rings, centred a little left, lit at top right and bottom left by a
+   per-ring gradient (the accent use). Type is sized to the card's width
+   (cqw), so it is larger on the Club tab than in the drawer. Tap turns
+   it over (400ms rotateY; crossfade with reduced motion). */
 .mcard {
-  --card-bg: var(--black);
-  --card-ink: var(--cream);
-  --card-muted: color-mix(in srgb, var(--cream) 66%, transparent);
-  --card-line: color-mix(in srgb, var(--cream) 16%, transparent);
-  --logo-ink: var(--cream);
   position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  aspect-ratio: 1.586;
   width: 100%;
-  padding: 20px 22px 18px;
+  aspect-ratio: 7 / 4;
+  container-type: inline-size;
+  perspective: 1400px;
+  border-radius: 16px;
+  color: var(--card-ink);
+  --logo-ink: var(--card-ink);
+}
+.mcard__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 400ms var(--ease); }
+.mcard.is-flipped .mcard__inner { transform: rotateY(180deg); }
+.mcard__face {
+  position: absolute; inset: 0;
+  overflow: hidden;
   border-radius: 16px;
   background: var(--card-bg);
-  color: var(--card-ink);
-  box-shadow: inset 0 0 0 1px var(--card-line);
+  border: 1px solid var(--card-edge);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
-.mcard--founding .mcard__seal { color: var(--accent); }   /* accent: the seal */
-.mcard__rings { position: absolute; right: 0; bottom: 0; width: 70%; height: auto; pointer-events: none; }
-.mcard__rings circle { fill: none; stroke: var(--card-line); stroke-width: 0.75; }
-.mcard__top { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
-.mcard__brand { width: 120px; line-height: 0; color: var(--card-ink); }
-.mcard__seal { width: 56px; height: 56px; flex: none; margin: -6px -6px 0 0; color: var(--card-ink); }
-.mcard__seal circle, .mcard__seal path { fill: none; stroke: currentColor; stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
-.mcard__seal text { fill: currentColor; font: 500 6.4px/1 var(--font-sans); letter-spacing: 0.16em; }
-.mcard__no { position: relative; align-self: center; font-family: var(--font-sans); font-weight: 400; font-size: 56px; line-height: 1; letter-spacing: -0.02em; }
-.mcard__no-label { font-size: var(--fs-20); letter-spacing: 0; color: var(--card-muted); vertical-align: 0.9em; margin-right: 2px; }
-.mcard__foot { position: relative; display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
-.mcard__who, .mcard__status { display: grid; gap: 2px; min-width: 0; }
-.mcard__status { text-align: right; }
-.mcard__name { font-size: var(--fs-16); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mcard__meta { font-size: var(--fs-12); color: var(--card-muted); letter-spacing: 0.02em; }
-.mcard__level { font-family: var(--font-sans); font-size: var(--fs-20); font-weight: 400; line-height: 1.1; }
-.mcard__level--long { font-size: 18px; }
-.mcard__meta, .mcard__level { white-space: nowrap; }
+.mcard__face--back { transform: rotateY(180deg); }
+.mcard__flip {
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%;
+  border: 0; border-radius: 16px;
+  background: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mcard__flip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-/* Issued: the card rises in, then the number and seal settle. Calm, once. */
+.mcard__rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mcard__rings circle { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mcard__lit { stop-color: var(--card-ring); stop-opacity: 0.85; }
+.mcard__dim { stop-color: var(--card-ring); stop-opacity: 0.1; }
+.mcard__rings--faint { opacity: 0.45; }
+
+.mcard__brand { display: block; width: 120px; line-height: 0; color: var(--card-ink); }
+.mcard .mcard__brand { position: absolute; top: 9.5%; right: 6%; width: 23%; }
+.mcard__brand svg { width: 100%; height: auto; }
+.mcard__who {
+  position: absolute; left: 5.5%; bottom: 10%;
+  display: inline-grid; justify-items: center; gap: 0.35em;
+  max-width: 55%;
+}
+.mcard__name { font-size: clamp(14px, 5.4cqw, 24px); line-height: 1.1; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.mcard__title { font-size: clamp(10px, 3.3cqw, 14px); letter-spacing: 0.06em; color: var(--card-muted); white-space: nowrap; }
+.mcard__no {
+  position: absolute; right: 6%; bottom: calc(10% + clamp(10px, 3.3cqw, 14px) * 1.55);
+  font-size: clamp(14px, 5.4cqw, 24px); line-height: 1.1; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The back: what the card stands for, set like the front */
+.mcard__facts { position: absolute; top: 10%; left: 6%; display: grid; gap: 3cqw; margin: 0; }
+.mcard__facts dt { font-size: clamp(8px, 2.4cqw, 11px); letter-spacing: 0.3em; text-transform: uppercase; color: var(--card-muted); }
+.mcard__facts dd { margin: 0.3em 0 0; font-size: clamp(12px, 4.2cqw, 18px); line-height: 1.15; }
+.mcard__hint { position: absolute; left: 6%; bottom: 10%; margin: 0; font-size: clamp(10px, 3.3cqw, 14px); color: var(--card-muted); max-width: 52%; }
+.mcard__face--back .mcard__no { bottom: 10%; color: var(--card-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mcard__inner, .mcard.is-flipped .mcard__inner { transform: none; transition: none; }
+  .mcard__face { transition: opacity 400ms var(--ease); }
+  .mcard__face--back { transform: none; opacity: 0; }
+  .mcard.is-flipped .mcard__face--front { opacity: 0; }
+  .mcard.is-flipped .mcard__face--back { opacity: 1; }
+}
+
+/* Issued: the card rises in, then the name and number settle. Calm, once. */
 .mcard.is-issuing { animation: card-rise 900ms var(--ease) both; }
-.mcard.is-issuing .mcard__no { animation: card-ink 700ms var(--ease) 650ms both; }
-.mcard.is-issuing .mcard__foot { animation: card-ink 600ms var(--ease) 950ms both; }
-.mcard.is-issuing .mcard__seal { animation: card-seal 900ms var(--ease) 1200ms both; }
+.mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no { animation: card-ink 700ms var(--ease) 700ms both; }
+.mcard.is-issuing .mcard__rings { animation: card-fade 1200ms var(--ease) 200ms both; }
 @keyframes card-rise { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes card-ink { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes card-seal { from { opacity: 0; transform: rotate(-24deg) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes card-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .mcard.is-issuing, .mcard.is-issuing .mcard__no, .mcard.is-issuing .mcard__foot, .mcard.is-issuing .mcard__seal { animation: none; }
+  .mcard.is-issuing, .mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no, .mcard.is-issuing .mcard__rings { animation: none; }
 }
+
+/* Profile drawer: the card at the top, full width */
+.drawer__card { padding-top: var(--space-2); padding-bottom: var(--space-4); }
 
 /* Club tab --------------------------------------------------------------- */
 .club { display: grid; gap: var(--space-5); }
@@ -8474,19 +8523,17 @@ li:last-child > .branch-row { border-bottom: 0; }
 
       function drawerHtml() {
         const m = member();
-        const club = S.club(m.id);
         const plan = S.memberPlan(m);
         const quote = m.plan ? S.quote(m.plan) : null;
-        const clubLine = [club.number, club.founding && "Founding Member", club.level.name].filter(Boolean).join(" · ");
         return html`
           <div class="drawer__bar">
             <h2 class="t-h3" id="drawer-title">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h2>
             <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
           </div>
           <div class="drawer__body">
+            <div class="drawer__card">${LCC.memberCard ? LCC.memberCard(m.id) : ""}</div>
             <section class="drawer__section" aria-labelledby="dr-profile">
               <h3 class="eyebrow" id="dr-profile">Profile</h3>
-              <p class="t-body">${clubLine}</p>
               ${m.phone ? html`<p class="t-small t-muted num">${m.phone}</p>` : ""}
               <a class="btn btn--link" href="#/app/club">Your member card</a>
             </section>
@@ -11143,7 +11190,7 @@ li:last-child > .branch-row { border-bottom: 0; }
    through store.select.club(): status, passport, badges and perks. Beans
    (points) sit at the top, from store.select.beans(); invitations from
    store.select.invitations(). The member card is shared with onboarding
-   (LCC.memberCard).
+   and the profile drawer (LCC.memberCard).
    ===================================================================== */
 (function () {
   "use strict";
@@ -11165,45 +11212,72 @@ li:last-child > .branch-row { border-bottom: 0; }
   const fullName = (m) => [m.firstName, m.lastName].filter(Boolean).join(" ");
 
   /* -------------------------------------------------------------------
-     Member card (Club tab, café-free; onboarding issues it)
+     Member card (Club tab, profile drawer; onboarding issues it)
+     Built in code so the name and number are live. Black (near-black green
+     in Matcha) with about 22 hairline rings whose gradient catches the
+     light at top right and bottom left. Tap to turn it over.
      ------------------------------------------------------------------- */
-  // A seal with its words set on a circle. Thin lines, no fill.
-  function seal() {
-    return html`<svg class="mcard__seal" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs><path id="seal-ring" d="M32 32 m-23 0 a23 23 0 1 1 46 0 a23 23 0 1 1 -46 0"/></defs>
-      <circle cx="32" cy="32" r="30.5"/>
-      <circle cx="32" cy="32" r="16"/>
-      <text><textPath href="#seal-ring" startOffset="0" textLength="140" lengthAdjust="spacing">FOUNDING MEMBER · LAHORE · </textPath></text>
-      <path d="M25.5 29h12v3.6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V29zM37.5 30.5h1.2a2.1 2.1 0 0 1 0 4.2h-1.4"/>
-    </svg>`;
+  let cardSeq = 0;
+  const cardNo = (c) => (c.memberNo != null ? `LCC-${String(c.memberNo).padStart(4, "0")}` : "LCC");
+
+  /** Concentric rings; the gradient is per ring (bounding box), so each one is lit on the same diagonal. */
+  function cardRings(cx, faint = false) {
+    const id = `mcard-g${++cardSeq}`;
+    const rings = [];
+    for (let i = 0; i < 22; i++) rings.push(`<circle cx="${cx}" cy="100" r="${(18 + i * 4.5).toFixed(1)}"/>`);
+    return raw(`<svg class="mcard__rings${faint ? " mcard__rings--faint" : ""}" viewBox="0 0 350 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="${id}" x1="1" y1="0" x2="0" y2="1">
+        <stop offset="0" class="mcard__lit"/><stop offset="0.28" class="mcard__dim"/><stop offset="0.72" class="mcard__dim"/><stop offset="1" class="mcard__lit"/>
+      </linearGradient></defs>
+      <g stroke="url(#${id})">${rings.join("")}</g>
+    </svg>`);
   }
 
-  function memberCard(memberId, { issuing = false } = {}) {
+  function memberCard(memberId, { issuing = false, flipped = false } = {}) {
     const c = S.club(memberId);
     const m = c.member;
-    const label = `Lahore Coffee Club member card. ${c.number}, ${fullName(m)}, member since ${fmt.monthYear(c.since)}, ${c.level.name}${c.founding ? ", Founding Member" : ""}`;
-    return html`<div class="mcard${c.founding ? " mcard--founding" : ""}${issuing ? " is-issuing" : ""}" role="img" aria-label="${label}">
-      <svg class="mcard__rings" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-        <circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="92"/><circle cx="200" cy="200" r="124"/><circle cx="200" cy="200" r="156"/>
-      </svg>
-      <div class="mcard__top">
-        <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
-        ${c.founding ? seal() : ""}
-      </div>
-      <p class="mcard__no"><span class="mcard__no-label">No.</span> <span class="num" data-card-no>${String(c.memberNo).padStart(4, "0")}</span></p>
-      <div class="mcard__foot">
-        <div class="mcard__who">
-          <span class="mcard__name">${fullName(m)}</span>
-          <span class="mcard__meta">Since ${fmt.monthYear(c.since)}</span>
+    const title = c.founding ? "Founding Member" : c.level.name;
+    const no = cardNo(c);
+    const plan = m.plan ? S.planLabel(m) : "No plan yet";
+    const circles = S.circlesOf(m.id).length;
+    const front = `Lahore Coffee Club member card, ${fullName(m)}, ${title}, ${no}`;
+    const back = `Back of the card: member since ${fmt.monthYear(c.since)}, ${plan}, ${circles === 1 ? "1 Circle" : `${circles} Circles`}. Show your pass at any partner café.`;
+    return html`<div class="mcard${flipped ? " is-flipped" : ""}${issuing ? " is-issuing" : ""}" data-mcard>
+      <div class="mcard__inner">
+        <div class="mcard__face mcard__face--front" role="img" aria-label="${front}" aria-hidden="${flipped ? "true" : "false"}">
+          ${cardRings(162)}
+          <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
+          <span class="mcard__who"><span class="mcard__name">${fullName(m)}</span><span class="mcard__title">${title}</span></span>
+          <span class="mcard__no num" data-card-no>${no}</span>
         </div>
-        <div class="mcard__status">
-          ${c.founding && c.level.id !== "member" ? html`<span class="mcard__meta">Founding Member</span>` : ""}
-          <span class="mcard__level${c.founding && c.level.id === "member" ? " mcard__level--long" : ""}">${c.founding && c.level.id === "member" ? "Founding Member" : c.level.name}</span>
+        <div class="mcard__face mcard__face--back" role="img" aria-label="${back}" aria-hidden="${flipped ? "false" : "true"}">
+          ${cardRings(300, true)}
+          <dl class="mcard__facts">
+            <div><dt>Member since</dt><dd>${fmt.monthYear(c.since)}</dd></div>
+            <div><dt>Plan</dt><dd>${plan}</dd></div>
+            <div><dt>Circles</dt><dd class="num">${circles}</dd></div>
+          </dl>
+          <p class="mcard__hint">Show your pass at any partner café</p>
+          <span class="mcard__no num">${no}</span>
         </div>
       </div>
+      <button type="button" class="mcard__flip" data-card-flip aria-label="${flipped ? "Turn the card back to the front" : "Turn the card over"}"></button>
     </div>`;
   }
   LCC.memberCard = memberCard;
+
+  // One listener for every card (Club tab, drawer, onboarding): tap to turn it over
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest("[data-card-flip]");
+    if (!btn) return;
+    const card = btn.closest("[data-mcard]");
+    const on = !card.classList.contains("is-flipped");
+    card.classList.toggle("is-flipped", on);
+    card.classList.remove("is-issuing");
+    card.querySelector(".mcard__face--front").setAttribute("aria-hidden", String(on));
+    card.querySelector(".mcard__face--back").setAttribute("aria-hidden", String(!on));
+    btn.setAttribute("aria-label", on ? "Turn the card back to the front" : "Turn the card over");
+  });
 
   /* -------------------------------------------------------------------
      Badge marks: 24px grid, 1.5px stroke, like the icon set
@@ -11851,7 +11925,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       set("invite", inviteHtml(c));
       paintBeansSheet();
       const card = $("[data-club-card]", view);
-      if (card) card.innerHTML = memberCard(c.member.id).s;
+      if (card) card.innerHTML = memberCard(c.member.id, { flipped: !!$(".mcard.is-flipped", card) }).s;
     }
     const repaintGathering = () => { const n = $('[data-club="gathering"]', view); if (n) n.innerHTML = gatheringHtml().s; };
 

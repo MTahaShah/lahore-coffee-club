@@ -10,56 +10,93 @@
 .ring-actions .btn--link svg { width: 18px; height: 18px; }
 
 /* Member card -----------------------------------------------------------
-   Black with cream type in both modes (a hairline shows its edge on
-   black). The one accent: the caramel Founding Member seal. */
+   Built in code, about 7:4. Black (near-black green in Matcha, tokens in
+   base.css) in both modes, a hairline edge, no shadow. About 22 hairline
+   rings, centred a little left, lit at top right and bottom left by a
+   per-ring gradient (the accent use). Type is sized to the card's width
+   (cqw), so it is larger on the Club tab than in the drawer. Tap turns
+   it over (400ms rotateY; crossfade with reduced motion). */
 .mcard {
-  --card-bg: var(--black);
-  --card-ink: var(--cream);
-  --card-muted: color-mix(in srgb, var(--cream) 66%, transparent);
-  --card-line: color-mix(in srgb, var(--cream) 16%, transparent);
-  --logo-ink: var(--cream);
   position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  aspect-ratio: 1.586;
   width: 100%;
-  padding: 20px 22px 18px;
+  aspect-ratio: 7 / 4;
+  container-type: inline-size;
+  perspective: 1400px;
+  border-radius: 16px;
+  color: var(--card-ink);
+  --logo-ink: var(--card-ink);
+}
+.mcard__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 400ms var(--ease); }
+.mcard.is-flipped .mcard__inner { transform: rotateY(180deg); }
+.mcard__face {
+  position: absolute; inset: 0;
+  overflow: hidden;
   border-radius: 16px;
   background: var(--card-bg);
-  color: var(--card-ink);
-  box-shadow: inset 0 0 0 1px var(--card-line);
+  border: 1px solid var(--card-edge);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
-.mcard--founding .mcard__seal { color: var(--accent); }   /* accent: the seal */
-.mcard__rings { position: absolute; right: 0; bottom: 0; width: 70%; height: auto; pointer-events: none; }
-.mcard__rings circle { fill: none; stroke: var(--card-line); stroke-width: 0.75; }
-.mcard__top { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
-.mcard__brand { width: 120px; line-height: 0; color: var(--card-ink); }
-.mcard__seal { width: 56px; height: 56px; flex: none; margin: -6px -6px 0 0; color: var(--card-ink); }
-.mcard__seal circle, .mcard__seal path { fill: none; stroke: currentColor; stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
-.mcard__seal text { fill: currentColor; font: 500 6.4px/1 var(--font-sans); letter-spacing: 0.16em; }
-.mcard__no { position: relative; align-self: center; font-family: var(--font-sans); font-weight: 400; font-size: 56px; line-height: 1; letter-spacing: -0.02em; }
-.mcard__no-label { font-size: var(--fs-20); letter-spacing: 0; color: var(--card-muted); vertical-align: 0.9em; margin-right: 2px; }
-.mcard__foot { position: relative; display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
-.mcard__who, .mcard__status { display: grid; gap: 2px; min-width: 0; }
-.mcard__status { text-align: right; }
-.mcard__name { font-size: var(--fs-16); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mcard__meta { font-size: var(--fs-12); color: var(--card-muted); letter-spacing: 0.02em; }
-.mcard__level { font-family: var(--font-sans); font-size: var(--fs-20); font-weight: 400; line-height: 1.1; }
-.mcard__level--long { font-size: 18px; }
-.mcard__meta, .mcard__level { white-space: nowrap; }
+.mcard__face--back { transform: rotateY(180deg); }
+.mcard__flip {
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%;
+  border: 0; border-radius: 16px;
+  background: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mcard__flip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-/* Issued: the card rises in, then the number and seal settle. Calm, once. */
+.mcard__rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mcard__rings circle { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mcard__lit { stop-color: var(--card-ring); stop-opacity: 0.85; }
+.mcard__dim { stop-color: var(--card-ring); stop-opacity: 0.1; }
+.mcard__rings--faint { opacity: 0.45; }
+
+.mcard__brand { display: block; width: 120px; line-height: 0; color: var(--card-ink); }
+.mcard .mcard__brand { position: absolute; top: 9.5%; right: 6%; width: 23%; }
+.mcard__brand svg { width: 100%; height: auto; }
+.mcard__who {
+  position: absolute; left: 5.5%; bottom: 10%;
+  display: inline-grid; justify-items: center; gap: 0.35em;
+  max-width: 55%;
+}
+.mcard__name { font-size: clamp(14px, 5.4cqw, 24px); line-height: 1.1; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.mcard__title { font-size: clamp(10px, 3.3cqw, 14px); letter-spacing: 0.06em; color: var(--card-muted); white-space: nowrap; }
+.mcard__no {
+  position: absolute; right: 6%; bottom: calc(10% + clamp(10px, 3.3cqw, 14px) * 1.55);
+  font-size: clamp(14px, 5.4cqw, 24px); line-height: 1.1; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The back: what the card stands for, set like the front */
+.mcard__facts { position: absolute; top: 10%; left: 6%; display: grid; gap: 3cqw; margin: 0; }
+.mcard__facts dt { font-size: clamp(8px, 2.4cqw, 11px); letter-spacing: 0.3em; text-transform: uppercase; color: var(--card-muted); }
+.mcard__facts dd { margin: 0.3em 0 0; font-size: clamp(12px, 4.2cqw, 18px); line-height: 1.15; }
+.mcard__hint { position: absolute; left: 6%; bottom: 10%; margin: 0; font-size: clamp(10px, 3.3cqw, 14px); color: var(--card-muted); max-width: 52%; }
+.mcard__face--back .mcard__no { bottom: 10%; color: var(--card-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mcard__inner, .mcard.is-flipped .mcard__inner { transform: none; transition: none; }
+  .mcard__face { transition: opacity 400ms var(--ease); }
+  .mcard__face--back { transform: none; opacity: 0; }
+  .mcard.is-flipped .mcard__face--front { opacity: 0; }
+  .mcard.is-flipped .mcard__face--back { opacity: 1; }
+}
+
+/* Issued: the card rises in, then the name and number settle. Calm, once. */
 .mcard.is-issuing { animation: card-rise 900ms var(--ease) both; }
-.mcard.is-issuing .mcard__no { animation: card-ink 700ms var(--ease) 650ms both; }
-.mcard.is-issuing .mcard__foot { animation: card-ink 600ms var(--ease) 950ms both; }
-.mcard.is-issuing .mcard__seal { animation: card-seal 900ms var(--ease) 1200ms both; }
+.mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no { animation: card-ink 700ms var(--ease) 700ms both; }
+.mcard.is-issuing .mcard__rings { animation: card-fade 1200ms var(--ease) 200ms both; }
 @keyframes card-rise { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes card-ink { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes card-seal { from { opacity: 0; transform: rotate(-24deg) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes card-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .mcard.is-issuing, .mcard.is-issuing .mcard__no, .mcard.is-issuing .mcard__foot, .mcard.is-issuing .mcard__seal { animation: none; }
+  .mcard.is-issuing, .mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no, .mcard.is-issuing .mcard__rings { animation: none; }
 }
+
+/* Profile drawer: the card at the top, full width */
+.drawer__card { padding-top: var(--space-2); padding-bottom: var(--space-4); }
 
 /* Club tab --------------------------------------------------------------- */
 .club { display: grid; gap: var(--space-5); }
