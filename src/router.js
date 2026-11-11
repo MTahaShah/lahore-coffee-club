@@ -16,6 +16,8 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // The page's own title: "Lahore Coffee Club", or "LCC Cafés" in cafe.html
+  const BASE_TITLE = document.title || "Lahore Coffee Club";
   const LCC = (window.LCC = window.LCC || {});
   const { store, fmt, ui } = LCC;
   const { html, raw, $, icon } = ui;
@@ -58,7 +60,7 @@
       window.scrollTo(0, 0);
       if (!firstLoad) main.focus({ preventScroll: true });
     }
-    document.title = def.title ? `${def.title} · Lahore Coffee Club` : "Lahore Coffee Club";
+    document.title = def.title ? `${def.title} · ${BASE_TITLE}` : BASE_TITLE;
     renderProtoBar(name);
   }
 

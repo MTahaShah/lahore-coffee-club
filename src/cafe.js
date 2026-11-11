@@ -719,10 +719,28 @@
         store.on("snapshot", () => { renderAll(); }),
       ];
 
+      /* Keep the counter tablet awake during service, but only when the café
+         view runs as an installed app. Released when hidden; asked for again
+         when the app comes back. Fails silently where unsupported. */
+      const installed = () => window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+      let wakeLock = null;
+      async function keepAwake() {
+        if (!installed() || !("wakeLock" in navigator) || document.visibilityState !== "visible" || wakeLock) return;
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        } catch (_) { wakeLock = null; /* low battery, not allowed, or not supported */ }
+      }
+      const onVisible = () => { if (document.visibilityState === "visible") keepAwake(); };
+      document.addEventListener("visibilitychange", onVisible);
+      keepAwake();
+
       A.refreshAutoBusy(cafeId);
       renderAll();
 
       return () => {
+        document.removeEventListener("visibilitychange", onVisible);
+        if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
         clearTimeout(resetTimer); clearTimeout(scanTimer);
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);

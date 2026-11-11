@@ -16,7 +16,9 @@
 # PWA files can't be inlined (the phone fetches them as real files), so
 # they are copied next to index.html with relative paths:
 #   src/manifest.json -> manifest.json, src/sw.js -> sw.js,
-#   the icons below   -> icons/
+#   src/manifest-cafe.json -> manifest-cafe.json, the icons below -> icons/
+# cafe.html is the same built page as the "LCC Cafés" app: its own
+# manifest and titles, and it opens on #/cafe when no route is given.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -46,7 +48,7 @@ FONT_FILES=(
 FAVICON="$SRC/logos/favicon-32.png"
 
 # Copied as real files for the installable app (PWA)
-PWA_FILES=(manifest.json sw.js)
+PWA_FILES=(manifest.json manifest-cafe.json sw.js)
 ICON_FILES=(
   app-icon-192.png
   app-icon-512.png
@@ -135,6 +137,22 @@ build() {
     esac
   done < "$TEMPLATE" > "$tmp"
   mv "$tmp" "$OUT"
+
+  # cafe.html: the café app. Same page, its own manifest, titles and start route.
+  # The route line goes first in <head>, before any script reads the hash.
+  local cafe_tmp
+  cafe_tmp="$(mktemp "${TMPDIR:-/tmp}/lcc-cafe.XXXXXX")"
+  sed \
+    -e 's|<link rel="manifest" href="manifest.json">|<link rel="manifest" href="manifest-cafe.json">|' \
+    -e 's|<meta name="apple-mobile-web-app-title" content="LCC">|<meta name="apple-mobile-web-app-title" content="LCC Cafés">|' \
+    -e 's|<title>Lahore Coffee Club</title>|<title>LCC Cafés</title>|' \
+    -e 's|<meta charset="utf-8">|<meta charset="utf-8">\
+  <script>if (!location.hash \|\| location.hash === "#") history.replaceState(null, "", location.pathname + location.search + "#/cafe");</script>|' \
+    "$OUT" > "$cafe_tmp"
+  for want in 'href="manifest-cafe.json"' 'content="LCC Cafés"' '<title>LCC Cafés</title>' '"#/cafe");</script>'; do
+    grep -qF "$want" "$cafe_tmp" || { echo "build: cafe.html is missing $want (did the template change?)" >&2; rm -f "$cafe_tmp"; return 1; }
+  done
+  mv "$cafe_tmp" cafe.html
 
   # PWA files next to index.html (relative paths, so a subfolder works too)
   for f in "${PWA_FILES[@]}"; do cp "$SRC/$f" "$f"; done

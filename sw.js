@@ -2,8 +2,8 @@
 // keeps a copy for offline use. Network first, so online you always get
 // the latest build; the cache is only used when the network fails.
 // Bump CACHE_VERSION to drop every older cache on the next visit.
-const CACHE_VERSION = "lcc-v1";
-const PRECACHE = ["./", "./index.html", "./manifest.json", "./icons/app-icon-192.png", "./icons/app-icon-512.png"];
+const CACHE_VERSION = "lcc-v2";
+const PRECACHE = ["./", "./index.html", "./cafe.html", "./manifest.json", "./manifest-cafe.json", "./icons/app-icon-192.png", "./icons/app-icon-512.png"];
 
 // Install: save the page and icons so the app opens offline from the start
 self.addEventListener("install", (event) => {
@@ -20,7 +20,7 @@ self.addEventListener("activate", (event) => {
 });
 
 // Fetch: our own files go to the network first and refresh the cache;
-// offline, use the cached copy (any page falls back to index.html).
+// offline, use the cached copy (cafe.html has its own; other pages fall back to index.html).
 // CDN scripts (QR, Supabase) are left to the browser.
 self.addEventListener("fetch", (event) => {
   const req = event.request;

@@ -4511,6 +4511,8 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
    ===================================================================== */
 (function () {
   "use strict";
+  // The page's own title: "Lahore Coffee Club", or "LCC Cafés" in cafe.html
+  const BASE_TITLE = document.title || "Lahore Coffee Club";
   const LCC = (window.LCC = window.LCC || {});
   const { store, fmt, ui } = LCC;
   const { html, raw, $, icon } = ui;
@@ -4553,7 +4555,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
       window.scrollTo(0, 0);
       if (!firstLoad) main.focus({ preventScroll: true });
     }
-    document.title = def.title ? `${def.title} · Lahore Coffee Club` : "Lahore Coffee Club";
+    document.title = def.title ? `${def.title} · ${BASE_TITLE}` : BASE_TITLE;
     renderProtoBar(name);
   }
 
@@ -5929,10 +5931,28 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
         store.on("snapshot", () => { renderAll(); }),
       ];
 
+      /* Keep the counter tablet awake during service, but only when the café
+         view runs as an installed app. Released when hidden; asked for again
+         when the app comes back. Fails silently where unsupported. */
+      const installed = () => window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+      let wakeLock = null;
+      async function keepAwake() {
+        if (!installed() || !("wakeLock" in navigator) || document.visibilityState !== "visible" || wakeLock) return;
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        } catch (_) { wakeLock = null; /* low battery, not allowed, or not supported */ }
+      }
+      const onVisible = () => { if (document.visibilityState === "visible") keepAwake(); };
+      document.addEventListener("visibilitychange", onVisible);
+      keepAwake();
+
       A.refreshAutoBusy(cafeId);
       renderAll();
 
       return () => {
+        document.removeEventListener("visibilitychange", onVisible);
+        if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
         clearTimeout(resetTimer); clearTimeout(scanTimer);
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);

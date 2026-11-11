@@ -102,6 +102,11 @@ favicon are inlined). Edit `src/`, never `index.html`.
   `apple-touch-icon-180.png`, resized from `app-icon-cream-1024.png`) into
   `icons/`, next to `index.html`. The service worker is network first; bump
   `CACHE_VERSION` to clear old caches
+- `manifest-cafe.json` — the café app, "LCC Cafés" (id `./?app=cafe`; the
+  member manifest is `./?app=member`). `build.sh` also writes `cafe.html`:
+  the same page with this manifest, "LCC Cafés" titles, opening on
+  `#/cafe` when there's no route. Installed, the café view keeps the screen
+  awake (Wake Lock, re-requested on return, silent if unsupported)
 - `og.png` (repo root) — 1200×630 link-preview image, rendered with
   headless Chrome; referenced by absolute URL in the template's OG tags
 
