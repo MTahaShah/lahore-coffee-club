@@ -2,15 +2,17 @@
    Lahore Coffee Club — app.js
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
-   Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
-            #/app/map · #/app/club · #/app/gift · #/app/plan
+   Routes:  #/app (Home) · #/app/cafes (List | Map) · #/app/cafes/:id
+            #/app/pass · #/app/circles · #/app/circles/:id
+            #/app/circles/:id/join · #/app/club · #/app/gift · #/app/plan
             #/app/plan/pay · #/app/order · #/app/order/pay · #/app/group/:id
-            #/app/circle/:id · #/app/circle/:id/join
             #/app/welcome · #/app/welcome/card
-   This file owns the shell, tabs, Home, Pass and Map. Cafés live in
-   app-cafes.js, the plan picker and payment in app-plan.js, the Club
-   and gifting in app-club.js, pickup orders in app-order.js,
-   onboarding in app-welcome.js; they add
+   Old links redirect: #/app/map (Cafés, Map), #/app/circle/:id(/join).
+   This file owns the shell, tabs, Home, Pass and the busy map (drawn
+   inside the Cafés tab, ctx.busyMap). Cafés live in app-cafes.js,
+   Circles in app-circles.js, the plan picker and payment in
+   app-plan.js, the Club and gifting in app-club.js, pickup orders in
+   app-order.js, onboarding in app-welcome.js; they add
    screen factories to LCC.appScreens and get a small ctx object.
 
    Everything reads the shared store, so a redemption or status change
@@ -30,9 +32,11 @@
     { id: "home",    label: "Home",    icon: "home" },
     { id: "cafes",   label: "Cafés",   icon: "store" },
     { id: "pass",    label: "Pass",    icon: "qr" },
-    { id: "map",     label: "Map",     icon: "map" },
+    { id: "circles", label: "Circles", icon: "circles" },
     { id: "club",    label: "Club",    icon: "award" },
   ];
+  /** The Circles tab's icon: a small brick ring (ui.brickRing), thin outlines, at 24px. */
+  const tabRing = () => ui.brickRing({ total: 6, filled: 6, size: 24, radius: 8, length: 5, twist: 14, cls: "tab__ring" });
   const tabFromPath = (path) => (TABS.some((t) => t.id === path[0]) ? path[0] : "home");
   const hrefFor = (id) => (id === "home" ? "#/app" : `#/app/${id}`);
 
@@ -114,7 +118,7 @@
                 ${TABS.map((t) => html`
                   <button type="button" role="tab" class="tab${t.id === "pass" ? " tab--pass" : ""}" id="tab-${t.id}" data-tab="${t.id}"
                     aria-controls="app-view" aria-selected="false" tabindex="-1">
-                    ${t.id === "pass" ? html`<span class="tab__pass">${icon(t.icon)}</span>` : icon(t.icon)}
+                    ${t.id === "pass" ? html`<span class="tab__pass">${icon(t.icon)}</span>` : t.id === "circles" ? tabRing() : icon(t.icon)}
                     <span>${t.label}</span>
                   </button>`)}
               </div>
@@ -143,8 +147,13 @@
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
-        if (a === "circle" && b && path[2] === "join" && REG.circleJoin) return { key: `circle/${b}/join`, tab: "club", flow: true, make: () => REG.circleJoin(ctx, b) };
-        if (a === "circle" && b && REG.circle) return { key: `circle/${b}`, tab: "club", make: () => REG.circle(ctx, b) };
+        // The busy map now sits in the Cafés tab (Map selected)
+        if (a === "map") return { key: "map", tab: "cafes", make: () => { REG.cafesView?.("map"); active.on?.cafesView?.("map"); return { redirect: "#/app/cafes" }; } };
+        if (a === "circles" && b && path[2] === "join" && REG.circleJoin) return { key: `circles/${b}/join`, tab: "circles", flow: true, make: () => REG.circleJoin(ctx, b) };
+        if (a === "circles" && b && REG.circle) return { key: `circles/${b}`, tab: "circles", make: () => REG.circle(ctx, b) };
+        if (a === "circles" && REG.circles) return { key: "circles", tab: "circles", make: () => REG.circles(ctx) };
+        // Circles used to live in the Club tab: old links (and invitations already sent) still work
+        if (a === "circle") return { key: "circle", tab: "circles", make: () => ({ redirect: b ? `#/app/circles/${b}${path[2] === "join" ? "/join" : ""}` : "#/app/circles" }) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -261,7 +270,6 @@
       const SCREENS = {
         home: homeScreen,
         pass: passScreen,
-        map: mapScreen,
       };
 
       /* Home ------------------------------------------------------------ */
@@ -654,17 +662,19 @@
           : html`How busy each café usually is at 6 pm, from past weeks.`;
       }
 
-      function mapScreen() {
-        return {
-          html: html`
-            <div class="app-screen--flush">
+      /** The busy map, drawn inside the Cafés tab (Map). Pins follow the
+          tab's search and filters through busyMap.setList. */
+      let mapList = () => S.cafes();
+      function busyMapHtml() {
+        return html`
+            <div class="busy-map">
               <div class="map-head">
-                <h1 class="t-h2">Know before you go.</h1>
+                <h2 class="t-h3">Know before you go.</h2>
                 ${ui.segmented({ name: "mapmode", label: "Map view", value: mapMode, options: [{ value: "now", label: "Now" }, { value: "usual", label: "Usually at 6 pm" }] })}
               </div>
               <div class="map" data-map>
                 ${mapSvg()}
-                <div data-pins>${S.cafes().map(pinHtml)}</div>
+                <div data-pins>${mapList().map(pinHtml)}</div>
               </div>
               <div class="map-foot">
                 <div class="legend" aria-hidden="true">
@@ -672,35 +682,44 @@
                 </div>
                 <p class="t-small t-muted" data-map-note aria-live="polite">${mapNote()}</p>
               </div>
-            </div>`.s,
-          on: {
-            "cafe:status": ({ cafeId }) => {
-              const c = S.cafe(cafeId);
-              if (mapMode !== "now") return;
-              const pin = $(`[data-pin="${cafeId}"]`, view);
-              if (pin) {
-                pin.dataset.status = c.status;
-                $(".pin__icon", pin).outerHTML = ui.cupIcon(c.status, { size: 18, cls: "pin__icon" }).s;
-                pin.setAttribute("aria-label", pinLabel(c, c.status));
-                pin.classList.remove("is-changed"); void pin.offsetWidth; pin.classList.add("is-changed");
-              }
-              $("[data-map-note]", view).innerHTML = html`${c.name} is now ${fmt.statusLabel(c.status).toLowerCase()} · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
-            },
-            tick: () => {
-              if (mapMode !== "now") return;
-              $$("[data-pin]", view).forEach((pin) => { const c = S.cafe(pin.dataset.pin); pin.setAttribute("aria-label", pinLabel(c, c.status)); });
-            },
-          },
-        };
+            </div>`;
+      }
+      function mapStatus({ cafeId }) {
+        const c = S.cafe(cafeId);
+        if (mapMode !== "now") return;
+        const pin = $(`[data-pin="${cafeId}"]`, view);
+        if (pin) {
+          pin.dataset.status = c.status;
+          $(".pin__icon", pin).outerHTML = ui.cupIcon(c.status, { size: 18, cls: "pin__icon" }).s;
+          pin.setAttribute("aria-label", pinLabel(c, c.status));
+          pin.classList.remove("is-changed"); void pin.offsetWidth; pin.classList.add("is-changed");
+        }
+        const note = $("[data-map-note]", view);
+        if (note) note.innerHTML = html`${c.name} is now ${fmt.statusLabel(c.status).toLowerCase()} · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
+      }
+      function mapTick() {
+        if (mapMode !== "now") return;
+        $$("[data-pin]", view).forEach((pin) => { const c = S.cafe(pin.dataset.pin); pin.setAttribute("aria-label", pinLabel(c, c.status)); });
+      }
+      function paintPins() {
+        const pins = $("[data-pins]", view);
+        if (pins) pins.innerHTML = html`${mapList().map(pinHtml)}`.s;
       }
 
       function setMapMode(mode) {
         mapMode = mode;
         const pins = $("[data-pins]", view);
         if (!pins) return;
-        pins.innerHTML = html`${S.cafes().map(pinHtml)}`.s;
+        paintPins();
         $("[data-map-note]", view).innerHTML = mapNote().s;
       }
+      ctx.busyMap = {
+        html: busyMapHtml,
+        setList: (fn) => { mapList = fn || (() => S.cafes()); },
+        paint: paintPins,
+        status: mapStatus,
+        tick: mapTick,
+      };
 
       /* ---------------- Events ---------------- */
       const onClick = (e) => {

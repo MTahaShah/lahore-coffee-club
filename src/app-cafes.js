@@ -1,6 +1,9 @@
 /* =====================================================================
    Lahore Coffee Club — app-cafes.js
    Member app: Cafés tab (#/app/cafes) and café detail (#/app/cafes/:id).
+   The tab has a List | Map switch; Map is the busy map from app.js
+   (ctx.busyMap), and search and filters apply to both. #/app/map opens
+   the tab with Map selected.
    Registers screen factories on LCC.appScreens; app.js mounts them.
    ===================================================================== */
 (function () {
@@ -18,6 +21,8 @@
   const PAGE = 6;
   let shown = PAGE;
   let listScroll = 0;
+  let cafesView = "list"; // List | Map, kept across visits
+  REG.cafesView = (v) => { cafesView = v === "map" ? "map" : "list"; };
 
   // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
   const matchaMode = () => LCC.theme?.flavour() === "matcha";
@@ -78,6 +83,15 @@
       fb.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
       $("[data-clear-search]", view).hidden = !filters.query;
       $("[data-cafe-area]", view).value = filters.areaId || "";
+      ctx.busyMap?.paint(); // the map shows the same cafés
+    }
+
+    function setView(v) {
+      REG.cafesView(v);
+      const seg = $('[data-segmented="cafesview"]', view);
+      if (seg) ui.selectSegment(seg, cafesView);
+      $("[data-cafes-list]", view).hidden = cafesView !== "list";
+      $("[data-cafes-map]", view).hidden = cafesView !== "map";
     }
 
     // A new search or filter starts the list from the top again
@@ -154,6 +168,8 @@
 
     function onClick(e) {
       const t = e.target;
+      const vs = t.closest('[data-segmented="cafesview"] .segmented__option');
+      if (vs) { setView(vs.dataset.value); return; }
       // Focus the button first, so closing the sheet returns there (Safari doesn't focus on tap)
       const fb = t.closest("[data-open-filters]");
       if (fb) { fb.focus(); openFilters(); return; }
@@ -186,6 +202,7 @@
               <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
             </div>
           </div>
+          ${ui.segmented({ name: "cafesview", label: "Show cafés as", value: cafesView, options: [{ value: "list", label: "List" }, { value: "map", label: "Map" }] })}
           <div class="cafes__tools">
             <div class="select">
               <label class="sr-only" for="cafe-area">Area</label>
@@ -198,11 +215,12 @@
               ${icon("sliders", { size: 18 })}<span data-filter-label>Filters</span>
             </button>
           </div>
-          <div>
-            <p class="sr-only" data-cafe-count aria-live="polite"></p>
+          <p class="sr-only" data-cafe-count aria-live="polite"></p>
+          <div data-cafes-list ${cafesView === "list" ? "" : ui.raw("hidden")}>
             <ul role="list" class="cafe-lines" data-cafe-list></ul>
             <button type="button" class="btn btn--secondary btn--block cafes__more" data-show-more hidden>Show more</button>
           </div>
+          <div class="cafes__map" data-cafes-map ${cafesView === "map" ? "" : ui.raw("hidden")}>${ctx.busyMap ? ctx.busyMap.html() : ""}</div>
         </div>`.s,
       mount() {
         sheet = document.createElement("div");
@@ -214,6 +232,7 @@
         sheet.setAttribute("aria-hidden", "true");
         $(".phone__screen", el).appendChild(sheet);
         sheet.addEventListener("click", onSheetClick);
+        ctx.busyMap?.setList(() => S.searchCafes(filters));
         paintList();
         view.scrollTop = listScroll;
         view.addEventListener("input", onInput);
@@ -221,6 +240,7 @@
         view.addEventListener("click", onClick);
         document.addEventListener("lcc:flavour", paintList);
         return () => {
+          ctx.busyMap?.setList(null);
           document.removeEventListener("lcc:flavour", paintList);
           listScroll = view.scrollTop;
           ui.closeSheet(sheet);
@@ -232,8 +252,9 @@
       },
       on: {
         // Status words update themselves; the list only changes when a filter depends on it
-        "cafe:status": () => { if (filters.statuses.length) paintList(); },
-        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); }, // open / closed follows the clock
+        "cafe:status": (p) => { if (filters.statuses.length) paintList(); ctx.busyMap?.status(p); },
+        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); ctx.busyMap?.tick(); }, // open / closed follows the clock
+        cafesView: setView, // #/app/map while the tab is showing
       },
     };
   };

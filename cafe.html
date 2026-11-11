@@ -1553,6 +1553,9 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .tab[aria-selected="true"]:not(.tab--pass)::before { content: ""; position: absolute; top: -6px; left: 50%; width: 20px; height: 2px; margin-left: -10px; border-radius: 2px; background: var(--accent); }
 .tab--pass[aria-selected="true"] .tab__pass { box-shadow: 0 0 0 4px var(--surface), 0 0 0 5.5px var(--accent); }
 .tab:active svg { transform: scale(0.94); }
+/* Circles tab: a small brick ring in thin outlines, in the tab's ink (not an accent) */
+.tab .tab__ring { color: currentColor; }
+.tab .tab__ring .brick.is-full { fill: none; stroke: currentColor; stroke-width: 1.4; }
 .tab--pass { padding-top: 0; }
 .tab__pass {
   display: grid;
@@ -1793,6 +1796,10 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 
 /* Search sticks to the top while the list scrolls */
 .cafes__search { position: sticky; top: 0; z-index: 5; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-5)) 0; padding: var(--space-2) var(--space-5); background: var(--bg); }
+/* List | Map: the busy map runs edge to edge inside the tab */
+.cafes > [hidden] { display: none; }
+.cafes__map { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-5)) calc(-1 * var(--space-6)); }
+.cafes__map .map-head { padding-top: var(--space-2); }
 .cafes__tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); }
 .cafes__tools .input { height: 48px; border-radius: var(--radius-pill); }
 .cafes__filters { --btn-h: 48px; gap: var(--space-2); padding-inline: var(--space-4); }
@@ -8175,15 +8182,17 @@ li:last-child > .branch-row { border-bottom: 0; }
    Lahore Coffee Club — app.js
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
-   Routes:  #/app (Home) · #/app/cafes · #/app/cafes/:id · #/app/pass
-            #/app/map · #/app/club · #/app/gift · #/app/plan
+   Routes:  #/app (Home) · #/app/cafes (List | Map) · #/app/cafes/:id
+            #/app/pass · #/app/circles · #/app/circles/:id
+            #/app/circles/:id/join · #/app/club · #/app/gift · #/app/plan
             #/app/plan/pay · #/app/order · #/app/order/pay · #/app/group/:id
-            #/app/circle/:id · #/app/circle/:id/join
             #/app/welcome · #/app/welcome/card
-   This file owns the shell, tabs, Home, Pass and Map. Cafés live in
-   app-cafes.js, the plan picker and payment in app-plan.js, the Club
-   and gifting in app-club.js, pickup orders in app-order.js,
-   onboarding in app-welcome.js; they add
+   Old links redirect: #/app/map (Cafés, Map), #/app/circle/:id(/join).
+   This file owns the shell, tabs, Home, Pass and the busy map (drawn
+   inside the Cafés tab, ctx.busyMap). Cafés live in app-cafes.js,
+   Circles in app-circles.js, the plan picker and payment in
+   app-plan.js, the Club and gifting in app-club.js, pickup orders in
+   app-order.js, onboarding in app-welcome.js; they add
    screen factories to LCC.appScreens and get a small ctx object.
 
    Everything reads the shared store, so a redemption or status change
@@ -8203,9 +8212,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     { id: "home",    label: "Home",    icon: "home" },
     { id: "cafes",   label: "Cafés",   icon: "store" },
     { id: "pass",    label: "Pass",    icon: "qr" },
-    { id: "map",     label: "Map",     icon: "map" },
+    { id: "circles", label: "Circles", icon: "circles" },
     { id: "club",    label: "Club",    icon: "award" },
   ];
+  /** The Circles tab's icon: a small brick ring (ui.brickRing), thin outlines, at 24px. */
+  const tabRing = () => ui.brickRing({ total: 6, filled: 6, size: 24, radius: 8, length: 5, twist: 14, cls: "tab__ring" });
   const tabFromPath = (path) => (TABS.some((t) => t.id === path[0]) ? path[0] : "home");
   const hrefFor = (id) => (id === "home" ? "#/app" : `#/app/${id}`);
 
@@ -8287,7 +8298,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 ${TABS.map((t) => html`
                   <button type="button" role="tab" class="tab${t.id === "pass" ? " tab--pass" : ""}" id="tab-${t.id}" data-tab="${t.id}"
                     aria-controls="app-view" aria-selected="false" tabindex="-1">
-                    ${t.id === "pass" ? html`<span class="tab__pass">${icon(t.icon)}</span>` : icon(t.icon)}
+                    ${t.id === "pass" ? html`<span class="tab__pass">${icon(t.icon)}</span>` : t.id === "circles" ? tabRing() : icon(t.icon)}
                     <span>${t.label}</span>
                   </button>`)}
               </div>
@@ -8316,8 +8327,13 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
-        if (a === "circle" && b && path[2] === "join" && REG.circleJoin) return { key: `circle/${b}/join`, tab: "club", flow: true, make: () => REG.circleJoin(ctx, b) };
-        if (a === "circle" && b && REG.circle) return { key: `circle/${b}`, tab: "club", make: () => REG.circle(ctx, b) };
+        // The busy map now sits in the Cafés tab (Map selected)
+        if (a === "map") return { key: "map", tab: "cafes", make: () => { REG.cafesView?.("map"); active.on?.cafesView?.("map"); return { redirect: "#/app/cafes" }; } };
+        if (a === "circles" && b && path[2] === "join" && REG.circleJoin) return { key: `circles/${b}/join`, tab: "circles", flow: true, make: () => REG.circleJoin(ctx, b) };
+        if (a === "circles" && b && REG.circle) return { key: `circles/${b}`, tab: "circles", make: () => REG.circle(ctx, b) };
+        if (a === "circles" && REG.circles) return { key: "circles", tab: "circles", make: () => REG.circles(ctx) };
+        // Circles used to live in the Club tab: old links (and invitations already sent) still work
+        if (a === "circle") return { key: "circle", tab: "circles", make: () => ({ redirect: b ? `#/app/circles/${b}${path[2] === "join" ? "/join" : ""}` : "#/app/circles" }) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -8434,7 +8450,6 @@ li:last-child > .branch-row { border-bottom: 0; }
       const SCREENS = {
         home: homeScreen,
         pass: passScreen,
-        map: mapScreen,
       };
 
       /* Home ------------------------------------------------------------ */
@@ -8827,17 +8842,19 @@ li:last-child > .branch-row { border-bottom: 0; }
           : html`How busy each café usually is at 6 pm, from past weeks.`;
       }
 
-      function mapScreen() {
-        return {
-          html: html`
-            <div class="app-screen--flush">
+      /** The busy map, drawn inside the Cafés tab (Map). Pins follow the
+          tab's search and filters through busyMap.setList. */
+      let mapList = () => S.cafes();
+      function busyMapHtml() {
+        return html`
+            <div class="busy-map">
               <div class="map-head">
-                <h1 class="t-h2">Know before you go.</h1>
+                <h2 class="t-h3">Know before you go.</h2>
                 ${ui.segmented({ name: "mapmode", label: "Map view", value: mapMode, options: [{ value: "now", label: "Now" }, { value: "usual", label: "Usually at 6 pm" }] })}
               </div>
               <div class="map" data-map>
                 ${mapSvg()}
-                <div data-pins>${S.cafes().map(pinHtml)}</div>
+                <div data-pins>${mapList().map(pinHtml)}</div>
               </div>
               <div class="map-foot">
                 <div class="legend" aria-hidden="true">
@@ -8845,35 +8862,44 @@ li:last-child > .branch-row { border-bottom: 0; }
                 </div>
                 <p class="t-small t-muted" data-map-note aria-live="polite">${mapNote()}</p>
               </div>
-            </div>`.s,
-          on: {
-            "cafe:status": ({ cafeId }) => {
-              const c = S.cafe(cafeId);
-              if (mapMode !== "now") return;
-              const pin = $(`[data-pin="${cafeId}"]`, view);
-              if (pin) {
-                pin.dataset.status = c.status;
-                $(".pin__icon", pin).outerHTML = ui.cupIcon(c.status, { size: 18, cls: "pin__icon" }).s;
-                pin.setAttribute("aria-label", pinLabel(c, c.status));
-                pin.classList.remove("is-changed"); void pin.offsetWidth; pin.classList.add("is-changed");
-              }
-              $("[data-map-note]", view).innerHTML = html`${c.name} is now ${fmt.statusLabel(c.status).toLowerCase()} · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
-            },
-            tick: () => {
-              if (mapMode !== "now") return;
-              $$("[data-pin]", view).forEach((pin) => { const c = S.cafe(pin.dataset.pin); pin.setAttribute("aria-label", pinLabel(c, c.status)); });
-            },
-          },
-        };
+            </div>`;
+      }
+      function mapStatus({ cafeId }) {
+        const c = S.cafe(cafeId);
+        if (mapMode !== "now") return;
+        const pin = $(`[data-pin="${cafeId}"]`, view);
+        if (pin) {
+          pin.dataset.status = c.status;
+          $(".pin__icon", pin).outerHTML = ui.cupIcon(c.status, { size: 18, cls: "pin__icon" }).s;
+          pin.setAttribute("aria-label", pinLabel(c, c.status));
+          pin.classList.remove("is-changed"); void pin.offsetWidth; pin.classList.add("is-changed");
+        }
+        const note = $("[data-map-note]", view);
+        if (note) note.innerHTML = html`${c.name} is now ${fmt.statusLabel(c.status).toLowerCase()} · <span data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span>`.s;
+      }
+      function mapTick() {
+        if (mapMode !== "now") return;
+        $$("[data-pin]", view).forEach((pin) => { const c = S.cafe(pin.dataset.pin); pin.setAttribute("aria-label", pinLabel(c, c.status)); });
+      }
+      function paintPins() {
+        const pins = $("[data-pins]", view);
+        if (pins) pins.innerHTML = html`${mapList().map(pinHtml)}`.s;
       }
 
       function setMapMode(mode) {
         mapMode = mode;
         const pins = $("[data-pins]", view);
         if (!pins) return;
-        pins.innerHTML = html`${S.cafes().map(pinHtml)}`.s;
+        paintPins();
         $("[data-map-note]", view).innerHTML = mapNote().s;
       }
+      ctx.busyMap = {
+        html: busyMapHtml,
+        setList: (fn) => { mapList = fn || (() => S.cafes()); },
+        paint: paintPins,
+        status: mapStatus,
+        tick: mapTick,
+      };
 
       /* ---------------- Events ---------------- */
       const onClick = (e) => {
@@ -9056,6 +9082,9 @@ li:last-child > .branch-row { border-bottom: 0; }
 /* =====================================================================
    Lahore Coffee Club — app-cafes.js
    Member app: Cafés tab (#/app/cafes) and café detail (#/app/cafes/:id).
+   The tab has a List | Map switch; Map is the busy map from app.js
+   (ctx.busyMap), and search and filters apply to both. #/app/map opens
+   the tab with Map selected.
    Registers screen factories on LCC.appScreens; app.js mounts them.
    ===================================================================== */
 (function () {
@@ -9073,6 +9102,8 @@ li:last-child > .branch-row { border-bottom: 0; }
   const PAGE = 6;
   let shown = PAGE;
   let listScroll = 0;
+  let cafesView = "list"; // List | Map, kept across visits
+  REG.cafesView = (v) => { cafesView = v === "map" ? "map" : "list"; };
 
   // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
   const matchaMode = () => LCC.theme?.flavour() === "matcha";
@@ -9133,6 +9164,15 @@ li:last-child > .branch-row { border-bottom: 0; }
       fb.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
       $("[data-clear-search]", view).hidden = !filters.query;
       $("[data-cafe-area]", view).value = filters.areaId || "";
+      ctx.busyMap?.paint(); // the map shows the same cafés
+    }
+
+    function setView(v) {
+      REG.cafesView(v);
+      const seg = $('[data-segmented="cafesview"]', view);
+      if (seg) ui.selectSegment(seg, cafesView);
+      $("[data-cafes-list]", view).hidden = cafesView !== "list";
+      $("[data-cafes-map]", view).hidden = cafesView !== "map";
     }
 
     // A new search or filter starts the list from the top again
@@ -9209,6 +9249,8 @@ li:last-child > .branch-row { border-bottom: 0; }
 
     function onClick(e) {
       const t = e.target;
+      const vs = t.closest('[data-segmented="cafesview"] .segmented__option');
+      if (vs) { setView(vs.dataset.value); return; }
       // Focus the button first, so closing the sheet returns there (Safari doesn't focus on tap)
       const fb = t.closest("[data-open-filters]");
       if (fb) { fb.focus(); openFilters(); return; }
@@ -9241,6 +9283,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               <button type="button" class="icon-btn search__clear" data-clear-search aria-label="Clear search" hidden>${icon("close", { size: 18 })}</button>
             </div>
           </div>
+          ${ui.segmented({ name: "cafesview", label: "Show cafés as", value: cafesView, options: [{ value: "list", label: "List" }, { value: "map", label: "Map" }] })}
           <div class="cafes__tools">
             <div class="select">
               <label class="sr-only" for="cafe-area">Area</label>
@@ -9253,11 +9296,12 @@ li:last-child > .branch-row { border-bottom: 0; }
               ${icon("sliders", { size: 18 })}<span data-filter-label>Filters</span>
             </button>
           </div>
-          <div>
-            <p class="sr-only" data-cafe-count aria-live="polite"></p>
+          <p class="sr-only" data-cafe-count aria-live="polite"></p>
+          <div data-cafes-list ${cafesView === "list" ? "" : ui.raw("hidden")}>
             <ul role="list" class="cafe-lines" data-cafe-list></ul>
             <button type="button" class="btn btn--secondary btn--block cafes__more" data-show-more hidden>Show more</button>
           </div>
+          <div class="cafes__map" data-cafes-map ${cafesView === "map" ? "" : ui.raw("hidden")}>${ctx.busyMap ? ctx.busyMap.html() : ""}</div>
         </div>`.s,
       mount() {
         sheet = document.createElement("div");
@@ -9269,6 +9313,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         sheet.setAttribute("aria-hidden", "true");
         $(".phone__screen", el).appendChild(sheet);
         sheet.addEventListener("click", onSheetClick);
+        ctx.busyMap?.setList(() => S.searchCafes(filters));
         paintList();
         view.scrollTop = listScroll;
         view.addEventListener("input", onInput);
@@ -9276,6 +9321,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         view.addEventListener("click", onClick);
         document.addEventListener("lcc:flavour", paintList);
         return () => {
+          ctx.busyMap?.setList(null);
           document.removeEventListener("lcc:flavour", paintList);
           listScroll = view.scrollTop;
           ui.closeSheet(sheet);
@@ -9287,8 +9333,9 @@ li:last-child > .branch-row { border-bottom: 0; }
       },
       on: {
         // Status words update themselves; the list only changes when a filter depends on it
-        "cafe:status": () => { if (filters.statuses.length) paintList(); },
-        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); }, // open / closed follows the clock
+        "cafe:status": (p) => { if (filters.statuses.length) paintList(); ctx.busyMap?.status(p); },
+        tick: () => { if (signature(S.searchCafes(filters)) !== painted) paintList(); ctx.busyMap?.tick(); }, // open / closed follows the clock
+        cafesView: setView, // #/app/map while the tab is showing
       },
     };
   };
@@ -11789,46 +11836,6 @@ li:last-child > .branch-row { border-bottom: 0; }
       return () => { document.removeEventListener("click", onDocClick); document.removeEventListener("keydown", onKey); };
     }
 
-    function gatheringHtml() {
-      const { next, past } = S.gatherings();
-      const g = next && S.gathering(next.id);
-      const when = (x) => `${fmt.date(x.at)} · ${fmt.time(x.at)}`;
-      let action = "";
-      if (g) {
-        if (g.going) {
-          action = html`<p class="gather__going">${icon("check", { size: 18 })}<span>You’re going. See you at ${g.cafe.name}.</span></p>
-            <button type="button" class="btn btn--link" data-rsvp="no">Can’t make it? Give up your seat</button>`;
-        } else if (g.left <= 0) {
-          action = html`<p class="t-small t-muted">Every seat is taken. The next one is announced here first.</p>`;
-        } else if (g.canRsvp) {
-          action = html`<button type="button" class="btn btn--primary btn--block" data-rsvp="yes">${g.priority && !g.openToAll ? "Priority RSVP" : "RSVP"}</button>
-            ${g.priority && !g.openToAll ? html`<p class="t-micro t-faint">Founding Members and Connoisseurs book first. Opens to every member on ${fmt.longDate(g.opensAt)}.</p>` : ""}`;
-        } else {
-          action = html`<button type="button" class="btn btn--secondary btn--block" disabled>RSVP opens ${fmt.longDate(g.opensAt)}</button>
-            <p class="t-micro t-faint">Founding Members and Connoisseurs book first.</p>`;
-        }
-      }
-      return html`
-        ${g ? html`<article class="card gather" aria-labelledby="gather-title">
-          <p class="eyebrow">Next gathering</p>
-          <h3 class="t-h3" id="gather-title">${g.kind}: ${g.title.charAt(0).toLowerCase() + g.title.slice(1)}</h3>
-          <p class="t-small t-muted gather__when">${icon("calendar", { size: 18 })}<span>${when(g)} · ${g.area.name}</span></p>
-          <p class="t-small t-muted">${g.line}</p>
-          <div class="gather__seats">
-            ${bar(g.taken, g.seats, `${g.taken} of ${g.seats} seats taken`)}
-            <p class="t-small num" aria-live="polite"><strong data-seats-left>${g.left}</strong> of ${g.seats} seats left</p>
-          </div>
-          <div class="gather__action">${action}</div>
-        </article>` : html`<p class="t-small t-muted">The next gathering is announced here first.</p>`}
-        ${past.slice(0, 1).map((p) => html`<div class="row gather-past">
-          <span class="row__main">
-            <span class="row__title">${p.kind}: ${p.title.charAt(0).toLowerCase() + p.title.slice(1)}</span>
-            <span class="row__meta">${fmt.date(p.at)} · ${p.came} members came</span>
-          </span>
-          <span class="badge">Past</span>
-        </div>`)}`;
-    }
-
     function inviteHtml(c) {
       const code = c.inviteCode;
       const n = S.beans().rules.referral;
@@ -11869,11 +11876,6 @@ li:last-child > .branch-row { border-bottom: 0; }
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
           </div>
 
-          <section class="app-section" aria-labelledby="circles-h">
-            <h2 class="eyebrow app-section__title" id="circles-h">Circles</h2>
-            <div class="stack" style="--stack-gap:var(--space-3)" data-club-circles>${LCC.appCircles ? LCC.appCircles.sectionHtml() : ""}</div>
-          </section>
-
           <section aria-labelledby="passport-h">
             <h2 class="sr-only" id="passport-h">Lahore coffee passport</h2>
             <div class="passport" data-club="passport">${passportBookHtml(c)}</div>
@@ -11884,11 +11886,6 @@ li:last-child > .branch-row { border-bottom: 0; }
           <section class="app-section" aria-labelledby="status-h">
             <h2 class="eyebrow app-section__title" id="status-h">Your status</h2>
             <div data-club="status">${statusHtml(c)}</div>
-          </section>
-
-          <section class="app-section" aria-labelledby="gather-h">
-            <h2 class="eyebrow app-section__title" id="gather-h">Gatherings</h2>
-            <div class="stack" style="--stack-gap:var(--space-3)" data-club="gathering">${gatheringHtml()}</div>
           </section>
 
           <section class="app-section" aria-label="Perks from cafés">
@@ -11928,7 +11925,6 @@ li:last-child > .branch-row { border-bottom: 0; }
       const card = $("[data-club-card]", view);
       if (card) card.innerHTML = memberCard(c.member.id, { flipped: !!$(".mcard.is-flipped", card) }).s;
     }
-    const repaintGathering = () => { const n = $('[data-club="gathering"]', view); if (n) n.innerHTML = gatheringHtml().s; };
 
     function openBadges(btn) {
       btn.focus(); // so closing returns here (Safari doesn't focus on tap)
@@ -11941,16 +11937,6 @@ li:last-child > .branch-row { border-bottom: 0; }
       if (ob) { openBadges(ob); return; }
       const bb = e.target.closest("[data-open-beans]");
       if (bb) { bb.focus(); confirming = null; beansSheet.innerHTML = beansSheetHtml().s; ui.openSheet(beansSheet); return; }
-      const r = e.target.closest("[data-rsvp]");
-      if (r) {
-        const g = S.gatherings().next;
-        const going = r.dataset.rsvp === "yes";
-        const res = A.rsvp(g.id, going);
-        if (!res.ok) { ctx.toast(res.message || "That didn’t work. Try again.", { iconName: "info" }); return; }
-        ctx.toast(going ? `You’re going. ${fmt.longDate(g.at)}, ${fmt.time(g.at)}.` : "Seat given up. Thanks for letting us know.", { iconName: going ? "calendar" : "check" });
-        requestAnimationFrame(() => $("[data-rsvp], .gather__going", view)?.focus?.());
-        return;
-      }
       const copy = e.target.closest("[data-copy]");
       if (copy) {
         const done = () => ctx.toast(`Copied ${copy.dataset.copy}.`, { iconName: "copy" });
@@ -11983,9 +11969,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         $(".phone__screen", el).appendChild(beansSheet);
         beansSheet.addEventListener("click", onBeansClick);
         view.addEventListener("click", onClick);
-        const unbindCircles = LCC.appCircles ? LCC.appCircles.bindSection(view, ctx) : () => {};
         return () => {
-          unbindCircles();
           clearTimeout(confirmTimer);
           unbindPerks();
           ui.closeSheet(badgeSheet);
@@ -11999,8 +11983,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         ledger: ({ entries }) => { if (entries.some((e) => e.memberId === S.member().id)) repaint(); },
         member: repaint,
         pickup: repaint, // a collected order earns Beans
-        rsvp: () => { repaintGathering(); paintBeansSheet(); },
-        tick: repaintGathering, // priority window can open while the tab is showing
+        rsvp: paintBeansSheet, // the members' evening seat (Beans)
       },
     };
   };
@@ -12252,12 +12235,16 @@ li:last-child > .branch-row { border-bottom: 0; }
 /* ---- src/app-circles.js ---- */
 /* =====================================================================
    Lahore Coffee Club — app-circles.js
-   Circles: small private groups (up to 12) inside the Club tab.
+   Circles: small private groups (up to 12), in their own tab.
 
-     Club tab           your Circles (a small brick ring each), Start a Circle
-     #/app/circle/:id   the Circle: the large ring, members, rounds,
+     #/app/circles      the Circles tab: Upcoming (today's rounds from all
+                        your Circles, and gatherings with an RSVP), Your
+                        Circles (a small brick ring each, Start a Circle),
+                        Recent (activity from all your Circles, 7 days)
+     #/app/circles/:id  the Circle: the large ring, members, rounds,
                         this month (cafés explored, the streak), activity
-     #/app/circle/:id/join   the invitation link ("Add them to your circle")
+     #/app/circles/:id/join  the invitation link ("Add them to your circle")
+   Old #/app/circle/... links redirect here (app.js).
 
    The mark is the brick ring (ui.brickRing): one brick per member slot,
    joined members filled, empty slots outlined. The logo isn't redrawn.
@@ -12276,7 +12263,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   const REG = (LCC.appScreens = LCC.appScreens || {});
   const max = () => S.circleRules().maxMembers;
   const LIVE = () => (LCC.sync ? LCC.sync.liveUrl : `${location.href.split("#")[0]}`);
-  const joinUrl = (c) => `${LIVE()}${LCC.sync ? LCC.sync.withRoom(`#/app/circle/${c.id}/join`) : `#/app/circle/${c.id}/join`}`;
+  const joinUrl = (c) => `${LIVE()}${LCC.sync ? LCC.sync.withRoom(`#/app/circles/${c.id}/join`) : `#/app/circles/${c.id}/join`}`;
   const shareText = (c) => `Join ${c.name}, my Circle on Lahore Coffee Club. We see where each other has had coffee, and call rounds together: ${joinUrl(c)}`;
   const waHref = (c) => `https://wa.me/?text=${encodeURIComponent(shareText(c))}`;
   const count = (c) => Object.keys(c.members).length;
@@ -12294,7 +12281,85 @@ li:last-child > .branch-row { border-bottom: 0; }
   }
 
   /* -------------------------------------------------------------------
-     Club tab section
+     Shared by the tab and a Circle: a round, an activity row
+     ------------------------------------------------------------------- */
+  const meId = () => S.member().id;
+  const nameOf = (m) => (m.id === meId() ? "You" : m.firstName);
+
+  function roundHtml(r, { circleName = "" } = {}) {
+    const caller = S.member(r.callerId);
+    const place = S.pickupPlace(r.cafeId);
+    const ans = Object.entries(r.answers || {}).map(([id, a]) => ({ m: S.member(id), going: a.going })).filter((x) => x.m);
+    const coming = ans.filter((x) => x.going).map((x) => nameOf(x.m));
+    const notThis = ans.filter((x) => !x.going).map((x) => nameOf(x.m));
+    const mine = r.answers?.[meId()];
+    const today = new Date(r.at).toDateString() === new Date().toDateString();
+    const when = `${today ? "" : `${fmt.date(r.at)}, `}${fmt.time(r.at)}`;
+    const table = r.groupId ? S.group(r.groupId) : null;
+    const beans = S.beans().rules.roundAttend;
+    return html`<article class="round card" aria-label="Round at ${place}">
+      ${circleName ? html`<p class="eyebrow">${circleName}</p>` : ""}
+      <p class="t-body">${caller ? (caller.id === meId() ? "You" : caller.firstName) : "A member"} called a round: <strong>${place}</strong> at <span class="num">${when}</span>.</p>
+      <p class="t-small t-muted">${coming.length ? `Coming: ${coming.join(", ")}` : "No one yet"}${notThis.length ? ` · Not this time: ${notThis.join(", ")}` : ""}</p>
+      <div class="round__answers" role="group" aria-label="Will you be there?">
+        <button type="button" class="btn btn--compact ${mine?.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="1" aria-pressed="${!!mine?.going}">I’ll be there</button>
+        <button type="button" class="btn btn--compact ${mine && !mine.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="0" aria-pressed="${!!mine && !mine.going}">Not this time</button>
+      </div>
+      ${mine?.going
+        ? table && table.status !== "cancelled"
+          ? html`<a class="btn btn--link" href="#/app/group/${table.id}">${table.status === "open" ? "Add your drink to the table" : "See the table"}</a>`
+          : html`<button type="button" class="btn btn--secondary btn--block" data-round-table="${r.id}">Order together</button>
+              <p class="t-micro t-faint">Starts a table at ${place} for ${fmt.time(r.at)}. Everyone coming adds their own drink.</p>`
+        : ""}
+      <p class="t-micro t-faint num">+${beans} Beans for everyone who comes.</p>
+    </article>`;
+  }
+
+  function activityListHtml(rows) {
+    const mine = S.privacy(meId());
+    return html`${!mine.share ? html`<p class="t-small t-muted">You’re not sharing your coffee with your Circles. Change it in your profile.</p>` : ""}
+      ${rows.length ? html`<ul role="list" class="circle-act">${rows.map((r) => html`<li class="circle-act__row">
+        <p class="circle-act__text"><strong>${nameOf(r.member)}</strong> · ${r.text} · <span class="t-muted" data-rel-time="${r.at}">${fmt.ago(r.at)}</span></p>
+        <button type="button" class="ack" data-ack="${r.key}" aria-pressed="${r.acked}" ${r.own ? raw("disabled") : ""}
+          aria-label="${r.own ? "Acknowledgements" : r.acked ? "Acknowledged. Tap to take it back" : "Acknowledge"}${r.acks ? `, ${r.acks}` : ""}">
+          ${ui.cupIcon(r.acked ? "moderate" : "quiet", { size: 16, cls: "ack__icon" })}<span class="num">${r.acks || ""}</span>
+        </button>
+      </li>`)}</ul>` : html`<p class="t-small t-muted">Nothing this week yet.</p>`}`;
+  }
+
+  /** Round answers, "Order together" and acknowledgements: the same on the tab and a Circle. Returns true when handled. */
+  function sharedClick(e, ctx, { repaintRounds, repaintActivity, view }) {
+    const t = e.target;
+    const ans = t.closest("[data-round-answer]");
+    if (ans) {
+      const going = ans.dataset.going === "1";
+      A.answerRound(ans.dataset.roundAnswer, going);
+      ctx.toast(going ? "You’re coming. The others can see it." : "Noted. Maybe next time.", { iconName: going ? "calendar" : "check" });
+      repaintRounds();
+      $(`[data-round-answer="${ans.dataset.roundAnswer}"][data-going="${ans.dataset.going}"]`, view)?.focus();
+      return true;
+    }
+    const rt = t.closest("[data-round-table]");
+    if (rt) {
+      const r = store.getState().rounds[rt.dataset.roundTable];
+      const res = LCC.appOrder.startTable({ cafeId: r.cafeId, pickupAt: r.at });
+      if (!res.ok) { ctx.toast(res.message, { iconName: "info" }); return true; }
+      A.setRoundTable(r.id, res.group.id);
+      ctx.go(`#/app/group/${res.group.id}`);
+      return true;
+    }
+    const ack = t.closest("[data-ack]");
+    if (ack) {
+      A.acknowledge(ack.dataset.ack);
+      repaintActivity();
+      $(`[data-ack="${ack.dataset.ack}"]`, view)?.focus();
+      return true;
+    }
+    return false;
+  }
+
+  /* -------------------------------------------------------------------
+     Your Circles (the tab's list and Start a Circle)
      ------------------------------------------------------------------- */
   const form = { open: false, name: "", error: "" };
   function sectionHtml() {
@@ -12302,12 +12367,12 @@ li:last-child > .branch-row { border-bottom: 0; }
     return html`
       ${list.length ? html`<ul role="list" class="circle-list">${list.map((c) => {
         const mo = S.circleMonth(c);
-        return html`<li><a class="row circle-row" href="#/app/circle/${c.id}">
+        return html`<li><a class="row circle-row" href="#/app/circles/${c.id}">
           ${ringHtml(c)}
           <span class="row__main"><span class="row__title">${c.name}</span><span class="row__meta num">${count(c)} of ${max()} · ${mo.cafes} ${mo.cafes === 1 ? "café" : "cafés"} this month</span></span>
           <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
         </a></li>`;
-      })}</ul>` : html`<p class="t-small t-muted">A Circle is a few people you have coffee with. You see each other’s cafés, after the fact, and call rounds together.</p>`}
+      })}</ul>` : html`<p class="t-body circles-empty">Coffee is better in company. Start a Circle, or ask a friend to add you to theirs.</p>`}
       ${form.open
         ? html`<form class="stack circle-start" style="--stack-gap:var(--space-3)" data-circle-form novalidate>
             <div class="field" data-invalid="${!!form.error}">
@@ -12321,9 +12386,9 @@ li:last-child > .branch-row { border-bottom: 0; }
         : html`<button type="button" class="btn btn--secondary btn--block" data-circle-start>Start a Circle</button>`}`;
   }
 
-  /** Wires the Club tab section; returns a cleanup. */
+  /** Wires the list and its form; returns a cleanup. */
   function bindSection(root, ctx) {
-    const box = () => $("[data-club-circles]", root);
+    const box = () => $("[data-circles-list]", root);
     const paint = () => { const b = box(); if (b) b.innerHTML = sectionHtml().s; };
     const onClick = (e) => {
       if (e.target.closest("[data-circle-start]")) { form.open = true; form.error = ""; paint(); return $("#circle-name", root)?.focus(); }
@@ -12336,7 +12401,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const res = A.createCircle(form.name);
       if (!res.ok) { form.error = res.message; paint(); return $("#circle-name", root)?.focus(); }
       form.open = false; form.name = ""; form.error = "";
-      ctx.go(`#/app/circle/${res.circle.id}`);
+      ctx.go(`#/app/circles/${res.circle.id}`);
     };
     root.addEventListener("click", onClick);
     root.addEventListener("input", onInput);
@@ -12352,7 +12417,136 @@ li:last-child > .branch-row { border-bottom: 0; }
   LCC.appCircles = { sectionHtml, bindSection, ringHtml };
 
   /* -------------------------------------------------------------------
-     #/app/circle/:id
+     #/app/circles  (the tab)
+     ------------------------------------------------------------------- */
+  const sameDay = (a, b = Date.now()) => new Date(a).toDateString() === new Date(b).toDateString();
+
+  /** Gatherings with an RSVP: the next club gathering, and an invitation-only evening you hold a seat at. */
+  function upcomingGatherings() {
+    const now = Date.now();
+    const out = [];
+    const next = S.gatherings(now).next;
+    if (next) out.push(S.gathering(next.id));
+    store.getState().club.gatherings.filter((g) => g.inviteOnly && g.at >= now).forEach((g) => {
+      const x = S.gathering(g.id);
+      if (x?.going) out.push(x);
+    });
+    return out;
+  }
+
+  function gatheringItemHtml(g) {
+    const answer = store.getState().rsvps[g.id]?.[meId()];
+    const notThis = !!answer && !answer.going;
+    const title = `${g.kind}: ${g.title.charAt(0).toLowerCase() + g.title.slice(1)}`;
+    let note = "";
+    if (g.inviteOnly) note = "Your seat is kept with Beans.";
+    else if (g.going) note = `You’re going. See you at ${g.cafe.name}.`;
+    else if (g.left <= 0) note = "Every seat is taken. The next one is announced here first.";
+    else if (!g.canRsvp) note = `RSVP opens ${fmt.longDate(g.opensAt)}. Founding Members and Connoisseurs book first.`;
+    else if (g.priority && !g.openToAll) note = `Founding Members and Connoisseurs book first. Opens to every member on ${fmt.longDate(g.opensAt)}.`;
+    return html`<article class="round card gather-item" aria-label="${title}">
+      <p class="eyebrow">${g.inviteOnly ? "Members’ evening" : "Gathering"}</p>
+      <p class="t-body"><strong>${title}</strong></p>
+      <p class="t-small t-muted num">${fmt.date(g.at)} · ${fmt.time(g.at)} · ${g.cafe.name}, ${g.area.name}${g.inviteOnly ? "" : ` · ${g.left} of ${g.seats} seats left`}</p>
+      ${g.inviteOnly ? "" : html`<div class="round__answers" role="group" aria-label="Will you be there?">
+        <button type="button" class="btn btn--compact ${g.going ? "btn--primary" : "btn--secondary"}" data-gather-answer="${g.id}" data-going="1" aria-pressed="${g.going}" ${!g.going && !g.canRsvp ? raw("disabled") : ""}>I’ll be there</button>
+        <button type="button" class="btn btn--compact ${notThis ? "btn--primary" : "btn--secondary"}" data-gather-answer="${g.id}" data-going="0" aria-pressed="${notThis}">Not this time</button>
+      </div>`}
+      ${note ? html`<p class="t-micro t-faint">${note}</p>` : ""}
+    </article>`;
+  }
+
+  REG.circles = (ctx) => {
+    const { view } = ctx;
+    const circles = () => S.circlesOf();
+
+    function upcomingHtml() {
+      const rounds = circles().flatMap((c) => S.roundsOf(c.id).upcoming.filter((r) => sameDay(r.at)).map((r) => ({ at: r.at, h: () => roundHtml(r, { circleName: c.name }) })));
+      const gathers = upcomingGatherings().map((g) => ({ at: g.at, h: () => gatheringItemHtml(g) }));
+      const items = [...rounds, ...gathers].sort((a, b) => a.at - b.at);
+      return items.length ? html`${items.map((x) => x.h())}` : html`<p class="t-small t-muted">Nothing planned for today. Open a Circle to call a round.</p>`;
+    }
+    function recentHtml() {
+      const seen = new Set();
+      const rows = circles().flatMap((c) => S.circleActivity(c)).filter((r) => (seen.has(r.key) ? false : seen.add(r.key))).sort((a, b) => b.at - a.at);
+      return activityListHtml(rows);
+    }
+    function bodyHtml() {
+      const has = circles().length > 0;
+      return html`
+        <section class="app-section" aria-labelledby="cu-h">
+          <h2 class="eyebrow app-section__title" id="cu-h">Upcoming</h2>
+          <div class="stack" style="--stack-gap:var(--space-3)" data-cu>${upcomingHtml()}</div>
+        </section>
+        <section class="app-section" aria-labelledby="cl-h">
+          <h2 class="eyebrow app-section__title" id="cl-h">Your Circles</h2>
+          <div class="stack" style="--stack-gap:var(--space-3)" data-circles-list>${sectionHtml()}</div>
+        </section>
+        ${has ? html`<section class="app-section" aria-labelledby="cr-h">
+          <h2 class="eyebrow app-section__title" id="cr-h">Recent</h2>
+          <div data-cr>${recentHtml()}</div>
+        </section>` : ""}`;
+    }
+
+    const set = (sel, markup) => { const n = $(sel, view); if (n && !n.contains(document.activeElement)) n.innerHTML = markup.s; };
+    const force = (sel, markup) => { const n = $(sel, view); if (n) n.innerHTML = markup.s; };
+    const repaintRounds = () => force("[data-cu]", upcomingHtml());
+    const repaintActivity = () => force("[data-cr]", recentHtml());
+    let hadCircles = circles().length > 0;
+    function paint() {
+      // Joining a first Circle (or leaving the last) changes the sections themselves
+      if ((circles().length > 0) !== hadCircles) { hadCircles = !hadCircles; const b = $("[data-cbody]", view); if (b) b.innerHTML = bodyHtml().s; return; }
+      set("[data-cu]", upcomingHtml());
+      set("[data-cr]", recentHtml());
+    }
+
+    function onClick(e) {
+      if (sharedClick(e, ctx, { repaintRounds, repaintActivity, view })) return;
+      const ga = e.target.closest("[data-gather-answer]");
+      if (ga) {
+        const id = ga.dataset.gatherAnswer;
+        const going = ga.dataset.going === "1";
+        const was = S.gathering(id);
+        const res = A.rsvp(id, going);
+        if (!res.ok) { ctx.toast(res.message || "That didn’t work. Try again.", { iconName: "info" }); return; }
+        const g = res.gathering;
+        ctx.toast(going ? `You’re going. ${fmt.longDate(g.at)}, ${fmt.time(g.at)}.` : was.going ? "Seat given up. Thanks for letting us know." : "Noted. Maybe next time.", { iconName: going ? "calendar" : "check" });
+        repaintRounds();
+        $(`[data-gather-answer="${id}"][data-going="${ga.dataset.going}"]`, view)?.focus();
+      }
+    }
+
+    let unbind = null;
+    return {
+      html: html`<div class="app-screen circles-tab">
+          <div class="stack" style="--stack-gap:var(--space-1)">
+            <p class="eyebrow">Circles</p>
+            <h1 class="t-h2">Coffee, together.</h1>
+          </div>
+          <div data-cbody>${bodyHtml()}</div>
+        </div>`.s,
+      mount() {
+        view.addEventListener("click", onClick);
+        unbind = bindSection(view, ctx);
+        return () => { view.removeEventListener("click", onClick); unbind(); };
+      },
+      on: {
+        circle: paint,
+        round: paint,
+        ack: () => set("[data-cr]", recentHtml()),
+        privacy: paint,
+        ledger: paint,
+        pickup: paint,
+        group: paint,
+        rsvp: paint,
+        snapshot: paint,
+        tick: () => set("[data-cu]", upcomingHtml()), // gatherings' RSVP windows open with the clock
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
+     #/app/circles/:id
      ------------------------------------------------------------------- */
   REG.circle = (ctx, circleId) => {
     const { view } = ctx;
@@ -12382,34 +12576,6 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
 
     /* Rounds -------------------------------------------------------- */
-    function roundHtml(r) {
-      const caller = S.member(r.callerId);
-      const place = S.pickupPlace(r.cafeId);
-      const ans = Object.entries(r.answers || {}).map(([id, a]) => ({ m: S.member(id), going: a.going })).filter((x) => x.m);
-      const coming = ans.filter((x) => x.going).map((x) => name(x.m));
-      const notThis = ans.filter((x) => !x.going).map((x) => name(x.m));
-      const mine = r.answers?.[me()];
-      const today = new Date(r.at).toDateString() === new Date().toDateString();
-      const when = `${today ? "" : `${fmt.date(r.at)}, `}${fmt.time(r.at)}`;
-      const table = r.groupId ? S.group(r.groupId) : null;
-      const beans = S.beans().rules.roundAttend;
-      return html`<article class="round card" aria-label="Round at ${place}">
-        <p class="t-body">${caller ? (caller.id === me() ? "You" : caller.firstName) : "A member"} called a round: <strong>${place}</strong> at <span class="num">${when}</span>.</p>
-        <p class="t-small t-muted">${coming.length ? `Coming: ${coming.join(", ")}` : "No one yet"}${notThis.length ? ` · Not this time: ${notThis.join(", ")}` : ""}</p>
-        <div class="round__answers" role="group" aria-label="Will you be there?">
-          <button type="button" class="btn btn--compact ${mine?.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="1" aria-pressed="${!!mine?.going}">I’ll be there</button>
-          <button type="button" class="btn btn--compact ${mine && !mine.going ? "btn--primary" : "btn--secondary"}" data-round-answer="${r.id}" data-going="0" aria-pressed="${!!mine && !mine.going}">Not this time</button>
-        </div>
-        ${mine?.going
-          ? table && table.status !== "cancelled"
-            ? html`<a class="btn btn--link" href="#/app/group/${table.id}">${table.status === "open" ? "Add your drink to the table" : "See the table"}</a>`
-            : html`<button type="button" class="btn btn--secondary btn--block" data-round-table="${r.id}">Order together</button>
-                <p class="t-micro t-faint">Starts a table at ${place} for ${fmt.time(r.at)}. Everyone coming adds their own drink.</p>`
-          : ""}
-        <p class="t-micro t-faint num">+${beans} Beans for everyone who comes.</p>
-      </article>`;
-    }
-
     function callHtml() {
       if (!call.open) return html`<button type="button" class="btn btn--primary btn--block" data-round-call>Call a round</button>`;
       if (!call.cafeId) call.cafeId = ctx.member().plan?.type === "brand" ? S.branches(ctx.member().plan.brandId)[0].id : S.clubCafes()[0].id;
@@ -12457,18 +12623,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
 
     /* Activity ------------------------------------------------------ */
-    function activityHtml() {
-      const rows = S.circleActivity(c());
-      const mine = S.privacy(me());
-      return html`${!mine.share ? html`<p class="t-small t-muted">You’re not sharing your coffee with your Circles. Change it in your profile.</p>` : ""}
-        ${rows.length ? html`<ul role="list" class="circle-act">${rows.map((r) => html`<li class="circle-act__row">
-          <p class="circle-act__text"><strong>${name(r.member)}</strong> · ${r.text} · <span class="t-muted" data-rel-time="${r.at}">${fmt.ago(r.at)}</span></p>
-          <button type="button" class="ack" data-ack="${r.key}" aria-pressed="${r.acked}" ${r.own ? raw("disabled") : ""}
-            aria-label="${r.own ? "Acknowledgements" : r.acked ? "Acknowledged. Tap to take it back" : "Acknowledge"}${r.acks ? `, ${r.acks}` : ""}">
-            ${ui.cupIcon(r.acked ? "moderate" : "quiet", { size: 16, cls: "ack__icon" })}<span class="num">${r.acks || ""}</span>
-          </button>
-        </li>`)}</ul>` : html`<p class="t-small t-muted">Nothing this week yet.</p>`}`;
-    }
+    const activityHtml = () => activityListHtml(S.circleActivity(c()));
 
     /* Members (manage) ---------------------------------------------- */
     function membersHtml() {
@@ -12490,7 +12645,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         return html`<div class="stack" style="--stack-gap:var(--space-3)">
           <h1 class="t-h2">${cc && !cc.closed ? `You’re not in ${cc.name}.` : "This Circle isn’t here."}</h1>
           <p class="t-small t-muted">${cc && !cc.closed ? "Ask a member for the invitation link." : "It may have closed, or it hasn’t reached this phone yet."}</p>
-          <a class="btn btn--secondary" href="#/app/club">Back to the club</a>
+          <a class="btn btn--secondary" href="#/app/circles">Back to Circles</a>
         </div>`;
       }
       return html`<div data-c-head>${headHtml()}</div>
@@ -12527,25 +12682,9 @@ li:last-child > .branch-row { border-bottom: 0; }
 
     function onClick(e) {
       const t = e.target;
-      const ans = t.closest("[data-round-answer]");
-      if (ans) {
-        const going = ans.dataset.going === "1";
-        A.answerRound(ans.dataset.roundAnswer, going);
-        ctx.toast(going ? "You’re coming. The others can see it." : "Noted. Maybe next time.", { iconName: going ? "calendar" : "check" });
-        return paintRounds(`[data-round-answer="${ans.dataset.roundAnswer}"][data-going="${ans.dataset.going}"]`);
-      }
-      const rt = t.closest("[data-round-table]");
-      if (rt) {
-        const r = store.getState().rounds[rt.dataset.roundTable];
-        const res = LCC.appOrder.startTable({ cafeId: r.cafeId, pickupAt: r.at });
-        if (!res.ok) return ctx.toast(res.message, { iconName: "info" });
-        A.setRoundTable(r.id, res.group.id);
-        return ctx.go(`#/app/group/${res.group.id}`);
-      }
+      if (sharedClick(e, ctx, { repaintRounds: () => paintRounds(), repaintActivity: () => { const n = $("[data-c-act]", view); if (n) n.innerHTML = activityHtml().s; }, view })) return;
       if (t.closest("[data-round-call]")) { call.open = true; call.error = ""; paintRounds("#round-cafe"); return; }
       if (t.closest("[data-round-cancel]")) { call.open = false; paintRounds("[data-round-call]"); return; }
-      const ack = t.closest("[data-ack]");
-      if (ack) { A.acknowledge(ack.dataset.ack); set("[data-c-act]", activityHtml()); return $(`[data-ack="${ack.dataset.ack}"]`, view)?.focus(); }
       if (t.closest("[data-circle-manage]")) { manage = !manage; const n = $("[data-c-members]", view); n.innerHTML = membersHtml().s; return $("[data-circle-manage]", view)?.focus(); }
       const rm = t.closest("[data-circle-remove]");
       if (rm) {
@@ -12555,7 +12694,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       }
       if (t.closest("[data-circle-leave]")) {
         const nm = c().name;
-        if (A.leaveCircle(circleId).ok) { ctx.toast(`You’ve left ${nm}.`); ctx.go("#/app/club", { replace: true }); }
+        if (A.leaveCircle(circleId).ok) { ctx.toast(`You’ve left ${nm}.`); ctx.go("#/app/circles", { replace: true }); }
         return;
       }
       if (t.closest("[data-circle-copy]")) {
@@ -12584,7 +12723,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       html: html`
         <div class="cafe-detail circle-page">
           <div class="screen-bar" data-screen-bar>
-            <button type="button" class="icon-btn" data-back="#/app/club" aria-label="Back">${icon("arrowLeft")}</button>
+            <button type="button" class="icon-btn" data-back="#/app/circles" aria-label="Back">${icon("arrowLeft")}</button>
             <span class="screen-bar__title" aria-hidden="true">${c()?.name || "Circle"}</span>
           </div>
           <div class="app-screen" data-c-body>${bodyHtml()}</div>
@@ -12617,7 +12756,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   };
 
   /* -------------------------------------------------------------------
-     #/app/circle/:id/join  (the invitation link)
+     #/app/circles/:id/join  (the invitation link)
      ------------------------------------------------------------------- */
   REG.circleJoin = (ctx, circleId) => {
     const { view } = ctx;
@@ -12642,7 +12781,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           <h1 class="t-h2">${inIt ? `You’re in ${cc.name}.` : `${host ? host.firstName : "A member"} would like you in ${cc.name}.`}</h1>
           <p class="t-small t-muted">Members see where each other has had coffee: the café and the time, after the fact. Never where you are. You can leave at any time.</p>
         </div>
-        ${inIt ? html`<a class="btn btn--primary btn--block" href="#/app/circle/${cc.id}">Open the Circle</a>`
+        ${inIt ? html`<a class="btn btn--primary btn--block" href="#/app/circles/${cc.id}">Open the Circle</a>`
           : full ? html`<p class="t-small">This Circle is full, ${max()} of ${max()}.</p>`
           : html`<button type="button" class="btn btn--primary btn--block" data-circle-join>Join as ${m.firstName}</button>`}
       </div>`;
@@ -12653,11 +12792,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       const res = A.joinCircle(circleId);
       if (!res.ok) return ctx.toast(res.message, { iconName: "info" });
       ctx.toast(`Welcome to ${res.circle.name}.`);
-      ctx.go(`#/app/circle/${circleId}`, { replace: true });
+      ctx.go(`#/app/circles/${circleId}`, { replace: true });
     }
     return {
       html: html`<div class="flow">
-          <div class="screen-bar"><button type="button" class="icon-btn" data-back="#/app/club" aria-label="Back">${icon("arrowLeft")}</button></div>
+          <div class="screen-bar"><button type="button" class="icon-btn" data-back="#/app/circles" aria-label="Back">${icon("arrowLeft")}</button></div>
           <div class="app-screen flow__body" data-cj-body>${bodyHtml()}</div>
         </div>`.s,
       mount() { view.addEventListener("click", onClick); return () => view.removeEventListener("click", onClick); },
@@ -13234,7 +13373,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <div><dt class="t-h3">A gathering every month</dt><dd class="t-body t-muted">Members meet at one of the partner cafés: a cupping, a brew class, a slow Saturday morning. Seats are limited, and you RSVP in the app.</dd></div>
                 <div><dt class="t-h3">Earned by coming back</dt><dd class="t-body t-muted">Status, badges and a passport of the cafés you’ve tried, all from the cups you actually drink. Cafés add their own perks.</dd></div>
               </dl>
-              <p class="t-small t-faint lp-caption">The first gathering happens once the club opens. <a href="#/app/club">See the Club tab in the app</a>.</p>
+              <p class="t-small t-faint lp-caption">The first gathering happens once the club opens. <a href="#/app/circles">See the Circles tab in the app</a>.</p>
             </section>
 
             <section class="landing-section lp-section" id="partner" aria-labelledby="partner-h">

@@ -279,7 +279,7 @@
                 <div><dt class="t-h3">A gathering every month</dt><dd class="t-body t-muted">Members meet at one of the partner cafés: a cupping, a brew class, a slow Saturday morning. Seats are limited, and you RSVP in the app.</dd></div>
                 <div><dt class="t-h3">Earned by coming back</dt><dd class="t-body t-muted">Status, badges and a passport of the cafés you’ve tried, all from the cups you actually drink. Cafés add their own perks.</dd></div>
               </dl>
-              <p class="t-small t-faint lp-caption">The first gathering happens once the club opens. <a href="#/app/club">See the Club tab in the app</a>.</p>
+              <p class="t-small t-faint lp-caption">The first gathering happens once the club opens. <a href="#/app/circles">See the Circles tab in the app</a>.</p>
             </section>
 
             <section class="landing-section lp-section" id="partner" aria-labelledby="partner-h">

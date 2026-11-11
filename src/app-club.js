@@ -604,46 +604,6 @@
       return () => { document.removeEventListener("click", onDocClick); document.removeEventListener("keydown", onKey); };
     }
 
-    function gatheringHtml() {
-      const { next, past } = S.gatherings();
-      const g = next && S.gathering(next.id);
-      const when = (x) => `${fmt.date(x.at)} · ${fmt.time(x.at)}`;
-      let action = "";
-      if (g) {
-        if (g.going) {
-          action = html`<p class="gather__going">${icon("check", { size: 18 })}<span>You’re going. See you at ${g.cafe.name}.</span></p>
-            <button type="button" class="btn btn--link" data-rsvp="no">Can’t make it? Give up your seat</button>`;
-        } else if (g.left <= 0) {
-          action = html`<p class="t-small t-muted">Every seat is taken. The next one is announced here first.</p>`;
-        } else if (g.canRsvp) {
-          action = html`<button type="button" class="btn btn--primary btn--block" data-rsvp="yes">${g.priority && !g.openToAll ? "Priority RSVP" : "RSVP"}</button>
-            ${g.priority && !g.openToAll ? html`<p class="t-micro t-faint">Founding Members and Connoisseurs book first. Opens to every member on ${fmt.longDate(g.opensAt)}.</p>` : ""}`;
-        } else {
-          action = html`<button type="button" class="btn btn--secondary btn--block" disabled>RSVP opens ${fmt.longDate(g.opensAt)}</button>
-            <p class="t-micro t-faint">Founding Members and Connoisseurs book first.</p>`;
-        }
-      }
-      return html`
-        ${g ? html`<article class="card gather" aria-labelledby="gather-title">
-          <p class="eyebrow">Next gathering</p>
-          <h3 class="t-h3" id="gather-title">${g.kind}: ${g.title.charAt(0).toLowerCase() + g.title.slice(1)}</h3>
-          <p class="t-small t-muted gather__when">${icon("calendar", { size: 18 })}<span>${when(g)} · ${g.area.name}</span></p>
-          <p class="t-small t-muted">${g.line}</p>
-          <div class="gather__seats">
-            ${bar(g.taken, g.seats, `${g.taken} of ${g.seats} seats taken`)}
-            <p class="t-small num" aria-live="polite"><strong data-seats-left>${g.left}</strong> of ${g.seats} seats left</p>
-          </div>
-          <div class="gather__action">${action}</div>
-        </article>` : html`<p class="t-small t-muted">The next gathering is announced here first.</p>`}
-        ${past.slice(0, 1).map((p) => html`<div class="row gather-past">
-          <span class="row__main">
-            <span class="row__title">${p.kind}: ${p.title.charAt(0).toLowerCase() + p.title.slice(1)}</span>
-            <span class="row__meta">${fmt.date(p.at)} · ${p.came} members came</span>
-          </span>
-          <span class="badge">Past</span>
-        </div>`)}`;
-    }
-
     function inviteHtml(c) {
       const code = c.inviteCode;
       const n = S.beans().rules.referral;
@@ -684,11 +644,6 @@
             <h1 class="t-h2">${c.founding ? "One of the first 500." : `Member ${c.number}.`}</h1>
           </div>
 
-          <section class="app-section" aria-labelledby="circles-h">
-            <h2 class="eyebrow app-section__title" id="circles-h">Circles</h2>
-            <div class="stack" style="--stack-gap:var(--space-3)" data-club-circles>${LCC.appCircles ? LCC.appCircles.sectionHtml() : ""}</div>
-          </section>
-
           <section aria-labelledby="passport-h">
             <h2 class="sr-only" id="passport-h">Lahore coffee passport</h2>
             <div class="passport" data-club="passport">${passportBookHtml(c)}</div>
@@ -699,11 +654,6 @@
           <section class="app-section" aria-labelledby="status-h">
             <h2 class="eyebrow app-section__title" id="status-h">Your status</h2>
             <div data-club="status">${statusHtml(c)}</div>
-          </section>
-
-          <section class="app-section" aria-labelledby="gather-h">
-            <h2 class="eyebrow app-section__title" id="gather-h">Gatherings</h2>
-            <div class="stack" style="--stack-gap:var(--space-3)" data-club="gathering">${gatheringHtml()}</div>
           </section>
 
           <section class="app-section" aria-label="Perks from cafés">
@@ -743,7 +693,6 @@
       const card = $("[data-club-card]", view);
       if (card) card.innerHTML = memberCard(c.member.id, { flipped: !!$(".mcard.is-flipped", card) }).s;
     }
-    const repaintGathering = () => { const n = $('[data-club="gathering"]', view); if (n) n.innerHTML = gatheringHtml().s; };
 
     function openBadges(btn) {
       btn.focus(); // so closing returns here (Safari doesn't focus on tap)
@@ -756,16 +705,6 @@
       if (ob) { openBadges(ob); return; }
       const bb = e.target.closest("[data-open-beans]");
       if (bb) { bb.focus(); confirming = null; beansSheet.innerHTML = beansSheetHtml().s; ui.openSheet(beansSheet); return; }
-      const r = e.target.closest("[data-rsvp]");
-      if (r) {
-        const g = S.gatherings().next;
-        const going = r.dataset.rsvp === "yes";
-        const res = A.rsvp(g.id, going);
-        if (!res.ok) { ctx.toast(res.message || "That didn’t work. Try again.", { iconName: "info" }); return; }
-        ctx.toast(going ? `You’re going. ${fmt.longDate(g.at)}, ${fmt.time(g.at)}.` : "Seat given up. Thanks for letting us know.", { iconName: going ? "calendar" : "check" });
-        requestAnimationFrame(() => $("[data-rsvp], .gather__going", view)?.focus?.());
-        return;
-      }
       const copy = e.target.closest("[data-copy]");
       if (copy) {
         const done = () => ctx.toast(`Copied ${copy.dataset.copy}.`, { iconName: "copy" });
@@ -798,9 +737,7 @@
         $(".phone__screen", el).appendChild(beansSheet);
         beansSheet.addEventListener("click", onBeansClick);
         view.addEventListener("click", onClick);
-        const unbindCircles = LCC.appCircles ? LCC.appCircles.bindSection(view, ctx) : () => {};
         return () => {
-          unbindCircles();
           clearTimeout(confirmTimer);
           unbindPerks();
           ui.closeSheet(badgeSheet);
@@ -814,8 +751,7 @@
         ledger: ({ entries }) => { if (entries.some((e) => e.memberId === S.member().id)) repaint(); },
         member: repaint,
         pickup: repaint, // a collected order earns Beans
-        rsvp: () => { repaintGathering(); paintBeansSheet(); },
-        tick: repaintGathering, // priority window can open while the tab is showing
+        rsvp: paintBeansSheet, // the members' evening seat (Beans)
       },
     };
   };

@@ -99,8 +99,12 @@ favicon are inlined). Edit `src/`, never `index.html`.
   shift, taking or paused), Counter, Orders, Today, Payouts, Settings; a
   left rail on tablets (768px and up), segmented tabs on phones
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
-  bar, Pass, Home, Map, café sheet, club milestone toasts
-- `app-cafes.js` — Cafés tab (search, filters) and café detail (`#/app/cafes/:id`)
+  bar (Home · Cafés · Pass · Circles · Club; the Circles icon is a small
+  `ui.brickRing`), Pass, Home, the busy map (`ctx.busyMap`, drawn in the
+  Cafés tab), café sheet, club milestone toasts. Old links redirect:
+  `#/app/map` → Cafés with Map, `#/app/circle/…` → `#/app/circles/…`
+- `app-cafes.js` — Cafés tab (search, filters, a List | Map switch; search
+  and filters apply to both) and café detail (`#/app/cafes/:id`)
 - `app-brand.js` — a brand's page (`#/app/cafes/doubleshot`, also from any
   branch row or pin): your cups, menu with Hot / Iced, ordering ("Use a
   cup"), branches, plans
@@ -110,12 +114,13 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app-order.js` — pickup orders (`#/app/order`, `#/app/order/pay`), group
   orders (`#/app/group/:id`), the order status card (Home, profile
   drawer); `LCC.appOrder`
-- `app-club.js` — Club tab (`#/app/club`: Beans at the top with their sheet,
-  member card, status, passport, badges, perks, gatherings, invite with
-  statuses) and gifting (`#/app/gift`)
-- `app-circles.js` — Circles: the Club tab's Circles section
-  (`LCC.appCircles`), a Circle (`#/app/circle/:id`) and its invitation
-  link (`#/app/circle/:id/join`)
+- `app-club.js` — Club tab (`#/app/club`, personal only: Beans at the top
+  with their sheet, passport, member card, status, perks, badges, invite
+  with statuses, Send a gift) and gifting (`#/app/gift`)
+- `app-circles.js` — the Circles tab (`#/app/circles`: Upcoming, today's
+  rounds from all your Circles and gatherings with an RSVP, soonest first;
+  Your Circles; Recent, activity from all your Circles), a Circle
+  (`#/app/circles/:id`) and its invitation link (`#/app/circles/:id/join`)
 - `app-welcome.js` — onboarding (`#/app/welcome`) and card issue
   (`#/app/welcome/card`); `LCC.onboarding`
 - `club.css` — styles for the Club tab, gifting and onboarding
@@ -359,10 +364,11 @@ next pass until asked.**
 
 ## Circles (Pass 10)
 
-- Small private groups in the Club tab, up to `circleRules.maxMembers` (12)
+- Small private groups in their own tab (moved out of Club; see "Tabs"
+  below), up to `circleRules.maxMembers` (12)
   (`data.js` `circleRules`). "Start a Circle" names it (you host);
   "Add them to your circle" shares the invitation link on WhatsApp
-  (`#/app/circle/:id/join`, always the live site with the room). The host
+  (`#/app/circles/:id/join`, always the live site with the room). The host
   can remove members; anyone can leave (a leaving host hands over to the
   longest-standing member; the last one out closes it).
 - The mark: `ui.brickRing({ total: 12, filled: members })`, one brick per
@@ -393,6 +399,23 @@ next pass until asked.**
   past rounds a week apart (three weeks running), a round Hira called for
   later today (Double Shot Phase 6), a few acknowledgements. Faraz hides
   his branch. Mumtaz's Beans stay 130.
+
+## Tabs (reorganised after Pass 10)
+
+- Bottom bar: Home · Cafés · Pass · Circles · Club (five tabs). Map is a
+  List | Map switch in Cafés (the busy map unchanged; pins follow the
+  search and filters). Features work exactly as before.
+- Circles tab: Upcoming (rounds today from all your Circles, the next
+  gathering, and the members' evening when you hold a seat; each with I'll
+  be there / Not this time; the Beans evening shows "Your seat is kept
+  with Beans" without buttons, as before there was no way to give it up),
+  Your Circles, Recent (7 days, deduplicated across Circles). With no
+  Circles: "Coffee is better in company. Start a Circle, or ask a friend to
+  add you to theirs."
+- "Not this time" on a gathering you hadn't answered records a no (synced
+  RSVP); on one you're going to it gives up the seat, as before.
+- Club keeps the personal things: Beans, passport, member card, status,
+  perks, badges, invite, Send a gift. Gatherings moved to Circles.
 
 ## Decisions
 
@@ -473,7 +496,7 @@ next pass until asked.**
   ones are counted in its second line) that fans out a stack of ticket
   stubs (280ms, fade with reduced motion). Used / expired come from optional
   `member.perksUsed[perkId]` and `perk.expiresAt`; none are seeded.
-- Gatherings: next one is the second Saturday ahead (Maple, 9 am, 30 seats,
+- Gatherings (now in the Circles tab, Upcoming): next one is the second Saturday ahead (Maple, 9 am, 30 seats,
   19 taken); Founding Members and Connoisseurs RSVP before the general
   opening a week ahead. RSVPs sync (`rsvp` message, newest wins, in join
   snapshots). Members created in a session sync their profile in the plan

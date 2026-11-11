@@ -50,6 +50,9 @@
 .tab[aria-selected="true"]:not(.tab--pass)::before { content: ""; position: absolute; top: -6px; left: 50%; width: 20px; height: 2px; margin-left: -10px; border-radius: 2px; background: var(--accent); }
 .tab--pass[aria-selected="true"] .tab__pass { box-shadow: 0 0 0 4px var(--surface), 0 0 0 5.5px var(--accent); }
 .tab:active svg { transform: scale(0.94); }
+/* Circles tab: a small brick ring in thin outlines, in the tab's ink (not an accent) */
+.tab .tab__ring { color: currentColor; }
+.tab .tab__ring .brick.is-full { fill: none; stroke: currentColor; stroke-width: 1.4; }
 .tab--pass { padding-top: 0; }
 .tab__pass {
   display: grid;
@@ -290,6 +293,10 @@
 
 /* Search sticks to the top while the list scrolls */
 .cafes__search { position: sticky; top: 0; z-index: 5; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-5)) 0; padding: var(--space-2) var(--space-5); background: var(--bg); }
+/* List | Map: the busy map runs edge to edge inside the tab */
+.cafes > [hidden] { display: none; }
+.cafes__map { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-5)) calc(-1 * var(--space-6)); }
+.cafes__map .map-head { padding-top: var(--space-2); }
 .cafes__tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); }
 .cafes__tools .input { height: 48px; border-radius: var(--radius-pill); }
 .cafes__filters { --btn-h: 48px; gap: var(--space-2); padding-inline: var(--space-4); }
