@@ -19,6 +19,11 @@
   let shown = PAGE;
   let listScroll = 0;
 
+  // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
+  const matchaMode = () => LCC.theme?.flavour() === "matcha";
+  const isMatcha = (d) => /matcha/i.test(d.name);
+  const servesMatcha = (c) => c.drinks.some(isMatcha);
+
   /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
   const sheetCount = (f = filters) => (f.openNow ? 1 : 0) + f.statuses.length + f.tags.length;
 
@@ -38,10 +43,11 @@
     function rowHtml(c) {
       const open = S.openState(c).open;
       return html`<li>
-        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}${matchaMode() && servesMatcha(c) ? ", serves matcha" : ""}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
           <span class="cafe-line__name">${c.name}</span>
           <span class="cafe-line__area">${c.branch || S.area(c.area).name}</span>
           <span class="cafe-line__end" aria-hidden="true">
+            ${matchaMode() && servesMatcha(c) ? html`<span class="badge badge--matcha">Matcha</span>` : ""}
             ${ui.statusPill(c.id, { bare: true, time: false })}
             <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>
           </span>
@@ -213,7 +219,9 @@
         view.addEventListener("input", onInput);
         view.addEventListener("change", onChange);
         view.addEventListener("click", onClick);
+        document.addEventListener("lcc:flavour", paintList);
         return () => {
+          document.removeEventListener("lcc:flavour", paintList);
           listScroll = view.scrollTop;
           ui.closeSheet(sheet);
           sheet.remove();
@@ -327,7 +335,7 @@
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
               <ul role="list">
-                ${c.drinks.map((d) => html`<li class="row">
+                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li class="row">
                   <div class="row__main"><div class="row__title">${d.name}</div><div class="row__meta num">${fmt.rs(d.price)} at the counter</div></div>
                   <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
                 </li>`)}

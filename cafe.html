@@ -221,6 +221,98 @@
 }
 
 /* ---------------------------------------------------------------------
+   2b. Matcha mode: a second flavour for the member app only. router.js
+   sets data-flavour="matcha" on <html> on #/app routes when the member
+   picks it (the café view and landing stay coffee). Colour tokens only;
+   coffee above stays the default. One muted green accent: #6E8B3D for
+   rings and bars, #4E6A25 where it is text (AA on every light surface).
+   Status colours are unchanged.
+   --------------------------------------------------------------------- */
+:root[data-flavour="matcha"] {
+  --black: #111611;
+  --cream: #F4F2E7;
+  --accent: #6E8B3D;         /* ceremonial matcha */
+  --accent-deep: #3F5A22;
+  --espresso: #1E261B;
+  --mocha: #5E7236;
+  --roast: #2F4220;
+
+  --bg: #F4F2E7;             /* whisked milk */
+  --surface: #FBFAF3;
+  --surface-2: #EAE8DA;
+  --ink: #1E261B;            /* tea leaf */
+  --ink-2: #464F40;
+  --ink-3: #5F6758;
+  --ink-4: #A9AE9E;          /* placeholders and decoration only */
+  --line: #D9DDC9;           /* soft sage */
+  --line-strong: #C3C9AF;
+  --primary: #1E261B;
+  --primary-hover: #333D2E;
+  --on-primary: #FBFAF3;
+  --primary-soft: #EAE8DA;
+  --accent-text: #4E6A25;
+  --bezel: #1E261B;
+  --scrim: rgba(17, 22, 17, 0.32);
+  --logo-face: #3F5A22;
+  --logo-side: #26361A;
+  --logo-top: #6E8B3D;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-flavour="matcha"]:not([data-theme="light"]) {
+    --bg: #111611;
+    --surface: #182018;
+    --surface-2: #202A1F;
+    --ink: #E8EDDD;            /* foam */
+    --ink-2: #B7BFAA;
+    --ink-3: #8C957F;
+    --ink-4: #586153;
+    --line: #263025;
+    --line-strong: #354134;
+    --primary: #E8EDDD;
+    --primary-hover: #D9E0CB;
+    --on-primary: #111611;
+    --primary-soft: #202A1F;
+    --accent: #93B35A;         /* brighter matcha on dark */
+    --accent-text: #93B35A;
+    --bezel: #263025;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --logo-face: #93B35A;
+    --logo-side: #6E8B3D;
+    --logo-top: #3F5A22;
+  }
+}
+:root[data-flavour="matcha"][data-theme="dark"], [data-flavour="matcha"] .theme-dark {
+  --bg: #111611;
+  --surface: #182018;
+  --surface-2: #202A1F;
+  --ink: #E8EDDD;
+  --ink-2: #B7BFAA;
+  --ink-3: #8C957F;
+  --ink-4: #586153;
+  --line: #263025;
+  --line-strong: #354134;
+  --primary: #E8EDDD;
+  --primary-hover: #D9E0CB;
+  --on-primary: #111611;
+  --primary-soft: #202A1F;
+  --accent: #93B35A;
+  --accent-text: #93B35A;
+  --bezel: #263025;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --logo-face: #93B35A;
+  --logo-side: #6E8B3D;
+  --logo-top: #3F5A22;
+}
+
+/* Switching flavour or mode crossfades colours (router.js adds the class
+   for 300ms; never with reduced motion). */
+:root.theme-fading, :root.theme-fading *, :root.theme-fading *::before, :root.theme-fading *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, outline-color, transform !important;
+  transition-duration: var(--dur-3) !important;
+  transition-timing-function: var(--ease) !important;
+}
+
+/* ---------------------------------------------------------------------
    3. Reset and base
    --------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -1522,6 +1614,8 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .drawer__section:last-child { border-bottom: 0; }
 .drawer__section > ul { width: 100%; }
 .drawer__section .eyebrow { margin-bottom: var(--space-1); }
+.drawer__appearance { justify-items: stretch; }
+.drawer__appearance .segmented + .segmented { margin-top: var(--space-1); }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__num { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 
@@ -1657,6 +1751,8 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .cafe-line__end { display: inline-flex; align-items: center; gap: var(--space-3); }
 .cafe-line__open { min-width: 3.4em; font-size: var(--fs-12); color: var(--ink-2); text-align: right; }
 .cafe-line__open.is-closed { color: var(--ink-4); }
+/* Matcha mode only: cafés that serve matcha (the one highlight on the list) */
+.badge--matcha { background: transparent; border: 1px solid var(--line-strong); color: var(--accent-text); height: 20px; padding: 0 6px; }
 .cafe-line:hover .cafe-line__name { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 .cafes__more { margin-top: var(--space-4); }
 .cafes__more[hidden] { display: none; }
@@ -5044,6 +5140,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       if (!firstLoad) main.focus({ preventScroll: true });
     }
     document.title = def.title ? `${def.title} · ${BASE_TITLE}` : BASE_TITLE;
+    applyTheme(); // the flavour belongs to the member app only
     renderProtoBar(name);
   }
 
@@ -5056,7 +5153,52 @@ li:last-child > .branch-row { border-bottom: 0; }
     { name: "cafe", href: "#/cafe", label: "Café view" },
   ];
   const THEMES = ["auto", "light", "dark"];
-  let theme = "auto";
+  let theme = "auto"; // Light / Dark / Auto (follows the phone); in memory, as before
+
+  /* Flavour: Coffee (default) or Matcha, for the member app only. The
+     café view and landing stay coffee, so data-flavour is on <html> only
+     while #/app is showing. Remembered on this device (CLAUDE.md:
+     approved localStorage exception); any storage failure means Coffee. */
+  const FLAVOUR_KEY = "lcc-flavour";
+  let flavour = "coffee";
+  try { if (localStorage.getItem(FLAVOUR_KEY) === "matcha") flavour = "matcha"; } catch (e) { /* Coffee */ }
+  const FLAVOUR_SURFACES = ["app"];
+  const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  /** Point the phone's status bar at the page background. */
+  function paintThemeColor() {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (bg) document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", bg));
+  }
+  /** Apply mode and flavour to <html>; fade colours unless it's the first paint. */
+  function applyTheme({ fade = false } = {}) {
+    const root = document.documentElement;
+    if (fade && !ui.reducedMotion()) {
+      root.classList.add("theme-fading");
+      clearTimeout(applyTheme.t);
+      applyTheme.t = setTimeout(() => root.classList.remove("theme-fading"), 320);
+    }
+    if (theme === "auto") root.removeAttribute("data-theme");
+    else root.dataset.theme = theme;
+    if (flavour === "matcha" && FLAVOUR_SURFACES.includes(current.name)) root.dataset.flavour = "matcha";
+    else root.removeAttribute("data-flavour");
+    paintThemeColor();
+  }
+  darkQuery?.addEventListener?.("change", paintThemeColor);
+
+  function setMode(next) {
+    if (!THEMES.includes(next) || next === theme) return;
+    theme = next;
+    applyTheme({ fade: true });
+    renderProtoBar(parse().name);
+  }
+  function setFlavour(next) {
+    if (!["coffee", "matcha"].includes(next) || next === flavour) return;
+    flavour = next;
+    try { localStorage.setItem(FLAVOUR_KEY, flavour); } catch (e) { /* this session only */ }
+    applyTheme({ fade: true });
+    document.dispatchEvent(new CustomEvent("lcc:flavour", { detail: { flavour } }));
+  }
 
   function renderProtoBar(active) {
     const bar = $("#proto-bar");
@@ -5106,11 +5248,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   }
 
   function cycleTheme() {
-    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-    const root = document.documentElement;
-    if (theme === "auto") root.removeAttribute("data-theme");
-    else root.dataset.theme = theme;
-    renderProtoBar(parse().name);
+    setMode(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]);
     $("[data-theme-toggle]")?.focus();
   }
 
@@ -5279,6 +5417,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   /* Boot ---------------------------------------------------------------- */
   window.addEventListener("hashchange", render);
   LCC.router = { register, navigate, render, parse };
+  LCC.theme = { mode: () => theme, flavour: () => flavour, setMode, setFlavour };
 
   // Defer first render so later scripts (kit.js, screens) can register first
   document.addEventListener("DOMContentLoaded", render);
@@ -6993,6 +7132,12 @@ li:last-child > .branch-row { border-bottom: 0; }
               <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
             </section>
 
+            <section class="drawer__section drawer__appearance" aria-labelledby="dr-look">
+              <h3 class="eyebrow" id="dr-look">Appearance</h3>
+              ${ui.segmented({ name: "flavour", label: "Colour theme", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
+              ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}
+            </section>
+
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
               <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. Unused cups end with the month.</p>
@@ -7296,6 +7441,14 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (pb) { pb.focus(); openDrawer(); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
+        const look = t.closest('[data-segmented="flavour"] .segmented__option, [data-segmented="mode"] .segmented__option');
+        if (look) {
+          const group = look.parentElement;
+          ui.selectSegment(group, look.dataset.value);
+          if (group.dataset.segmented === "flavour") LCC.theme.setFlavour(look.dataset.value);
+          else LCC.theme.setMode(look.dataset.value);
+          return;
+        }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
@@ -7417,6 +7570,11 @@ li:last-child > .branch-row { border-bottom: 0; }
   let shown = PAGE;
   let listScroll = 0;
 
+  // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
+  const matchaMode = () => LCC.theme?.flavour() === "matcha";
+  const isMatcha = (d) => /matcha/i.test(d.name);
+  const servesMatcha = (c) => c.drinks.some(isMatcha);
+
   /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
   const sheetCount = (f = filters) => (f.openNow ? 1 : 0) + f.statuses.length + f.tags.length;
 
@@ -7436,10 +7594,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     function rowHtml(c) {
       const open = S.openState(c).open;
       return html`<li>
-        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
+        <a class="cafe-line" href="#/app/cafes/${c.brandId || c.id}" aria-label="${c.name}, ${c.branch || S.area(c.area).name}${matchaMode() && servesMatcha(c) ? ", serves matcha" : ""}, ${fmt.statusLabel(c.status).toLowerCase()}, ${open ? "open" : "closed"}">
           <span class="cafe-line__name">${c.name}</span>
           <span class="cafe-line__area">${c.branch || S.area(c.area).name}</span>
           <span class="cafe-line__end" aria-hidden="true">
+            ${matchaMode() && servesMatcha(c) ? html`<span class="badge badge--matcha">Matcha</span>` : ""}
             ${ui.statusPill(c.id, { bare: true, time: false })}
             <span class="cafe-line__open${open ? "" : " is-closed"}">${open ? "Open" : "Closed"}</span>
           </span>
@@ -7611,7 +7770,9 @@ li:last-child > .branch-row { border-bottom: 0; }
         view.addEventListener("input", onInput);
         view.addEventListener("change", onChange);
         view.addEventListener("click", onClick);
+        document.addEventListener("lcc:flavour", paintList);
         return () => {
+          document.removeEventListener("lcc:flavour", paintList);
           listScroll = view.scrollTop;
           ui.closeSheet(sheet);
           sheet.remove();
@@ -7725,7 +7886,7 @@ li:last-child > .branch-row { border-bottom: 0; }
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
               <ul role="list">
-                ${c.drinks.map((d) => html`<li class="row">
+                ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li class="row">
                   <div class="row__main"><div class="row__title">${d.name}</div><div class="row__meta num">${fmt.rs(d.price)} at the counter</div></div>
                   <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
                 </li>`)}
@@ -7810,8 +7971,12 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
 
     /* ---------------- Menu ---------------- */
+    // Matcha mode puts the Matcha section first; coffee keeps the brand's order
+    const menuSections = () => (LCC.theme?.flavour() === "matcha"
+      ? [...sections.filter((x) => /matcha/i.test(x)), ...sections.filter((x) => !/matcha/i.test(x))]
+      : sections);
     function menuHtml() {
-      return html`${sections.map((sec) => {
+      return html`${menuSections().map((sec) => {
         const items = b.menu.filter((d) => d.section === sec && d[menuTemp] != null);
         if (!items.length) return "";
         return html`<section class="menu-sec" aria-label="${sec}">
@@ -8003,11 +8168,14 @@ li:last-child > .branch-row { border-bottom: 0; }
         const title = $("[data-detail-title]", view);
         onScroll = () => bar.classList.toggle("is-titled", title.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom);
         view.addEventListener("scroll", onScroll, { passive: true });
+        const onFlavour = () => { const n = $("[data-menu]", view); if (n) n.innerHTML = menuHtml().s; };
+        document.addEventListener("lcc:flavour", onFlavour);
         return () => {
           ui.closeSheet(sheet);
           sheet.remove();
           view.removeEventListener("click", onClick);
           view.removeEventListener("scroll", onScroll);
+          document.removeEventListener("lcc:flavour", onFlavour);
         };
       },
       on: {

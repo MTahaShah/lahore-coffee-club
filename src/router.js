@@ -61,6 +61,7 @@
       if (!firstLoad) main.focus({ preventScroll: true });
     }
     document.title = def.title ? `${def.title} · ${BASE_TITLE}` : BASE_TITLE;
+    applyTheme(); // the flavour belongs to the member app only
     renderProtoBar(name);
   }
 
@@ -73,7 +74,52 @@
     { name: "cafe", href: "#/cafe", label: "Café view" },
   ];
   const THEMES = ["auto", "light", "dark"];
-  let theme = "auto";
+  let theme = "auto"; // Light / Dark / Auto (follows the phone); in memory, as before
+
+  /* Flavour: Coffee (default) or Matcha, for the member app only. The
+     café view and landing stay coffee, so data-flavour is on <html> only
+     while #/app is showing. Remembered on this device (CLAUDE.md:
+     approved localStorage exception); any storage failure means Coffee. */
+  const FLAVOUR_KEY = "lcc-flavour";
+  let flavour = "coffee";
+  try { if (localStorage.getItem(FLAVOUR_KEY) === "matcha") flavour = "matcha"; } catch (e) { /* Coffee */ }
+  const FLAVOUR_SURFACES = ["app"];
+  const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  /** Point the phone's status bar at the page background. */
+  function paintThemeColor() {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (bg) document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", bg));
+  }
+  /** Apply mode and flavour to <html>; fade colours unless it's the first paint. */
+  function applyTheme({ fade = false } = {}) {
+    const root = document.documentElement;
+    if (fade && !ui.reducedMotion()) {
+      root.classList.add("theme-fading");
+      clearTimeout(applyTheme.t);
+      applyTheme.t = setTimeout(() => root.classList.remove("theme-fading"), 320);
+    }
+    if (theme === "auto") root.removeAttribute("data-theme");
+    else root.dataset.theme = theme;
+    if (flavour === "matcha" && FLAVOUR_SURFACES.includes(current.name)) root.dataset.flavour = "matcha";
+    else root.removeAttribute("data-flavour");
+    paintThemeColor();
+  }
+  darkQuery?.addEventListener?.("change", paintThemeColor);
+
+  function setMode(next) {
+    if (!THEMES.includes(next) || next === theme) return;
+    theme = next;
+    applyTheme({ fade: true });
+    renderProtoBar(parse().name);
+  }
+  function setFlavour(next) {
+    if (!["coffee", "matcha"].includes(next) || next === flavour) return;
+    flavour = next;
+    try { localStorage.setItem(FLAVOUR_KEY, flavour); } catch (e) { /* this session only */ }
+    applyTheme({ fade: true });
+    document.dispatchEvent(new CustomEvent("lcc:flavour", { detail: { flavour } }));
+  }
 
   function renderProtoBar(active) {
     const bar = $("#proto-bar");
@@ -123,11 +169,7 @@
   }
 
   function cycleTheme() {
-    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-    const root = document.documentElement;
-    if (theme === "auto") root.removeAttribute("data-theme");
-    else root.dataset.theme = theme;
-    renderProtoBar(parse().name);
+    setMode(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]);
     $("[data-theme-toggle]")?.focus();
   }
 
@@ -296,6 +338,7 @@
   /* Boot ---------------------------------------------------------------- */
   window.addEventListener("hashchange", render);
   LCC.router = { register, navigate, render, parse };
+  LCC.theme = { mode: () => theme, flavour: () => flavour, setMode, setFlavour };
 
   // Defer first render so later scripts (kit.js, screens) can register first
   document.addEventListener("DOMContentLoaded", render);

@@ -354,6 +354,12 @@
               <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
             </section>
 
+            <section class="drawer__section drawer__appearance" aria-labelledby="dr-look">
+              <h3 class="eyebrow" id="dr-look">Appearance</h3>
+              ${ui.segmented({ name: "flavour", label: "Colour theme", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
+              ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}
+            </section>
+
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
               <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. Unused cups end with the month.</p>
@@ -657,6 +663,14 @@
         if (pb) { pb.focus(); openDrawer(); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
+        const look = t.closest('[data-segmented="flavour"] .segmented__option, [data-segmented="mode"] .segmented__option');
+        if (look) {
+          const group = look.parentElement;
+          ui.selectSegment(group, look.dataset.value);
+          if (group.dataset.segmented === "flavour") LCC.theme.setFlavour(look.dataset.value);
+          else LCC.theme.setMode(look.dataset.value);
+          return;
+        }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }

@@ -48,8 +48,12 @@
     }
 
     /* ---------------- Menu ---------------- */
+    // Matcha mode puts the Matcha section first; coffee keeps the brand's order
+    const menuSections = () => (LCC.theme?.flavour() === "matcha"
+      ? [...sections.filter((x) => /matcha/i.test(x)), ...sections.filter((x) => !/matcha/i.test(x))]
+      : sections);
     function menuHtml() {
-      return html`${sections.map((sec) => {
+      return html`${menuSections().map((sec) => {
         const items = b.menu.filter((d) => d.section === sec && d[menuTemp] != null);
         if (!items.length) return "";
         return html`<section class="menu-sec" aria-label="${sec}">
@@ -241,11 +245,14 @@
         const title = $("[data-detail-title]", view);
         onScroll = () => bar.classList.toggle("is-titled", title.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom);
         view.addEventListener("scroll", onScroll, { passive: true });
+        const onFlavour = () => { const n = $("[data-menu]", view); if (n) n.innerHTML = menuHtml().s; };
+        document.addEventListener("lcc:flavour", onFlavour);
         return () => {
           ui.closeSheet(sheet);
           sheet.remove();
           view.removeEventListener("click", onClick);
           view.removeEventListener("scroll", onScroll);
+          document.removeEventListener("lcc:flavour", onFlavour);
         };
       },
       on: {

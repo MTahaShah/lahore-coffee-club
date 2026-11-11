@@ -187,6 +187,98 @@
 }
 
 /* ---------------------------------------------------------------------
+   2b. Matcha mode: a second flavour for the member app only. router.js
+   sets data-flavour="matcha" on <html> on #/app routes when the member
+   picks it (the café view and landing stay coffee). Colour tokens only;
+   coffee above stays the default. One muted green accent: #6E8B3D for
+   rings and bars, #4E6A25 where it is text (AA on every light surface).
+   Status colours are unchanged.
+   --------------------------------------------------------------------- */
+:root[data-flavour="matcha"] {
+  --black: #111611;
+  --cream: #F4F2E7;
+  --accent: #6E8B3D;         /* ceremonial matcha */
+  --accent-deep: #3F5A22;
+  --espresso: #1E261B;
+  --mocha: #5E7236;
+  --roast: #2F4220;
+
+  --bg: #F4F2E7;             /* whisked milk */
+  --surface: #FBFAF3;
+  --surface-2: #EAE8DA;
+  --ink: #1E261B;            /* tea leaf */
+  --ink-2: #464F40;
+  --ink-3: #5F6758;
+  --ink-4: #A9AE9E;          /* placeholders and decoration only */
+  --line: #D9DDC9;           /* soft sage */
+  --line-strong: #C3C9AF;
+  --primary: #1E261B;
+  --primary-hover: #333D2E;
+  --on-primary: #FBFAF3;
+  --primary-soft: #EAE8DA;
+  --accent-text: #4E6A25;
+  --bezel: #1E261B;
+  --scrim: rgba(17, 22, 17, 0.32);
+  --logo-face: #3F5A22;
+  --logo-side: #26361A;
+  --logo-top: #6E8B3D;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-flavour="matcha"]:not([data-theme="light"]) {
+    --bg: #111611;
+    --surface: #182018;
+    --surface-2: #202A1F;
+    --ink: #E8EDDD;            /* foam */
+    --ink-2: #B7BFAA;
+    --ink-3: #8C957F;
+    --ink-4: #586153;
+    --line: #263025;
+    --line-strong: #354134;
+    --primary: #E8EDDD;
+    --primary-hover: #D9E0CB;
+    --on-primary: #111611;
+    --primary-soft: #202A1F;
+    --accent: #93B35A;         /* brighter matcha on dark */
+    --accent-text: #93B35A;
+    --bezel: #263025;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --logo-face: #93B35A;
+    --logo-side: #6E8B3D;
+    --logo-top: #3F5A22;
+  }
+}
+:root[data-flavour="matcha"][data-theme="dark"], [data-flavour="matcha"] .theme-dark {
+  --bg: #111611;
+  --surface: #182018;
+  --surface-2: #202A1F;
+  --ink: #E8EDDD;
+  --ink-2: #B7BFAA;
+  --ink-3: #8C957F;
+  --ink-4: #586153;
+  --line: #263025;
+  --line-strong: #354134;
+  --primary: #E8EDDD;
+  --primary-hover: #D9E0CB;
+  --on-primary: #111611;
+  --primary-soft: #202A1F;
+  --accent: #93B35A;
+  --accent-text: #93B35A;
+  --bezel: #263025;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --logo-face: #93B35A;
+  --logo-side: #6E8B3D;
+  --logo-top: #3F5A22;
+}
+
+/* Switching flavour or mode crossfades colours (router.js adds the class
+   for 300ms; never with reduced motion). */
+:root.theme-fading, :root.theme-fading *, :root.theme-fading *::before, :root.theme-fading *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, outline-color, transform !important;
+  transition-duration: var(--dur-3) !important;
+  transition-timing-function: var(--ease) !important;
+}
+
+/* ---------------------------------------------------------------------
    3. Reset and base
    --------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }

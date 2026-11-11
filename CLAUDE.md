@@ -38,6 +38,17 @@ counter screen).
   cups outlined (Home ring in `--accent-text`, caramel around the QR on the
   black pass screen).
 - Hairlines, no shadows. Status colours only for busy status, with text.
+- Matcha mode (member app only): a second flavour, `[data-flavour="matcha"]`
+  on `<html>` in `base.css` (colour tokens only, light and dark; coffee
+  stays the default). `router.js` owns flavour and Light / Dark / Auto
+  (`LCC.theme`: `flavour()`, `mode()`, `setFlavour`, `setMode`), sets the
+  attribute only while `#/app` shows (café view, landing and kit stay
+  coffee), crossfades 300ms (`.theme-fading`, none with reduced motion)
+  and sets the theme-color metas from `--bg`. Switch: Appearance in the
+  profile drawer. In Matcha, menus list matcha first and the Cafés list
+  tags cafés whose drinks include matcha (`lcc:flavour` DOM event repaints).
+  Text accent is #4E6A25 on light (the #6E8B3D accent is 3.45:1, rings
+  and bars only).
 
 ## Build and preview
 
@@ -259,6 +270,10 @@ next pass until asked.**
   cdnjs), pinned with SRI.
 - QR library: qrcode-generator 1.4.4 from cdnjs; falls back to the 6-digit
   code offline.
+- Approved exception to "all state is in memory": the Coffee / Matcha choice
+  is remembered on the device in localStorage `"lcc-flavour"` (try/catch;
+  if storage fails it defaults to Coffee). Light / Dark / Auto stays in
+  memory.
 - Plan changes apply immediately: leftover cups expire (ledger), new cups
   start fresh, renewal = one month from today.
 - Wallet numbers ending in 0000 simulate a failed payment (presenter
