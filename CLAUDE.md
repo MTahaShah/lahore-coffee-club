@@ -63,8 +63,9 @@ Live: https://lcc-omega.vercel.app (Vercel). The café
 view's "Pair a phone" QR always points here (`LIVE_URL` in `sync.js`), with
 `#/app/pass?room=XXXX`, even when the café window runs locally.
 
-Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` café view,
-`#/kit` component sheet (not in the switcher; for review).
+Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` the counter
+(`#/cafe/<branchId>` sets the device up for a branch), `#/partner` owner
+dashboard, `#/kit` component sheet (not in the switcher; for review).
 Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
 `index.html` is generated (one self-contained file: fonts, logos and
 favicon are inlined). Edit `src/`, never `index.html`.
@@ -90,14 +91,19 @@ favicon are inlined). Edit `src/`, never `index.html`.
   `acks`, `member.privacy`), presenter sessions, `LCC.fmt` formatting
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
-- `router.js` — hash router, top switcher (with the presenter Demo menu),
-  theme toggle, Pass 1 shells
+- `router.js` — hash router, top switcher (Landing, Member app, Counter
+  with a branch menu, Partner dashboard; the presenter Demo menu), theme
+  toggle, Pass 1 shells
 - `sync.js` — live sync per room: BroadcastChannel (same computer) and
   Supabase Realtime Broadcast (other devices), join handshake, `LCC.sync`
 - `kit.js` — `#/kit` component sheet wired to the real store
-- `cafe.css`, `cafe.js` — café partner view (`#/cafe`): header (staff on
-  shift, taking or paused), Counter, Orders, Today, Payouts, Settings; a
-  left rail on tablets (768px and up), segmented tabs on phones
+- `cafe.css`, `cafe.js` — the counter (`#/cafe`): device setup with a
+  branch code, shift (tap your name), keypad and member number search,
+  Scan pass, 6-digit code, member card, drink picker, Redeem, Done, Undo;
+  Orders (pickup queue); Members (manager PIN). See "Café side"
+- `partner.css`, `partner.js` — owner dashboard (`#/partner`): Live, Menu,
+  Rules, Money, Insights, Members, Branches; `LCC.partnerMembers` (Your
+  members, shared with the counter)
 - `app.css`, `app.js` — member app (`#/app/…`): shell, in-app routing, tab
   bar (Home · Cafés · Pass · Circles · Club; the Circles icon is a small
   `ui.brickRing`), Pass, Home, the busy map (`ctx.busyMap`, drawn in the
@@ -158,6 +164,8 @@ This order overrides any order implied by the spec.
 8. [x] Pickup orders: order ahead with a cup or online payment, café queue
 9. [x] Club: Beans, referrals, group orders
 10. [x] Club: Circles with rounds, activity and the brick-ring mark
+11. [x] Café side: redeem by member number or scan, branch-ready counters,
+    Your members, owner dashboard
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -208,19 +216,20 @@ next pass until asked.**
   the counter; nothing is spent until the counter redeems, which clears it.
 - Club: a brand counts as one café (one passport stamp, any branch), so the
   passport has 9 stamps.
-- Café view: Double Shot is one choice in the Demo café picker; branches are
-  picked in the header. Today and Payouts have This branch / All branches.
-  Settings shows the cover rule (set by the brand) instead of the checkboxes.
-- Demo codes: Rabia 341862 (5 of 8), Kamran 905417 (daily limit at
-  Gulberg), Nida 274639 (no cups). Explorer / My cafés codes are refused at
-  Double Shot. Staff PINs: branch number (list order) then 234 (counter) or
-  678 (manager): Gulberg 1234 / 1678 … Dolmen 7234 / 7678.
+- Demo members: Rabia LCC 233 (5 of 8), Kamran LCC 311 (daily limit at
+  Gulberg), Nida LCC 447 (no cups), Iqra LCC 64 (plan paused); their old
+  static codes still work (341862, 905417, 274639). Explorer members can
+  use Double Shot too now (any partner brand); My cafés codes are refused.
+- Staff: two counter staff and a manager per branch (`cafe.staff`);
+  manager PINs are the branch number then 678 (Gulberg 1678 … Dolmen 7678).
+  Owner PIN 0000. Setup codes DS-GUL, DS-CAN, DS-MOD, DS-PH6, DS-LJC,
+  DS-PIN, DS-DOL.
 - 90 background Double Shot regulars generate the last 10 days under the
   real rules; three months of payout history per branch (amounts seeded).
 
 ## Ledger
 
-- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release|beans,
+- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release|beans|undo,
   memberId, cafeId|null, cups, at, cycle }`. `cups` is signed (purchase,
   reward and release +, the rest −). `hold` / `release` belong to pickup
   orders (they carry `orderId`, and `itemId` at a table; see Pickup
@@ -427,18 +436,19 @@ next pass until asked.**
   the cap at Kiln & Bean), Sana 207341 (My cafés: Kiln & Bean 6, Maple 4;
   3 + 3 left), Omar 558190 (Explorer Starter, 2 left), Zara 482913 (My cafés,
   daily limit at Kiln & Bean), Hamza 730215 (no cups left).
-- Mumtaz: Double Shot, 15-cup plan, 11 left (cups at Gulberg, Phase 6, Model
-  Town and Pine Avenue this month). Her codes are refused at Kiln & Bean.
-- The café view opens on Double Shot Gulberg (`partnerCafeId`).
-- Payout today = cups today × the café's payout rate. The café's "This month"
-  block (calendar month) reads the ledger: cups reserved here and by how many
-  My cafés members, cups redeemed so far, payout so far = redeemed × rate.
+- Mumtaz: LCC 42. Double Shot, 15-cup plan, 11 left (cups at Gulberg,
+  Phase 6, Model Town and Pine Avenue this month; her usual there is an
+  Iced Spanish Latte), and an Explorer Starter plan with 6 of 8 left
+  (`member.extraPlans`; Slow Pour and Noon, dated before the 1st so her
+  Beans stay 130). At Kiln & Bean she redeems from Explorer.
+- Payout today (dashboard, Live) = each cup's payout today plus paid
+  orders collected today, less the fee.
 - 80 background regulars (mixed Explorer / My cafés) have no codes; the seed
   generates the last 10 days of their redemptions under the real rules,
   around each café's `avgDailyCups` (4–9 a day).
 - PENDING business decision: `rules.reservedPayoutShare` (default 0) would
-  pay cafés a share of unused reserved cups. Computed in `cafeSummary`
-  (`reservedPayout`), not shown anywhere yet.
+  pay cafés a share of unused reserved cups. Was computed in `cafeSummary`
+  (`reservedPayout`), removed with the old café view; not computed now.
 - Busy status uses the cup-level icon (`ui.cupIcon`) everywhere, in ink.
 - Live sync (approved exception to "no backend"): Supabase Realtime
   Broadcast only. No tables, no database writes, nothing stored. Only the
@@ -519,26 +529,94 @@ next pass until asked.**
   Tap (a real button over the card) turns it over, 400ms rotateY,
   crossfade with reduced motion: member since, plan, Circles, "Show your
   pass at any partner café". The old seal is gone.
-- Café view after lookup: "No. 0042 · Founding Member · Local" and any perk
-  claimable at that café.
-- Café view (redesign): Counter scans or takes a 6-digit code, shows what a
-  cup covers, redeems with a reference (`select.redemptionRef`, the same on
-  every device) and "Ring it up on your till as: LCC member", then resets
-  after 6 s. The redemption records the café's first one-cup drink (the till
-  handles the actual drink).
+- Counter after lookup: "No. 0042 · Founding Member · Local" and any perk
+  claimable at that café, under the name.
 - Busy level: Auto by default (`select.busyEstimate`: cups here in the last
-  30 min, 0–1 quiet, 2–4 moderate, 5+ packed), or a fixed level. Only the
-  café view drives Auto (`actions.refreshAutoBusy` on redeem and tick); the
-  status syncs to the member map as before, now with its mode.
-- Pause member cups for 30 min (`cafe.pausedUntil`, synced as `cafe:pause`).
-  While paused, codes are refused with a friendly message.
-- Partner settings live in `state.partner[cafeId]` (Kiln & Bean seeded in
-  `data.js`; others get defaults): what a cup covers, limits (member cups a
-  day for the café, cups per member a day; both enforced in
-  `canRedeemHere`), opening hours (`cafe.hours`, also used by the app),
-  staff PINs, payout account and history. Settings are not synced.
-- Demo staff PINs at Kiln & Bean: Bilal 1234, Hira 5678, Saad 2468.
-- Payouts: this month from the ledger (calendar month) × the café's rate
-  (`payoutPerCup`; Kiln & Bean Rs 520 = 80% of Rs 650); next payout on the
-  5th; three months of seeded history. CSV export and PDF statement are
+  30 min, 0–1 quiet, 2–4 moderate, 5+ packed), or a fixed level (owner
+  dashboard, Rules). Only the counter drives Auto (`actions.refreshAutoBusy`
+  on redeem and tick); the status syncs to the member map with its mode.
+- Pause member cups for 30 min (`cafe.pausedUntil`, synced as `cafe:pause`):
+  the counter's Manager sheet or the dashboard's Rules. While paused the
+  counter says "Member cups paused until 4:40 pm".
+- Payouts (dashboard, Money): this month from the ledger (calendar month):
+  each cup pays `payoutShare` × min(price, `coverUpTo`) (Kiln & Bean 80% of
+  up to Rs 650 = Rs 520), plus paid orders less the 5% fee; next payout on
+  the 5th; three months of seeded history per branch. CSV and PDF are
   simulated with a toast.
+
+## Café side (Pass 11)
+
+- Every partner is a brand with branches (`data.js` `brands`; a branch is a
+  café with `brandId`). A single café is a brand with one branch, same id
+  (`kiln`). Brand: menu (hot / iced), `economics` (`coverUpTo`,
+  `payoutShare`), `plans`, `rules` (`perMemberPerDay`, `branchCupsPerDay`),
+  `ownerPin`, `account`. Branch: pin, hours, busy level, `staff` (`staff` or
+  `manager` with `pin`), `setupCode`, `pausedUntil`. `cafe.chainId` is set
+  only when the brand sells its own plans (Double Shot): the member app
+  shows chains as a brand page and branch picker (`select.brandOf`);
+  `select.brandFor` is any branch's brand. Single cafés' drinks come from
+  their brand menu (one cup each; above `coverUpTo` it's "Cup + Rs X").
+- Owner PINs: Double Shot 0000, Kiln & Bean 1111 (others 2222 … 8888).
+  Manager PINs: Kiln & Bean Saad 2468, other single cafés 2678 … 8678.
+  Setup codes: KB-01, MR-01, EC-01, TF-01, QH-01, SP-01, NC-01, GG-01.
+- Members: `memberNo` is club-wide and unique ("LCC 42", `fmt.lcc`); every
+  member has initials, a phone and a number (`data.js` numbers the rest).
+  Plans: `member.plan` plus `member.extraPlans` (`{ plan, cycle,
+  cycleStartedAt, renewsAt }`); `select.plansOf` gives each plan's balance
+  from its own cycle. A brand plan works at every branch; Explorer at any
+  partner brand (at most 2 a cycle per brand); the balance is the plan's.
+  Pickup orders and the Home ring still use the first plan only.
+- `select.counterCheck(memberId, branchId)` picks the plan (this brand's
+  plan, then Explorer, then My cafés reserved here, then complimentary)
+  and refuses in plain words: "Member cups paused until …", "No plan
+  yet", "Not on a plan here", "Plan paused", "Explorer limit reached
+  here", "No cups left", "Daily limit reached at this branch", "Member
+  cups used up for today". `select.counterSearch`: any exact number; partial
+  numbers, the last 4 digits of a phone and names only find Your members
+  (and Explorer members by number), never the whole club.
+- Redemption (`actions.counterRedeem`): a `redeem` entry with `brandId`,
+  `branchId` (= `cafeId`), `staffId`, `drinkId`, `temp`, `price`, `topUp`,
+  `method` (number | scan | code), `planType`, `ref` ("DS-7K2Q",
+  `select.redemptionRef`: the brand monogram and four letters) and the
+  plan's `cycle`. Undo (`actions.undoRedemption`, 2 minutes,
+  `rules.undoMinutes`) appends an `undo` entry (+cups, `undoes`) and flags
+  the redemption `undone`; undone redemptions don't count anywhere
+  (`isRedeem`), and the member sees "Cup returned". "Not you? Report"
+  (`actions.reportRedemption`) sets `state.reports[entryId]` and flags the
+  entry `reported`; the owner sees it live.
+- The counter (`#/cafe`): set up once with a setup code (in memory: a
+  reload asks again; the presenter's Counter menu goes straight to
+  `#/cafe/<branchId>`). Then locked to that branch until a manager or the
+  owner moves it (Manager sheet, PIN; unlocks for 10 minutes). Tap a name to
+  start a shift. The field takes a number from the keypad (results from
+  the first digit), switches to names when letters are typed, or a 6-digit
+  code. "Scan pass" shows only where `BarcodeDetector` reads QR codes. The
+  member card preselects the drink chosen in the app, else their usual
+  (`select.usualDrink`), and shows only drinks available today. Done resets
+  after 5 s (`rules.counterResetSeconds`); the last cups keep an Undo with
+  a countdown. Keys are 64px; portrait is one column with the keypad under
+  the thumb, wide or landscape is two columns.
+- The member app: the Pass leads with "LCC 42", the avatar and name ("Add a
+  photo"; `actions.setMemberPhoto`, a 160px JPEG, synced as `profile`),
+  then the QR and code. After every counter cup an alert: "1 cup used at
+  Double Shot Gulberg · 4:12 pm · Iced Spanish Latte" with "That was me" and
+  "Not you? Report". `ui.avatar` draws a photo or initials.
+- Owner dashboard (`#/partner`, owner or manager PIN; managers see their
+  branch only): Live (`select.liveFeed`, `brandToday`), Menu (prices via
+  `actions.setMenuPrice`, from tomorrow, `brand.priceChanges`; "Available
+  today" via `actions.setAvailable`, `state.availability`, back on at
+  midnight), Rules (`setEconomics`, `setBrandRules`, pause, busy level,
+  hours), Money (`select.brandMoney`), Insights (`select.insights`: new
+  faces = cups by members whose first cup at the brand was this month;
+  returning = first came before this month), Members (`select.yourMembers`:
+  this brand's plan, My cafés cups reserved here, Explorer members who've
+  redeemed here), Branches (`addBranch`, `renameBranch`, `addStaff`,
+  `removeStaff`, `setStaffPin`, `newSetupCode`).
+- Sync: new messages `report`, `profile`, `menu` (availability), `brand`
+  (the brand's settings and branches, newest `configAt` wins), all in join
+  snapshots. `store.scopeOf` puts the brand on the envelope; a counter or
+  dashboard (`LCC.partnerScope`) drops other brands' scoped messages.
+- Seed: background members have surnames, phones and earlier visits (35 to
+  80 days ago, a separate PRNG) so new faces and returning members read
+  true; seeded redemptions carry a staff member and method derived from
+  the entry id.

@@ -11,7 +11,13 @@
         Broadcast only: no tables, nothing stored. If it can't connect
         the app carries on with (1) and says “Offline, this device only”.
 
-   Messages: { v, id, from, type, data }. `from` is this window's sender
+   Messages: { v, id, from, type, scope, data }. `scope` is the brand a
+   message is about (store.scopeOf: café status and pause, menu
+   availability, brand settings, pickup orders, "Not you" reports), or
+   null for member data (ledger entries, plans, photos, Circles). A
+   counter or owner dashboard only applies scoped messages for its own
+   brand (LCC.partnerScope); member phones apply everything.
+   `from` is this window's sender
    id, so a window ignores its own messages; `id` de-duplicates a message
    that arrives over both transports. Incoming data goes through
    store.applyRemote(), which never re-sends, so there are no echo loops.
@@ -35,7 +41,8 @@
    //   cafe_status (cafe_id, status, updated_at), ledger (insert-only:
    //   purchase/redeem/gift/expire/hold/release), subscriptions (member_id,
    //   plan, cycle, renews_at), orders (pickup orders and their status).
-   //   Balances stay derived from the ledger. Rooms go away.
+   //   Balances stay derived from the ledger. Rooms go away: a channel per
+   //   brand (its branches, menu, reports) and one per member (their cups).
    ===================================================================== */
 (function () {
   "use strict";
@@ -99,7 +106,7 @@
   const msgId = () => `${sender}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   function post(type, data) {
-    const msg = { v: 1, id: msgId(), from: sender, type, data };
+    const msg = { v: 1, id: msgId(), from: sender, type, scope: store.scopeOf ? store.scopeOf(type, data || {}) : null, data };
     seen.add(msg.id);
     if (bc) { try { bc.postMessage(msg); } catch (_) { /* ignore */ } }
     if (channel && status === "online") {
@@ -112,10 +119,13 @@
     seen.add(msg.id);
     if (seen.size > 1000) seen.delete(seen.values().next().value);
     if (msg.type === "hello") return answerHello();
+    // Scoped per brand: a counter or dashboard ignores other brands' messages
+    const mine = LCC.partnerScope ? LCC.partnerScope() : null;
+    if (msg.scope && mine && msg.scope !== mine) return;
     store.applyRemote(msg.type, msg.data);
   }
 
-  const isCafeDevice = () => LCC.router?.parse().name === "cafe";
+  const isCafeDevice = () => ["cafe", "partner"].includes(LCC.router?.parse().name);
   function answerHello() {
     if (isCafeDevice()) post("snapshot", store.roomSnapshot({ statuses: true }));
     else if (store.hasLiveData()) post("snapshot", store.roomSnapshot({ statuses: false }));

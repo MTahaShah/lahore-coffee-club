@@ -3,7 +3,8 @@
    Hash routes:
      #/            landing
      #/app[/…]     member app (phone frame); sub-paths go to the app
-     #/cafe[/…]    café partner view
+     #/cafe[/id]   the counter (a branch id sets this device up for it)
+     #/partner     owner dashboard
      #/kit         component sheet (not in the switcher; for review)
 
    Surfaces register as:
@@ -71,7 +72,8 @@
   const SWITCH = [
     { name: "", href: "#/", label: "Landing" },
     { name: "app", href: "#/app", label: "Member app" },
-    { name: "cafe", href: "#/cafe", label: "Café view" },
+    { name: "cafe", menu: "counter", label: "Counter" },
+    { name: "partner", href: "#/partner", label: "Partner dashboard" },
   ];
   const THEMES = ["auto", "light", "dark"];
   let theme = "auto"; // Light / Dark / Auto (follows the phone); in memory, as before
@@ -121,6 +123,17 @@
     document.dispatchEvent(new CustomEvent("lcc:flavour", { detail: { flavour } }));
   }
 
+  /** Counter menu: brands with several branches first (a heading, then each branch), then single cafés. */
+  function counterMenuItems() {
+    const S = store.select;
+    const brands = S.partnerBrands();
+    const multi = brands.filter((b) => S.branches(b.id).length > 1);
+    const single = brands.filter((b) => S.branches(b.id).length === 1);
+    const link = (c, label, cls = "") => html`<a role="menuitem" class="${cls}" href="${withRoom(`#/cafe/${c.id}`)}">${label}</a>`;
+    return html`${multi.map((b) => html`<p class="proto-demo__group" role="presentation">${b.name}</p>${S.branches(b.id).map((c) => link(c, c.branch || c.name, "proto-demo__branch"))}`)}
+      ${single.length ? html`<p class="proto-demo__group" role="presentation">Single cafés</p>${single.map((b) => link(S.branches(b.id)[0], b.name))}` : ""}`;
+  }
+
   function renderProtoBar(active) {
     const bar = $("#proto-bar");
     bar.className = "proto-bar";
@@ -128,11 +141,18 @@
     bar.innerHTML = html`
       <span class="proto-bar__label">Prototype</span>
       <nav class="proto-bar__nav" aria-label="Surfaces">
-        ${SWITCH.map((s) => html`<a class="proto-bar__link" href="${s.href}" ${s.name === active ? raw('aria-current="page"') : ""}>${s.label}</a>`)}
+        ${SWITCH.map((s) => s.menu
+          ? html`<div class="proto-demo proto-bar__drop">
+              <button type="button" class="proto-bar__link" data-menu-toggle="proto-counter-menu" aria-expanded="false" aria-controls="proto-counter-menu" ${s.name === active ? raw('aria-current="page"') : ""}>${s.label} ▾</button>
+              <div class="proto-demo__menu proto-demo__menu--start" id="proto-counter-menu" role="menu" aria-label="Choose a branch" hidden>
+                ${counterMenuItems()}
+              </div>
+            </div>`
+          : html`<a class="proto-bar__link" href="${s.href}" ${s.name === active ? raw('aria-current="page"') : ""}>${s.name === "partner" ? raw('Partner<span class="proto-bar__long">&nbsp;dashboard</span>') : s.label}</a>`)}
       </nav>
       <div class="proto-bar__end">
         <div class="proto-demo">
-          <button type="button" class="proto-bar__theme" data-demo-toggle aria-expanded="false" aria-controls="proto-demo-menu">Demo</button>
+          <button type="button" class="proto-bar__theme" data-menu-toggle="proto-demo-menu" aria-expanded="false" aria-controls="proto-demo-menu">Demo</button>
           <div class="proto-demo__menu" id="proto-demo-menu" role="menu" aria-label="Presenter" hidden>
             <button type="button" role="menuitem" data-demo="new">Start as a new member</button>
             <button type="button" role="menuitem" data-demo="mumtaz">Back to Mumtaz’s demo</button>
@@ -145,12 +165,14 @@
   }
 
   /* Presenter menu: start onboarding as a new member, or go back to Mumtaz */
-  function demoMenu(open) {
-    const btn = $("[data-demo-toggle]"), menu = $("#proto-demo-menu");
-    if (!btn || !menu) return;
-    btn.setAttribute("aria-expanded", String(open));
-    menu.hidden = !open;
-    if (open) menu.querySelector("[role=menuitem]").focus();
+  /** The switcher's menus (Counter, Demo): one open at a time. */
+  function demoMenu(open, id = "proto-demo-menu") {
+    document.querySelectorAll(".proto-demo__menu").forEach((m) => {
+      const on = open && m.id === id;
+      m.hidden = !on;
+      $(`[data-menu-toggle="${m.id}"]`)?.setAttribute("aria-expanded", String(on));
+      if (on) m.querySelector("[role=menuitem]").focus();
+    });
   }
   const withRoom = (h) => (LCC.sync ? LCC.sync.withRoom(h) : h);
   function demoAction(which) {
@@ -174,11 +196,11 @@
   }
 
   document.addEventListener("keydown", (e) => {
-    const menu = $("#proto-demo-menu");
-    if (!menu || menu.hidden) return;
+    const menu = $(".proto-demo__menu:not([hidden])");
+    if (!menu) return;
     const items = [...menu.querySelectorAll("[role=menuitem]")];
     const i = items.indexOf(document.activeElement);
-    if (e.key === "Escape") { e.preventDefault(); demoMenu(false); $("[data-demo-toggle]").focus(); }
+    if (e.key === "Escape") { e.preventDefault(); demoMenu(false); $(`[data-menu-toggle="${menu.id}"]`).focus(); }
     else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus(); }
   });
 
@@ -187,7 +209,9 @@
      ------------------------------------------------------------------- */
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-theme-toggle]")) return cycleTheme();
-    if (e.target.closest("[data-demo-toggle]")) return demoMenu($("#proto-demo-menu")?.hidden);
+    const tog = e.target.closest("[data-menu-toggle]");
+    if (tog) return demoMenu(document.getElementById(tog.dataset.menuToggle)?.hidden, tog.dataset.menuToggle);
+    if (e.target.closest(".proto-demo__menu a")) demoMenu(false);
     const demo = e.target.closest("[data-demo]");
     if (demo) return demoAction(demo.dataset.demo);
     if (!e.target.closest(".proto-demo")) demoMenu(false);
@@ -296,42 +320,6 @@
       const off = store.on("member", paint);
       const off2 = store.on("ledger", paint);
       return () => { off(); off2(); };
-    },
-  });
-
-  register("cafe", {
-    title: "Café view",
-    mount(el) {
-      const cafe = store.select.partnerCafe();
-      const area = store.select.area(cafe.area);
-      el.innerHTML = html`
-        <div class="surface cafe">
-          <header class="cafe-header">
-            <div class="stack" style="--stack-gap:var(--space-2)">
-              <p class="eyebrow">Partner view · ${area.name}</p>
-              <h1 class="t-h1">${cafe.name}</h1>
-              <p class="t-small t-muted">${fmt.date(Date.now())}</p>
-            </div>
-            <span class="open-indicator">Open <span class="t-faint t-small" style="font-weight:400">until ${cafe.hours.label.split("–")[1].trim()}</span></span>
-          </header>
-          <div class="cafe-grid">
-            <section class="card" aria-labelledby="redeem-h">
-              <div class="panel-title"><h2 class="eyebrow" id="redeem-h">Redeem a cup</h2></div>
-              <div class="placeholder" style="min-height:360px">Code entry, numpad, and QR scan. Built in Pass 2.</div>
-            </section>
-            <div class="cafe-grid__side">
-              <section class="card" aria-labelledby="busy-h">
-                <div class="panel-title"><h2 class="eyebrow" id="busy-h">How busy are you?</h2>${ui.statusPill(cafe.id)}</div>
-                <div class="placeholder">Quiet, Moderate, Packed. Built in Pass 2.</div>
-              </section>
-              <section class="card" aria-labelledby="today-h">
-                <div class="panel-title"><h2 class="eyebrow" id="today-h">Today</h2></div>
-                <div class="placeholder">Redemptions, new customers, payout. Built in Pass 2.</div>
-              </section>
-            </div>
-          </div>
-          <p class="t-small t-faint" style="margin-top:var(--space-6)">Works on any phone or tablet. No special hardware.</p>
-        </div>`;
     },
   });
 

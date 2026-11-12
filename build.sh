@@ -29,6 +29,7 @@ TEMPLATE="$SRC/index.template.html"
 CSS_FILES=(
   base.css
   cafe.css
+  partner.css
   app.css
   club.css
   landing.css
@@ -65,6 +66,7 @@ JS_FILES=(
   sync.js
   kit.js
   cafe.js
+  partner.js
   app.js
   app-cafes.js
   app-brand.js

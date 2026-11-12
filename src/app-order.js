@@ -48,7 +48,7 @@
     return null;
   }
   const hasDrink = (cafe, id) => cafe.drinks.some((d) => d.id === id);
-  const firstDrink = (cafe) => (cafe.brandId ? (hasDrink(cafe, "ds-latte") ? "ds-latte" : cafe.drinks[0].id) : (cafe.drinks.find((d) => d.credits === 1) || cafe.drinks[0]).id);
+  const firstDrink = (cafe) => (cafe.chainId ? (hasDrink(cafe, "ds-latte") ? "ds-latte" : cafe.drinks[0].id) : (cafe.drinks.find((d) => d.credits === 1) || cafe.drinks[0]).id);
 
   /** Where to start: where the member's cups work, nearest first, taking orders now. */
   function defaultCafe(m, brandId = null) {
@@ -316,14 +316,14 @@
     const matcha = () => LCC.theme?.flavour() === "matcha";
 
     function placeHtml() {
-      const brands = [...new Set(S.cafes().filter((c) => c.brandId).map((c) => c.brandId))].map(S.brand);
+      const brands = [...new Set(S.cafes().filter((c) => c.chainId).map((c) => c.chainId))].map(S.brand);
       const opt = (c, text) => {
         const a = S.pickupAvailable(c.id);
         const note = a.ok ? "" : a.reason === "paused" ? " · not taking orders" : " · closed";
         return html`<option value="${c.id}" ${c.id === draft.cafeId ? raw("selected") : ""}>${text}${note}</option>`;
       };
       return html`<div class="field">
-        <label class="field__label" for="o-place">${S.cafe(draft.cafeId).brandId ? "Branch" : "Pick up at"}</label>
+        <label class="field__label" for="o-place">${S.cafe(draft.cafeId).chainId ? "Branch" : "Pick up at"}</label>
         <span class="select"><select class="input" id="o-place" data-o-place>
           ${brands.map((b) => html`<optgroup label="${b.name}">${S.branches(b.id).map((c) => opt(c, c.branch))}</optgroup>`)}
           <optgroup label="Partner cafés">${S.clubCafes().map((c) => opt(c, c.name))}</optgroup>
@@ -334,8 +334,8 @@
     function drinkHtml() {
       const cafe = S.cafe(draft.cafeId);
       let body;
-      if (cafe.brandId) {
-        const b = S.brand(cafe.brandId);
+      if (cafe.chainId) {
+        const b = S.brand(cafe.chainId);
         let secs = [...new Set(b.menu.map((d) => d.section))];
         if (matcha()) secs = [...secs.filter((x) => /matcha/i.test(x)), ...secs.filter((x) => !/matcha/i.test(x))];
         body = html`${secs.map((sec) => html`<optgroup label="${sec}">${b.menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === draft.drinkId ? raw("selected") : ""}>${d.name}</option>`)}</optgroup>`)}`;
@@ -352,8 +352,8 @@
 
     function tempHtml() {
       const cafe = S.cafe(draft.cafeId);
-      if (!cafe.brandId) return "";
-      const item = S.menuItem(cafe.brandId, draft.drinkId);
+      if (!cafe.chainId) return "";
+      const item = S.menuItem(cafe.chainId, draft.drinkId);
       if (item.hot != null && item.iced != null) {
         return ui.segmented({ name: "otemp", label: "Hot or iced", value: S.servedTemp(item, draft.temp), options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] });
       }
@@ -467,7 +467,7 @@
           if (last?.temp) draft.temp = last.temp;
         }
         draft.when = "asap";
-        $("label[for=o-place]", view).textContent = cafe.brandId ? "Branch" : "Pick up at";
+        $("label[for=o-place]", view).textContent = cafe.chainId ? "Branch" : "Pick up at";
         return paint();
       }
       if (t.matches("[data-o-drink]")) { draft.drinkId = t.value; return paint({ drink: false, times: false }); }
@@ -743,7 +743,7 @@
       const mode = joinMode(q);
       const due = joinDue(q);
       const cafe = S.cafe(t.cafeId);
-      const item = cafe.brandId ? S.menuItem(cafe.brandId, join.drinkId) : null;
+      const item = cafe.chainId ? S.menuItem(cafe.chainId, join.drinkId) : null;
       return html`<form class="stack table__join" style="--stack-gap:var(--space-4)" data-g-join novalidate>
         <h2 class="eyebrow">Add your drink</h2>
         ${m ? html`<p class="t-small t-muted">Adding as ${m.firstName}.</p>`
@@ -751,8 +751,8 @@
         <div class="field">
           <label class="field__label" for="g-drink">Drink</label>
           <span class="select"><select class="input" id="g-drink" data-g-drink>
-            ${cafe.brandId
-              ? html`${[...new Set(S.brand(cafe.brandId).menu.map((d) => d.section))].map((sec) => html`<optgroup label="${sec}">${S.brand(cafe.brandId).menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === join.drinkId ? raw("selected") : ""}>${d.name}</option>`)}</optgroup>`)}`
+            ${cafe.chainId
+              ? html`${[...new Set(S.brand(cafe.chainId).menu.map((d) => d.section))].map((sec) => html`<optgroup label="${sec}">${S.brand(cafe.chainId).menu.filter((d) => d.section === sec).map((d) => html`<option value="${d.id}" ${d.id === join.drinkId ? raw("selected") : ""}>${d.name}</option>`)}</optgroup>`)}`
               : html`${cafe.drinks.map((d) => html`<option value="${d.id}" ${d.id === join.drinkId ? raw("selected") : ""}>${d.name} · ${fmt.rs(d.price)}</option>`)}`}
           </select></span>
         </div>

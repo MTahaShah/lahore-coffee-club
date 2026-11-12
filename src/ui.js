@@ -173,7 +173,7 @@
     const t0 = performance.now();
     const ease = (t) => 1 - Math.pow(1 - t, 3);
     const step = (now) => {
-      const p = Math.min(1, (now - t0) / duration);
+      const p = Math.max(0, Math.min(1, (now - t0) / duration)); // a frame can start just before t0
       el.textContent = format(Math.round(from + (to - from) * ease(p)));
       if (p < 1) running.set(el, requestAnimationFrame(step));
     };
@@ -376,8 +376,18 @@
     next.focus(); next.click();
   });
 
+  /** A member's face: their photo, or their initials in a hairline circle.
+      Decorative by default (the name is always next to it). */
+  function avatar(m, { size = 40, cls = "", label = null } = {}) {
+    const initials = (m?.initials || `${m?.firstName?.[0] || ""}${m?.lastName?.[0] || ""}` || "?").toUpperCase().slice(0, 2);
+    const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
+    return raw(m?.photo
+      ? `<span class="avatar ${esc(cls)}" style="--av:${size}px" ${a11y}><img src="${esc(m.photo)}" alt=""></span>`
+      : `<span class="avatar avatar--initials ${esc(cls)}" style="--av:${size}px" ${a11y}>${esc(initials)}</span>`);
+  }
+
   LCC.ui = {
-    html, raw, esc, $, $$, icon, logo, brickRing,
+    html, raw, esc, $, $$, icon, logo, brickRing, avatar,
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,

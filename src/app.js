@@ -134,6 +134,8 @@
                 <div class="sheet__panel" data-drawer-body></div>
               </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
+              <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
+              <input type="file" accept="image/*" class="sr-only" tabindex="-1" aria-hidden="true" data-photo-input>
             </div>
           </div>
         </div>`;
@@ -143,7 +145,8 @@
       /* ---------------- Routing inside the app ---------------- */
       function resolve(path) {
         const [a = "home", b] = path;
-        const brandId = b && (S.brand(b) ? b : S.cafe(b)?.brandId);
+        // A chain's page (a brand that sells its own plans); single cafés open their café page
+        const brandId = b && (S.brand(b)?.plans.length ? b : S.cafe(b)?.chainId);
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
@@ -370,7 +373,8 @@
             <div class="drawer__card">${LCC.memberCard ? LCC.memberCard(m.id) : ""}</div>
             <section class="drawer__section" aria-labelledby="dr-profile">
               <h3 class="eyebrow" id="dr-profile">Profile</h3>
-              ${m.phone ? html`<p class="t-small t-muted num">${m.phone}</p>` : ""}
+              ${photoHtml(m)}
+              ${m.phone ? html`<p class="t-small t-muted num">${fmt.lcc(m.memberNo)} · ${m.phone}</p>` : ""}
               <a class="btn btn--link" href="#/app/club">Your member card</a>
             </section>
 
@@ -412,6 +416,53 @@
             </section>
           </div>`;
       }
+
+      /** The member's face at the counter: initials by default, or a photo. */
+      function photoHtml(m) {
+        return html`<div class="photo-row" data-photo-row>
+          ${ui.avatar(m, { size: 56 })}
+          <div class="photo-row__text">
+            <button type="button" class="btn btn--link" data-add-photo>${m.photo ? "Change photo" : "Add a photo"}</button>
+            ${m.photo ? html`<button type="button" class="btn btn--link" data-remove-photo>Remove</button>` : ""}
+            <p class="t-small t-muted">Your photo helps the barista recognise you.</p>
+          </div>
+        </div>`;
+      }
+      /** A square 160px JPEG from the chosen picture, small enough to sync. */
+      function readPhoto(file) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const n = 160, c = document.createElement("canvas");
+            c.width = c.height = n;
+            const side = Math.min(img.naturalWidth, img.naturalHeight);
+            c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, n, n);
+            URL.revokeObjectURL(url);
+            resolve(c.toDataURL("image/jpeg", 0.82));
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("not an image")); };
+          img.src = url;
+        });
+      }
+
+      /** After every cup at a counter: what was used, where and when, with "That was me" and "Not you? Report". */
+      function cupAlert(entry) {
+        const region = $("[data-cup-alerts]", el);
+        if (!region) return;
+        $$(".cup-alert", region).forEach((n) => n.remove());
+        const where = S.pickupPlace(entry.cafeId);
+        region.insertAdjacentHTML("beforeend", html`<div class="cup-alert enter" role="alertdialog" aria-labelledby="ca-${entry.id}" data-cup-alert="${entry.id}">
+          <p class="cup-alert__title" id="ca-${entry.id}">1 cup used at ${where} · ${fmt.time(entry.at)} · ${S.entryDrinkName(entry)}</p>
+          ${entry.topUp ? html`<p class="t-small t-muted num">Cup + ${fmt.rs(entry.topUp)} top-up at the till.</p>` : ""}
+          <div class="cup-alert__acts">
+            <button type="button" class="btn btn--primary btn--compact" data-cup-me="${entry.id}">That was me</button>
+            <button type="button" class="btn btn--secondary btn--compact" data-cup-report="${entry.id}">Not you? Report</button>
+          </div>
+        </div>`.s);
+        $(`[data-cup-me="${entry.id}"]`, region)?.focus({ preventScroll: true });
+      }
+      function closeCupAlert(id) { $(`[data-cup-alert="${id}"]`, el)?.remove(); }
 
       /** Circles see the café and the time after the fact; never a location. */
       function privacyHtml() {
@@ -479,9 +530,12 @@
         return {
           html: html`
             <div class="app-screen pass">
-              <div class="stack" style="--stack-gap:var(--space-1)">
-                <p class="eyebrow">Your pass</p>
-                <h1 class="t-h2">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h1>
+              <div class="pass-id">
+                <h1 class="sr-only">Your pass</h1>
+                <p class="eyebrow">Your number</p>
+                <p class="pass-id__no num" aria-label="Your member number: LCC ${m.memberNo}">${fmt.lcc(m.memberNo)}</p>
+                <div class="pass-id__who" data-pass-who>${passWho()}</div>
+                <p class="pass-id__line">Tell the barista your number, or show this code.</p>
               </div>
               <div class="pass__card" data-pass-card></div>
               <p class="pass__note">${icon("sun")} Turn your brightness up if the scanner struggles.</p>
@@ -495,11 +549,18 @@
           on: {
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id && !entry.orderId) showSuccess(entry); },
+            undo: ({ member: who }) => { if (who.id === member().id) { clearTimeout(backTimer); paintQrCard(); } },
+            profile: ({ memberId }) => { if (memberId === member().id) { const w = $("[data-pass-who]", view); if (w) w.innerHTML = passWho().s; } },
             member: () => paintMeta(),
             ledger: () => paintMeta(),
             order: ({ memberId }) => { if (memberId !== member().id) return; const box = $("[data-pass-order]", view); if (box) box.innerHTML = orderHtml().s; },
           },
         };
+
+        function passWho() {
+          const m2 = member();
+          return html`${ui.avatar(m2, { size: 40 })}<span class="pass-id__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
+        }
 
         function paintQrCard() {
           const m2 = member();
@@ -516,11 +577,12 @@
               <span data-cd-text></span>
             </div>
             <p class="pass__code" data-code></p>
-            <p class="t-small t-muted">Show this to the barista, or read them the code.</p>
+            <p class="t-small t-muted">The code changes every 30 seconds.</p>
             <div class="pass__meta">
               <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${S.balance().left}</span> of <span data-pass-total>${S.balance().total}</span></p></div>
               <div style="text-align:right"><p class="t-micro t-faint" data-pass-type>${plan.typeName}</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
             </div>
+            <div data-pass-plans>${extraPlansHtml()}</div>
             <div class="pass__cafes" data-pass-cafes>${passCafes()}</div>`.s;
           lastCode = null;
           paintCode();
@@ -564,6 +626,12 @@
               : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
         }
 
+        /** Any other plan the member holds: "Also: Explorer · 6 of 8 cups left". */
+        function extraPlansHtml() {
+          const extra = S.plansOf(member().id).filter((p) => p.key !== "main");
+          return extra.length ? html`<p class="pass__also t-small t-muted num">Also: ${extra.map((p) => `${p.name} · ${p.left} of ${p.total} cups left`).join(" · ")}</p>` : "";
+        }
+
         // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
           const m2 = member();
@@ -576,6 +644,8 @@
           set("[data-pass-type]", p.typeName);
           const list = $("[data-pass-cafes]", view);
           if (list) list.innerHTML = passCafes().s;
+          const also = $("[data-pass-plans]", view);
+          if (also) also.innerHTML = extraPlansHtml().s;
           const ringEl = $("[data-pass-ring]", view);
           if (ringEl) ringEl.innerHTML = passRing().s;
         }
@@ -614,10 +684,12 @@
           if (!card) return;
           const m2 = member();
           const cafe = S.cafe(entry.cafeId);
-          const b = S.balance();
+          const fromPlan = S.plansOf(m2.id).find((p) => p.cycle === entry.cycle);
+          const b = fromPlan ? { left: fromPlan.left, total: fromPlan.total } : S.balance();
           const before = b.left + entry.credits;
           const here = S.cafeBalance(m2.id, entry.cafeId);
-          const hereLine = entry.bonus ? "That was a complimentary cup from the club"
+          const hereLine = fromPlan && fromPlan.key !== "main" ? `From your ${fromPlan.name} cups`
+            : entry.bonus ? "That was a complimentary cup from the club"
             : here.type === "brand" ? `Your cups work at every ${cafe.name} branch`
             : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
@@ -625,7 +697,7 @@
           card.innerHTML = html`
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
-              <p class="t-h2">Enjoy your coffee at ${cafe.name}.</p>
+              <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(cafe.id)}.</p>
               ${entry.topUp ? html`<p class="t-body num">Pay ${fmt.rs(entry.topUp)} at the till for the difference.</p>` : ""}
               <p class="t-body t-muted">${S.entryDrinkName(entry)} · <span class="num" style="color:var(--ink);font-weight:500" data-success-cups data-value="${before}">${before}</span> of ${b.total} cups left</p>
               <p class="t-small t-faint num" data-success-here>${hereLine}</p>
@@ -742,6 +814,17 @@
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
         if (seg) { ui.selectSegment(seg.parentElement, seg.dataset.value); setMapMode(seg.dataset.value); return; }
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
+        if (t.closest("[data-add-photo]")) { $("[data-photo-input]", el).click(); return; }
+        if (t.closest("[data-remove-photo]")) { A.setMemberPhoto(null); ui.toast("Photo removed. The counter sees your initials."); return; }
+        const me = t.closest("[data-cup-me]");
+        if (me) { A.confirmRedemption(me.dataset.cupMe); closeCupAlert(me.dataset.cupMe); return; }
+        const rep = t.closest("[data-cup-report]");
+        if (rep) {
+          A.reportRedemption(rep.dataset.cupReport);
+          closeCupAlert(rep.dataset.cupReport);
+          ui.toast("Thanks. We’ve flagged it for the café and in our records, and we’ll be in touch on WhatsApp.", { iconName: "info", duration: 6000 });
+          return;
+        }
         const so = t.closest("[data-start-order]");
         if (so) {
           LCC.appOrder?.start({ cafeId: so.dataset.startOrder || null, drinkId: so.dataset.drink || null, temp: so.dataset.temp || null });
@@ -789,6 +872,14 @@
       // Drawer: privacy switches
       const onChange = (e) => {
         const t = e.target;
+        if (t.matches("[data-photo-input]")) {
+          const file = t.files?.[0];
+          t.value = "";
+          if (!file) return;
+          readPhoto(file).then((photo) => { A.setMemberPhoto(photo); ui.toast("Photo added. The barista sees it when you give your number."); })
+            .catch(() => ui.toast("That file isn’t a picture we can use. Try another.", { iconName: "info" }));
+          return;
+        }
         if (!t.matches("[data-privacy]")) return;
         A.setPrivacy({ [t.dataset.privacy]: t.checked });
         const box = t.closest(".drawer__section");
@@ -812,7 +903,7 @@
         const list = $("#profile-drawer [data-recent]", el);
         if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
       });
-      const offs = ["redeem", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
+      const offs = ["redeem", "undo", "profile", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
       // Pickup orders: the drawer follows along, and the café's moves get a word
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
@@ -871,8 +962,20 @@
       }));
       // A cup redeemed while Mumtaz is on another tab still deserves a word
       offs.push(store.on("redeem", ({ entry, member: who }) => {
-        if (who.id !== member().id || active.key === "pass" || entry.orderId) return;
-        ui.toast(`Cup redeemed at ${S.cafe(entry.cafeId).name}. ${fmt.cups(S.balance(who.id).left)} left.`);
+        if (who.id !== member().id || entry.orderId) return;
+        cupAlert(entry);
+      }));
+      // The café undid a cup: it's back
+      offs.push(store.on("undo", ({ entry, member: who }) => {
+        if (who.id !== member().id) return;
+        closeCupAlert(entry.id);
+        const p = S.plansOf(who.id).find((x) => x.cycle === entry.cycle);
+        ui.toast(`Cup returned. ${S.pickupPlace(entry.cafeId)} undid the ${S.entryDrinkName(entry)}${p ? `; ${fmt.cups(p.left)} left on your ${p.name}` : ""}.`, { iconName: "check", duration: 6000 });
+      }));
+      offs.push(store.on("profile", ({ memberId }) => {
+        if (memberId !== member().id) return;
+        const row = $("#profile-drawer [data-photo-row]", el);
+        if (row) row.outerHTML = photoHtml(member()).s;
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase

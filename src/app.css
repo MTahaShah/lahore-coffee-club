@@ -550,3 +550,33 @@ li:last-child > .branch-row { border-bottom: 0; }
 .order-flow .segmented { width: 100%; }
 .pay-state .beans-plus { justify-content: center; }
 .pass-success .beans-plus { margin-top: var(--space-1); }
+
+/* Pass: the member number leads ("LCC 42"), easy to say; the QR and the
+   6-digit code are the other options. ---------------------------------- */
+.pass-id { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+.pass-id__no { font-size: 64px; line-height: 1; font-weight: 700; letter-spacing: 0.01em; color: var(--ink); }
+.pass-id__who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
+.pass-id__name { font-size: var(--fs-20); }
+.pass-id__who .btn--link { font-size: var(--fs-14); }
+.pass-id__line { font-size: var(--fs-16); color: var(--ink-2); }
+.pass__also { margin-top: var(--space-2); }
+
+/* Profile photo */
+.photo-row { display: flex; align-items: center; gap: var(--space-3); }
+.photo-row__text { display: grid; gap: 2px; justify-items: start; }
+.photo-row__text .btn--link + .btn--link { margin-left: 0; }
+
+/* After every cup: what was used, with "That was me" and "Not you? Report" */
+.cup-alert-region { position: absolute; top: 52px; left: var(--space-3); right: var(--space-3); z-index: 60; display: grid; gap: var(--space-2); pointer-events: none; }
+.cup-alert {
+  pointer-events: auto;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+}
+.cup-alert__title { font-size: var(--fs-16); font-weight: 700; line-height: 1.35; }
+.cup-alert__acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }

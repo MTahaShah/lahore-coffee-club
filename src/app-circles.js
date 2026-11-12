@@ -346,7 +346,7 @@
       if (!call.cafeId) call.cafeId = ctx.member().plan?.type === "brand" ? S.branches(ctx.member().plan.brandId)[0].id : S.clubCafes()[0].id;
       const t = S.pickupTimes(call.cafeId);
       if (!t.slots.some((x) => String(x.at) === String(call.at))) call.at = t.slots[0] ? String(t.slots[0].at) : "";
-      const brands = [...new Set(S.cafes().filter((x) => x.brandId).map((x) => x.brandId))].map(S.brand);
+      const brands = [...new Set(S.cafes().filter((x) => x.chainId).map((x) => x.chainId))].map(S.brand);
       return html`<form class="stack round-call" style="--stack-gap:var(--space-4)" data-round-form novalidate>
         <div class="field">
           <label class="field__label" for="round-cafe">Café</label>
