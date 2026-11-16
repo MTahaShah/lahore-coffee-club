@@ -8,6 +8,19 @@
 <meta property="og:title" content="Lahore Coffee Club">
 <meta property="og:description" content="Lahore is getting a passport. Coming soon.">
 <meta name="theme-color" content="#0B0B0B">
+<link rel="canonical" href="https://www.lahorecoffeeclub.com/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.lahorecoffeeclub.com/">
+<meta property="og:site_name" content="Lahore Coffee Club">
+<meta property="og:image" content="https://www.lahorecoffeeclub.com/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A black coffee passport inside a ring of caramel bricks">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.lahorecoffeeclub.com/og.jpg">
 <style>
 /* VOICE: quiet, nocturnal, a little Lahori. Few words, lots of air.
    IDEA: a passport being issued at night: foil, paper, ink, a card that arrives like a hologram, then the tape rewinds.
@@ -32,6 +45,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--fon
 .nav{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:calc(env(safe-area-inset-top) + 16px) var(--pad) 16px;z-index:5;opacity:0;transition:opacity 1.2s var(--ease) .9s}
 .ready .nav{opacity:1}
+.nav::before{content:"";position:absolute;inset:0 0 -24px;background:linear-gradient(rgba(11,11,11,.85),rgba(11,11,11,0));pointer-events:none;z-index:-1}
+.pill{white-space:nowrap}
+@media (max-width:340px){.prog{display:none}.pill{padding:0 14px;font-size:13px}.mark svg{height:32px}}
 .mark{display:block;color:var(--ink);line-height:0}
 .mark svg{height:36px;width:auto}
 .mark svg path{fill:currentColor}
@@ -109,7 +125,7 @@ h2{font-size:clamp(32px,8.6vw,56px)}
 .still{display:none;position:fixed;left:50%;top:32%;transform:translate(-50%,-50%);width:60vw;max-width:420px}
 .no-gl .still{display:block}.no-gl #gl{display:none}
 
-@media (min-width:761px) and (min-aspect-ratio:4/5){
+@media (min-width:561px) and (min-aspect-ratio:4/5){
   :root{--pad:max(6vw,32px)}
   body{font-size:17px}
   .nav{padding-top:28px;padding-bottom:28px}
@@ -124,6 +140,20 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   .foot{position:absolute;bottom:32px}
   .tape__osd{top:auto;bottom:40px}
   .still{left:auto;right:8vw;top:50%;transform:translateY(-50%);width:min(36vw,420px)}
+}
+/* phones turned sideways and other short screens */
+@media (min-width:561px) and (max-height:520px) and (min-aspect-ratio:4/5){
+  .nav{padding-top:12px;padding-bottom:12px}
+  .mark svg{height:30px}
+  .cap{padding-top:64px;padding-bottom:12px}
+  h1{font-size:clamp(28px,4.4vw,40px)}
+  h2{font-size:clamp(26px,3.8vw,36px)}
+  .eyebrow{margin-bottom:8px}
+  .lede{margin-top:10px;font-size:15px}
+  .join{margin-top:12px;gap:8px}
+  .go{min-height:44px}
+  .foot{display:none}
+  .tape__osd{bottom:16px}
 }
 @media (prefers-reduced-motion:reduce){#loader rect,.cell.on,.dial.focus .cell.next::after{animation:none}#loader rect{fill:var(--accent)}}
 </style>
@@ -207,6 +237,12 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const S = window.LCC = { p: 0, target: 0, reduced, joined: false, joinT: 0, introStart: 0, isReady: false, digits: 0, valid: false };
   const caps = [...document.querySelectorAll(".cap")];
+  /* where each chapter's words begin, so the 3D scene can sit in the space above them */
+  const capTop = () => caps.forEach((el) => {
+    const kids = [...el.querySelectorAll(":scope > *, :scope > .before > *, :scope > .after > *")].filter((k) => k.offsetHeight > 0 && !k.classList.contains("foot"));
+    el._top = kids.length ? Math.min(...kids.map((k) => k.getBoundingClientRect().top - (parseFloat((el.style.transform.match(/,\s*(-?[\d.]+)px/) || [])[1]) || 0))) : innerHeight;
+  });
+  S.free = innerHeight * 0.62;
   const prog = [...document.querySelectorAll(".prog rect")];
   const gl = document.getElementById("gl");
   const tape = document.querySelector(".tape"), band = document.querySelector(".tape__band"), tc = document.getElementById("tc");
@@ -226,7 +262,8 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   const measure = () => { max = Math.max(1, root.scrollHeight - innerHeight); };
   const read = () => { measure(); S.target = Math.min(1, Math.max(0, scrollY / max)); };
   addEventListener("scroll", read, { passive: true });
-  addEventListener("resize", () => { size(); read(); });
+  addEventListener("resize", () => { size(); read(); capTop(); });
+  capTop(); document.fonts?.ready.then(capTop); setTimeout(capTop, 1200);
   read();
 
   /* keyboard: lift the form above it (the page itself never resizes) */
@@ -236,6 +273,7 @@ h2{font-size:clamp(32px,8.6vw,56px)}
     const k = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
     root.style.setProperty("--kb", k + "px");
     root.classList.toggle("kb", k > 120);
+    capTop();
   };
   vv?.addEventListener("resize", kb); vv?.addEventListener("scroll", kb);
 
@@ -268,6 +306,9 @@ h2{font-size:clamp(32px,8.6vw,56px)}
       const live = o > 0.5;
       if (el._live !== live) { el._live = live; el.toggleAttribute("inert", !live); }
     }
+    let wsum = 0, tsum = 0;
+    for (const el of caps) { const o = +(el.style.opacity || 0); if (o > 0.01) { wsum += o; tsum += o * el._top; } }
+    if (wsum > 0.05) S.free = tsum / wsum;
     const n = Math.round(p * 15);
     if (n !== litN) { litN = n; prog.forEach((r, i) => r.classList.toggle("on", i < n)); }
     /* the tape: only while rewinding */
@@ -331,7 +372,7 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   input.addEventListener("blur", () => { dial.classList.remove("focus"); setTimeout(kb, 350); });
   render();
 
-  const done = () => { S.joined = true; S.joinT = performance.now(); root.classList.add("joined"); try { localStorage.setItem("lcc-joined-v2", "1"); } catch {} };
+  const done = () => { S.joined = true; S.joinT = performance.now(); root.classList.add("joined"); setTimeout(capTop, 50); try { localStorage.setItem("lcc-joined-v2", "1"); } catch {} };
   try { if (localStorage.getItem("lcc-joined-v2") === "1") { root.classList.add("joined"); S.joined = true; S.joinT = -1e9; } } catch {}
 
   form.addEventListener("submit", async (e) => {
@@ -787,16 +828,16 @@ const L = { dist: 12.5, portrait: true, w: 1, h: 1 };
 let POSE = {};
 function poses(port) {
   const hero = { px: 0, py: 0, pz: 0, ps: port ? 1.2 : 1, prx: 0.14, prz: -0.07, rz: 0, rs: port ? 1.12 : 1, rrx: -1.16, rrz: port ? 1.21 : 0.36,
-    gz: -5, gs: port ? 0.95 : 1.12, gop: 0.55, lah: 0, face: 0, zoom: 1, off: 1, bx: 0, tilt: 0 };
+    gz: -5, gs: port ? 0.95 : 1.12, gop: 0.55, lah: 0, face: 0, zoom: 1, off: 1, bx: 0, tilt: 0, sh: 5.6 };
   return {
     hero,
     globe: { ...hero, px: port ? 0.85 : 1.3, py: port ? -1.8 : -1.35, pz: 2.4, ps: port ? 0.5 : 0.42, prx: 0.25, prz: 0.35,
-      rz: -0.6, rs: port ? 1.3 : 1.62, rrx: -1.26, rrz: 0.5, gz: -0.8, gs: port ? 0.78 : 0.98, gop: 1, lah: 1 },
+      rz: -0.6, rs: port ? 1.3 : 1.62, rrx: -1.26, rrz: 0.5, gz: -0.8, gs: port ? 0.78 : 0.98, gop: 1, lah: 1, sh: 4.7 },
     book: { ...hero, pz: 0.3, ps: port ? 1.3 : 1, prx: -0.04, prz: 0, rz: -2.2, rs: port ? 1.25 : 1.45, rrx: -0.2, rrz: 0.25,
-      gz: -7, gs: 1.3, gop: 0.22, face: 1, zoom: port ? 0.68 : 0.7, off: port ? 0.85 : 1, bx: port ? 0 : W / 2 },
+      gz: -7, gs: 1.3, gop: 0.22, face: 1, zoom: port ? 0.68 : 0.7, off: port ? 0.85 : 1, bx: port ? 0 : W / 2, sh: 3.0 },
     card: { ...hero, py: port ? -0.55 : -0.45, pz: 0.2, ps: port ? 1.2 : 1, prx: -1.0, prz: 0, rz: -2.6, rs: port ? 1.3 : 1.5, rrx: -0.2, rrz: 0.2,
-      gz: -7, gs: 1.3, gop: 0.28, face: 1, zoom: port ? 0.86 : 0.85, off: port ? 0.85 : 0.9, bx: port ? 0 : W / 2, tilt: 1 },
-    final: { ...hero, ps: port ? 0.42 : 0.62, prx: -0.04, prz: 0, rs: port ? 0.66 : 1, rrx: 0, rrz: 0, gz: -8, gs: port ? 1 : 1.35, gop: 0.3, face: 1 },
+      gz: -7, gs: 1.3, gop: 0.28, face: 1, zoom: port ? 0.86 : 0.85, off: port ? 0.85 : 0.9, bx: port ? 0 : W / 2, tilt: 1, sh: 2.6 },
+    final: { ...hero, ps: port ? 0.48 : 0.62, prx: -0.04, prz: 0, rs: port ? 0.75 : 1, rrx: 0, rrz: 0, gz: -8, gs: port ? 1 : 1.35, gop: 0.3, face: 1, sh: 3.5 },
   };
 }
 /* sized from the canvas (100lvh), never from the keyboard or the address bar */
@@ -807,7 +848,7 @@ function resize() {
   camera.aspect = a;
   const tanH = Math.tan((camera.fov / 2) * D2R);
   L.w = w; L.h = h;
-  L.portrait = a < 0.8 || w <= 760;
+  L.portrait = !(a >= 0.8 && w >= 561);   // same rule as the CSS: wide enough and not tall = words left, object right
   L.dist = L.portrait ? Math.max(12.5, 4.5 / (2 * tanH * a)) : Math.max(12.5, 6.4 / (2 * tanH * a));
   POSE = poses(L.portrait);
 }
@@ -840,9 +881,18 @@ function frame(now) {
   ptr.sx = damp(ptr.sx, ptr.x, 3, dt); ptr.sy = damp(ptr.sy, ptr.y, 3, dt);
 
   /* frame the shot: shift the view, never the objects, so globe, ring and passport stay concentric */
-  const ox = (L.portrait ? 0 : -0.2 * L.w * P.off) + (S.jit || 0), oy = L.portrait ? 0.15 * L.h * P.off : 0;
+  let camZ = L.dist * P.zoom, oy = 0;
+  if (L.portrait) {
+    const top = 64, bottom = Math.max(top + 160, (S.free || L.h * 0.62) - 12);
+    const avail = bottom - top, ppu = L.h / (2 * Math.tan((camera.fov / 2) * D2R) * camZ);
+    const need = (P.sh * ppu) / (avail * 0.94);
+    fit.z = damp(fit.z, Math.max(1, need), 5, dt);
+    fit.y = damp(fit.y, L.h / 2 - (top + bottom) / 2, 5, dt);
+    camZ *= fit.z; oy = fit.y;
+  }
+  const ox = (L.portrait ? 0 : -0.2 * L.w * P.off) + (S.jit || 0);
   camera.setViewOffset(L.w, L.h, ox, oy, L.w, L.h);
-  camera.position.set(ptr.sx * 0.35, -ptr.sy * 0.25, L.dist * P.zoom);
+  camera.position.set(ptr.sx * 0.35, -ptr.sy * 0.25, camZ);
   camera.lookAt(0, 0, 0);
 
   /* passport */
@@ -942,6 +992,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 const perf = { t: 0, n: 0 };
+const fit = { z: 1, y: 0 };
 /* warm up: compile every shader and upload every texture now, so nothing stalls mid-scroll */
 card.visible = true; sixteenth.visible = true;
 try { await renderer.compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
