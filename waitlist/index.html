@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
 <title>Lahore Coffee Club</title>
 <meta name="description" content="Lahore Coffee Club. Coming soon. By invitation first.">
 <meta property="og:title" content="Lahore Coffee Club">
@@ -25,7 +25,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--fon
 #gl{position:fixed;inset:0;width:100%;height:100vh;height:100lvh;display:block;outline:none;will-change:transform}
 .veil{position:fixed;inset:0;pointer-events:none;
   background:linear-gradient(to top,rgba(11,11,11,.94) 0,rgba(11,11,11,.6) 30%,transparent 52%),radial-gradient(120% 80% at 50% 32%,transparent 50%,rgba(0,0,0,.5))}
-.grain{position:fixed;inset:-50%;pointer-events:none;opacity:.05;
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.05;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
 
 /* Nav */
@@ -82,6 +82,14 @@ h2{font-size:clamp(32px,8.6vw,56px)}
 .joined .after{display:block;animation:rise .9s var(--ease) both}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
 .foot{margin:20px 0 0;color:var(--ink3);font-size:13px;letter-spacing:.04em}
+.cap.form{padding-bottom:calc(env(safe-area-inset-bottom) + 40px + var(--kb,0px));transition:padding-bottom .3s var(--ease)}
+.kb .cap.form{padding-bottom:calc(16px + var(--kb,0px))}
+.kb .cap.form .lede,.kb .cap.form .foot,.kb .cap.form h2{display:none}
+.kb .cap.form .join{margin-top:0}
+.kb .veil{background:rgba(11,11,11,.7)}
+#gl{transition:opacity .3s var(--ease)}
+.kb #gl{opacity:.35}
+@media (pointer:coarse){.grain{display:none}}
 
 /* Tape rewind */
 .tape{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:3}
@@ -203,11 +211,33 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   const gl = document.getElementById("gl");
   const tape = document.querySelector(".tape"), band = document.querySelector(".tape__band"), tc = document.getElementById("tc");
   let max = 1;
-  const read = () => { S.target = Math.min(1, Math.max(0, scrollY / max)); };
-  const measure = () => { max = Math.max(1, root.scrollHeight - innerHeight); read(); };
+  const touch = matchMedia("(pointer: coarse)").matches;
+  /* the scroll range is read live, so the phone's address bar showing or hiding never jolts the story */
+  /* the track is sized in pixels from the tallest view seen at this width, so a keyboard or a
+     collapsing address bar can't shorten the page and knock you off the form */
+  const track = document.getElementById("track");
+  let baseW = 0, baseH = 0;
+  const size = () => {
+    if (innerWidth !== baseW) { baseW = innerWidth; baseH = innerHeight; }
+    else if (innerHeight > baseH) baseH = innerHeight; else return;
+    track.style.height = baseH * 10 + "px";
+  };
+  size();
+  const measure = () => { max = Math.max(1, root.scrollHeight - innerHeight); };
+  const read = () => { measure(); S.target = Math.min(1, Math.max(0, scrollY / max)); };
   addEventListener("scroll", read, { passive: true });
-  addEventListener("resize", measure);
-  measure();
+  addEventListener("resize", () => { size(); read(); });
+  read();
+
+  /* keyboard: lift the form above it (the page itself never resizes) */
+  const vv = window.visualViewport;
+  const kb = () => {
+    if (!vv) return;
+    const k = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+    root.style.setProperty("--kb", k + "px");
+    root.classList.toggle("kb", k > 120);
+  };
+  vv?.addEventListener("resize", kb); vv?.addEventListener("scroll", kb);
 
   const loader = document.getElementById("loader");
   S.ready = () => {
@@ -221,16 +251,20 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   let last = performance.now(), litN = -1;
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    S.p = reduced ? S.target : S.p + (S.target - S.p) * (1 - Math.exp(-5 * dt));
+    S.p = reduced ? S.target : S.p + (S.target - S.p) * (1 - Math.exp(-(touch ? 9 : 5) * dt));
     if (Math.abs(S.p - S.target) < 1e-5) S.p = S.target;
     const p = S.p;
     for (const el of caps) {
       const a = +el.dataset.a, b = +el.dataset.b, f = 0.03;
       const o = sm(a, a + f, p) * (1 - sm(b - f, b, p));
       const y = reduced ? 0 : (p < a + f ? 1 : -1) * (1 - o) * 28;
-      el.style.opacity = o.toFixed(3);
-      el.style.transform = `translate3d(0,${y.toFixed(1)}px,0)`;
-      el.style.visibility = o < 0.01 ? "hidden" : "visible";
+      const key = o.toFixed(3) + "|" + y.toFixed(1);
+      if (el._k !== key) {
+        el._k = key;
+        el.style.opacity = o.toFixed(3);
+        el.style.transform = `translate3d(0,${y.toFixed(1)}px,0)`;
+        el.style.visibility = o < 0.01 ? "hidden" : "visible";
+      }
       const live = o > 0.5;
       if (el._live !== live) { el._live = live; el.toggleAttribute("inert", !live); }
     }
@@ -238,12 +272,12 @@ h2{font-size:clamp(32px,8.6vw,56px)}
     if (n !== litN) { litN = n; prog.forEach((r, i) => r.classList.toggle("on", i < n)); }
     /* the tape: only while rewinding */
     const k = sm(0.736, 0.75, p) * (1 - sm(0.83, 0.846, p));
-    tape.style.opacity = k.toFixed(3);
+    if (tape._k !== k) { tape._k = k; tape.style.opacity = k.toFixed(3); }
     if (k > 0.01 && !reduced) {
       gl.style.transform = `translate3d(${((Math.random() - 0.5) * 7 * k).toFixed(1)}px,0,0)`;
-      gl.style.filter = `contrast(${(1 + 0.18 * k).toFixed(2)}) saturate(${(1 - 0.45 * k).toFixed(2)}) blur(${(0.7 * k).toFixed(2)}px)`;
+      if (!touch) gl.style.filter = `contrast(${(1 + 0.18 * k).toFixed(2)}) saturate(${(1 - 0.45 * k).toFixed(2)}) blur(${(0.7 * k).toFixed(2)}px)`;
       band.style.transform = `translate3d(0,${((now / 5) % (innerHeight * 1.3)) - innerHeight * 0.15}px,0)`;
-    } else if (gl.style.filter) { gl.style.transform = ""; gl.style.filter = ""; }
+    } else if (gl.style.transform) { gl.style.transform = ""; gl.style.filter = ""; }
     if (k > 0.01) {
       const s = Math.min(1, Math.max(0, 1 - (p - 0.74) / 0.1));
       const sec = s * 134;
@@ -255,7 +289,8 @@ h2{font-size:clamp(32px,8.6vw,56px)}
 
   const toEnd = () => { measure(); scrollTo({ top: max, behavior: reduced ? "auto" : "smooth" }); };
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
-    toEnd(); setTimeout(() => input.focus({ preventScroll: true }), reduced ? 0 : 1600);
+    toEnd();
+    if (!touch) setTimeout(() => input.focus({ preventScroll: true }), reduced ? 0 : 1600);  // phones: no surprise keyboard
   }));
   document.querySelector(".mark").addEventListener("click", (e) => { e.preventDefault(); scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" }); });
 
@@ -292,8 +327,8 @@ h2{font-size:clamp(32px,8.6vw,56px)}
     input.toggleAttribute("aria-invalid", !!err.textContent);
     render();
   });
-  input.addEventListener("focus", () => { dial.classList.add("focus"); if (S.target < 0.86) toEnd(); });
-  input.addEventListener("blur", () => dial.classList.remove("focus"));
+  input.addEventListener("focus", () => { dial.classList.add("focus"); if (S.target < 0.86) toEnd(); setTimeout(kb, 350); });
+  input.addEventListener("blur", () => { dial.classList.remove("focus"); setTimeout(kb, 350); });
   render();
 
   const done = () => { S.joined = true; S.joinT = performance.now(); root.classList.add("joined"); try { localStorage.setItem("lcc-joined-v2", "1"); } catch {} };
@@ -333,7 +368,9 @@ const canvas = document.getElementById("gl");
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); }
 catch (e) { document.documentElement.classList.add("no-gl"); S.ready(); throw e; }
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const LOW = matchMedia("(pointer: coarse)").matches;
+let dpr = Math.min(devicePixelRatio, LOW ? 1.6 : 2);
+renderer.setPixelRatio(dpr);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -364,7 +401,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const FONT = (w, s) => `${w} ${s}px "Glacial Indifference","Century Gothic",Futura,sans-serif`;
 const mk = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return [c, c.getContext("2d")]; };
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
-const tex = (c, srgb = true) => { const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; return t; };
+const ALL_TEX = [];
+const tex = (c, srgb = true) => { const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = LOW ? Math.min(4, maxAniso) : maxAniso; ALL_TEX.push(t); return t; };
 function tracked(x, text, px, y, track, align = "left") {
   const ch = [...text], w = ch.map((c) => x.measureText(c).width);
   const total = w.reduce((a, b) => a + b, 0) + track * (ch.length - 1);
@@ -681,7 +719,9 @@ const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.V
 /* ---------- the brick ring: 16 slots, the 3 o'clock one empty ---------- */
 const R = 2.15;
 const brickGeo = new THREE.BoxGeometry(0.27, 0.6, 0.2);
-const phys = (c) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.42, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, emissive: 0xcfab71, emissiveIntensity: 0 });
+const phys = (c) => LOW
+  ? new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0, emissive: 0xcfab71, emissiveIntensity: 0 })
+  : new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.42, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, emissive: 0xcfab71, emissiveIntensity: 0 });
 const side = phys(0x7f5e35), topM = phys(0x4f351c);
 const ringGroup = new THREE.Group(); ringGroup.rotation.order = "ZYX"; world.add(ringGroup);
 const ringSpin = new THREE.Group(); ringGroup.add(ringSpin);
@@ -759,8 +799,10 @@ function poses(port) {
     final: { ...hero, ps: port ? 0.42 : 0.62, prx: -0.04, prz: 0, rs: port ? 0.66 : 1, rrx: 0, rrz: 0, gz: -8, gs: port ? 1 : 1.35, gop: 0.3, face: 1 },
   };
 }
+/* sized from the canvas (100lvh), never from the keyboard or the address bar */
 function resize() {
-  const w = innerWidth, h = innerHeight, a = w / h;
+  const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight, a = w / h;
+  if (w === L.w && h === L.h) return;
   renderer.setSize(w, h, false);
   camera.aspect = a;
   const tanH = Math.tan((camera.fov / 2) * D2R);
@@ -769,7 +811,8 @@ function resize() {
   L.dist = L.portrait ? Math.max(12.5, 4.5 / (2 * tanH * a)) : Math.max(12.5, 6.4 / (2 * tanH * a));
   POSE = poses(L.portrait);
 }
-addEventListener("resize", resize); resize();
+L.w = 0; resize();
+new ResizeObserver(() => resize()).observe(canvas);
 const lerpPose = (a, b, k) => { if (k <= 0) return a; const o = {}; for (const key in a) o[key] = mix(a[key], b[key], k); return o; };
 
 const ptr = { x: 0, y: 0, sx: 0, sy: 0 };
@@ -887,10 +930,23 @@ function frame(now) {
   dust.rotation.y = ptr.sx * 0.08;
   key.position.set(-4 + ptr.sx * 3, 6 - ptr.sy * 2, 8);
 
+  /* if a phone can't keep up, draw fewer pixels rather than drop frames */
+  if (I > 3 && dpr > 1) {
+    perf.t += dt; perf.n++;
+    if (perf.n === 90) {
+      if (perf.t / perf.n > 1 / 45) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); L.w = 0; resize(); }
+      perf.t = 0; perf.n = 0;
+    }
+  }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-renderer.compile(scene, camera);
+const perf = { t: 0, n: 0 };
+/* warm up: compile every shader and upload every texture now, so nothing stalls mid-scroll */
+card.visible = true; sixteenth.visible = true;
+try { await renderer.compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
+ALL_TEX.forEach((t) => renderer.initTexture(t));
+card.visible = false; sixteenth.visible = false;
 requestAnimationFrame((n) => { last = n; frame(n); S.ready(); });
 </script>
 </body>
