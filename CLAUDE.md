@@ -35,8 +35,13 @@ counter screen).
   from `--logo-ink` (= `--ink`), and `--logo-face`, `--logo-side`,
   `--logo-top` (coffee tones, so the bricks are the colour pop).
 - Brick ring: `ui.brickRing()`, one brick per cup, gap at 3 o'clock, used
-  cups outlined (Home ring in `--accent-text`, caramel around the QR on the
-  black pass screen).
+  cups outlined (Home ring in `--accent-text`). The Pass has no ring (Calm
+  pass): the QR sits on a plain cream rounded square on black.
+- Calm (member app only, under `.phone__screen`): 20px sides, 32px between
+  sections, 24px card padding, cards without borders, list rows without
+  dividers. One primary action per screen; secondary things go behind a
+  `.disclosure` (button with `aria-expanded`, a panel that opens in 250ms,
+  none with reduced motion, `inert` while closed) or a "See all" sheet.
 - Hairlines, no shadows. Status colours only for busy status, with text.
 - Matcha mode (member app only): a second flavour, `[data-flavour="matcha"]`
   on `<html>` in `base.css` (colour tokens only, light and dark; coffee
@@ -450,13 +455,18 @@ next pass until asked.**
 - Bottom bar: Home · Cafés · Pass · Circles · Club (five tabs). Map is a
   List | Map switch in Cafés (the busy map unchanged; pins follow the
   search and filters). Features work exactly as before.
-- Circles tab: Upcoming (rounds today from all your Circles, the next
-  gathering, and the members' evening when you hold a seat; each with I'll
-  be there / Not this time; the Beans evening shows "Your seat is kept
-  with Beans" without buttons, as before there was no way to give it up),
-  Your Circles, Recent (7 days, deduplicated across Circles). With no
-  Circles: "Coffee is better in company. Start a Circle, or ask a friend to
-  add you to theirs."
+- Circles tab (Calm pass): Your circles, then From the club, then Recent
+  activity. A Circle card: name, area (where it drinks most,
+  `select.circleArea`), members, one line ("Today 6:00 pm, Double Shot
+  Phase 6", else "Last met Tue, Kiln & Bean"), and an inline "I'll be
+  there" while today's round is unanswered ("You're going" after; nothing
+  after "Not this time"). Full round answers live on the Circle's page.
+  From the club: the next club event as one card ("Hosted by Lahore Coffee
+  Club", the members' evening included), "See all" opens a sheet. Recent
+  activity: a collapsed row with a count; open shows the 5 latest, "See
+  all" a sheet (7 days, deduplicated across Circles). With no Circles:
+  "Coffee is better in company. Start a Circle, or ask a friend to add you
+  to theirs."
 - "Not this time" on a gathering you hadn't answered records a no (synced
   RSVP); on one you're going to it gives up the seat, as before.
 - Club keeps the personal things: Beans, passport, member card, status,
@@ -632,9 +642,12 @@ next pass until asked.**
   after 5 s (`rules.counterResetSeconds`); the last cups keep an Undo with
   a countdown. Keys are 64px; portrait is one column with the keypad under
   the thumb, wide or landscape is two columns.
-- The member app: the Pass leads with "LCC 42", the avatar and name ("Add a
-  photo"; `actions.setMemberPhoto`, a 160px JPEG, synced as `profile`),
-  then the QR and code. After every counter cup an alert: "1 cup used at
+- The member app: the Pass (Calm pass) shows the chosen drink in one
+  compact row (café, drink, band), the QR on a cream square, the code with
+  a small countdown, then a quiet stack: name (photo if any; "Add a photo"
+  while there isn't one; `actions.setMemberPhoto`, a 160px JPEG, synced as
+  `profile`), plan and cups left, "LCC 42 · Card LCC-0042", "Also:" only
+  with a second plan, and "Cups by café" behind a disclosure. After every counter cup an alert: "1 cup used at
   Double Shot Gulberg · 4:12 pm · Iced Spanish Latte" with "That was me" and
   "Not you? Report". `ui.avatar` draws a photo or initials.
 - Owner dashboard (`#/partner`, owner or manager PIN; managers see their

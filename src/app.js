@@ -525,18 +525,12 @@
       /* Pass ------------------------------------------------------------ */
       const CD_C = 2 * Math.PI * 8;
       function passScreen() {
-        const m = member();
         let timer = null, backTimer = null, lastCode = null;
+        let cafesOpen = false; // "Cups by café": closed by default
         return {
           html: html`
             <div class="app-screen pass">
-              <div class="pass-id">
-                <h1 class="sr-only">Your pass</h1>
-                <p class="eyebrow">Your number</p>
-                <p class="pass-id__no num" aria-label="Your member number: LCC ${m.memberNo}">${fmt.lcc(m.memberNo)}</p>
-                <div class="pass-id__who" data-pass-who>${passWho()}</div>
-                <p class="pass-id__line">Tell the barista your number, or show this code.</p>
-              </div>
+              <h1 class="sr-only">Your pass</h1>
               <div class="pass__card" data-pass-card></div>
               <p class="pass__note">${icon("sun")} Turn your brightness up if the scanner struggles.</p>
               ${LCC.sync ? LCC.sync.pill() : ""}
@@ -544,7 +538,17 @@
           mount() {
             paintQrCard();
             timer = setInterval(tickCountdown, 250);
-            return () => { clearInterval(timer); clearTimeout(backTimer); };
+            const onClick = (e) => {
+              const t = e.target.closest("[data-cafes-toggle]");
+              if (!t) return;
+              cafesOpen = !cafesOpen;
+              t.setAttribute("aria-expanded", String(cafesOpen));
+              const panel = $("#pass-cafes", view);
+              panel.dataset.open = String(cafesOpen);
+              panel.toggleAttribute("inert", !cafesOpen);
+            };
+            view.addEventListener("click", onClick);
+            return () => { clearInterval(timer); clearTimeout(backTimer); view.removeEventListener("click", onClick); };
           },
           on: {
             pass: () => rotate(),
@@ -557,76 +561,92 @@
           },
         };
 
+        /** Name, with the photo when there is one; "Add a photo" only while there isn't. */
         function passWho() {
           const m2 = member();
-          return html`${ui.avatar(m2, { size: 40 })}<span class="pass-id__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
+          return html`${m2.photo ? ui.avatar(m2, { size: 32 }) : ""}<span class="pass-who__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
         }
+        /** "Explorer · Regular · 11 of 16 cups left" */
+        function planLine() {
+          const m2 = member();
+          if (!m2.plan) return "No plan yet";
+          const b = S.balance();
+          return `${S.planLabel(m2)} · ${Math.max(0, b.left)} of ${b.total} cups left`;
+        }
+        function cardNo(n) { return `LCC-${String(n).padStart(4, "0")}`; }
 
         function paintQrCard() {
           const m2 = member();
-          const plan = S.memberPlan(m2);
           const card = $("[data-pass-card]", view);
+          const cafes = passCafes();
           card.innerHTML = html`
             <div class="pass-order" data-pass-order>${orderHtml()}</div>
-            <div class="pass-ring">
-              <div class="pass-ring__bricks" data-pass-ring>${passRing()}</div>
-              <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            <div class="pass__codes">
+              <p class="pass__code" data-code></p>
+              <p class="countdown" aria-hidden="true">
+                <svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" data-cd-bar cx="10" cy="10" r="8" stroke-dasharray="${CD_C.toFixed(2)}"/></svg>
+                <span data-cd-text></span>
+              </p>
+              <p class="sr-only">The code changes every 30 seconds. You can also tell the barista your number.</p>
             </div>
-            <div class="countdown" aria-hidden="true">
-              <svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" data-cd-bar cx="10" cy="10" r="8" stroke-dasharray="${CD_C.toFixed(2)}"/></svg>
-              <span data-cd-text></span>
+            <div class="pass__stack">
+              <p class="pass-who" data-pass-who>${passWho()}</p>
+              <p class="t-small t-muted num" data-pass-plan>${planLine()}</p>
+              <p class="t-small t-muted num">${fmt.lcc(m2.memberNo)} · Card ${cardNo(m2.memberNo)}</p>
+              <div data-pass-plans>${extraPlansHtml()}</div>
             </div>
-            <p class="pass__code" data-code></p>
-            <p class="t-small t-muted">The code changes every 30 seconds.</p>
-            <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${S.balance().left}</span> of <span data-pass-total>${S.balance().total}</span></p></div>
-              <div style="text-align:right"><p class="t-micro t-faint" data-pass-type>${plan.typeName}</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
-            </div>
-            <div data-pass-plans>${extraPlansHtml()}</div>
-            <div class="pass__cafes" data-pass-cafes>${passCafes()}</div>`.s;
+            ${cafes ? html`<div class="pass__cafes-box">
+              <button type="button" class="disclosure" data-cafes-toggle aria-expanded="${cafesOpen}" aria-controls="pass-cafes">
+                <span class="eyebrow" id="pass-cafes-h">Cups by café</span>
+                <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+              </button>
+              <div class="disclosure__panel" id="pass-cafes" role="region" aria-labelledby="pass-cafes-h" data-open="${cafesOpen}" ${cafesOpen ? "" : raw("inert")}>
+                <div class="disclosure__inner"><div class="pass__cafes" data-pass-cafes>${cafes}</div></div>
+              </div>
+            </div>` : ""}`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
         }
 
-        /** The drink chosen in the app, with any top-up, shown above the QR. */
+        /** The drink chosen in the app, in one compact row: café, drink, band. */
         function orderHtml() {
           const o = S.order();
           if (!o) return "";
           const item = S.menuItem(o.brandId, o.drinkId);
           const p = S.drinkPrice(o.brandId, item, o.temp, S.bandAt(undefined, o.brandId));
-          return html`
-            <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
-            <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>
-            <p class="t-small t-muted num">${p.included ? "Included in your cup" : `Cup + ${fmt.rs(p.topUp)}, paid at the till`}</p>
-            <p class="pass-order__acts"><a class="btn btn--link" href="#/app/cafes/${o.brandId}">Change</a><button type="button" class="btn btn--link" data-clear-order>Order at the counter instead</button></p>`;
+          return html`<div class="pass-order__row">
+            <a class="pass-order__text" href="#/app/cafes/${o.brandId}" aria-label="Your order: ${S.drinkLabel(item, o.temp)} at ${S.brand(o.brandId).name}. Change it">
+              <span class="t-small t-muted">${S.brand(o.brandId).name}</span>
+              <span class="pass-order__drink">${S.drinkLabel(item, o.temp)}</span>
+              <span class="t-small t-muted num">${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}</span>
+            </a>
+            <button type="button" class="icon-btn pass-order__clear" data-clear-order aria-label="Order at the counter instead">${icon("close", { size: 18 })}</button>
+          </div>`;
         }
 
-        /** Caramel bricks around the QR: one per cup, used ones outlined. */
-        function passRing() {
-          const b = S.balance();
-          return ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 330, radius: 150, length: 26, twist: 12 });
-        }
-
-        /** Explorer: cafés used this month (“Kiln & Bean 2 of 2”).
-            My cafés: each café's balance (“Kiln & Bean 3 of 6”).        */
+        /** Explorer: cafés used this month ("Kiln & Bean 2 of 2"), a chain counted once.
+            My cafés: each café's balance ("Kiln & Bean 3 of 6"). Brand plans: nothing,
+            the plan line already says it. Empty string when there's nothing to show. */
         function passCafes() {
           const b = S.balance();
           const cap = store.getState().rules.explorerCapPerCafe;
-          const brandLine = S.brandBalanceLine();
-          if (brandLine) return html`<p class="pass__brand num">${brandLine}</p>`;
+          if (!b.type || b.type === "brand") return "";
           if (b.type === "mycafes") {
-            return html`<p class="t-micro t-faint">Reserved at</p>
-              <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
+            const rows = Object.entries(b.perCafe).filter(([, x]) => x.reserved);
+            return rows.length ? html`<ul role="list">${rows.map(([id, x]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${x.left} of ${x.reserved} left</span></li>`)}</ul>` : "";
           }
-          const used = Object.entries(b.usedAt);
-          return html`<p class="t-micro t-faint">Used this month · up to ${cap} at each café</p>
-            ${used.length
-              ? html`<ul role="list">${used.map(([id, n]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
+          const used = {};
+          Object.entries(b.usedAt).forEach(([id, n]) => { const v = S.venueOf(id); used[v] = (used[v] || 0) + n; });
+          const rows = Object.entries(used);
+          return html`<p class="t-small t-muted">Up to ${cap} at each café a month.</p>
+            ${rows.length
+              ? html`<ul role="list">${rows.map(([id, n]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
               : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
         }
 
-        /** Any other plan the member holds: "Also: Explorer · 6 of 8 cups left". */
+        /** Any other plan the member holds: "Also: Explorer · 6 of 8 cups left". Nothing with one plan. */
         function extraPlansHtml() {
           const extra = S.plansOf(member().id).filter((p) => p.key !== "main");
           return extra.length ? html`<p class="pass__also t-small t-muted num">Also: ${extra.map((p) => `${p.name} · ${p.left} of ${p.total} cups left`).join(" · ")}</p>` : "";
@@ -634,20 +654,12 @@
 
         // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
-          const m2 = member();
-          const b = S.balance();
-          const p = S.memberPlan(m2);
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
-          set("[data-pass-cups]", b.left);
-          set("[data-pass-total]", b.total);
-          set("[data-pass-plan]", p.name);
-          set("[data-pass-type]", p.typeName);
+          set("[data-pass-plan]", planLine());
           const list = $("[data-pass-cafes]", view);
-          if (list) list.innerHTML = passCafes().s;
+          if (list) list.innerHTML = passCafes().s || "";
           const also = $("[data-pass-plans]", view);
-          if (also) also.innerHTML = extraPlansHtml().s;
-          const ringEl = $("[data-pass-ring]", view);
-          if (ringEl) ringEl.innerHTML = passRing().s;
+          if (also) also.innerHTML = extraPlansHtml().s || "";
         }
 
         function paintCode() {

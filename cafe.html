@@ -1845,11 +1845,27 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
    Builds on base.css; the phone frame itself lives there.
    ===================================================================== */
 
-.app-screen { padding: var(--space-5) var(--space-5) var(--space-6); }
+/* Calm: 20px sides, 32px between sections, 24px inside cards; space
+   separates things, not lines. Member app only (everything under .phone__screen). */
+.app-screen { padding: var(--space-5) 20px var(--space-6); }
 .app-screen--flush { padding: 0; }
 .app-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .app-section { margin-top: var(--space-6); }
-.app-section__title { margin-bottom: var(--space-2); }
+.app-section__title { margin-bottom: var(--space-3); }
+.phone__screen .card:not(.is-selected):not([aria-pressed="true"]):not([aria-checked="true"]) { border-color: transparent; }
+.phone__screen .row { border-bottom: 0; }
+
+/* Disclosure: a section label that opens a panel (Recent activity, Cups by café) */
+.disclosure { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 48px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.disclosure .eyebrow { flex: 1; margin: 0; }
+.disclosure__chev { display: inline-flex; color: var(--ink-3); transition: transform 250ms var(--ease); }
+.disclosure[aria-expanded="true"] .disclosure__chev { transform: rotate(90deg); }
+.disclosure:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-sm); }
+.disclosure__panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 250ms var(--ease), opacity 250ms var(--ease); }
+.disclosure__panel[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.disclosure__inner { min-height: 0; overflow: hidden; display: grid; gap: var(--space-3); }
+.disclosure__inner > :first-child { margin-top: var(--space-2); }
+@media (prefers-reduced-motion: reduce) { .disclosure__panel, .disclosure__chev { transition: none; } }
 
 /* Tab bar ------------------------------------------------------------- */
 .tabbar {
@@ -1909,30 +1925,16 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .tab--pass[aria-selected="true"] .tab__pass { background: var(--ink); color: var(--bg); }
 
 /* Pass ---------------------------------------------------------------- */
-.pass { display: grid; justify-items: center; text-align: center; gap: var(--space-4); }
-/* The pass screen is black in both modes (app.js adds .theme-dark to the
-   phone). The QR sits on a cream rounded square inside a caramel brick ring. */
+/* Black in both modes (app.js adds .theme-dark to the phone). The QR sits on
+   a plain cream rounded square; under it, a quiet stack. No ring. */
+.pass { display: grid; justify-items: center; text-align: center; gap: var(--space-6); }
 .phone__screen.theme-dark { background: var(--bg); color: var(--ink); }
-.theme-dark .pass__card { background: transparent; border: 0; padding-inline: 0; }
-.pass-ring { position: relative; display: grid; place-items: center; width: min(100%, 330px); aspect-ratio: 1; }
-.pass-ring__bricks, .pass-ring__bricks svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.pass-ring .brick-ring { color: var(--accent); --brick-line: color-mix(in srgb, var(--accent) 40%, transparent); }
-.pass-ring .qr { position: relative; width: 58%; height: auto; aspect-ratio: 1; }
-.pass__card {
-  width: 100%;
-  display: grid;
-  justify-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--surface);
-  border: var(--hairline);
-  border-radius: var(--radius-card);
-}
+.pass__card { width: 100%; display: grid; justify-items: center; gap: var(--space-5); }
 /* The QR always sits on a light tile so scanners read it in dark mode too */
 .qr {
-  width: 232px;
-  height: 232px;
-  padding: 12px;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  padding: var(--space-5);
   border-radius: var(--radius-card);
   background: var(--cream);
   color: var(--black);
@@ -1941,22 +1943,26 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .qr svg { width: 100%; height: 100%; shape-rendering: crispEdges; }
 .qr.is-rotating { opacity: 0.2; }
 .qr--fallback { display: grid; place-items: center; padding: var(--space-5); font-size: var(--fs-14); color: var(--ink-2); border: 1px dashed var(--line-strong); }
+.pass__codes { display: grid; justify-items: center; gap: var(--space-2); }
 .pass__code {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 500;
   letter-spacing: 0.08em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .pass__code span + span { margin-left: 0.35em; }
-.countdown { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.countdown svg { width: 20px; height: 20px; transform: rotate(-90deg); }
-.countdown circle { fill: none; stroke-width: 2; }
+.countdown { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.countdown svg { width: 12px; height: 12px; transform: rotate(-90deg); }
+.countdown circle { fill: none; stroke-width: 2.5; }
 .countdown .track { stroke: var(--line); }
-.countdown .bar { stroke: var(--ink-2); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-.pass__meta { display: flex; justify-content: space-between; width: 100%; padding-top: var(--space-4); border-top: var(--hairline); text-align: left; }
+.countdown .bar { stroke: var(--ink-3); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.pass__stack { display: grid; justify-items: center; gap: var(--space-1); }
+.pass-who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--fs-20); }
+.pass-who .btn--link { font-size: var(--fs-14); --btn-h: 36px; }
 .pass__note { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); }
 .pass__note svg { width: 18px; height: 18px; flex: none; }
+.pass__cafes-box { width: 100%; text-align: left; }
 .pass-success { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-2); }
 .pass-success .check-draw { width: 72px; height: 72px; color: var(--primary); }
 
@@ -2209,24 +2215,24 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 /* Explorer: one list in two quiet groups; a row is one line */
 .plan-groups { display: grid; gap: var(--space-6); border: 0; padding: 0; margin: 0; min-width: 0; }
 .plan-group { display: grid; gap: var(--space-2); }
-.plan-rows { border-top: var(--hairline); }
+.plan-rows { display: grid; gap: var(--space-1); }
 .plan-row {
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: var(--space-4);
-  min-height: 56px; padding: var(--space-3) var(--space-3); border-bottom: var(--hairline); cursor: pointer;
+  min-height: 56px; padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer;
   transition: background-color var(--dur-1) var(--ease);
 }
 .plan-row__text { min-width: 0; }
 .plan-row__name { font-weight: 700; margin-right: var(--space-2); }
 .plan-row__price { text-align: right; }
 .plan-row:hover { background: var(--primary-soft); }
-.plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); border-radius: var(--radius-sm); }
+.plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
 .plan-row:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* My cafés: cafés added one by one */
 .plan-body { display: grid; gap: var(--space-4); }
 .builder-empty { display: grid; gap: var(--space-4); justify-items: start; padding: var(--space-6) 0; }
-.builder-list { border-top: var(--hairline); }
-.builder-row { display: grid; gap: var(--space-3); padding: var(--space-4) 0; border-bottom: var(--hairline); min-width: 0; }
+.builder-list { display: grid; gap: var(--space-2); }
+.builder-row { display: grid; gap: var(--space-3); padding: var(--space-4) 0; min-width: 0; }
 .builder-row__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .builder-row__remove { font-size: var(--fs-14); min-height: 0; padding: 0; }
 .builder-row__controls { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -2306,10 +2312,6 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 }
 
 /* Plan types (Pass 7): per-café cups on the pass ----------------------- */
-.pass__cafes { width: 100%; display: grid; gap: var(--space-2); text-align: left; }
-.pass__cafes ul { display: grid; }
-.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: 6px; border-top: var(--hairline); font-size: var(--fs-14); }
-.pass__cafes li .num { color: var(--ink-2); }
 [data-here-line] strong { color: var(--ink); font-weight: 500; }
 
 /* Brand partner page (Double Shot): menu, ordering, branches, plans ------ */
@@ -2347,12 +2349,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .order-sheet .btn--link { justify-self: center; }
 
 /* Pass: the drink chosen in the app, above the QR; the brand balance */
-.pass-order { display: grid; gap: 2px; justify-items: center; }
-.pass-order:empty { display: none; }
-.pass-order__drink { font-size: var(--fs-20); font-weight: 500; line-height: 1.2; }
-.pass-order__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); font-size: var(--fs-14); }
-.pass-order__acts .btn--link { --btn-h: 36px; }
-.pass__brand { font-size: var(--fs-14); color: var(--ink-2); text-align: center; }
 
 /* Pickup orders ------------------------------------------------------------ */
 .home__more { display: flex; justify-content: center; gap: var(--space-5); }
@@ -2408,13 +2404,18 @@ li:last-child > .branch-row { border-bottom: 0; }
 
 /* Pass: the member number leads ("LCC 42"), easy to say; the QR and the
    6-digit code are the other options. ---------------------------------- */
-.pass-id { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
-.pass-id__no { font-size: 64px; line-height: 1; font-weight: 700; letter-spacing: 0.01em; color: var(--ink); }
-.pass-id__who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
-.pass-id__name { font-size: var(--fs-20); }
-.pass-id__who .btn--link { font-size: var(--fs-14); }
-.pass-id__line { font-size: var(--fs-16); color: var(--ink-2); }
-.pass__also { margin-top: var(--space-2); }
+.pass__also { margin-top: var(--space-1); }
+.pass__cafes { display: grid; gap: var(--space-2); }
+.pass__cafes ul { display: grid; gap: var(--space-2); }
+.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--fs-14); }
+.pass__cafes li .num { color: var(--ink-2); }
+.pass-order { width: 100%; }
+.pass-order:empty { display: none; }
+.pass-order__row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card); background: var(--surface); text-align: left; }
+.pass-order__text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); color: inherit; text-decoration: none; }
+.pass-order__text:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-sm); }
+.pass-order__drink { font-weight: 500; }
+.pass-order__clear { flex: none; color: var(--ink-3); }
 
 /* Profile photo */
 .photo-row { display: flex; align-items: center; gap: var(--space-3); }
@@ -2882,7 +2883,21 @@ li:last-child > .branch-row { border-bottom: 0; }
 .circle-ring__center { display: grid; justify-items: center; gap: 2px; }
 .circle-ring__n { font-size: var(--fs-40); line-height: 1; }
 
-.circle-list { display: grid; }
+.circle-list { display: grid; gap: var(--space-4); }
+.circle-card { position: relative; display: flex; align-items: flex-start; gap: var(--space-4); }
+.circle-card__main { flex: 1; min-width: 0; display: grid; gap: var(--space-1); }
+.circle-card__name { font-size: var(--fs-16); font-weight: 500; line-height: 1.3; color: var(--ink); text-decoration: none; }
+.circle-card__name::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.circle-card__name:focus-visible { outline: none; }
+.circle-card:has(.circle-card__name:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.circle-card__next { color: var(--ink-2); }
+.circle-card__go { position: relative; z-index: 1; justify-self: start; --btn-h: 36px; font-size: var(--fs-14); }
+.circle-card__going { color: var(--ink-2); }
+.circle-card__chev { align-self: center; display: inline-flex; color: var(--ink-3); }
+.circles-recent { margin-top: var(--space-6); }
+.event-list { display: grid; gap: var(--space-4); }
+.event-row { display: grid; gap: 2px; }
+.circles-sheet { display: grid; gap: var(--space-4); }
 .circle-row { display: flex; align-items: center; gap: var(--space-3); width: 100%; color: inherit; text-decoration: none; }
 .circle-row .row__main, .circle-page .row__main { display: grid; gap: 2px; }
 .circle-start .btn--link { justify-self: center; }
@@ -2909,8 +2924,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 .circle-rank li:last-child { border-bottom: 0; }
 
 .circle-act { display: grid; }
-.circle-act__row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: var(--hairline); }
-.circle-act__row:last-child { border-bottom: 0; }
+.circle-act__row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) 0; }
 .circle-act__text { flex: 1; min-width: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--ink-2); }
 .circle-act__text strong { color: var(--ink); font-weight: 500; }
 /* One quiet acknowledgement: a thin-line cup and a count */
@@ -4202,7 +4216,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
-      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any drink up to Rs 880, added to your cups.", cups: 1 },
+      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
       { id: "guest",   beans: 400, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
       { id: "evening", beans: 600, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
     ],
@@ -5929,6 +5943,21 @@ li:last-child > .branch-row { border-bottom: 0; }
     },
     roundAttendees: (r) => Object.keys(r.answers || {}).filter((id) => select.roundAttendedAt(r, id)),
     /** A Circle's rounds: coming up (newest call first) and past. */
+    /** Where a Circle drinks most: the area with the most cups by its sharing members, last 30 days (else all time). */
+    circleArea(c, at = Date.now()) {
+      const ids = Object.keys(c.members).filter((id) => select.privacy(id).share);
+      const count = (since) => {
+        const n = {};
+        ids.forEach((id) => (byMember.get(id) || []).forEach((e) => {
+          if (!isRedeem(e) || e.at < since || e.at > at) return;
+          const a = state.cafes[e.cafeId]?.area;
+          if (a) n[a] = (n[a] || 0) + 1;
+        }));
+        return Object.entries(n).sort((x, y) => y[1] - x[1])[0];
+      };
+      const top = count(at - 30 * 24 * 60 * MIN) || count(0);
+      return top ? select.area(top[0]) : null;
+    },
     roundsOf(circleId, at = Date.now()) {
       const all = Object.values(state.rounds).filter((r) => r.circleId === circleId && !r.cancelled);
       return {
@@ -10260,18 +10289,12 @@ li:last-child > .branch-row { border-bottom: 0; }
       /* Pass ------------------------------------------------------------ */
       const CD_C = 2 * Math.PI * 8;
       function passScreen() {
-        const m = member();
         let timer = null, backTimer = null, lastCode = null;
+        let cafesOpen = false; // "Cups by café": closed by default
         return {
           html: html`
             <div class="app-screen pass">
-              <div class="pass-id">
-                <h1 class="sr-only">Your pass</h1>
-                <p class="eyebrow">Your number</p>
-                <p class="pass-id__no num" aria-label="Your member number: LCC ${m.memberNo}">${fmt.lcc(m.memberNo)}</p>
-                <div class="pass-id__who" data-pass-who>${passWho()}</div>
-                <p class="pass-id__line">Tell the barista your number, or show this code.</p>
-              </div>
+              <h1 class="sr-only">Your pass</h1>
               <div class="pass__card" data-pass-card></div>
               <p class="pass__note">${icon("sun")} Turn your brightness up if the scanner struggles.</p>
               ${LCC.sync ? LCC.sync.pill() : ""}
@@ -10279,7 +10302,17 @@ li:last-child > .branch-row { border-bottom: 0; }
           mount() {
             paintQrCard();
             timer = setInterval(tickCountdown, 250);
-            return () => { clearInterval(timer); clearTimeout(backTimer); };
+            const onClick = (e) => {
+              const t = e.target.closest("[data-cafes-toggle]");
+              if (!t) return;
+              cafesOpen = !cafesOpen;
+              t.setAttribute("aria-expanded", String(cafesOpen));
+              const panel = $("#pass-cafes", view);
+              panel.dataset.open = String(cafesOpen);
+              panel.toggleAttribute("inert", !cafesOpen);
+            };
+            view.addEventListener("click", onClick);
+            return () => { clearInterval(timer); clearTimeout(backTimer); view.removeEventListener("click", onClick); };
           },
           on: {
             pass: () => rotate(),
@@ -10292,76 +10325,92 @@ li:last-child > .branch-row { border-bottom: 0; }
           },
         };
 
+        /** Name, with the photo when there is one; "Add a photo" only while there isn't. */
         function passWho() {
           const m2 = member();
-          return html`${ui.avatar(m2, { size: 40 })}<span class="pass-id__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
+          return html`${m2.photo ? ui.avatar(m2, { size: 32 }) : ""}<span class="pass-who__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
         }
+        /** "Explorer · Regular · 11 of 16 cups left" */
+        function planLine() {
+          const m2 = member();
+          if (!m2.plan) return "No plan yet";
+          const b = S.balance();
+          return `${S.planLabel(m2)} · ${Math.max(0, b.left)} of ${b.total} cups left`;
+        }
+        function cardNo(n) { return `LCC-${String(n).padStart(4, "0")}`; }
 
         function paintQrCard() {
           const m2 = member();
-          const plan = S.memberPlan(m2);
           const card = $("[data-pass-card]", view);
+          const cafes = passCafes();
           card.innerHTML = html`
             <div class="pass-order" data-pass-order>${orderHtml()}</div>
-            <div class="pass-ring">
-              <div class="pass-ring__bricks" data-pass-ring>${passRing()}</div>
-              <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
+            <div class="pass__codes">
+              <p class="pass__code" data-code></p>
+              <p class="countdown" aria-hidden="true">
+                <svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" data-cd-bar cx="10" cy="10" r="8" stroke-dasharray="${CD_C.toFixed(2)}"/></svg>
+                <span data-cd-text></span>
+              </p>
+              <p class="sr-only">The code changes every 30 seconds. You can also tell the barista your number.</p>
             </div>
-            <div class="countdown" aria-hidden="true">
-              <svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" data-cd-bar cx="10" cy="10" r="8" stroke-dasharray="${CD_C.toFixed(2)}"/></svg>
-              <span data-cd-text></span>
+            <div class="pass__stack">
+              <p class="pass-who" data-pass-who>${passWho()}</p>
+              <p class="t-small t-muted num" data-pass-plan>${planLine()}</p>
+              <p class="t-small t-muted num">${fmt.lcc(m2.memberNo)} · Card ${cardNo(m2.memberNo)}</p>
+              <div data-pass-plans>${extraPlansHtml()}</div>
             </div>
-            <p class="pass__code" data-code></p>
-            <p class="t-small t-muted">The code changes every 30 seconds.</p>
-            <div class="pass__meta">
-              <div><p class="t-micro t-faint">Cups left</p><p class="t-h3 num"><span data-pass-cups>${S.balance().left}</span> of <span data-pass-total>${S.balance().total}</span></p></div>
-              <div style="text-align:right"><p class="t-micro t-faint" data-pass-type>${plan.typeName}</p><p class="t-h3" data-pass-plan>${plan.name}</p></div>
-            </div>
-            <div data-pass-plans>${extraPlansHtml()}</div>
-            <div class="pass__cafes" data-pass-cafes>${passCafes()}</div>`.s;
+            ${cafes ? html`<div class="pass__cafes-box">
+              <button type="button" class="disclosure" data-cafes-toggle aria-expanded="${cafesOpen}" aria-controls="pass-cafes">
+                <span class="eyebrow" id="pass-cafes-h">Cups by café</span>
+                <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+              </button>
+              <div class="disclosure__panel" id="pass-cafes" role="region" aria-labelledby="pass-cafes-h" data-open="${cafesOpen}" ${cafesOpen ? "" : raw("inert")}>
+                <div class="disclosure__inner"><div class="pass__cafes" data-pass-cafes>${cafes}</div></div>
+              </div>
+            </div>` : ""}`.s;
           lastCode = null;
           paintCode();
           tickCountdown();
         }
 
-        /** The drink chosen in the app, with any top-up, shown above the QR. */
+        /** The drink chosen in the app, in one compact row: café, drink, band. */
         function orderHtml() {
           const o = S.order();
           if (!o) return "";
           const item = S.menuItem(o.brandId, o.drinkId);
           const p = S.drinkPrice(o.brandId, item, o.temp, S.bandAt(undefined, o.brandId));
-          return html`
-            <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
-            <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>
-            <p class="t-small t-muted num">${p.included ? "Included in your cup" : `Cup + ${fmt.rs(p.topUp)}, paid at the till`}</p>
-            <p class="pass-order__acts"><a class="btn btn--link" href="#/app/cafes/${o.brandId}">Change</a><button type="button" class="btn btn--link" data-clear-order>Order at the counter instead</button></p>`;
+          return html`<div class="pass-order__row">
+            <a class="pass-order__text" href="#/app/cafes/${o.brandId}" aria-label="Your order: ${S.drinkLabel(item, o.temp)} at ${S.brand(o.brandId).name}. Change it">
+              <span class="t-small t-muted">${S.brand(o.brandId).name}</span>
+              <span class="pass-order__drink">${S.drinkLabel(item, o.temp)}</span>
+              <span class="t-small t-muted num">${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}</span>
+            </a>
+            <button type="button" class="icon-btn pass-order__clear" data-clear-order aria-label="Order at the counter instead">${icon("close", { size: 18 })}</button>
+          </div>`;
         }
 
-        /** Caramel bricks around the QR: one per cup, used ones outlined. */
-        function passRing() {
-          const b = S.balance();
-          return ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 330, radius: 150, length: 26, twist: 12 });
-        }
-
-        /** Explorer: cafés used this month (“Kiln & Bean 2 of 2”).
-            My cafés: each café's balance (“Kiln & Bean 3 of 6”).        */
+        /** Explorer: cafés used this month ("Kiln & Bean 2 of 2"), a chain counted once.
+            My cafés: each café's balance ("Kiln & Bean 3 of 6"). Brand plans: nothing,
+            the plan line already says it. Empty string when there's nothing to show. */
         function passCafes() {
           const b = S.balance();
           const cap = store.getState().rules.explorerCapPerCafe;
-          const brandLine = S.brandBalanceLine();
-          if (brandLine) return html`<p class="pass__brand num">${brandLine}</p>`;
+          if (!b.type || b.type === "brand") return "";
           if (b.type === "mycafes") {
-            return html`<p class="t-micro t-faint">Reserved at</p>
-              <ul role="list">${Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${x.left} of ${x.reserved}</span></li>`)}</ul>`;
+            const rows = Object.entries(b.perCafe).filter(([, x]) => x.reserved);
+            return rows.length ? html`<ul role="list">${rows.map(([id, x]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${x.left} of ${x.reserved} left</span></li>`)}</ul>` : "";
           }
-          const used = Object.entries(b.usedAt);
-          return html`<p class="t-micro t-faint">Used this month · up to ${cap} at each café</p>
-            ${used.length
-              ? html`<ul role="list">${used.map(([id, n]) => html`<li><span>${S.cafe(id).name}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
+          const used = {};
+          Object.entries(b.usedAt).forEach(([id, n]) => { const v = S.venueOf(id); used[v] = (used[v] || 0) + n; });
+          const rows = Object.entries(used);
+          return html`<p class="t-small t-muted">Up to ${cap} at each café a month.</p>
+            ${rows.length
+              ? html`<ul role="list">${rows.map(([id, n]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
               : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
         }
 
-        /** Any other plan the member holds: "Also: Explorer · 6 of 8 cups left". */
+        /** Any other plan the member holds: "Also: Explorer · 6 of 8 cups left". Nothing with one plan. */
         function extraPlansHtml() {
           const extra = S.plansOf(member().id).filter((p) => p.key !== "main");
           return extra.length ? html`<p class="pass__also t-small t-muted num">Also: ${extra.map((p) => `${p.name} · ${p.left} of ${p.total} cups left`).join(" · ")}</p>` : "";
@@ -10369,20 +10418,12 @@ li:last-child > .branch-row { border-bottom: 0; }
 
         // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
-          const m2 = member();
-          const b = S.balance();
-          const p = S.memberPlan(m2);
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
-          set("[data-pass-cups]", b.left);
-          set("[data-pass-total]", b.total);
-          set("[data-pass-plan]", p.name);
-          set("[data-pass-type]", p.typeName);
+          set("[data-pass-plan]", planLine());
           const list = $("[data-pass-cafes]", view);
-          if (list) list.innerHTML = passCafes().s;
+          if (list) list.innerHTML = passCafes().s || "";
           const also = $("[data-pass-plans]", view);
-          if (also) also.innerHTML = extraPlansHtml().s;
-          const ringEl = $("[data-pass-ring]", view);
-          if (ringEl) ringEl.innerHTML = passRing().s;
+          if (also) also.innerHTML = extraPlansHtml().s || "";
         }
 
         function paintCode() {
@@ -11096,7 +11137,6 @@ li:last-child > .branch-row { border-bottom: 0; }
             <dl class="facts">
               <div><dt>${icon("clock", { size: 18 })}<span class="sr-only">Hours</span></dt><dd>${c.hours.label}<span class="t-faint"> · <span data-open-state>${S.openState(c).label}</span></span></dd></div>
               <div><dt>${ui.cupIcon(S.usualStatus(c, USUAL_HOUR).status, { size: 18, cls: "" })}<span class="sr-only">Typical</span></dt><dd>Usually ${fmt.statusLabel(S.usualStatus(c, USUAL_HOUR).status).toLowerCase()} at 6 pm</dd></div>
-              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">A latte is ${fmt.rs(c.price)} at the counter</dd></div>
             </dl>
             <div class="cluster" style="--cluster-gap:var(--space-2)">${c.tags.map((t) => html`<span class="badge">${t}</span>`)}</div>
 
@@ -11110,7 +11150,6 @@ li:last-child > .branch-row { border-bottom: 0; }
                   </button>
                 </li>`)}
               </ul>
-              <p class="t-micro t-faint">Tap a drink to order it for pickup.</p>
             </section>
 
             <section class="app-section" aria-labelledby="visits-h">
@@ -11689,7 +11728,7 @@ li:last-child > .branch-row { border-bottom: 0; }
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
               ${m.plan
-                ? html`<p class="t-small t-muted num">You’re on ${S.planLabel(m)}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
+                ? html`<p class="t-small t-muted num">A new plan starts fresh today; unused cups don’t carry over.</p>`
                 : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
             </div>
             ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
@@ -13976,10 +14015,11 @@ li:last-child > .branch-row { border-bottom: 0; }
    Lahore Coffee Club — app-circles.js
    Circles: small private groups (up to 12), in their own tab.
 
-     #/app/circles      the Circles tab: Upcoming (today's rounds from all
-                        your Circles, and gatherings with an RSVP), Your
-                        Circles (a small brick ring each, Start a Circle),
-                        Recent (activity from all your Circles, 7 days)
+     #/app/circles      the Circles tab: Your circles (one card each: area,
+                        members, today's round or when they last met, an
+                        inline "I'll be there"), From the club (the next
+                        club event; See all in a sheet), Recent activity
+                        (collapsed; the 5 latest, See all in a sheet)
      #/app/circles/:id  the Circle: the large ring, members, rounds,
                         this month (cafés explored, the streak), activity
      #/app/circles/:id/join  the invitation link ("Add them to your circle")
@@ -14104,14 +14144,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   function sectionHtml() {
     const list = S.circlesOf();
     return html`
-      ${list.length ? html`<ul role="list" class="circle-list">${list.map((c) => {
-        const mo = S.circleMonth(c);
-        return html`<li><a class="row circle-row" href="#/app/circles/${c.id}">
-          ${ringHtml(c)}
-          <span class="row__main"><span class="row__title">${c.name}</span><span class="row__meta num">${count(c)} of ${max()} · ${mo.cafes} ${mo.cafes === 1 ? "café" : "cafés"} this month</span></span>
-          <span class="row__trail" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
-        </a></li>`;
-      })}</ul>` : html`<p class="t-body circles-empty">Coffee is better in company. Start a Circle, or ask a friend to add you to theirs.</p>`}
+      ${list.length ? html`<ul role="list" class="circle-list">${list.map(circleCardHtml)}</ul>` : html`<p class="t-body circles-empty">Coffee is better in company. Start a Circle, or ask a friend to add you to theirs.</p>`}
       ${form.open
         ? html`<form class="stack circle-start" style="--stack-gap:var(--space-3)" data-circle-form novalidate>
             <div class="field" data-invalid="${!!form.error}">
@@ -14123,6 +14156,38 @@ li:last-child > .branch-row { border-bottom: 0; }
             <button type="button" class="btn btn--link" data-circle-cancel>Not now</button>
           </form>`
         : html`<button type="button" class="btn btn--secondary btn--block" data-circle-start>Start a Circle</button>`}`;
+  }
+
+  /** A Circle's one line: today's round, else when they last met. */
+  function circleLine(c) {
+    const r = S.roundsOf(c.id);
+    const today = r.upcoming.find((x) => sameDay(x.at));
+    if (today) return { round: today, text: `Today ${fmt.time(today.at)}, ${S.pickupPlace(today.cafeId)}` };
+    const last = r.past[0];
+    if (!last) return { text: "No rounds yet" };
+    const day = Date.now() - last.at < 6 * 24 * 60 * 60 * 1000
+      ? new Date(last.at).toLocaleDateString("en-GB", { weekday: "short" })
+      : fmt.shortDate(last.at);
+    return { text: `Last met ${day}, ${S.pickupPlace(last.cafeId)}` };
+  }
+  function circleCardHtml(c) {
+    const area = S.circleArea(c);
+    const n = count(c);
+    const line = circleLine(c);
+    const mine = line.round?.answers?.[meId()];
+    const act = !line.round ? ""
+      : !mine ? html`<button type="button" class="btn btn--link circle-card__go" data-round-answer="${line.round.id}" data-going="1">I’ll be there</button>`
+      : mine.going ? html`<p class="t-small circle-card__going">You’re going</p>` : "";
+    return html`<li class="card circle-card">
+      ${ringHtml(c)}
+      <div class="circle-card__main">
+        <a class="circle-card__name" href="#/app/circles/${c.id}">${c.name}</a>
+        <p class="t-small t-muted num">${area ? `${area.name} · ` : ""}${n} ${n === 1 ? "member" : "members"}</p>
+        <p class="t-small num circle-card__next">${line.text}</p>
+        ${act}
+      </div>
+      <span class="circle-card__chev" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+    </li>`;
   }
 
   /** Wires the list and its form; returns a cleanup. */
@@ -14160,17 +14225,21 @@ li:last-child > .branch-row { border-bottom: 0; }
      ------------------------------------------------------------------- */
   const sameDay = (a, b = Date.now()) => new Date(a).toDateString() === new Date(b).toDateString();
 
-  /** Gatherings with an RSVP: the next club gathering, and an invitation-only evening you hold a seat at. */
-  function upcomingGatherings() {
+  /** Events the club runs itself, soonest first: gatherings and the Beans members' evening. */
+  function clubEvents() {
     const now = Date.now();
-    const out = [];
-    const next = S.gatherings(now).next;
-    if (next) out.push(S.gathering(next.id));
-    store.getState().club.gatherings.filter((g) => g.inviteOnly && g.at >= now).forEach((g) => {
-      const x = S.gathering(g.id);
-      if (x?.going) out.push(x);
-    });
-    return out;
+    return store.getState().club.gatherings.filter((g) => g.at >= now).sort((a, b) => a.at - b.at).map((g) => S.gathering(g.id)).filter(Boolean);
+  }
+  const eveningBeans = () => S.beans().rules.rewards.find((r) => r.id === "evening")?.beans || 600;
+
+  /** One compact row per event, for the See all sheet. */
+  function eventRowHtml(g) {
+    const status = g.going ? "You’re going" : g.inviteOnly ? `${eveningBeans()} Beans for a seat` : g.left <= 0 ? "Full" : `${g.left} of ${g.seats} seats left`;
+    return html`<li class="event-row">
+      <p class="t-body">${g.kind}: ${g.title.charAt(0).toLowerCase() + g.title.slice(1)}</p>
+      <p class="t-small t-muted num">${fmt.date(g.at)} · ${fmt.time(g.at)} · ${g.cafe.name}</p>
+      <p class="t-small num">${status}</p>
+    </li>`;
   }
 
   function gatheringItemHtml(g) {
@@ -14178,15 +14247,15 @@ li:last-child > .branch-row { border-bottom: 0; }
     const notThis = !!answer && !answer.going;
     const title = `${g.kind}: ${g.title.charAt(0).toLowerCase() + g.title.slice(1)}`;
     let note = "";
-    if (g.inviteOnly) note = "Your seat is kept with Beans.";
+    if (g.inviteOnly) note = g.going ? "Your seat is kept with Beans." : `Keep a seat with ${eveningBeans()} Beans, in Club.`;
     else if (g.going) note = `You’re going. See you at ${g.cafe.name}.`;
     else if (g.left <= 0) note = "Every seat is taken. The next one is announced here first.";
     else if (!g.canRsvp) note = `RSVP opens ${fmt.longDate(g.opensAt)}. Founding Members and Connoisseurs book first.`;
     else if (g.priority && !g.openToAll) note = `Founding Members and Connoisseurs book first. Opens to every member on ${fmt.longDate(g.opensAt)}.`;
-    return html`<article class="round card gather-item" aria-label="${title}">
-      <p class="eyebrow">${g.inviteOnly ? "Members’ evening" : "Gathering"}</p>
+    return html`<article class="round card gather-item" aria-label="${title}, hosted by Lahore Coffee Club">
+      <p class="t-micro t-faint">Hosted by Lahore Coffee Club</p>
       <p class="t-body"><strong>${title}</strong></p>
-      <p class="t-small t-muted num">${fmt.date(g.at)} · ${fmt.time(g.at)} · ${g.cafe.name}, ${g.area.name}${g.inviteOnly ? "" : ` · ${g.left} of ${g.seats} seats left`}</p>
+      <p class="t-small t-muted num">${fmt.date(g.at)} · ${fmt.time(g.at)} · ${title.includes(g.cafe.name) ? g.area.name : `${g.cafe.name}, ${g.area.name}`}${g.inviteOnly ? "" : ` · ${g.left} of ${g.seats} seats left`}</p>
       ${g.inviteOnly ? "" : html`<div class="round__answers" role="group" aria-label="Will you be there?">
         <button type="button" class="btn btn--compact ${g.going ? "btn--primary" : "btn--secondary"}" data-gather-answer="${g.id}" data-going="1" aria-pressed="${g.going}" ${!g.going && !g.canRsvp ? raw("disabled") : ""}>I’ll be there</button>
         <button type="button" class="btn btn--compact ${notThis ? "btn--primary" : "btn--secondary"}" data-gather-answer="${g.id}" data-going="0" aria-pressed="${notThis}">Not this time</button>
@@ -14195,52 +14264,116 @@ li:last-child > .branch-row { border-bottom: 0; }
     </article>`;
   }
 
-  REG.circles = (ctx) => {
-    const { view } = ctx;
-    const circles = () => S.circlesOf();
+  let recentOpen = false; // Recent activity: collapsed by default, remembered while the app is open
 
-    function upcomingHtml() {
-      const rounds = circles().flatMap((c) => S.roundsOf(c.id).upcoming.filter((r) => sameDay(r.at)).map((r) => ({ at: r.at, h: () => roundHtml(r, { circleName: c.name }) })));
-      const gathers = upcomingGatherings().map((g) => ({ at: g.at, h: () => gatheringItemHtml(g) }));
-      const items = [...rounds, ...gathers].sort((a, b) => a.at - b.at);
-      return items.length ? html`${items.map((x) => x.h())}` : html`<p class="t-small t-muted">Nothing planned for today. Open a Circle to call a round.</p>`;
+  REG.circles = (ctx) => {
+    const { view, el } = ctx;
+    const circles = () => S.circlesOf();
+    let eventsSheet = null, activitySheet = null;
+
+    function recentRows() {
+      const seen = new Set();
+      return circles().flatMap((c) => S.circleActivity(c)).filter((r) => (seen.has(r.key) ? false : seen.add(r.key))).sort((a, b) => b.at - a.at);
+    }
+    function clubHtml() {
+      const all = clubEvents();
+      if (!all.length) return html`<p class="t-small t-muted">The next club event is announced here first.</p>`;
+      return html`${gatheringItemHtml(all[0])}
+        ${all.length > 1 ? html`<button type="button" class="btn btn--link" data-events-all>See all ${all.length} club events</button>` : ""}`;
     }
     function recentHtml() {
-      const seen = new Set();
-      const rows = circles().flatMap((c) => S.circleActivity(c)).filter((r) => (seen.has(r.key) ? false : seen.add(r.key))).sort((a, b) => b.at - a.at);
-      return activityListHtml(rows);
+      const rows = recentRows();
+      return html`
+        <button type="button" class="disclosure" data-recent-toggle aria-expanded="${recentOpen}" aria-controls="cr-panel">
+          <span class="eyebrow" id="cr-h">Recent activity</span>
+          <span class="disclosure__count t-small t-muted num">${rows.length}</span>
+          <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 20 })}</span>
+        </button>
+        <div class="disclosure__panel" id="cr-panel" role="region" aria-labelledby="cr-h" data-open="${recentOpen}" ${recentOpen ? "" : raw("inert")}>
+          <div class="disclosure__inner">
+            ${activityListHtml(rows.slice(0, 5))}
+            ${rows.length > 5 ? html`<button type="button" class="btn btn--link" data-activity-all>See all ${rows.length}</button>` : ""}
+          </div>
+        </div>`;
     }
     function bodyHtml() {
       const has = circles().length > 0;
       return html`
-        <section class="app-section" aria-labelledby="cu-h">
-          <h2 class="eyebrow app-section__title" id="cu-h">Upcoming</h2>
-          <div class="stack" style="--stack-gap:var(--space-3)" data-cu>${upcomingHtml()}</div>
-        </section>
         <section class="app-section" aria-labelledby="cl-h">
-          <h2 class="eyebrow app-section__title" id="cl-h">Your Circles</h2>
-          <div class="stack" style="--stack-gap:var(--space-3)" data-circles-list>${sectionHtml()}</div>
+          <h2 class="eyebrow app-section__title" id="cl-h">Your circles</h2>
+          <div class="stack" style="--stack-gap:var(--space-4)" data-circles-list>${sectionHtml()}</div>
         </section>
-        ${has ? html`<section class="app-section" aria-labelledby="cr-h">
-          <h2 class="eyebrow app-section__title" id="cr-h">Recent</h2>
-          <div data-cr>${recentHtml()}</div>
-        </section>` : ""}`;
+        <section class="app-section" aria-labelledby="cc-h">
+          <h2 class="eyebrow app-section__title" id="cc-h">From the club</h2>
+          <div class="stack" style="--stack-gap:var(--space-3)" data-club-events>${clubHtml()}</div>
+        </section>
+        ${has ? html`<section class="app-section circles-recent" data-cr>${recentHtml()}</section>` : ""}`;
+    }
+
+    /* The two sheets: every club event, and all recent activity */
+    const sheetFrame = (id, title, body) => html`
+      <div class="sheet__scrim" data-sheet-close></div>
+      <div class="sheet__panel">
+        <div class="sheet__handle" aria-hidden="true"></div>
+        <div class="sheet__body circles-sheet">
+          <div class="badges-sheet__bar">
+            <h2 class="t-h3" id="${id}">${title}</h2>
+            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+          </div>
+          ${body}
+        </div>
+      </div>`;
+    const eventsSheetHtml = () => sheetFrame("events-title", "From the club", html`<p class="t-small t-muted">Events Lahore Coffee Club runs itself, open to members.</p>
+      <ul role="list" class="event-list">${clubEvents().map(eventRowHtml)}</ul>`);
+    const activitySheetHtml = () => sheetFrame("activity-title", "Recent activity", html`<p class="t-small t-muted">From all your Circles, the last ${S.circleRules().activityDays} days.</p>${activityListHtml(recentRows())}`);
+    function makeSheet(id, labelId) {
+      const sh = document.createElement("div");
+      sh.className = "sheet";
+      sh.id = id;
+      sh.setAttribute("role", "dialog");
+      sh.setAttribute("aria-modal", "true");
+      sh.setAttribute("aria-labelledby", labelId);
+      sh.setAttribute("aria-hidden", "true");
+      $(".phone__screen", el).appendChild(sh);
+      return sh;
     }
 
     const set = (sel, markup) => { const n = $(sel, view); if (n && !n.contains(document.activeElement)) n.innerHTML = markup.s; };
     const force = (sel, markup) => { const n = $(sel, view); if (n) n.innerHTML = markup.s; };
-    const repaintRounds = () => force("[data-cu]", upcomingHtml());
-    const repaintActivity = () => force("[data-cr]", recentHtml());
+    const repaintRounds = () => force("[data-circles-list]", sectionHtml());
+    const repaintActivity = () => {
+      force("[data-cr]", recentHtml());
+      if (activitySheet?.dataset.open === "true") {
+        const k = document.activeElement?.closest?.("[data-ack]")?.dataset.ack;
+        activitySheet.innerHTML = activitySheetHtml().s;
+        if (k) $(`[data-ack="${k}"]`, activitySheet)?.focus();
+      }
+    };
     let hadCircles = circles().length > 0;
     function paint() {
       // Joining a first Circle (or leaving the last) changes the sections themselves
       if ((circles().length > 0) !== hadCircles) { hadCircles = !hadCircles; const b = $("[data-cbody]", view); if (b) b.innerHTML = bodyHtml().s; return; }
-      set("[data-cu]", upcomingHtml());
+      set("[data-circles-list]", sectionHtml());
+      set("[data-club-events]", clubHtml());
       set("[data-cr]", recentHtml());
+    }
+
+    function toggleRecent(btn) {
+      recentOpen = !recentOpen;
+      btn.setAttribute("aria-expanded", String(recentOpen));
+      const panel = $("#cr-panel", view);
+      panel.dataset.open = String(recentOpen);
+      panel.toggleAttribute("inert", !recentOpen);
     }
 
     function onClick(e) {
       if (sharedClick(e, ctx, { repaintRounds, repaintActivity, view })) return;
+      const tg = e.target.closest("[data-recent-toggle]");
+      if (tg) { toggleRecent(tg); return; }
+      const ea = e.target.closest("[data-events-all]");
+      if (ea) { ea.focus(); eventsSheet.innerHTML = eventsSheetHtml().s; ui.openSheet(eventsSheet); return; }
+      const aa = e.target.closest("[data-activity-all]");
+      if (aa) { aa.focus(); activitySheet.innerHTML = activitySheetHtml().s; ui.openSheet(activitySheet); return; }
       const ga = e.target.closest("[data-gather-answer]");
       if (ga) {
         const id = ga.dataset.gatherAnswer;
@@ -14250,24 +14383,30 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (!res.ok) { ctx.toast(res.message || "That didn’t work. Try again.", { iconName: "info" }); return; }
         const g = res.gathering;
         ctx.toast(going ? `You’re going. ${fmt.longDate(g.at)}, ${fmt.time(g.at)}.` : was.going ? "Seat given up. Thanks for letting us know." : "Noted. Maybe next time.", { iconName: going ? "calendar" : "check" });
-        repaintRounds();
+        force("[data-club-events]", clubHtml());
         $(`[data-gather-answer="${id}"][data-going="${ga.dataset.going}"]`, view)?.focus();
       }
     }
+    // Acknowledgements inside the activity sheet
+    const onActivitySheetClick = (e) => sharedClick(e, ctx, { repaintRounds, repaintActivity, view: activitySheet });
 
     let unbind = null;
     return {
       html: html`<div class="app-screen circles-tab">
-          <div class="stack" style="--stack-gap:var(--space-1)">
-            <p class="eyebrow">Circles</p>
-            <h1 class="t-h2">Coffee, together.</h1>
-          </div>
+          <h1 class="t-h2">Circles</h1>
           <div data-cbody>${bodyHtml()}</div>
         </div>`.s,
       mount() {
+        eventsSheet = makeSheet("events-sheet", "events-title");
+        activitySheet = makeSheet("activity-sheet", "activity-title");
+        activitySheet.addEventListener("click", onActivitySheetClick);
         view.addEventListener("click", onClick);
         unbind = bindSection(view, ctx);
-        return () => { view.removeEventListener("click", onClick); unbind(); };
+        return () => {
+          view.removeEventListener("click", onClick);
+          unbind();
+          [eventsSheet, activitySheet].forEach((sh) => { ui.closeSheet(sh); sh.remove(); });
+        };
       },
       on: {
         circle: paint,
@@ -14279,7 +14418,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         group: paint,
         rsvp: paint,
         snapshot: paint,
-        tick: () => set("[data-cu]", upcomingHtml()), // gatherings' RSVP windows open with the clock
+        tick: () => set("[data-club-events]", clubHtml()), // RSVP windows open with the clock
       },
     };
   };

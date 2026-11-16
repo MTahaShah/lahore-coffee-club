@@ -5,11 +5,27 @@
    Builds on base.css; the phone frame itself lives there.
    ===================================================================== */
 
-.app-screen { padding: var(--space-5) var(--space-5) var(--space-6); }
+/* Calm: 20px sides, 32px between sections, 24px inside cards; space
+   separates things, not lines. Member app only (everything under .phone__screen). */
+.app-screen { padding: var(--space-5) 20px var(--space-6); }
 .app-screen--flush { padding: 0; }
 .app-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .app-section { margin-top: var(--space-6); }
-.app-section__title { margin-bottom: var(--space-2); }
+.app-section__title { margin-bottom: var(--space-3); }
+.phone__screen .card:not(.is-selected):not([aria-pressed="true"]):not([aria-checked="true"]) { border-color: transparent; }
+.phone__screen .row { border-bottom: 0; }
+
+/* Disclosure: a section label that opens a panel (Recent activity, Cups by café) */
+.disclosure { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 48px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.disclosure .eyebrow { flex: 1; margin: 0; }
+.disclosure__chev { display: inline-flex; color: var(--ink-3); transition: transform 250ms var(--ease); }
+.disclosure[aria-expanded="true"] .disclosure__chev { transform: rotate(90deg); }
+.disclosure:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-sm); }
+.disclosure__panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 250ms var(--ease), opacity 250ms var(--ease); }
+.disclosure__panel[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.disclosure__inner { min-height: 0; overflow: hidden; display: grid; gap: var(--space-3); }
+.disclosure__inner > :first-child { margin-top: var(--space-2); }
+@media (prefers-reduced-motion: reduce) { .disclosure__panel, .disclosure__chev { transition: none; } }
 
 /* Tab bar ------------------------------------------------------------- */
 .tabbar {
@@ -69,30 +85,16 @@
 .tab--pass[aria-selected="true"] .tab__pass { background: var(--ink); color: var(--bg); }
 
 /* Pass ---------------------------------------------------------------- */
-.pass { display: grid; justify-items: center; text-align: center; gap: var(--space-4); }
-/* The pass screen is black in both modes (app.js adds .theme-dark to the
-   phone). The QR sits on a cream rounded square inside a caramel brick ring. */
+/* Black in both modes (app.js adds .theme-dark to the phone). The QR sits on
+   a plain cream rounded square; under it, a quiet stack. No ring. */
+.pass { display: grid; justify-items: center; text-align: center; gap: var(--space-6); }
 .phone__screen.theme-dark { background: var(--bg); color: var(--ink); }
-.theme-dark .pass__card { background: transparent; border: 0; padding-inline: 0; }
-.pass-ring { position: relative; display: grid; place-items: center; width: min(100%, 330px); aspect-ratio: 1; }
-.pass-ring__bricks, .pass-ring__bricks svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.pass-ring .brick-ring { color: var(--accent); --brick-line: color-mix(in srgb, var(--accent) 40%, transparent); }
-.pass-ring .qr { position: relative; width: 58%; height: auto; aspect-ratio: 1; }
-.pass__card {
-  width: 100%;
-  display: grid;
-  justify-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--surface);
-  border: var(--hairline);
-  border-radius: var(--radius-card);
-}
+.pass__card { width: 100%; display: grid; justify-items: center; gap: var(--space-5); }
 /* The QR always sits on a light tile so scanners read it in dark mode too */
 .qr {
-  width: 232px;
-  height: 232px;
-  padding: 12px;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  padding: var(--space-5);
   border-radius: var(--radius-card);
   background: var(--cream);
   color: var(--black);
@@ -101,22 +103,26 @@
 .qr svg { width: 100%; height: 100%; shape-rendering: crispEdges; }
 .qr.is-rotating { opacity: 0.2; }
 .qr--fallback { display: grid; place-items: center; padding: var(--space-5); font-size: var(--fs-14); color: var(--ink-2); border: 1px dashed var(--line-strong); }
+.pass__codes { display: grid; justify-items: center; gap: var(--space-2); }
 .pass__code {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 500;
   letter-spacing: 0.08em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .pass__code span + span { margin-left: 0.35em; }
-.countdown { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.countdown svg { width: 20px; height: 20px; transform: rotate(-90deg); }
-.countdown circle { fill: none; stroke-width: 2; }
+.countdown { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.countdown svg { width: 12px; height: 12px; transform: rotate(-90deg); }
+.countdown circle { fill: none; stroke-width: 2.5; }
 .countdown .track { stroke: var(--line); }
-.countdown .bar { stroke: var(--ink-2); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-.pass__meta { display: flex; justify-content: space-between; width: 100%; padding-top: var(--space-4); border-top: var(--hairline); text-align: left; }
+.countdown .bar { stroke: var(--ink-3); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.pass__stack { display: grid; justify-items: center; gap: var(--space-1); }
+.pass-who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--fs-20); }
+.pass-who .btn--link { font-size: var(--fs-14); --btn-h: 36px; }
 .pass__note { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); }
 .pass__note svg { width: 18px; height: 18px; flex: none; }
+.pass__cafes-box { width: 100%; text-align: left; }
 .pass-success { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-2); }
 .pass-success .check-draw { width: 72px; height: 72px; color: var(--primary); }
 
@@ -369,24 +375,24 @@
 /* Explorer: one list in two quiet groups; a row is one line */
 .plan-groups { display: grid; gap: var(--space-6); border: 0; padding: 0; margin: 0; min-width: 0; }
 .plan-group { display: grid; gap: var(--space-2); }
-.plan-rows { border-top: var(--hairline); }
+.plan-rows { display: grid; gap: var(--space-1); }
 .plan-row {
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: var(--space-4);
-  min-height: 56px; padding: var(--space-3) var(--space-3); border-bottom: var(--hairline); cursor: pointer;
+  min-height: 56px; padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer;
   transition: background-color var(--dur-1) var(--ease);
 }
 .plan-row__text { min-width: 0; }
 .plan-row__name { font-weight: 700; margin-right: var(--space-2); }
 .plan-row__price { text-align: right; }
 .plan-row:hover { background: var(--primary-soft); }
-.plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); border-radius: var(--radius-sm); }
+.plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
 .plan-row:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* My cafés: cafés added one by one */
 .plan-body { display: grid; gap: var(--space-4); }
 .builder-empty { display: grid; gap: var(--space-4); justify-items: start; padding: var(--space-6) 0; }
-.builder-list { border-top: var(--hairline); }
-.builder-row { display: grid; gap: var(--space-3); padding: var(--space-4) 0; border-bottom: var(--hairline); min-width: 0; }
+.builder-list { display: grid; gap: var(--space-2); }
+.builder-row { display: grid; gap: var(--space-3); padding: var(--space-4) 0; min-width: 0; }
 .builder-row__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .builder-row__remove { font-size: var(--fs-14); min-height: 0; padding: 0; }
 .builder-row__controls { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -466,10 +472,6 @@
 }
 
 /* Plan types (Pass 7): per-café cups on the pass ----------------------- */
-.pass__cafes { width: 100%; display: grid; gap: var(--space-2); text-align: left; }
-.pass__cafes ul { display: grid; }
-.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: 6px; border-top: var(--hairline); font-size: var(--fs-14); }
-.pass__cafes li .num { color: var(--ink-2); }
 [data-here-line] strong { color: var(--ink); font-weight: 500; }
 
 /* Brand partner page (Double Shot): menu, ordering, branches, plans ------ */
@@ -507,12 +509,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .order-sheet .btn--link { justify-self: center; }
 
 /* Pass: the drink chosen in the app, above the QR; the brand balance */
-.pass-order { display: grid; gap: 2px; justify-items: center; }
-.pass-order:empty { display: none; }
-.pass-order__drink { font-size: var(--fs-20); font-weight: 500; line-height: 1.2; }
-.pass-order__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); font-size: var(--fs-14); }
-.pass-order__acts .btn--link { --btn-h: 36px; }
-.pass__brand { font-size: var(--fs-14); color: var(--ink-2); text-align: center; }
 
 /* Pickup orders ------------------------------------------------------------ */
 .home__more { display: flex; justify-content: center; gap: var(--space-5); }
@@ -568,13 +564,18 @@ li:last-child > .branch-row { border-bottom: 0; }
 
 /* Pass: the member number leads ("LCC 42"), easy to say; the QR and the
    6-digit code are the other options. ---------------------------------- */
-.pass-id { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
-.pass-id__no { font-size: 64px; line-height: 1; font-weight: 700; letter-spacing: 0.01em; color: var(--ink); }
-.pass-id__who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
-.pass-id__name { font-size: var(--fs-20); }
-.pass-id__who .btn--link { font-size: var(--fs-14); }
-.pass-id__line { font-size: var(--fs-16); color: var(--ink-2); }
-.pass__also { margin-top: var(--space-2); }
+.pass__also { margin-top: var(--space-1); }
+.pass__cafes { display: grid; gap: var(--space-2); }
+.pass__cafes ul { display: grid; gap: var(--space-2); }
+.pass__cafes li { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--fs-14); }
+.pass__cafes li .num { color: var(--ink-2); }
+.pass-order { width: 100%; }
+.pass-order:empty { display: none; }
+.pass-order__row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card); background: var(--surface); text-align: left; }
+.pass-order__text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); color: inherit; text-decoration: none; }
+.pass-order__text:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-sm); }
+.pass-order__drink { font-weight: 500; }
+.pass-order__clear { flex: none; color: var(--ink-3); }
 
 /* Profile photo */
 .photo-row { display: flex; align-items: center; gap: var(--space-3); }

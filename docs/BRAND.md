@@ -41,14 +41,13 @@ Both modes:
 
 ### Where accents are allowed (nowhere else)
 - The filled bricks of the cups-left ring.
-- The brick ring around the QR on the Pass screen.
 - The monogram's (and ring logo's) bricks.
 - The active tab indicator.
 - The "You save Rs X" line.
 - Small uppercase labels and eyebrows.
 - At most one highlighted number or word per screen.
 
-Keep accents to roughly 10% of any screen or less. Everything else uses the neutral tokens only: backgrounds, cards, buttons (black on light, cream on dark), body text, borders, the tab bar, lists and landing sections. **No espresso or brown backgrounds anywhere**; the Pass screen is black with a caramel brick ring and the QR on a cream rounded square.
+Keep accents to roughly 10% of any screen or less. Everything else uses the neutral tokens only: backgrounds, cards, buttons (black on light, cream on dark), body text, borders, the tab bar, lists and landing sections. **No espresso or brown backgrounds anywhere**; the Pass screen is black, with the QR on a cream rounded square, no ring.
 Status colours only for busy status, always with a text label.
 
 ## Type
@@ -60,7 +59,8 @@ Status colours only for busy status, always with a text label.
 ## The brick ring (signature graphic)
 - Home: cups-left ring. One brick per cup on a ring with one gap at 3 o'clock; used cups become outlined bricks. Bricks are small rounded rectangles pointing outward, with a slight twist.
 - Loading: bricks fill in one after another.
-- Pass screen: black background, QR on a cream rounded square inside a caramel ring.
+- Pass screen: no ring. Black background, the QR on a cream rounded square.
+- Circles: one brick per member slot (the Circle's mark and the Circles tab icon).
 - Café screen header: small ring next to the café name.
 
 ## Shape, motion, voice

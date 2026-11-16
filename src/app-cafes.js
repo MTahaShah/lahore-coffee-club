@@ -357,7 +357,6 @@
             <dl class="facts">
               <div><dt>${icon("clock", { size: 18 })}<span class="sr-only">Hours</span></dt><dd>${c.hours.label}<span class="t-faint"> · <span data-open-state>${S.openState(c).label}</span></span></dd></div>
               <div><dt>${ui.cupIcon(S.usualStatus(c, USUAL_HOUR).status, { size: 18, cls: "" })}<span class="sr-only">Typical</span></dt><dd>Usually ${fmt.statusLabel(S.usualStatus(c, USUAL_HOUR).status).toLowerCase()} at 6 pm</dd></div>
-              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">A latte is ${fmt.rs(c.price)} at the counter</dd></div>
             </dl>
             <div class="cluster" style="--cluster-gap:var(--space-2)">${c.tags.map((t) => html`<span class="badge">${t}</span>`)}</div>
 
@@ -371,7 +370,6 @@
                   </button>
                 </li>`)}
               </ul>
-              <p class="t-micro t-faint">Tap a drink to order it for pickup.</p>
             </section>
 
             <section class="app-section" aria-labelledby="visits-h">

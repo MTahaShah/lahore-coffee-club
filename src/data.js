@@ -1071,7 +1071,7 @@
     roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
-      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any drink up to Rs 880, added to your cups.", cups: 1 },
+      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
       { id: "guest",   beans: 400, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
       { id: "evening", beans: 600, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
     ],

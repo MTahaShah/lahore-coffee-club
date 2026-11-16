@@ -1632,6 +1632,21 @@
     },
     roundAttendees: (r) => Object.keys(r.answers || {}).filter((id) => select.roundAttendedAt(r, id)),
     /** A Circle's rounds: coming up (newest call first) and past. */
+    /** Where a Circle drinks most: the area with the most cups by its sharing members, last 30 days (else all time). */
+    circleArea(c, at = Date.now()) {
+      const ids = Object.keys(c.members).filter((id) => select.privacy(id).share);
+      const count = (since) => {
+        const n = {};
+        ids.forEach((id) => (byMember.get(id) || []).forEach((e) => {
+          if (!isRedeem(e) || e.at < since || e.at > at) return;
+          const a = state.cafes[e.cafeId]?.area;
+          if (a) n[a] = (n[a] || 0) + 1;
+        }));
+        return Object.entries(n).sort((x, y) => y[1] - x[1])[0];
+      };
+      const top = count(at - 30 * 24 * 60 * MIN) || count(0);
+      return top ? select.area(top[0]) : null;
+    },
     roundsOf(circleId, at = Date.now()) {
       const all = Object.values(state.rounds).filter((r) => r.circleId === circleId && !r.cancelled);
       return {

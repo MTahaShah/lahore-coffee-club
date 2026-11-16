@@ -280,7 +280,7 @@
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
               ${m.plan
-                ? html`<p class="t-small t-muted num">You’re on ${S.planLabel(m)}, ${S.balance().left} of ${S.balance().total} cups left. A new plan starts fresh today; unused cups don’t carry over.</p>`
+                ? html`<p class="t-small t-muted num">A new plan starts fresh today; unused cups don’t carry over.</p>`
                 : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
             </div>
             ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
