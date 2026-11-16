@@ -12,7 +12,7 @@
    Events: cafe:status, cafe:pause, ledger, redeem, undo, report, pass,
            member, plan, builder, gift, rsvp, order, pickup, group, circle,
            round, ack, privacy, profile, menu, brand, counter, session,
-           waitlist, partner, snapshot, tick (every 30s)
+           waitlist, partner, payout, snapshot, tick (every 30s)
 
    Partners (the café side), all in one place in this file:
      brand    id, name, menu (hot / iced prices), plans, rules (perMemberPerDay, branchCupsPerDay), ownerPin
@@ -219,14 +219,16 @@
     const branches = select.branches(brandId).map((c) => ({
       id: c.id, brandId, name: c.name, branch: c.branch || null, short: c.short || null, label: c.label || null, pinName: c.pinName || null,
       area: c.area, x: c.x, y: c.y, hours: c.hours, staff: c.staff, setupCode: c.setupCode, added: !!c.added,
+      executivePin: c.executivePin || null, payouts: state.partner[c.id]?.payouts || [],
       ...(c.added ? { price: c.price, tags: c.tags, blurb: c.blurb, distanceKm: c.distanceKm, busyByHour: c.busyByHour, avgDailyCups: c.avgDailyCups, status: c.status, statusUpdatedAt: c.statusUpdatedAt } : {}),
     }));
-    return { brandId, at: b.configAt, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, branches };
+    return { brandId, at: b.configAt, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, executive: b.executive || null, branches };
   }
   function applyBrandConfig(cfg, opts) {
     const b = state.brands[cfg?.brandId];
     if (!b || (cfg.at || 0) <= (b.configAt || 0)) return;
     Object.assign(b, { rules: clone(cfg.rules), priceChanges: clone(cfg.priceChanges || {}), menu: clone(cfg.menu || b.menu), configAt: cfg.at });
+    if (cfg.executive) b.executive = clone(cfg.executive);
     (cfg.branches || []).forEach((x) => {
       let c = state.cafes[x.id];
       if (!c) {
@@ -236,6 +238,8 @@
         state.partner[x.id] = { payoutDay: 5, payouts: [] };
       }
       Object.assign(c, { name: x.name, branch: x.branch, short: x.short, label: x.label, pinName: x.pinName, hours: clone(x.hours), staff: clone(x.staff), setupCode: x.setupCode });
+      if (x.executivePin) c.executivePin = x.executivePin;
+      if (Array.isArray(x.payouts)) state.partner[x.id] = { ...(state.partner[x.id] || { payoutDay: 5 }), payouts: clone(x.payouts) };
     });
     emit("brand", { brandId: b.id }, opts);
   }
@@ -1360,6 +1364,25 @@
         topUps: cups.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0),
       };
     },
+    /** What LCC owes a branch for one month: each cup at its band rate (capped
+        at the plan's band) plus paid orders less the fee. The same sums as
+        brandMoney, for any month. from: the month's first day. */
+    monthPayout(branchId, from) {
+      const d = new Date(from); d.setMonth(d.getMonth() + 1);
+      const to = d.getTime();
+      const es = state.ledger.filter((e) => isRedeem(e) && e.cafeId === branchId && e.at >= from && e.at < to);
+      const cupEarned = es.reduce((n, e) => n + select.entryPayout(e), 0);
+      const a = select.paidOrders([branchId], from), b = select.paidOrders([branchId], to);
+      const paid = { count: a.count - b.count, gross: a.gross - b.gross, net: a.net - b.net };
+      return { branchId, month: from, cups: es.reduce((n, e) => n + e.credits, 0), cupEarned, paid, earned: cupEarned + paid.net };
+    },
+    /** "0300-12xx…": enough of a phone number to recognise, for "Confirmation sent to". */
+    maskedPhone(phone) {
+      const d = String(phone || "").replace(/\D/g, "").replace(/^92/, "0");
+      return d.length >= 6 ? `${d.slice(0, 4)}-${d.slice(4, 6)}xx…` : null;
+    },
+    /** A payout already made for a branch and month (seeded history, or marked paid in admin). */
+    payoutRecord: (branchId, month) => (state.partner[branchId]?.payouts || []).find((p) => p.month === month) || null,
     /** This month's payout per branch and in total, the next payout, and history. */
     brandMoney(brandId, branchId = null, at = Date.now()) {
       // BACKEND: GET /brands/:id/statement?month=… (ledger + paid orders, split by branch)
@@ -1372,7 +1395,7 @@
         const es = state.ledger.filter((e) => isRedeem(e) && e.cafeId === c.id && e.at >= month);
         const cupEarned = es.reduce((n, e) => n + select.entryPayout(e), 0);
         const paid = select.paidOrders([c.id], month);
-        return { cafe: c, cups: es.reduce((n, e) => n + e.credits, 0), cupEarned, paid, earned: cupEarned + paid.net, topUps: es.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0) };
+        return { cafe: c, cups: es.reduce((n, e) => n + e.credits, 0), cupEarned, paid, earned: cupEarned + paid.net, topUps: es.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0), record: select.payoutRecord(c.id, month) };
       });
       const sum = (k) => rows.reduce((n, r) => n + (typeof k === "function" ? k(r) : r[k]), 0);
       const hist = {};
@@ -1383,6 +1406,8 @@
       return {
         brand: b, rows, monthStart: month, nextAt: next.getTime(), account: b.account,
         cups: sum("cups"), cupEarned: sum("cupEarned"), paidNet: sum((r) => r.paid.net), paidCount: sum((r) => r.paid.count), earned: sum("earned"), topUps: sum("topUps"),
+        // Marked paid by LCC (admin): every branch shown has this month's record
+        paidThisMonth: rows.length && rows.every((r) => r.record) ? Math.max(...rows.map((r) => r.record.paidAt)) : 0,
         bands: state.bands, feePct: Math.round(state.rules.orderFeeShare * 100),
         history: Object.values(hist).sort((x, y) => y.month - x.month),
       };
@@ -2292,6 +2317,49 @@
       touchBrand(c.brandId);
       return { ok: true };
     },
+    /* ---------------- LCC admin (#/admin) ---------------- */
+    /** Keep a drink in or out of LCC plans. Syncs with the brand's settings. */
+    setInPlan(brandId, drinkId, on) {
+      // BACKEND: PATCH /admin/brands/:id/menu/:drinkId { inPlan }
+      const d = state.brands[brandId]?.menu.find((x) => x.id === drinkId);
+      if (!d) return { ok: false };
+      d.inPlan = !!on;
+      touchBrand(brandId);
+      return { ok: true, item: d };
+    },
+    /** A new 6-digit executive PIN: the brand owner's (branchId null) or one
+        branch's. A single café has one PIN for both, so both change. */
+    resetExecPin(brandId, branchId = null) {
+      // BACKEND: POST /admin/brands/:id/pins/reset { branchId } (stored hashed; sent to the owner)
+      const b = state.brands[brandId];
+      if (!b) return { ok: false };
+      const pin = newExecPin(b);
+      const list = select.branches(brandId);
+      if (list.length === 1) { b.executive = { ...(b.executive || {}), pin }; list[0].executivePin = pin; }
+      else if (branchId) { const c = state.cafes[branchId]; if (!c || c.brandId !== brandId) return { ok: false }; c.executivePin = pin; }
+      else b.executive = { ...(b.executive || {}), pin };
+      touchBrand(brandId);
+      return { ok: true, pin };
+    },
+    /** LCC pays a branch for a month: one payout record, which #/partner shows
+        as paid. Never twice for the same branch and month. */
+    markPayoutPaid(branchIds, month, admin = null) {
+      // BACKEND: POST /admin/payouts { branchId, month } -> bank transfer, then a payouts row
+      const ids = (Array.isArray(branchIds) ? branchIds : [branchIds]).filter((id) => state.cafes[id] && !select.payoutRecord(id, month));
+      if (!ids.length) return { ok: false, message: "Already paid." };
+      const now = Date.now();
+      const brands = new Set();
+      ids.forEach((id) => {
+        const p = select.monthPayout(id, month);
+        const rec = { month, cups: p.cups, amount: p.earned, paidAt: now, by: admin?.name || "LCC", ref: `PO-${String(now).slice(-6)}` };
+        state.partner[id] = state.partner[id] || { payoutDay: 5, payouts: [] };
+        state.partner[id].payouts = [rec, ...state.partner[id].payouts].sort((a, b) => b.month - a.month);
+        brands.add(state.cafes[id].brandId);
+      });
+      brands.forEach(touchBrand);
+      emit("payout", { branchIds: ids, month });
+      return { ok: true, count: ids.length };
+    },
     /** A fresh counter setup code for a branch (the old one stops working for new devices). */
     newSetupCode(branchId) {
       const c = state.cafes[branchId];
@@ -2330,7 +2398,9 @@
       state.orders[order.id] = order;
       if (cup) appendEntries([{ id: `hd_${order.id}`, type: "hold", memberId, cafeId, cups: -q.credits, credits: q.credits, orderId: order.id, at: now, cycle: m.cycle, live: true, ...(order.bonus ? { bonus: true } : {}) }]);
       emit("pickup", { order, prev: null });
-      return { ok: true, order };
+      // BACKEND: send email/SMS: the order, the café, the pickup code and "Tell the counter your number: LCC 42"
+      //   (one message to the member's phone and email; the app's confirmation screen shows "Confirmation sent to …")
+      return { ok: true, order, sentTo: select.maskedPhone(m.phone) };
     },
 
     /** Simulated online payment (full price, or a cup's top-up), then the order is placed.

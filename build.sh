@@ -32,6 +32,8 @@ CSS_FILES=(
   partner.css
   app.css
   club.css
+  history.css
+  admin.css
   landing.css
 )
 
@@ -68,12 +70,14 @@ JS_FILES=(
   kit.js
   cafe.js
   partner.js
+  admin.js
   app.js
   app-cafes.js
   app-brand.js
   app-plan.js
   app-order.js
   app-club.js
+  app-history.js
   app-circles.js
   app-welcome.js
   landing.js

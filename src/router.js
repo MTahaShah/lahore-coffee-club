@@ -5,6 +5,7 @@
      #/app[/…]     member app (phone frame); sub-paths go to the app
      #/cafe[/id]   the counter (a branch id sets this device up for it)
      #/partner     owner dashboard
+     #/admin       LCC admin panel (admin.js)
      #/kit         component sheet (not in the switcher; for review)
 
    Surfaces register as:
@@ -74,6 +75,7 @@
     { name: "app", href: "#/app", label: "Member app" },
     { name: "cafe", menu: "counter", label: "Counter" },
     { name: "partner", href: "#/partner", label: "Partner dashboard" },
+    { name: "admin", href: "#/admin", label: "Admin" },
   ];
   const THEMES = ["auto", "light", "dark"];
   let theme = "auto"; // Light / Dark / Auto (follows the phone); in memory, as before

@@ -43,7 +43,6 @@
   const A = store.actions;
 
   const TYPES = ["purchase", "redeem", "hold", "release", "cancel", "undo", "adjust", "reward", "gift", "expire", "beans"];
-  const counts = (e) => e.type === "redeem" && !e.undone;
 
   /** The member, from a number in any shape (42, "LCC 42", "LCC-0042"), or a member object. */
   function memberOf(no) {
@@ -142,19 +141,16 @@
         pickup orders less the LCC fee. month: "2026-11", a Date or a time. */
     payoutFor(cafeId, month = Date.now()) {
       // BACKEND: GET /cafes/:id/statement?month=YYYY-MM
-      const { from, to, key } = monthRange(month);
-      const cups = S.ledger().filter((e) => counts(e) && e.cafeId === cafeId && e.at >= from && e.at < to);
-      const cupsPayout = cups.reduce((n, e) => n + S.entryPayout(e), 0);
-      const orders = S.paidOrders([cafeId], from);
-      // paidOrders counts from a time on; take off anything collected after the month
-      const later = S.paidOrders([cafeId], to);
-      const paid = { count: orders.count - later.count, gross: orders.gross - later.gross, net: orders.net - later.net };
+      const { from, key } = monthRange(month);
+      const p = S.monthPayout(cafeId, from); // the same sums #/partner shows
+      const rec = S.payoutRecord(cafeId, from);
       return {
         cafeId, month: key,
-        cups: cups.reduce((n, e) => n + e.credits, 0),
-        cupsPayout,
-        paidOrders: paid.count, paidGross: paid.gross, paidNet: paid.net,
-        total: cupsPayout + paid.net,
+        cups: p.cups,
+        cupsPayout: p.cupEarned,
+        paidOrders: p.paid.count, paidGross: p.paid.gross, paidNet: p.paid.net,
+        total: p.earned,
+        paidAt: rec?.paidAt || null, // a payout record exists (seeded history, or marked paid in admin)
       };
     },
 

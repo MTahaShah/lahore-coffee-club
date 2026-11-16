@@ -400,11 +400,12 @@
             ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
             ${stat("Cups", fmt.rs(m.cupEarned), `at band rates: ${m.bands.map((x) => fmt.rs(x.cafeRate)).join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
-            ${stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}
+            ${m.paidThisMonth ? stat("This month", "Paid", `on ${fmt.longDate(m.paidThisMonth)} to the ${m.account.label} ending ${m.account.last4}`)
+              : stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}
           </div>
           ${multi ? html`<div class="pd-table" role="table" aria-label="This month by branch">
             <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Branch</span><span role="columnheader">Cups</span><span role="columnheader">Cup payout</span><span role="columnheader">Paid orders</span><span role="columnheader">Total</span></div>
-            ${m.rows.map((r) => html`<div class="pd-table__row" role="row"><span role="cell">${branchShort(r.cafe)}</span><span role="cell" class="num">${fmt.num(r.cups)}</span><span role="cell" class="num">${fmt.rs(r.cupEarned)}</span><span role="cell" class="num">${fmt.rs(r.paid.net)}</span><span role="cell" class="num"><strong>${fmt.rs(r.earned)}</strong></span></div>`)}
+            ${m.rows.map((r) => html`<div class="pd-table__row" role="row"><span role="cell">${branchShort(r.cafe)}</span><span role="cell" class="num">${fmt.num(r.cups)}</span><span role="cell" class="num">${fmt.rs(r.cupEarned)}</span><span role="cell" class="num">${fmt.rs(r.paid.net)}</span><span role="cell" class="num"><strong>${fmt.rs(r.earned)}</strong>${r.record ? html` <span class="t-small t-faint">paid</span>` : ""}</span></div>`)}
             <div class="pd-table__row pd-table__row--foot" role="row"><span role="cell">All branches</span><span role="cell" class="num">${fmt.num(m.cups)}</span><span role="cell" class="num">${fmt.rs(m.cupEarned)}</span><span role="cell" class="num">${fmt.rs(m.paidNet)}</span><span role="cell" class="num"><strong>${fmt.rs(m.earned)}</strong></span></div>
           </div>` : ""}
           ${m.topUps ? html`<p class="t-small t-muted num">Members also paid ${fmt.rs(m.topUps)} in top-ups at your till this month. That’s yours already, so it isn’t in the payout.</p>` : ""}

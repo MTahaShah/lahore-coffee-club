@@ -439,8 +439,7 @@
       const res = A.placePickup(orderFromDraft());
       if (!res.ok) { const e = $("[data-o-error]", view); if (e) e.textContent = res.message; return; }
       draft.started = false;
-      ctx.go("#/app", { replace: true });
-      ctx.toast(`Order placed. Pickup code ${spaced(S.pickupCode(res.order))}.`, { duration: 4200 });
+      ctx.go(`#/app/order/done/${res.order.id}`, { replace: true });
     }
 
     function onChange(e) {
@@ -531,6 +530,39 @@
   };
 
   /* -------------------------------------------------------------------
+     #/app/order/done/:id: the confirmation after placing an order
+     ------------------------------------------------------------------- */
+  REG.orderDone = (ctx, id) => {
+    const { view } = ctx;
+    const o = S.pickup(id);
+    const m = S.member();
+    if (!o || o.memberId !== m.id) return { redirect: "#/app" };
+    const sentTo = S.maskedPhone(m.phone);
+    const body = () => html`
+      <div class="order-done__head">
+        <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+        <h1 class="t-h2" id="od-title">Order placed</h1>
+        <p class="t-body t-muted">${placeLabel(o.cafeId)} has it now.</p>
+      </div>
+      ${cardHtml(S.pickup(id))}
+      <div class="order-done__number">
+        <p class="t-small t-muted">Tell the counter your number</p>
+        <p class="order-done__lcc num">${fmt.lcc(m.memberNo)}</p>
+      </div>
+      ${sentTo ? html`<p class="t-small t-faint num">Confirmation sent to ${sentTo} by SMS and email.</p>` : ""}`;
+    return {
+      html: html`
+        <div class="flow">
+          <div class="app-screen flow__body order-done" aria-labelledby="od-title" data-od-body>${body()}</div>
+          <div class="sticky-action"><button type="button" class="btn btn--primary btn--block" data-back="#/app">Done</button></div>
+        </div>`.s,
+      on: {
+        pickup: ({ order }) => { if (order?.id === id) { const b = $("[data-od-body]", view); if (b) b.innerHTML = body().s; } },
+      },
+    };
+  };
+
+  /* -------------------------------------------------------------------
      #/app/order/pay (simulated, like the plan payment)
      ------------------------------------------------------------------- */
   REG.orderPay = (ctx) => {
@@ -577,8 +609,8 @@
         if (!res.ok) { pay.phase = "failed"; pay.error = res.message; if (alive) paint(); return; }
         pay.phase = "form";
         draft.started = false;
-        if (alive) ctx.go("#/app", { replace: true });
-        ctx.toast(`Order placed. Pickup code ${spaced(S.pickupCode(res.order))}.`, { duration: 4200 });
+        if (alive) ctx.go(`#/app/order/done/${res.order.id}`, { replace: true });
+        else ctx.toast(`Order placed. Pickup code ${spaced(S.pickupCode(res.order))}.`, { duration: 4200 });
       });
     }
     function onClick(e) {

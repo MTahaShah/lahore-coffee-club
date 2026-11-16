@@ -158,6 +158,8 @@
         // Circles used to live in the Club tab: old links (and invitations already sent) still work
         if (a === "circle") return { key: "circle", tab: "circles", make: () => ({ redirect: b ? `#/app/circles/${b}${path[2] === "join" ? "/join" : ""}` : "#/app/circles" }) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
+        if (a === "order" && b === "done" && path[2] && REG.orderDone) return { key: `order/done/${path[2]}`, tab: "home", flow: true, make: () => REG.orderDone(ctx, path[2]) };
+        if (a === "cups" && REG.cups) return { key: "cups", tab: "home", flow: true, make: () => REG.cups(ctx) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
         if (a === "plan" && b === "pay" && REG.pay) return { key: "plan/pay", tab: "home", flow: true, make: () => REG.pay(ctx) };
@@ -372,6 +374,7 @@
               ${photoHtml(m)}
               ${m.phone ? html`<p class="t-small t-muted num">${fmt.lcc(m.memberNo)} · ${m.phone}</p>` : ""}
               <a class="btn btn--link" href="#/app/club">Your member card</a>
+              <a class="btn btn--link" href="#/app/cups">My cups</a>
             </section>
 
             <section class="drawer__section" aria-labelledby="dr-recent">

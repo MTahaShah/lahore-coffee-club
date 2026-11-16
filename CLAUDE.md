@@ -70,7 +70,8 @@ view's "Pair a phone" QR always points here (`LIVE_URL` in `sync.js`), with
 
 Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` the counter
 (`#/cafe/<branchId>` sets the device up for a branch), `#/partner` owner
-dashboard, `#/kit` component sheet (not in the switcher; for review).
+dashboard, `#/admin` LCC admin panel, `#/kit` component sheet (not in the
+switcher; for review).
 Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
 `index.html` is generated (one self-contained file: fonts, logos and
 favicon are inlined). Edit `src/`, never `index.html`.
@@ -129,6 +130,12 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app-order.js` — pickup orders (`#/app/order`, `#/app/order/pay`), group
   orders (`#/app/group/:id`), the order status card (Home, profile
   drawer); `LCC.appOrder`
+- `app-history.js`, `history.css` — "My cups" (`#/app/cups`, Profile →
+  My cups): every ledger entry plus paid pickups, month filter, "Download
+  PDF" (a print-only `#print-root` and `window.print()`); the pickup
+  confirmation's styles (`#/app/order/done/:id`, in app-order.js)
+- `admin.js`, `admin.css` — the LCC admin panel (`#/admin`, desktop-first,
+  any 4 digits): Cafés, Members, Ledger, Payouts. Uses partner.css's shell
 - `app-club.js` — Club tab (`#/app/club`, personal only: Beans at the top
   with their sheet, passport, member card, status, perks, badges, invite
   with statuses, Send a gift) and gifting (`#/app/gift`)
@@ -602,6 +609,31 @@ next pass until asked.**
   each cup pays its band rate (see Pricing), plus paid orders less the 5% fee; next payout on
   the 5th; three months of seeded history per branch. CSV and PDF are
   simulated with a toast.
+
+## Admin pass
+
+- `#/admin` (switcher: Admin). Cafés: a partner's branches, staff, setup
+  codes, menu (prices, size, band, café rate, the LCC in-plan switch,
+  `actions.setInPlan`), and resetting the owner's and each branch's
+  executive PIN (`actions.resetExecPin`; a single café has one; the new
+  PIN shows once). Members: search by number or name (always with the
+  number), plans and cups left, the full ledger, "Adjust cups" (an
+  `adjust` entry, reason required, via `LCC.ledger.adjust`). Ledger: every
+  entry, filtered by partner, branch, member, type, staff and dates.
+  Payouts: per branch and partner per month (this month and three back)
+  with a total, from `select.monthPayout` (the same sums as brandMoney and
+  `LCC.ledger.payoutFor`); months with a payout record show what was paid.
+  "Mark paid" (`actions.markPayoutPaid`) adds a record to
+  `state.partner[branchId].payouts`; #/partner lists it under Paid out and
+  shows "This month: Paid". Records and executive PINs travel in the
+  brand's settings message (`brand`), so other devices see them.
+- "My cups" in the member app (Profile → My cups): see `app-history.js`.
+  Collected pickups show once (the redeem), held cups only while the order
+  is open, undone cups struck through, paid pickups as money.
+- Pickup confirmation (`#/app/order/done/:id`): after placing (cup or
+  paid), the order card, "Tell the counter your number: LCC 42", and
+  "Confirmation sent to 0300-12xx… by SMS and email" (`select.maskedPhone`;
+  `// BACKEND: send email/SMS` in `placePickup`). Tables still use a toast.
 
 ## Café pass (after the Ledger pass)
 
