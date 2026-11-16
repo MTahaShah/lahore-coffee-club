@@ -100,7 +100,7 @@
         served (hot and iced), with any "Cup + Rs X" top-up. Empty when the
         counter would refuse (no plan, not reserved here on My cafés, those
         cups used up, Explorer limit, daily limit, paused). Only drinks
-        available today and inside a band. */
+        available today that the café has in LCC plans (inPlan). */
     eligibleItems(memberNo, cafeId) {
       // BACKEND: GET /members/:no/eligible?cafe=:id
       const m = memberOf(memberNo);
@@ -111,10 +111,10 @@
       const band = S.planBand(check.plan.plan, cafeId);
       const out = [];
       b.menu.filter((d) => S.isAvailable(cafeId, d.id)).forEach((d) => {
+        if (d.inPlan === false) return; // the café keeps it out of LCC plans
         ["hot", "iced"].filter((t) => d[t] != null).forEach((t) => {
           const p = S.drinkPrice(b.id, d, t, band);
-          if (!p.band) return; // above every band: not a member drink
-          out.push({ drinkId: d.id, name: S.drinkLabel(d, t), size: d.size || null, temp: t, price: p.price, band: p.band.id, topUp: p.topUp, included: p.included, inPlan: true });
+          out.push({ drinkId: d.id, name: S.drinkLabel(d, t), size: d.size || null, temp: t, price: p.price, band: p.band?.id || null, topUp: p.topUp, included: p.included, inPlan: true });
         });
       });
       return out;

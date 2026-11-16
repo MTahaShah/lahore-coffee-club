@@ -1549,9 +1549,13 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-status[data-state="closed"] .ct-status__dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 .ct-shift { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .ct-shift__name { min-height: 40px; padding: 0 var(--space-4); font-size: var(--fs-14); }
+.ct-shift { align-items: center; }
+.ct-shift__who { font-size: var(--fs-16); }
+.ct-shift__who strong { font-weight: 700; }
+.ct-shift__exec { margin-left: auto; font-size: var(--fs-14); }
 .ct-title { font-size: var(--fs-28); font-weight: 400; line-height: 1.15; }
 
-.ct-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px; background: var(--surface-2); border-radius: var(--radius-pill); }
+.ct-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px; background: var(--surface-2); border-radius: var(--radius-pill); }
 .ct-tab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border-radius: var(--radius-pill); font-size: var(--fs-16); color: var(--ink-2); }
 .ct-tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .ct-body:focus { outline: none; }
@@ -1692,6 +1696,29 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-menu__row[aria-checked="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--ink); font-weight: 700; }
 .ct-menu__row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .ct-menu__price { flex: none; font-size: var(--fs-14); color: var(--ink-2); font-weight: 400; }
+.ct-menu__row.is-off { color: var(--ink-3); cursor: not-allowed; }
+.ct-menu__row.is-off:hover { background: none; }
+.ct-menu__row.is-off .ct-menu__price { color: var(--ink-3); }
+
+/* Mods (free) and extras (pay at counter) */
+.ct-mods { display: grid; gap: var(--space-3); }
+.ct-mod { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.ct-mod__label { color: var(--ink-2); }
+.ct-mod .segmented { min-height: 44px; }
+.ct-mod .segmented__option { font-size: var(--fs-14); padding-inline: 4px; }
+.ct-extras { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ct-extras .chip { min-height: 40px; }
+@media (max-width: 380px) { .ct-mod { grid-template-columns: 1fr; } }
+
+/* A pickup waiting, at the top of the member card */
+.ct-pickup { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1.5px solid var(--ink); border-radius: var(--radius-card); }
+.ct-pickup__drink { font-size: var(--fs-20); font-weight: 700; }
+
+/* placed → preparing → ready → collected */
+.ct-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: var(--space-1) 0; padding: 0; list-style: none; }
+.ct-steps__step { padding-top: 6px; border-top: 2px solid var(--line); font-size: var(--fs-12, 12px); color: var(--ink-3); }
+.ct-steps__step[data-done="true"] { border-top-color: var(--ink); color: var(--ink-2); }
+.ct-steps__step[aria-current="step"] { color: var(--ink); font-weight: 700; }
 
 /* Done */
 .ct-done { position: relative; display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4) var(--space-6); text-align: center; border: var(--hairline); border-radius: var(--radius-card); overflow: hidden; }
@@ -3253,8 +3280,9 @@ li:last-child > .branch-row { border-bottom: 0; }
       name: "Double Shot",
       monogram: "DS",
       ownerPin: "0000",
-      // The executive group (owners and head office): one 6-digit PIN for the whole brand
-      executive: { name: "Executive group", pin: "000000" },
+      // Executive access to the dashboard (6 digits): the brand owner sees every branch;
+      // each branch also has its own (branch.executivePin) that sees that branch only
+      executive: { name: "Brand owner", pin: "000000" },
       rules: { perMemberPerDay: 2, branchCupsPerDay: 150 },
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
@@ -3337,7 +3365,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         { id: "ds-pb-smoothie",   section: "Zero shot and more", name: "Peanut Butter Date Smoothie", hot: null, iced: 840 },
         { id: "ds-berry-smoothie", section: "Zero shot and more", name: "Berry Smoothie",       hot: null, iced: 840 },
         { id: "ds-mango-smoothie", section: "Zero shot and more", name: "Mango Drift Smoothie", hot: null, iced: 840 },
-        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980 },
+        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980, inPlan: false },
       ],
     },
   ];
@@ -3369,6 +3397,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
       blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
       setupCode: DS_CODES[n - 1],
+      executivePin: String(n).repeat(6), // Gulberg 111111 … Dolmen 777777
       staff: [
         { id: `st_${id}_1`, name: a, role: "staff", pin: `${n}101` },
         { id: `st_${id}_2`, name: b, role: "staff", pin: `${n}202` },
@@ -3404,7 +3433,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
         { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
         { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950 },
+        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950, inPlan: false },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
       avgDailyCups: 9,
@@ -3426,7 +3455,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
         { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
         { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
-        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null },
+        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null, inPlan: false },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -3514,7 +3543,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
         { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
         { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
-        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null },
+        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null, inPlan: false },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
       avgDailyCups: 7,
@@ -3584,7 +3613,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
-      id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Executive group", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
+      id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Brand owner", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
       menuNote: "Demo menu. Prices are fictional.",
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
@@ -3594,6 +3623,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     brands.push(brand);
     Object.assign(c, {
       brandId: brand.id, drinks: brandDrinks(brand), setupCode,
+      executivePin: brand.executive.pin, // one branch: the same PIN is the owner's
       staff: [
         { id: `st_${c.id}_1`, name: a, role: "staff", pin: `${ownerPin[0]}101` },
         { id: `st_${c.id}_2`, name: b, role: "staff", pin: `${ownerPin[0]}202` },
@@ -3603,10 +3633,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     delete c.menu;
   });
   /* LCC menu details for every partner ------------------------------------
-     size: what a cup is at the counter. inPlan: the drink can be had with a
-     cup (it falls in a band, so up to Rs 1,500; above the plan's band it's
-     "Cup + Rs X"). The counter recomputes this from today's price
-     (LCC.ledger.eligibleItems); this flag is the seed's view.
+     size: what a cup is at the counter. inPlan: false when the café keeps a
+     drink out of LCC plans (members pay for it as usual; the counter shows
+     it greyed, "Not in plan"). Every other drink can be had with a cup;
+     above the plan's band it's "Cup + Rs X".
      mods are free and change nothing in the ledger beyond being recorded.
      extras are paid at the till at the counter price; they never touch
      cups or payouts.                                                      */
@@ -3622,7 +3652,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   brands.forEach((b) => {
     b.menu.forEach((d) => {
       d.size = d.size || sizeOf(d);
-      d.inPlan = !!bandOf(Math.min(...[d.hot, d.iced].filter((x) => x != null)));
+      d.inPlan = d.inPlan !== false;
     });
     b.mods = MODS.map((m) => ({ ...m, options: [...m.options] }));
     const [shot, larger] = EXTRAS[b.id] || [200, 150];
@@ -4375,9 +4405,10 @@ li:last-child > .branch-row { border-bottom: 0; }
               at, ref (select.redemptionRef), undone (an `undo` entry
               arrived), reported (state.reports)
      roles    owner (brand PIN, every branch), manager (PIN, one branch),
-              staff (tap their name at the counter; each has a 4-digit PIN,
-              not asked yet), executive group (brand.executive, 6-digit PIN,
-              for the dashboard in a later pass)
+              staff (tap their name, then their own 4-digit PIN, to start
+              a shift), executive (6-digit PIN for the dashboard:
+              brand.executive.pin sees every branch, branch.executivePin
+              that branch only; select.execRole)
    Sync messages about a brand carry its id as a scope (sync.js), so a
    counter or dashboard ignores other brands' menus, statuses and reports.
 
@@ -4927,10 +4958,29 @@ li:last-child > .branch-row { border-bottom: 0; }
       const s = (state.cafes[branchId]?.staff || []).find((x) => x.id === staffId);
       return !!s && !!s.pin && s.pin === String(pin);
     },
-    /** The brand's executive group: a 6-digit PIN. */
-    checkExecutivePin(brandId, pin) {
-      const ex = state.brands[brandId]?.executive;
-      return !!ex && String(pin).length === 6 && ex.pin === String(pin);
+    /** Executive access (6 digits): the brand owner's PIN sees every branch,
+        a branch's PIN sees that branch only. A single café has one PIN for both. */
+    execRole(brandId, pin) {
+      const b = state.brands[brandId];
+      const p = String(pin || "");
+      if (!b || !/^\d{6}$/.test(p)) return null;
+      const list = select.branches(brandId);
+      if (p === b.executive?.pin) return { role: "owner", brandId, via: "executive" };
+      const c = list.find((x) => x.executivePin === p);
+      if (!c) return null;
+      return list.length === 1 ? { role: "owner", brandId, via: "executive" } : { role: "manager", brandId, branchId: c.id, via: "executive" };
+    },
+    checkExecutivePin: (brandId, pin) => !!select.execRole(brandId, pin),
+    /** The counter's day at a branch, without money: cups served (newest
+        first) and pickup orders, each with time, member, drink and staff. */
+    counterToday(branchId, at = Date.now()) {
+      // BACKEND: GET /branches/:id/today (no amounts for the counter role)
+      const since = startOfDay(at);
+      const cups = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === branchId && e.at >= since && !e.orderId)
+        .map((e) => ({ kind: "cup", at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
+      const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
+        .map((o) => ({ kind: "pickup", at: o.updatedAt, member: state.members[o.memberId], name: o.memberName, drink: select.pickupDrinkName(o), status: o.status, staff: o.collectedBy ? select.staffMember(o.collectedBy)?.name || null : null, order: o }));
+      return { cups: cups.sort((x, y) => y.at - x.at), pickups: pickups.sort((x, y) => y.at - x.at), served: cups.filter((x) => !x.undone).length };
     },
     /** The drink a member chose in the app, if it's still fresh (3 hours). */
     order(memberId = state.memberId, at = Date.now()) {
@@ -5855,6 +5905,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const p = select.drinkPrice(cafe.brandId, item, temp, band);
       const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
+      if (item.inPlan === false) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "not-in-plan", message: `${q.name} isn’t in LCC plans here. You can pay the full price.` } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
       return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
@@ -6283,6 +6334,13 @@ li:last-child > .branch-row { border-bottom: 0; }
     b.configAt = Date.now();
     emit("brand", { brandId });
   }
+  /** A 6-digit executive PIN no other branch of the brand (or its owner) uses. */
+  function newExecPin(b) {
+    for (;;) {
+      const p = String(100000 + Math.floor(Math.random() * 900000));
+      if (p !== b.executive?.pin && !select.branches(b.id).some((c) => c.executivePin === p)) return p;
+    }
+  }
   /** "DS-K7Q": the brand's monogram and three letters, unused by any other branch. */
   function newCode(b) {
     for (;;) {
@@ -6315,6 +6373,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
           ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan, o.cafeId),
           firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, channel: "pickup", at: now + 1, cycle: l.cycle, live: true, ...extra,
+          ...(!uncollected && state.counter.staffId && state.counter.branchId === o.cafeId ? { staffId: state.counter.staffId } : {}),
           ...(uncollected ? { uncollected: true } : {}),
         });
       }
@@ -6323,6 +6382,8 @@ li:last-child > .branch-row { border-bottom: 0; }
     Object.assign(o, { status, updatedAt: now, times: { ...o.times, [status]: now } });
     if (reason) o.reason = reason;
     if (uncollected) o.uncollected = true;
+    // Who handed it over: the staff member signed in at this counter (none when closed at closing time)
+    if (status === "collected" && !uncollected && state.counter.staffId && state.counter.branchId === o.cafeId) o.collectedBy = state.counter.staffId;
     if ((status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
     appendEntries(entries);
     stamped.forEach(grantPassportReward);
@@ -6409,12 +6470,16 @@ li:last-child > .branch-row { border-bottom: 0; }
       state.counter = { branchId, staffId: null, managerUntil: 0 };
       emit("counter", { ...state.counter }, { remote: true });
     },
-    /** Tap your name to start your shift. No PIN per cup. */
-    startShift(staffId) {
+    /** A cashier (or the manager) starts a shift with their own 4-digit PIN. */
+    startShift(staffId, pin) {
+      // BACKEND: POST /branches/:id/shifts { staffId, pin } (PIN checked server-side, stored hashed)
       const c = state.cafes[state.counter.branchId];
-      if (!c || !(c.staff || []).some((s) => s.id === staffId)) return;
+      const s = c && (c.staff || []).find((x) => x.id === staffId);
+      if (!s) return { ok: false, message: "That name isn’t on this branch." };
+      if (!select.checkStaffPin(c.id, staffId, pin)) return { ok: false, message: "That PIN isn’t right. Try again." };
       state.counter.staffId = staffId;
       emit("counter", { ...state.counter }, { remote: true });
+      return { ok: true, staff: s };
     },
     endShift() { state.counter.staffId = null; state.counter.managerUntil = 0; emit("counter", { ...state.counter }, { remote: true }); },
     /** A manager of this branch, or the brand's owner, unlocks manager things on this counter for 10 minutes. */
@@ -6439,6 +6504,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const b = select.brandFor(branchId);
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
       if (!select.isAvailable(branchId, item.id)) return { ...check, ok: false, reason: "unavailable", title: "Not available today", line: "Pick another drink." };
+      if (item.inPlan === false) return { ...check, ok: false, reason: "not-in-plan", title: "Not in plan", line: "Members pay for this one as usual. Pick another drink for a cup." };
       const m = check.member;
       const plan = check.plan;
       const band = select.planBand(plan.plan, branchId);
@@ -6554,7 +6620,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const c = {
         ...clone(first), id, brandId, name: b.name, branch: nm, short: nm, label: `${b.name} · ${nm}`, pinName: `${b.monogram} · ${nm}`,
         area: a.id, x: a.x + 18, y: a.y - 14, status: "quiet", statusUpdatedAt: Date.now(), busyMode: "auto", pausedUntil: 0,
-        avgDailyCups: 5, distanceKm: 5, added: true, setupCode: newCode(b),
+        avgDailyCups: 5, distanceKm: 5, added: true, setupCode: newCode(b), executivePin: newExecPin(b),
         staff: [{ id: uid("st"), name: "Manager", role: "manager", pin: String(1000 + Math.floor(Math.random() * 9000)) }],
       };
       state.cafes[id] = c;
@@ -6572,17 +6638,16 @@ li:last-child > .branch-row { border-bottom: 0; }
       else { c.name = nm; }
       touchBrand(c.brandId);
     },
-    /** Staff at a branch. Managers need a 4-digit PIN, unique at the brand; counter staff need none. */
+    /** Staff at a branch. Everyone has a 4-digit PIN (they type it to start a
+        shift), unique at the branch; managers' PINs are also unique at the brand. */
     addStaff(branchId, { name, role = "staff", pin = "" }) {
       // BACKEND: POST /branches/:id/staff (PIN stored hashed)
       const c = state.cafes[branchId];
       const nm = String(name || "").trim();
       if (!c || !nm) return { ok: false, message: "Add a name." };
-      if (role === "manager") {
-        if (!/^\d{4}$/.test(pin)) return { ok: false, message: "Manager PINs are four digits." };
-        if (select.pinRole(c.brandId, pin)) return { ok: false, message: "Someone at this brand already uses that PIN." };
-      }
-      const s = { id: uid("st"), name: nm, role, ...(role === "manager" ? { pin } : {}) };
+      if (!/^\d{4}$/.test(pin)) return { ok: false, message: "PINs are four digits." };
+      if (c.staff.some((x) => x.pin === pin) || (role === "manager" && select.pinRole(c.brandId, pin))) return { ok: false, message: "Someone already uses that PIN." };
+      const s = { id: uid("st"), name: nm, role, pin };
       c.staff.push(s);
       touchBrand(c.brandId);
       return { ok: true, staff: s };
@@ -6599,8 +6664,8 @@ li:last-child > .branch-row { border-bottom: 0; }
       const c = state.cafes[branchId];
       const s = c?.staff.find((x) => x.id === staffId);
       if (!s || !/^\d{4}$/.test(pin)) return { ok: false, message: "PINs are four digits." };
-      const taken = select.pinRole(c.brandId, pin);
-      if (taken && taken.staff?.id !== staffId) return { ok: false, message: "Someone at this brand already uses that PIN." };
+      const taken = s.role === "manager" ? select.pinRole(c.brandId, pin) : null;
+      if ((taken && taken.staff?.id !== staffId) || c.staff.some((x) => x.id !== staffId && x.pin === pin)) return { ok: false, message: "Someone already uses that PIN." };
       s.pin = pin;
       touchBrand(c.brandId);
       return { ok: true };
@@ -7285,7 +7350,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         served (hot and iced), with any "Cup + Rs X" top-up. Empty when the
         counter would refuse (no plan, not reserved here on My cafés, those
         cups used up, Explorer limit, daily limit, paused). Only drinks
-        available today and inside a band. */
+        available today that the café has in LCC plans (inPlan). */
     eligibleItems(memberNo, cafeId) {
       // BACKEND: GET /members/:no/eligible?cafe=:id
       const m = memberOf(memberNo);
@@ -7296,10 +7361,10 @@ li:last-child > .branch-row { border-bottom: 0; }
       const band = S.planBand(check.plan.plan, cafeId);
       const out = [];
       b.menu.filter((d) => S.isAvailable(cafeId, d.id)).forEach((d) => {
+        if (d.inPlan === false) return; // the café keeps it out of LCC plans
         ["hot", "iced"].filter((t) => d[t] != null).forEach((t) => {
           const p = S.drinkPrice(b.id, d, t, band);
-          if (!p.band) return; // above every band: not a member drink
-          out.push({ drinkId: d.id, name: S.drinkLabel(d, t), size: d.size || null, temp: t, price: p.price, band: p.band.id, topUp: p.topUp, included: p.included, inPlan: true });
+          out.push({ drinkId: d.id, name: S.drinkLabel(d, t), size: d.size || null, temp: t, price: p.price, band: p.band?.id || null, topUp: p.topUp, included: p.included, inPlan: true });
         });
       });
       return out;
@@ -8529,15 +8594,26 @@ li:last-child > .branch-row { border-bottom: 0; }
      Setup    once per device: "Set up this counter" with the branch's
               setup code (DS-GUL, KB-01). Then the device is locked to that
               branch until a manager changes it with their PIN.
-     Shift    tap your name to start your shift. No PIN per cup.
+     Shift    tap your name, then your own 4-digit PIN. The header says
+              "At counter: Bilal" with Switch staff. No PIN per cup.
+     Money    none at the counter: no Rs amounts, rates, payouts or totals.
+              Top-ups and extras are "pay at counter" (the till has prices).
      Counter  a keypad and a "Member number" field; results from the first
               digit (also name, or the last 4 digits of a phone). "Scan
               pass" (camera, BarcodeDetector) where supported, and a small
               "Enter 6-digit code" link. Member card: photo, name, plan,
               cups usable here, any limit in words, their usual drink
-              preselected. "Redeem 1 cup", then Done with the reference and
-              what to ring up; back to the keypad after 5 s. Undo for 2 min.
-     Orders   pickup queue for this branch, oldest first (as before)
+              preselected, any pickup they have waiting at the top. Free
+              mods (sugar, milk, ice) and paid extras ("Pay at counter").
+              Drinks the café keeps out of LCC plans are greyed, "Not in
+              plan". "Redeem 1 cup", then Done with the reference and
+              what to ring up; back to the keypad after 5 s. Undo for 2 min
+              (the cashier who served it).
+     Orders   pickup queue for this branch, oldest first:
+              placed → preparing → ready → collected
+     Today    cups served and pickups today: time, member, drink, staff
+     Executive  a small link in the header: a branch or brand-owner PIN
+              (6 digits) opens #/partner on this device for that scope
      Members  manager or owner (PIN): Your members
 
    #/cafe/<branchId> sets the device up for that branch (presenter menu).
@@ -8556,6 +8632,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   const TABS = [
     { id: "counter", label: "Counter" },
     { id: "orders", label: "Orders" },
+    { id: "today", label: "Today" },
     { id: "members", label: "Members" },
   ];
   const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"];
@@ -8577,7 +8654,9 @@ li:last-child > .branch-row { border-bottom: 0; }
       let message = null;      // { title, line } for the find view (code not found, expired)
       let resetTimer = null, undoTimer = null;
       let rejecting = null;    // Orders: the order whose reject reasons are showing
-      let pin = "", pinFor = null; // manager PIN sheet: "members" | "manager"
+      let pin = "", pinFor = null; // PIN sheet: "members" | "manager" | "exec" | { shift: staffId }
+      let choices = { mods: {}, extras: [] }; // this cup's free mods and paid extras
+      let switching = false;   // "Switch staff": the names screen while someone is still on
       let scanStream = null, scanLoop = null;
       let canScan = false;
 
@@ -8589,6 +8668,8 @@ li:last-child > .branch-row { border-bottom: 0; }
       const staffOn = () => (branch()?.staff || []).find((s) => s.id === C().staffId) || null;
       const managerOn = () => C().managerUntil > Date.now();
       const member = () => (picked ? S.member(picked.memberId) : null);
+      const pinLen = () => (pinFor === "exec" ? 6 : 4);
+      const shortName = (m, fallback = "Member") => (m ? `${m.firstName}${m.lastName ? ` ${m.lastName[0]}.` : ""}` : fallback);
       const heading = () => (branch() ? (S.branches(brand().id).length > 1 || branch().branch ? `${brand().name} · ${branch().short || branch().branch}` : branch().name) : "");
 
       // Scan pass: only where the browser can read QR codes from the camera
@@ -8607,7 +8688,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       function renderAll() {
         clearTimers();
         if (!branch()) return renderSetup();
-        if (!staffOn()) return renderShift();
+        if (!staffOn() || switching) return renderShift();
         el.innerHTML = html`
           <div class="surface ct">
             ${headHtml()}
@@ -8641,15 +8722,16 @@ li:last-child > .branch-row { border-bottom: 0; }
               <p class="ct-head__status" data-status aria-live="polite">${statusLine()}</p>
             </div>
           </div>
-          ${staffOn() ? html`<div class="ct-shift" role="group" aria-label="On shift. Tap your name to take over">
-            ${branch().staff.map((s) => html`<button type="button" class="chip ct-shift__name" data-shift="${s.id}" aria-pressed="${s.id === C().staffId}">${s.name}</button>`)}
-          </div>` : ""}
+          <div class="ct-shift" role="group" aria-label="Counter">
+            ${staffOn() && !switching ? html`<span class="ct-shift__who">At counter: <strong>${staffOn().name}</strong></span>
+              <button type="button" class="btn btn--secondary btn--compact" data-switch-staff>Switch staff</button>` : ""}
+            <button type="button" class="btn btn--link ct-shift__exec" data-exec>Executive</button>
+          </div>
         </header>`;
       }
       function paintHead() {
         const st = $("[data-status]", el);
         if (st) st.innerHTML = statusLine().s;
-        $$("[data-shift]", el).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.shift === C().staffId)));
       }
       function footHtml() {
         return html`<footer class="ct-foot">
@@ -8675,6 +8757,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (!panel) return;
         if (tab === "counter") { panel.innerHTML = counterHtml().s; paintPanel(); paintRecent(); paintField(); return; }
         if (tab === "orders") { panel.innerHTML = `<div class="enter">${ordersHtml().s}</div>`; return; }
+        if (tab === "today") { panel.innerHTML = `<div class="enter">${todayHtml().s}</div>`; return; }
         panel.innerHTML = `<div class="enter">${LCC.partnerMembers ? LCC.partnerMembers.html(brand().id, membersFilter).s : ""}</div>`;
       }
       let membersFilter = { branchId: null, planType: "all", thisMonth: false, limit: 30 };
@@ -8707,10 +8790,11 @@ li:last-child > .branch-row { border-bottom: 0; }
             ${headHtml()}
             <section class="ct-start" aria-labelledby="ct-start-h">
               <h2 class="ct-title" id="ct-start-h">Who’s on the counter?</h2>
-              <p class="t-body t-muted">Tap your name to start your shift.</p>
+              <p class="t-body t-muted">Tap your name, then type your PIN.</p>
               <div class="ct-start__names">
                 ${branch().staff.map((s) => html`<button type="button" class="btn btn--secondary btn--tall ct-start__name" data-shift="${s.id}">${ui.avatar({ firstName: s.name, initials: s.name.slice(0, 2) }, { size: 40 })}<span>${s.name}</span>${s.role === "manager" ? html`<span class="t-faint t-small">manager</span>` : ""}</button>`)}
               </div>
+              ${switching && staffOn() ? html`<button type="button" class="btn btn--link" data-switch-cancel>Back to the counter, ${staffOn().name} stays on</button>` : ""}
             </section>
             ${footHtml()}
           </div>
@@ -8790,7 +8874,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 ${ui.avatar(m, { size: 44 })}
                 <span class="ct-result__main">
                   <span class="ct-result__name">${S.fullName(m)}</span>
-                  <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}</span>
+                  <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
                 <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.title}</span>
               </button></li>`;
@@ -8803,10 +8887,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       function defaultDrink(m) {
         const b = brand();
         const o = S.order(m.id);
-        if (o && o.brandId === b.id && S.isAvailable(branch().id, o.drinkId)) return { drinkId: o.drinkId, temp: o.temp, source: "app" };
+        const ok = (id) => S.isAvailable(branch().id, id) && S.menuItem(b.id, id)?.inPlan !== false;
+        if (o && o.brandId === b.id && ok(o.drinkId)) return { drinkId: o.drinkId, temp: o.temp, source: "app" };
         const u = S.usualDrink(m.id, b.id);
-        if (u && S.isAvailable(branch().id, u.drinkId)) return { drinkId: u.drinkId, temp: u.temp, source: "usual" };
-        const first = S.counterMenu(branch().id)[0];
+        if (u && ok(u.drinkId)) return { drinkId: u.drinkId, temp: u.temp, source: "usual" };
+        const first = S.counterMenu(branch().id).find((d) => d.item.inPlan !== false);
         return first ? { drinkId: first.id, temp: first.temp, source: "pick" } : null;
       }
       function pickMember(memberId, method) {
@@ -8815,6 +8900,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         message = null;
         picked = { memberId, method };
         drink = defaultDrink(m);
+        choices = { mods: {}, extras: [] };
         pickerOpen = !drink || drink.source === "pick";
         pickerQuery = "";
         setView("member");
@@ -8827,9 +8913,17 @@ li:last-child > .branch-row { border-bottom: 0; }
         return chk.ok ? S.planBand(chk.plan.plan) : undefined;
       }
       const bandName = (p) => (p.band ? p.band.label : "Above Reserve");
-      const priceText = (p) => (p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`);
+      // No money at the counter: the till knows the prices
+      const priceText = (p) => (p.included ? "Included" : "Cup + top-up · pay at counter");
       /** One quiet line when the drink is above the plan's band. */
-      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}, up to ${fmt.rs(p.cover.maxPrice)}). ${m.firstName} pays ${fmt.rs(p.topUp)} at the counter.`);
+      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}). ${m.firstName} pays the difference at the counter.`);
+      /** This member's pickups still in the queue here (their own, or a drink at a table). */
+      const waitingFor = (memberId) => S.pickupQueue(branch().id).filter((o) => o.memberId === memberId || o.items?.some((i) => i.memberId === memberId));
+      const modLine = (e) => {
+        const b = S.brand(e.brandId) || brand();
+        const mods = Object.entries(e.mods || {}).map(([k, v]) => { const x = b.mods.find((y) => y.id === k); return k === "milk" ? `${v} milk` : k === "ice" ? (v === "No ice" ? v : `${v} ice`) : `${v} ${x ? x.label.toLowerCase() : k}`; });
+        return [...mods, ...(e.extras || []).map((x) => x.label)].join(" · ");
+      };
 
       function memberHtml() {
         const m = member();
@@ -8843,7 +8937,15 @@ li:last-child > .branch-row { border-bottom: 0; }
         const band = chk.ok ? S.planBand(chk.plan.plan) : undefined;
         const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
+        const waiting = waitingFor(m.id);
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
+          ${waiting.map((o) => html`<section class="ct-pickup" aria-label="Pickup waiting">
+            <div class="cv-ticket__top"><p class="eyebrow">Pickup waiting</p><span class="badge">${o.items ? `Table · ${o.items.length}` : o.pay === "cup" ? "Cup" : "Paid"}</span></div>
+            <p class="ct-pickup__drink">${o.items ? `${o.memberName}’s table` : S.pickupDrinkName(o)}</p>
+            <p class="t-small t-muted num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)} · Code ${spaced(S.pickupCode(o))}</p>
+            ${stepsHtml(o)}
+            <button type="button" class="btn btn--secondary btn--block" data-advance="${o.id}">${NEXT_LABEL[o.status]}</button>
+          </section>`)}
           <div class="ct-card__who">
             ${ui.avatar(m, { size: 72 })}
             <div>
@@ -8865,10 +8967,30 @@ li:last-child > .branch-row { border-bottom: 0; }
               <p class="t-small t-muted num" data-drink-note ${price.included ? raw("hidden") : ""}>${coverNote(m, price)}</p>
               <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
             </div>
+            <div class="ct-mods" data-mods>${modsHtml()}</div>
             <button type="button" class="btn btn--primary btn--block ct-redeem" data-redeem aria-describedby="ct-who">Redeem 1 cup</button>
             <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}
           <button type="button" class="btn btn--link" data-back>Not ${m.firstName}? Back to the keypad</button>
         </article>`;
+      }
+
+      /** Free mods as simple choices; paid extras are paid at the counter, never through LCC. */
+      function modsHtml() {
+        const b = brand();
+        const temp = drink?.temp || "hot";
+        return html`${(b.mods || []).filter((x) => !x.icedOnly || temp === "iced").map((x) => html`<div class="ct-mod">
+            <span class="ct-mod__label t-small">${x.label}</span>
+            ${ui.segmented({ name: `ctmod-${x.id}`, label: x.label, value: choices.mods[x.id] || x.default, options: x.options.map((o) => ({ value: o, label: o })) })}
+          </div>`)}
+          ${(b.extras || []).length ? html`<div class="ct-mod">
+            <span class="ct-mod__label t-small">Extras <span class="t-faint">· pay at counter</span></span>
+            <div class="ct-extras" role="group" aria-label="Paid extras, pay at counter">${b.extras.map((x) => html`<button type="button" class="chip" data-extra="${x.id}" aria-pressed="${choices.extras.includes(x.id)}">${x.label}</button>`)}</div>
+          </div>` : ""}
+          <p class="t-micro t-faint">Mods are free. Extras are paid at the counter, not charged through LCC.</p>`;
+      }
+      function paintMods() {
+        const box = $("[data-mods]", el);
+        if (box) box.innerHTML = modsHtml().s;
       }
 
       function pickerHtml() {
@@ -8888,9 +9010,14 @@ li:last-child > .branch-row { border-bottom: 0; }
             ${ui.segmented({ name: "cttemp", label: "Hot or iced", value: temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
           </div>
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
-            ${rows.length ? rows.map((d) => html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
+            ${rows.length ? rows.map((d) => d.item.inPlan === false
+              ? html`<button type="button" role="radio" class="ct-menu__row is-off" aria-checked="false" aria-disabled="true" disabled>
+                  <span class="ct-menu__name">${d.name}</span>
+                  <span class="ct-menu__price">Not in plan</span>
+                </button>`
+              : html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
                 <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
-                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : "Cup + top-up"}</span>
               </button>`) : html`<p class="t-small t-muted">Nothing ${temp} matches${pickerQuery ? ` “${pickerQuery}”` : ""} today.</p>`}
           </div>`;
       }
@@ -8913,10 +9040,10 @@ li:last-child > .branch-row { border-bottom: 0; }
 
       function redeemNow() {
         if (!picked || !drink) return;
-        const res = A.counterRedeem({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method });
+        const res = A.counterRedeem({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
         if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.title || "That didn’t go through.", { iconName: "info" }); }
         done = { entry: res.entry, member: res.member, left: res.left, plan: res.plan };
-        picked = null; drink = null; query = ""; mode = "number";
+        picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
         A.refreshAutoBusy(branch().id);
         paintField();
         setView("done");
@@ -8932,7 +9059,8 @@ li:last-child > .branch-row { border-bottom: 0; }
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
           <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
-          ${entry.topUp ? html`<p class="ct-collect num">Collect ${fmt.rs(entry.topUp)}</p>` : ""}
+          ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
+          ${entry.topUp || entry.extras?.length ? html`<p class="ct-collect">Collect at the counter: ${[entry.topUp ? "the top-up" : "", ...(entry.extras || []).map((x) => x.label.toLowerCase())].filter(Boolean).join(", ")}</p>` : ""}
           <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
           <p class="t-small t-faint num">${fmt.time(entry.at)} · ${plan.name}, ${fmt.cups(left)} left</p>
           <div class="ct-done__acts">
@@ -9067,8 +9195,14 @@ li:last-child > .branch-row { border-bottom: 0; }
       /* ---------------------------------------------------------------
          Orders: the pickup queue for this branch (unchanged behaviour)
          --------------------------------------------------------------- */
-      const STATE_LABEL = { placed: "New", preparing: "Being made", ready: "Ready" };
-      const NEXT_LABEL = { placed: "Start", preparing: "Ready", ready: "Collected" };
+      const STEPS = [["placed", "Placed"], ["preparing", "Preparing"], ["ready", "Ready"], ["collected", "Collected"]];
+      const STATE_LABEL = { placed: "Placed · new", preparing: "Preparing", ready: "Ready" };
+      const NEXT_LABEL = { placed: "Start preparing", preparing: "Mark ready", ready: "Collected" };
+      /** placed → preparing → ready → collected, the current one marked. */
+      function stepsHtml(o) {
+        const at = STEPS.findIndex(([id]) => id === o.status);
+        return html`<ol class="ct-steps" aria-label="Order status">${STEPS.map(([id, label], i) => html`<li class="ct-steps__step" data-done="${i <= at}" ${i === at ? raw('aria-current="step"') : ""}>${label}</li>`)}</ol>`;
+      }
       const DONE_LABEL = { collected: "collected", cancelled: "cancelled by the member", rejected: "rejected" };
       const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
 
@@ -9086,14 +9220,14 @@ li:last-child > .branch-row { border-bottom: 0; }
         return html`<ul class="cv-items" role="list">${o.items.map((i) => html`<li>
             <span class="cv-items__who">${i.name}</span>
             <span class="cv-items__drink">${S.itemDrinkName(o.cafeId, i)}</span>
-            <span class="t-faint num">${i.pay === "cup" ? (i.topUp ? `Cup + ${fmt.rs(i.topUp)}` : "Cup") : i.pay === "online" ? "Paid" : "Covered"}</span>
+            <span class="t-faint num">${i.pay === "cup" ? (i.topUp ? "Cup + top-up" : "Cup") : i.pay === "online" ? "Paid" : "Covered"}</span>
           </li>`)}</ul>
-          <p class="cv-items__total num"><span>Total ${fmt.rs(o.price)}</span><span>${paid} of ${o.items.length} paid</span></p>
+          <p class="cv-items__total num"><span>${o.items.length} ${o.items.length === 1 ? "drink" : "drinks"}</span><span>${paid} of ${o.items.length} paid</span></p>
           <p class="t-small t-muted num">${parts.join(", ")}. Nothing to collect.</p>`;
       }
       function ticketPayLine(o) {
-        if (o.pay === "cup") return o.topUp ? `Member cup. ${fmt.rs(o.topUp)} top-up paid online, nothing to collect.` : "Member cup. Nothing to collect.";
-        return `Paid online, ${fmt.rs(o.amount)}. Nothing to collect.`;
+        if (o.pay === "cup") return o.topUp ? "Member cup. Top-up paid online, nothing to collect." : "Member cup. Nothing to collect.";
+        return "Paid online. Nothing to collect.";
       }
       function ticketHtml(o, fresh) {
         const code = S.pickupCode(o);
@@ -9116,6 +9250,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           </div>
           <p class="cv-ticket__name" id="tk-${o.id}">${o.items ? `${o.memberName}’s table` : o.memberName}</p>
           ${o.items ? tableHtml(o) : html`<p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>`}
+          ${stepsHtml(o)}
           <dl class="cv-ticket__facts">
             <div><dt>Pickup</dt><dd class="num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)}</dd></div>
             <div><dt>Code</dt><dd class="num cv-ticket__code" aria-label="${code.split("").join(" ")}">${spaced(code)}</dd></div>
@@ -9146,13 +9281,44 @@ li:last-child > .branch-row { border-bottom: 0; }
               <ol class="cv-list" role="list">
                 ${doneList.length ? doneList.map((o) => html`<li class="cv-row">
                   <span class="cv-row__time num">${fmt.time(o.updatedAt)}</span>
-                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.items ? "table" : o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
+                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.items ? "table" : o.pay === "cup" ? "cup" : "paid online"} · ${DONE_LABEL[o.status]}${o.uncollected ? ", not picked up" : ""}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
                   <span class="cv-row__ref num">${o.status === "collected" ? S.pickupRef(o) : ""}</span>
                 </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">Nothing collected yet today.</span></li>`}
               </ol>
             </section>
           </div>`;
       }
+      /* Today: what this counter served, without money */
+      const PICKUP_WORD = { placed: "Placed", preparing: "Preparing", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
+      function todayHtml() {
+        const t = S.counterToday(branch().id);
+        return html`<div class="cv-section">
+          <div class="cv-section__head">
+            <h2 class="ct-title">Today</h2>
+            <p class="t-small t-muted num">${t.served} ${t.served === 1 ? "cup" : "cups"} served at ${heading()} today, and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
+          </div>
+          <section aria-labelledby="td-cups-h">
+            <h3 class="eyebrow" id="td-cups-h">Cups served</h3>
+            <ol class="cv-list" role="list">
+              ${t.cups.length ? t.cups.map((x) => html`<li class="cv-row">
+                <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="cv-row__main">${shortName(x.member)} <span class="t-faint">· ${x.drink}${modLine(x.entry) ? ` (${modLine(x.entry)})` : ""} · ${x.staff || "Counter"}${x.undone ? " · undone" : ""}</span></span>
+              </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No cups yet today.</span></li>`}
+            </ol>
+          </section>
+          <section aria-labelledby="td-pk-h">
+            <h3 class="eyebrow" id="td-pk-h">Pickups</h3>
+            <ol class="cv-list" role="list">
+              ${t.pickups.length ? t.pickups.map((x) => html`<li class="cv-row">
+                <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="cv-row__main">${x.member ? shortName(x.member) : x.name} <span class="t-faint">· ${x.drink} · Pickup · ${PICKUP_WORD[x.status] || x.status}${x.staff ? ` · ${x.staff}` : ""}</span></span>
+              </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No pickups yet today.</span></li>`}
+            </ol>
+          </section>
+        </div>`;
+      }
+      function paintToday() { if (tab === "today") { const p = $("[data-tabpanel]", el); if (p) p.innerHTML = `<div>${todayHtml().s}</div>`; } }
+
       function paintOrders({ freshId = null, focusId = null } = {}) {
         if (tab !== "orders") return;
         const panel = $("[data-tabpanel]", el);
@@ -9169,6 +9335,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as LCC member.`, { duration: 4200 });
         else if (o.status === "ready") ui.toast(`${o.memberName} has been told it’s ready.`);
         paintOrders({ focusId: o.status === "collected" ? null : id });
+        if (view === "member") paintPanel();
       }
 
       /* ---------------------------------------------------------------
@@ -9184,19 +9351,27 @@ li:last-child > .branch-row { border-bottom: 0; }
       }
       function openPin(forWhat) {
         pin = ""; pinFor = forWhat;
+        const who = forWhat?.shift ? (branch().staff || []).find((s) => s.id === forWhat.shift) : null;
+        const title = who ? `${who.name}, your PIN` : forWhat === "exec" ? "Executive PIN" : "Manager PIN";
+        const line = who ? "Type your 4-digit PIN to start your shift."
+          : forWhat === "exec" ? `This branch’s or the ${brand().name} owner’s 6-digit PIN. Opens the dashboard on this device; it locks after 5 minutes idle.`
+          : forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter.";
+        const demo = who ? `Demo: ${branch().staff.map((s) => `${s.name} ${s.pin}`).join(", ")}.`
+          : forWhat === "exec" ? `Demo: this branch ${branch().executivePin}${S.branches(brand().id).length > 1 ? `, ${brand().name} owner ${brand().executive?.pin}` : ""}.`
+          : "Demo: Gulberg manager 1678, Kiln &amp; Bean manager 2468, owner 0000 / 1111.";
         $("[data-ct-pin-sheet-body]", el).innerHTML = html`
-          <h2 class="ct-title" id="ct-pin-title">Manager PIN</h2>
-          <p class="t-small t-muted">${forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter."}</p>
-          <div class="cv-pin__dots" data-pin-dots aria-hidden="true">${[0, 1, 2, 3].map(() => html`<span></span>`)}</div>
+          <h2 class="ct-title" id="ct-pin-title">${title}</h2>
+          <p class="t-small t-muted">${line}</p>
+          <div class="cv-pin__dots" data-pin-dots aria-hidden="true">${Array.from({ length: pinLen() }, () => html`<span></span>`)}</div>
           <label class="sr-only" for="ct-pin-input">PIN</label>
-          <input class="sr-only" id="ct-pin-input" inputmode="numeric" maxlength="4" autocomplete="off" data-pin-input>
+          <input class="sr-only" id="ct-pin-input" inputmode="numeric" maxlength="${pinLen()}" autocomplete="off" data-pin-input>
           <p class="cv-error" data-pin-err role="alert"></p>
           <div class="cv-pad" role="group" aria-label="PIN keypad">
             ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"].map((k) => k === ""
               ? html`<span></span>`
               : html`<button type="button" class="cv-pad__key" data-pin-key="${k}" aria-label="${k === "del" ? "Delete" : k}">${k === "del" ? icon("arrowLeft", { size: 22 }) : k}</button>`)}
           </div>
-          <p class="t-micro t-faint">Demo: Gulberg manager 1678, Kiln &amp; Bean manager 2468, owner 0000 / 1111.</p>`.s;
+          <p class="t-micro t-faint">${raw(demo)}</p>`.s;
         ui.openSheet($("#ct-pin-sheet", el));
       }
       function paintPin(err = "") {
@@ -9205,6 +9380,22 @@ li:last-child > .branch-row { border-bottom: 0; }
         const inp = $("[data-pin-input]", el); if (inp && inp.value !== pin) inp.value = pin;
       }
       function tryPin() {
+        if (pinFor?.shift) {
+          const res = A.startShift(pinFor.shift, pin);
+          if (!res.ok) { pin = ""; return paintPin(res.message); }
+          ui.closeSheet($("#ct-pin-sheet", el));
+          pinFor = null; switching = false;
+          renderAll(); $("[data-q]", el)?.focus();
+          return ui.toast(`${res.staff.name} is on the counter.`);
+        }
+        if (pinFor === "exec") {
+          const who = S.execRole(brand().id, pin);
+          if (!who) { pin = ""; return paintPin("That isn’t an executive PIN here."); }
+          if (who.role !== "owner" && who.branchId !== branch().id) { pin = ""; return paintPin("That’s another branch’s PIN. Use this branch’s, or the owner’s."); }
+          ui.closeSheet($("#ct-pin-sheet", el));
+          pinFor = null;
+          return LCC.partnerSession.openFromCounter(who, branch().id);
+        }
         const res = A.unlockManager(pin);
         if (!res.ok) { pin = ""; return paintPin(res.message); }
         ui.closeSheet($("#ct-pin-sheet", el));
@@ -9213,9 +9404,9 @@ li:last-child > .branch-row { border-bottom: 0; }
         else openManager();
       }
       function pinKey(k) {
-        if (k === "del") pin = pin.slice(0, -1); else if (pin.length < 4) pin += k;
+        if (k === "del") pin = pin.slice(0, -1); else if (pin.length < pinLen()) pin += k;
         paintPin();
-        if (pin.length === 4) tryPin();
+        if (pin.length === pinLen()) tryPin();
       }
       function openManager() {
         if (!managerOn()) return openPin("manager");
@@ -9263,12 +9454,35 @@ li:last-child > .branch-row { border-bottom: 0; }
         const tb = t.closest("[data-tab]");
         if (tb) return showTab(tb.dataset.tab);
         const sh = t.closest("[data-shift]");
-        if (sh) {
-          const was = C().staffId;
-          A.startShift(sh.dataset.shift);
-          if (!was) { renderAll(); $("[data-q]", el)?.focus(); }
-          else paintHead();
-          return ui.toast(`${staffOn().name} is on the counter.`);
+        if (sh) return openPin({ shift: sh.dataset.shift });
+        if (t.closest("[data-switch-staff]")) { switching = true; return renderAll(); }
+        if (t.closest("[data-switch-cancel]")) { switching = false; return renderAll(); }
+        if (t.closest("[data-exec]")) return openPin("exec");
+        const ex = t.closest("[data-extra]");
+        if (ex) {
+          const id = ex.dataset.extra;
+          choices.extras = choices.extras.includes(id) ? choices.extras.filter((x) => x !== id) : [...choices.extras, id];
+          return ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+        }
+        const mseg = t.closest('[data-segmented^="ctmod-"] .segmented__option');
+        if (mseg) {
+          const group = mseg.parentElement;
+          ui.selectSegment(group, mseg.dataset.value);
+          choices.mods[group.dataset.segmented.slice(6)] = mseg.dataset.value;
+          return;
+        }
+        const adv = t.closest("[data-advance]");
+        if (adv) return advance(adv.dataset.advance);
+        const ro = t.closest("[data-reject-open]");
+        if (ro) { rejecting = ro.dataset.rejectOpen; paintOrders(); return $(`[data-reject="${rejecting}"]`, el)?.focus(); }
+        const rk = t.closest("[data-reject-keep]");
+        if (rk) { const id = rk.dataset.rejectKeep; rejecting = null; paintOrders({ focusId: id }); return; }
+        const rj = t.closest("[data-reject]");
+        if (rj) {
+          const res = A.rejectPickup(rj.dataset.reject, rj.dataset.reason);
+          rejecting = null; paintOrders();
+          if (res.ok) ui.toast(`${res.order.memberName} has been told, and ${res.order.items ? "the table’s cups and payments go back" : res.order.pay === "cup" ? "gets the cup back" : "is refunded"}.`, { duration: 4200 });
+          return;
         }
         const key = t.closest("[data-key]");
         if (key) return typeKey(key.dataset.key);
@@ -9292,7 +9506,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           const item = S.menuItem(brand().id, dr.dataset.drink);
           drink = { drinkId: item.id, temp: S.servedTemp(item, drink?.temp || "hot"), source: S.usualDrink(member().id, brand().id)?.drinkId === item.id ? "usual" : "pick" };
           $$("[data-drink]", el).forEach((b) => b.setAttribute("aria-checked", String(b === dr)));
-          paintDrinkLine();
+          paintDrinkLine(); paintMods();
           return $("[data-redeem]", el)?.focus();
         }
         const tseg = t.closest('[data-segmented="cttemp"] .segmented__option');
@@ -9302,7 +9516,8 @@ li:last-child > .branch-row { border-bottom: 0; }
           const item = drink ? S.menuItem(brand().id, drink.drinkId) : null;
           if (item && item[temp] != null) { drink = { ...drink, temp }; paintDrinkLine(); }
           else drink = { ...(drink || {}), temp };
-          paintPicker();
+          if (temp !== "iced") delete choices.mods.ice;
+          paintPicker(); paintMods();
           return $(`[data-segmented="cttemp"] [data-value="${temp}"]`, el)?.focus();
         }
         if (t.closest("[data-scan]")) return openScan();
@@ -9331,7 +9546,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           return afterQuery();
         }
         if (t.matches("[data-drink-q]")) { pickerQuery = t.value; const pos = t.selectionStart; paintPicker(); const n = $("#ct-drink-q", el); n.focus(); n.setSelectionRange(pos, pos); return; }
-        if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, 4); paintPin(); if (pin.length === 4) tryPin(); return; }
+        if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, pinLen()); paintPin(); if (pin.length === pinLen()) tryPin(); return; }
         if (t.id === "ct-setup-code") t.value = t.value.toUpperCase();
       };
       const onChange = (e) => {
@@ -9378,14 +9593,16 @@ li:last-child > .branch-row { border-bottom: 0; }
         store.on("cafe:pause", ({ cafeId }) => { if (!here(cafeId)) return; paintHead(); if (tab === "orders") paintOrders(); if (view === "member") paintPanel(); }),
         store.on("redeem", ({ entry }) => {
           if (!branch()) return;
-          if (here(entry.cafeId)) { A.refreshAutoBusy(branch().id); paintRecent(); }
+          if (here(entry.cafeId)) { A.refreshAutoBusy(branch().id); paintRecent(); paintToday(); }
           refreshMember(entry.memberId);
           if (view === "find" && query && tab === "counter") paintPanel();
         }),
-        store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) paintRecent(); refreshMember(entry.memberId); }),
+        store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) { paintRecent(); paintToday(); } refreshMember(entry.memberId); }),
         store.on("pickup", ({ order, prev, quiet }) => {
           if (!branch() || !here(order.cafeId)) return;
           paintOrdersCount();
+          paintToday();
+          refreshMember(order.memberId);
           if (tab === "orders") paintOrders({ freshId: !prev ? order.id : null, focusId: el.contains(document.activeElement) && document.activeElement.dataset?.advance === order.id ? order.id : null });
           if (quiet) return;
           const name = S.pickupDrinkName(order);
@@ -9456,9 +9673,13 @@ li:last-child > .branch-row { border-bottom: 0; }
 /* ---- src/partner.js ---- */
 /* =====================================================================
    Lahore Coffee Club — partner.js
-   The owner dashboard (#/partner). Sign in with the brand's owner PIN
-   (demo: Double Shot 0000, Kiln & Bean 1111), or a branch manager's PIN
-   (that branch only). A left rail on laptops and tablets, tabs on phones,
+   The owner dashboard (#/partner). Sign in with an executive PIN (6
+   digits): the brand owner's sees every branch with per-branch totals
+   (demo: Double Shot 000000, Kiln & Bean 111111), a branch's sees that
+   branch only (Double Shot Gulberg 111111 … Dolmen 777777). A single café
+   has one PIN for both. The 4-digit manager PINs don't open it (they're
+   for the counter's Manager tools only). Opened from a counter ("Executive"), it locks after 5 minutes
+   idle or on Lock, and goes back to that counter. A left rail on laptops and tablets, tabs on phones,
    and a branch filter everywhere: "All branches" or one.
 
      Live      redemptions, pickup orders, undos and "Not you" reports as
@@ -9573,7 +9794,16 @@ li:last-child > .branch-row { border-bottom: 0; }
   /* ===================================================================
      The dashboard
      =================================================================== */
-  let session = null; // { brandId, role, branchId (manager), name }, in memory only
+  let session = null; // { brandId, role, branchId (branch scope), via, fromCounter }, in memory only
+  const IDLE_MS = 5 * 60 * 1000;
+  /** The counter's "Executive" link: open the dashboard on this device for that scope. */
+  LCC.partnerSession = {
+    openFromCounter(who, counterBranchId) {
+      // BACKEND: POST /sessions/executive { brandId, pin } -> a short-lived session
+      session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null, via: who.via || "executive", fromCounter: counterBranchId };
+      LCC.router.navigate(LCC.sync ? LCC.sync.withRoom("#/partner") : "#/partner");
+    },
+  };
 
   LCC.router.register("partner", {
     title: "Partner dashboard",
@@ -9590,6 +9820,20 @@ li:last-child > .branch-row { border-bottom: 0; }
       const scope = () => (session.role === "manager" ? session.branchId : filter);
       const scopeIds = () => (scope() ? [scope()] : branches().map((c) => c.id));
       const owner = () => session.role === "owner";
+      const roleLabel = () => (owner() ? `Owner · ${branches().length} ${branches().length === 1 ? "branch" : "branches"}`
+        : `${session.via === "executive" ? "Branch executive" : "Manager"} · ${branchShort(S.branch(session.branchId))}`);
+
+      /* Opened from a counter: lock after 5 minutes idle, or on Lock, and go back */
+      let idleTimer = null;
+      function lock({ idle = false } = {}) {
+        clearTimeout(idleTimer);
+        const back = session?.fromCounter;
+        session = null;
+        if (!back) return renderSignIn();
+        ui.toast(idle ? "Executive view locked after 5 minutes idle." : "Executive view locked.");
+        LCC.router.navigate(LCC.sync ? LCC.sync.withRoom(`#/cafe/${back}`) : `#/cafe/${back}`);
+      }
+      const bump = () => { if (!session?.fromCounter) return; clearTimeout(idleTimer); idleTimer = setTimeout(() => lock({ idle: true }), IDLE_MS); };
 
       /* Sign in ----------------------------------------------------------- */
       function renderSignIn(err = "", brandId = "doubleshot") {
@@ -9602,9 +9846,9 @@ li:last-child > .branch-row { border-bottom: 0; }
               <span class="select"><select class="input" name="brand">${S.partnerBrands().map((b) => html`<option value="${b.id}" ${b.id === brandId ? raw("selected") : ""}>${b.name}${S.branches(b.id).length > 1 ? ` (${S.branches(b.id).length} branches)` : ""}</option>`)}</select></span>
             </label>
             <div class="field" data-invalid="${!!err}">
-              <label class="field__label" for="pd-pin">Owner or manager PIN</label>
-              <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
-              <p class="field__hint" id="pd-pin-hint">Demo: Double Shot owner 0000, Kiln &amp; Bean owner 1111. A manager’s PIN opens their branch only.</p>
+              <label class="field__label" for="pd-pin">Executive PIN</label>
+              <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
+              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Kiln &amp; Bean 111111.</p>
               <p class="field__error" id="pd-pin-err" role="alert">${err}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block btn--tall">Sign in</button>
@@ -9623,14 +9867,16 @@ li:last-child > .branch-row { border-bottom: 0; }
               <span class="monogram" aria-hidden="true">${b.monogram}</span>
               <div>
                 <h1 class="ct-name">${b.name}</h1>
-                <p class="t-small t-muted">${owner() ? `Owner · ${branches().length} ${branches().length === 1 ? "branch" : "branches"}` : `Manager · ${branchShort(S.branch(session.branchId))}`} · ${fmt.date(Date.now())}</p>
+                <p class="t-small t-muted">${roleLabel()} · ${fmt.date(Date.now())}</p>
               </div>
             </div>
             <div class="pd-head__aside">
               ${owner() && branches().length > 1 ? html`<label class="pd-filter"><span class="t-micro t-faint">Showing</span>
                 <span class="select"><select class="input" data-branch-filter><option value="">All branches</option>${branches().map((c) => html`<option value="${c.id}" ${filter === c.id ? raw("selected") : ""}>${branchShort(c)}</option>`)}</select></span></label>` : ""}
               ${LCC.sync ? LCC.sync.pill() : ""}
-              <button type="button" class="btn btn--link" data-signout>Sign out</button>
+              ${session.fromCounter
+                ? html`<span class="t-micro t-faint">Locks after 5 minutes idle</span><button type="button" class="btn btn--secondary btn--compact" data-signout>Lock</button>`
+                : html`<button type="button" class="btn btn--link" data-signout>Sign out</button>`}
             </div>
           </header>
           <div class="cv-body pd-body">
@@ -9689,6 +9935,11 @@ li:last-child > .branch-row { border-bottom: 0; }
             ${stat("Undos", fmt.num(t.undos), "cups given back")}
             ${stat("“Not you” reports", fmt.num(t.reports), t.reports ? "for you to check" : "none today")}
           </div>
+          ${multi ? html`<div class="pd-table pd-table--3" role="table" aria-label="Today by branch">
+            <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Branch</span><span role="columnheader">Cups</span><span role="columnheader">Pickups</span><span role="columnheader">Payout today</span></div>
+            ${branches().map((c) => { const x = S.brandToday(session.brandId, c.id); return html`<div class="pd-table__row" role="row"><span role="cell">${branchShort(c)}</span><span role="cell" class="num">${fmt.num(x.cups)}</span><span role="cell" class="num">${fmt.num(x.pickups)}</span><span role="cell" class="num">${fmt.rs(x.payout)}</span></div>`; })}
+            <div class="pd-table__row pd-table__row--foot" role="row"><span role="cell">All branches</span><span role="cell" class="num">${fmt.num(t.cups)}</span><span role="cell" class="num">${fmt.num(t.pickups)}</span><span role="cell" class="num"><strong>${fmt.rs(t.payout)}</strong></span></div>
+          </div>` : ""}
           <h3 class="eyebrow">As it happens</h3>
           <ol class="pd-feed" role="list" aria-live="polite" aria-relevant="additions">
             ${feed.length ? feed.map((x) => feedRow(x, multi)) : html`<li class="t-small t-muted">Nothing yet today. Cups appear here the moment a counter redeems them.</li>`}
@@ -9881,7 +10132,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         const b = brand();
         const list = scopeIds().map((id) => S.branch(id));
         return html`<section class="pd-section">
-          ${head("Branches and staff", "Counter staff tap their name to start a shift; managers have a PIN. Each branch’s counter is set up once with its setup code.")}
+          ${head("Branches and staff", "Everyone taps their name and types their own 4-digit PIN to start a shift. Each branch’s counter is set up once with its setup code.")}
           <ul class="pd-branches" role="list">
             ${list.map((c) => html`<li class="pd-card pd-branch">
               <form class="pd-branch__name" data-rename="${c.id}">
@@ -9896,7 +10147,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 ${c.staff.map((s) => html`<li class="pd-staff__row">
                   ${ui.avatar({ firstName: s.name, initials: s.name.slice(0, 2) }, { size: 32 })}
                   <span class="pd-staff__name">${s.name} <span class="t-faint t-small">· ${s.role === "manager" ? "manager" : "counter"}</span></span>
-                  ${s.role === "manager" ? (editingPin === s.id
+                  ${s.pin ? (editingPin === s.id
                     ? html`<form class="pd-inline" data-pinform="${c.id}" data-staff="${s.id}"><label class="sr-only" for="pin-${s.id}">New PIN for ${s.name}</label><input class="input num pd-pininput" id="pin-${s.id}" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"><button type="submit" class="btn btn--secondary btn--compact">Save</button></form>`
                     : html`<span class="t-small t-faint num">PIN ••••</span><button type="button" class="btn btn--link" data-editpin="${s.id}" data-fk="pin-${s.id}">Change PIN</button>`) : ""}
                   <button type="button" class="btn btn--link" data-rmstaff="${c.id}" data-staff="${s.id}" aria-label="Remove ${s.name}" data-fk="rm-${s.id}">Remove</button>
@@ -9905,7 +10156,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               ${addingStaff === c.id ? html`<form class="pd-addstaff" data-addstaff="${c.id}" novalidate>
                   <label class="field"><span class="t-micro t-faint">Name</span><input class="input" name="name" autocomplete="off"></label>
                   <label class="field"><span class="t-micro t-faint">Role</span><span class="select"><select class="input" name="role"><option value="staff">Counter</option><option value="manager">Manager</option></select></span></label>
-                  <label class="field"><span class="t-micro t-faint">PIN (managers)</span><input class="input num" name="pin" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+                  <label class="field"><span class="t-micro t-faint">PIN (4 digits)</span><input class="input num" name="pin" inputmode="numeric" maxlength="4" autocomplete="off"></label>
                   <p class="cv-error" data-add-err role="alert"></p>
                   <span class="pd-inline"><button type="submit" class="btn btn--primary btn--compact">Add</button><button type="button" class="btn btn--link" data-addstaff-cancel>Cancel</button></span>
                 </form>`
@@ -9928,7 +10179,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         const t = e.target;
         const tab = t.closest("[data-section]");
         if (tab) return showSection(tab.dataset.section);
-        if (t.closest("[data-signout]")) { session = null; return renderSignIn(); }
+        if (t.closest("[data-signout]")) return lock();
         const pz = t.closest("[data-pause]");
         if (pz) { A.pauseMemberCups(pz.dataset.pause, 30); paint(); return ui.toast(`Member cups paused at ${branchShort(S.branch(pz.dataset.pause))} until ${fmt.time(S.branch(pz.dataset.pause).pausedUntil)}.`); }
         const rs = t.closest("[data-resume]");
@@ -9988,9 +10239,11 @@ li:last-child > .branch-row { border-bottom: 0; }
         const f = e.target;
         if (f.matches("[data-signin]")) {
           e.preventDefault();
-          const who = S.pinRole(f.elements.brand.value, f.elements.pin.value);
-          if (!who) return renderSignIn("That PIN doesn’t match this café’s owner or a manager.", f.elements.brand.value);
-          session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null };
+          const pin = f.elements.pin.value.trim();
+          // Only the 6-digit executive PINs open the dashboard (4-digit manager PINs are for the counter's Manager tools)
+          const who = S.execRole(f.elements.brand.value, pin);
+          if (!who) return renderSignIn("That PIN doesn’t match this café’s owner or one of its branches.", f.elements.brand.value);
+          session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null, via: who.via || "pin" };
           filter = null; section = "live";
           return renderAll();
         }
@@ -10049,9 +10302,15 @@ li:last-child > .branch-row { border-bottom: 0; }
         store.on("tick", () => { if (session && section === "live") paint(); }),
         store.on("snapshot", () => { if (session) paint(); }),
       ];
+      ["pointerdown", "keydown", "input"].forEach((ev) => el.addEventListener(ev, bump));
 
       renderAll();
+      bump();
       return () => {
+        clearTimeout(idleTimer);
+        ["pointerdown", "keydown", "input"].forEach((ev) => el.removeEventListener(ev, bump));
+        // Leaving the dashboard opened from a counter locks it: the next person at the counter can't walk in
+        if (session?.fromCounter) session = null;
         LCC.partnerScope = null;
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);

@@ -363,9 +363,13 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-status[data-state="closed"] .ct-status__dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 .ct-shift { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .ct-shift__name { min-height: 40px; padding: 0 var(--space-4); font-size: var(--fs-14); }
+.ct-shift { align-items: center; }
+.ct-shift__who { font-size: var(--fs-16); }
+.ct-shift__who strong { font-weight: 700; }
+.ct-shift__exec { margin-left: auto; font-size: var(--fs-14); }
 .ct-title { font-size: var(--fs-28); font-weight: 400; line-height: 1.15; }
 
-.ct-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px; background: var(--surface-2); border-radius: var(--radius-pill); }
+.ct-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px; background: var(--surface-2); border-radius: var(--radius-pill); }
 .ct-tab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border-radius: var(--radius-pill); font-size: var(--fs-16); color: var(--ink-2); }
 .ct-tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .ct-body:focus { outline: none; }
@@ -506,6 +510,29 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-menu__row[aria-checked="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--ink); font-weight: 700; }
 .ct-menu__row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .ct-menu__price { flex: none; font-size: var(--fs-14); color: var(--ink-2); font-weight: 400; }
+.ct-menu__row.is-off { color: var(--ink-3); cursor: not-allowed; }
+.ct-menu__row.is-off:hover { background: none; }
+.ct-menu__row.is-off .ct-menu__price { color: var(--ink-3); }
+
+/* Mods (free) and extras (pay at counter) */
+.ct-mods { display: grid; gap: var(--space-3); }
+.ct-mod { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.ct-mod__label { color: var(--ink-2); }
+.ct-mod .segmented { min-height: 44px; }
+.ct-mod .segmented__option { font-size: var(--fs-14); padding-inline: 4px; }
+.ct-extras { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ct-extras .chip { min-height: 40px; }
+@media (max-width: 380px) { .ct-mod { grid-template-columns: 1fr; } }
+
+/* A pickup waiting, at the top of the member card */
+.ct-pickup { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1.5px solid var(--ink); border-radius: var(--radius-card); }
+.ct-pickup__drink { font-size: var(--fs-20); font-weight: 700; }
+
+/* placed → preparing → ready → collected */
+.ct-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: var(--space-1) 0; padding: 0; list-style: none; }
+.ct-steps__step { padding-top: 6px; border-top: 2px solid var(--line); font-size: var(--fs-12, 12px); color: var(--ink-3); }
+.ct-steps__step[data-done="true"] { border-top-color: var(--ink); color: var(--ink-2); }
+.ct-steps__step[aria-current="step"] { color: var(--ink); font-weight: 700; }
 
 /* Done */
 .ct-done { position: relative; display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4) var(--space-6); text-align: center; border: var(--hairline); border-radius: var(--radius-card); overflow: hidden; }

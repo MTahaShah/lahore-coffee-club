@@ -6,15 +6,26 @@
      Setup    once per device: "Set up this counter" with the branch's
               setup code (DS-GUL, KB-01). Then the device is locked to that
               branch until a manager changes it with their PIN.
-     Shift    tap your name to start your shift. No PIN per cup.
+     Shift    tap your name, then your own 4-digit PIN. The header says
+              "At counter: Bilal" with Switch staff. No PIN per cup.
+     Money    none at the counter: no Rs amounts, rates, payouts or totals.
+              Top-ups and extras are "pay at counter" (the till has prices).
      Counter  a keypad and a "Member number" field; results from the first
               digit (also name, or the last 4 digits of a phone). "Scan
               pass" (camera, BarcodeDetector) where supported, and a small
               "Enter 6-digit code" link. Member card: photo, name, plan,
               cups usable here, any limit in words, their usual drink
-              preselected. "Redeem 1 cup", then Done with the reference and
-              what to ring up; back to the keypad after 5 s. Undo for 2 min.
-     Orders   pickup queue for this branch, oldest first (as before)
+              preselected, any pickup they have waiting at the top. Free
+              mods (sugar, milk, ice) and paid extras ("Pay at counter").
+              Drinks the café keeps out of LCC plans are greyed, "Not in
+              plan". "Redeem 1 cup", then Done with the reference and
+              what to ring up; back to the keypad after 5 s. Undo for 2 min
+              (the cashier who served it).
+     Orders   pickup queue for this branch, oldest first:
+              placed → preparing → ready → collected
+     Today    cups served and pickups today: time, member, drink, staff
+     Executive  a small link in the header: a branch or brand-owner PIN
+              (6 digits) opens #/partner on this device for that scope
      Members  manager or owner (PIN): Your members
 
    #/cafe/<branchId> sets the device up for that branch (presenter menu).
@@ -33,6 +44,7 @@
   const TABS = [
     { id: "counter", label: "Counter" },
     { id: "orders", label: "Orders" },
+    { id: "today", label: "Today" },
     { id: "members", label: "Members" },
   ];
   const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"];
@@ -54,7 +66,9 @@
       let message = null;      // { title, line } for the find view (code not found, expired)
       let resetTimer = null, undoTimer = null;
       let rejecting = null;    // Orders: the order whose reject reasons are showing
-      let pin = "", pinFor = null; // manager PIN sheet: "members" | "manager"
+      let pin = "", pinFor = null; // PIN sheet: "members" | "manager" | "exec" | { shift: staffId }
+      let choices = { mods: {}, extras: [] }; // this cup's free mods and paid extras
+      let switching = false;   // "Switch staff": the names screen while someone is still on
       let scanStream = null, scanLoop = null;
       let canScan = false;
 
@@ -66,6 +80,8 @@
       const staffOn = () => (branch()?.staff || []).find((s) => s.id === C().staffId) || null;
       const managerOn = () => C().managerUntil > Date.now();
       const member = () => (picked ? S.member(picked.memberId) : null);
+      const pinLen = () => (pinFor === "exec" ? 6 : 4);
+      const shortName = (m, fallback = "Member") => (m ? `${m.firstName}${m.lastName ? ` ${m.lastName[0]}.` : ""}` : fallback);
       const heading = () => (branch() ? (S.branches(brand().id).length > 1 || branch().branch ? `${brand().name} · ${branch().short || branch().branch}` : branch().name) : "");
 
       // Scan pass: only where the browser can read QR codes from the camera
@@ -84,7 +100,7 @@
       function renderAll() {
         clearTimers();
         if (!branch()) return renderSetup();
-        if (!staffOn()) return renderShift();
+        if (!staffOn() || switching) return renderShift();
         el.innerHTML = html`
           <div class="surface ct">
             ${headHtml()}
@@ -118,15 +134,16 @@
               <p class="ct-head__status" data-status aria-live="polite">${statusLine()}</p>
             </div>
           </div>
-          ${staffOn() ? html`<div class="ct-shift" role="group" aria-label="On shift. Tap your name to take over">
-            ${branch().staff.map((s) => html`<button type="button" class="chip ct-shift__name" data-shift="${s.id}" aria-pressed="${s.id === C().staffId}">${s.name}</button>`)}
-          </div>` : ""}
+          <div class="ct-shift" role="group" aria-label="Counter">
+            ${staffOn() && !switching ? html`<span class="ct-shift__who">At counter: <strong>${staffOn().name}</strong></span>
+              <button type="button" class="btn btn--secondary btn--compact" data-switch-staff>Switch staff</button>` : ""}
+            <button type="button" class="btn btn--link ct-shift__exec" data-exec>Executive</button>
+          </div>
         </header>`;
       }
       function paintHead() {
         const st = $("[data-status]", el);
         if (st) st.innerHTML = statusLine().s;
-        $$("[data-shift]", el).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.shift === C().staffId)));
       }
       function footHtml() {
         return html`<footer class="ct-foot">
@@ -152,6 +169,7 @@
         if (!panel) return;
         if (tab === "counter") { panel.innerHTML = counterHtml().s; paintPanel(); paintRecent(); paintField(); return; }
         if (tab === "orders") { panel.innerHTML = `<div class="enter">${ordersHtml().s}</div>`; return; }
+        if (tab === "today") { panel.innerHTML = `<div class="enter">${todayHtml().s}</div>`; return; }
         panel.innerHTML = `<div class="enter">${LCC.partnerMembers ? LCC.partnerMembers.html(brand().id, membersFilter).s : ""}</div>`;
       }
       let membersFilter = { branchId: null, planType: "all", thisMonth: false, limit: 30 };
@@ -184,10 +202,11 @@
             ${headHtml()}
             <section class="ct-start" aria-labelledby="ct-start-h">
               <h2 class="ct-title" id="ct-start-h">Who’s on the counter?</h2>
-              <p class="t-body t-muted">Tap your name to start your shift.</p>
+              <p class="t-body t-muted">Tap your name, then type your PIN.</p>
               <div class="ct-start__names">
                 ${branch().staff.map((s) => html`<button type="button" class="btn btn--secondary btn--tall ct-start__name" data-shift="${s.id}">${ui.avatar({ firstName: s.name, initials: s.name.slice(0, 2) }, { size: 40 })}<span>${s.name}</span>${s.role === "manager" ? html`<span class="t-faint t-small">manager</span>` : ""}</button>`)}
               </div>
+              ${switching && staffOn() ? html`<button type="button" class="btn btn--link" data-switch-cancel>Back to the counter, ${staffOn().name} stays on</button>` : ""}
             </section>
             ${footHtml()}
           </div>
@@ -267,7 +286,7 @@
                 ${ui.avatar(m, { size: 44 })}
                 <span class="ct-result__main">
                   <span class="ct-result__name">${S.fullName(m)}</span>
-                  <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}</span>
+                  <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
                 <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.title}</span>
               </button></li>`;
@@ -280,10 +299,11 @@
       function defaultDrink(m) {
         const b = brand();
         const o = S.order(m.id);
-        if (o && o.brandId === b.id && S.isAvailable(branch().id, o.drinkId)) return { drinkId: o.drinkId, temp: o.temp, source: "app" };
+        const ok = (id) => S.isAvailable(branch().id, id) && S.menuItem(b.id, id)?.inPlan !== false;
+        if (o && o.brandId === b.id && ok(o.drinkId)) return { drinkId: o.drinkId, temp: o.temp, source: "app" };
         const u = S.usualDrink(m.id, b.id);
-        if (u && S.isAvailable(branch().id, u.drinkId)) return { drinkId: u.drinkId, temp: u.temp, source: "usual" };
-        const first = S.counterMenu(branch().id)[0];
+        if (u && ok(u.drinkId)) return { drinkId: u.drinkId, temp: u.temp, source: "usual" };
+        const first = S.counterMenu(branch().id).find((d) => d.item.inPlan !== false);
         return first ? { drinkId: first.id, temp: first.temp, source: "pick" } : null;
       }
       function pickMember(memberId, method) {
@@ -292,6 +312,7 @@
         message = null;
         picked = { memberId, method };
         drink = defaultDrink(m);
+        choices = { mods: {}, extras: [] };
         pickerOpen = !drink || drink.source === "pick";
         pickerQuery = "";
         setView("member");
@@ -304,9 +325,17 @@
         return chk.ok ? S.planBand(chk.plan.plan) : undefined;
       }
       const bandName = (p) => (p.band ? p.band.label : "Above Reserve");
-      const priceText = (p) => (p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`);
+      // No money at the counter: the till knows the prices
+      const priceText = (p) => (p.included ? "Included" : "Cup + top-up · pay at counter");
       /** One quiet line when the drink is above the plan's band. */
-      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}, up to ${fmt.rs(p.cover.maxPrice)}). ${m.firstName} pays ${fmt.rs(p.topUp)} at the counter.`);
+      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}). ${m.firstName} pays the difference at the counter.`);
+      /** This member's pickups still in the queue here (their own, or a drink at a table). */
+      const waitingFor = (memberId) => S.pickupQueue(branch().id).filter((o) => o.memberId === memberId || o.items?.some((i) => i.memberId === memberId));
+      const modLine = (e) => {
+        const b = S.brand(e.brandId) || brand();
+        const mods = Object.entries(e.mods || {}).map(([k, v]) => { const x = b.mods.find((y) => y.id === k); return k === "milk" ? `${v} milk` : k === "ice" ? (v === "No ice" ? v : `${v} ice`) : `${v} ${x ? x.label.toLowerCase() : k}`; });
+        return [...mods, ...(e.extras || []).map((x) => x.label)].join(" · ");
+      };
 
       function memberHtml() {
         const m = member();
@@ -320,7 +349,15 @@
         const band = chk.ok ? S.planBand(chk.plan.plan) : undefined;
         const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
+        const waiting = waitingFor(m.id);
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
+          ${waiting.map((o) => html`<section class="ct-pickup" aria-label="Pickup waiting">
+            <div class="cv-ticket__top"><p class="eyebrow">Pickup waiting</p><span class="badge">${o.items ? `Table · ${o.items.length}` : o.pay === "cup" ? "Cup" : "Paid"}</span></div>
+            <p class="ct-pickup__drink">${o.items ? `${o.memberName}’s table` : S.pickupDrinkName(o)}</p>
+            <p class="t-small t-muted num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)} · Code ${spaced(S.pickupCode(o))}</p>
+            ${stepsHtml(o)}
+            <button type="button" class="btn btn--secondary btn--block" data-advance="${o.id}">${NEXT_LABEL[o.status]}</button>
+          </section>`)}
           <div class="ct-card__who">
             ${ui.avatar(m, { size: 72 })}
             <div>
@@ -342,10 +379,30 @@
               <p class="t-small t-muted num" data-drink-note ${price.included ? raw("hidden") : ""}>${coverNote(m, price)}</p>
               <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
             </div>
+            <div class="ct-mods" data-mods>${modsHtml()}</div>
             <button type="button" class="btn btn--primary btn--block ct-redeem" data-redeem aria-describedby="ct-who">Redeem 1 cup</button>
             <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}
           <button type="button" class="btn btn--link" data-back>Not ${m.firstName}? Back to the keypad</button>
         </article>`;
+      }
+
+      /** Free mods as simple choices; paid extras are paid at the counter, never through LCC. */
+      function modsHtml() {
+        const b = brand();
+        const temp = drink?.temp || "hot";
+        return html`${(b.mods || []).filter((x) => !x.icedOnly || temp === "iced").map((x) => html`<div class="ct-mod">
+            <span class="ct-mod__label t-small">${x.label}</span>
+            ${ui.segmented({ name: `ctmod-${x.id}`, label: x.label, value: choices.mods[x.id] || x.default, options: x.options.map((o) => ({ value: o, label: o })) })}
+          </div>`)}
+          ${(b.extras || []).length ? html`<div class="ct-mod">
+            <span class="ct-mod__label t-small">Extras <span class="t-faint">· pay at counter</span></span>
+            <div class="ct-extras" role="group" aria-label="Paid extras, pay at counter">${b.extras.map((x) => html`<button type="button" class="chip" data-extra="${x.id}" aria-pressed="${choices.extras.includes(x.id)}">${x.label}</button>`)}</div>
+          </div>` : ""}
+          <p class="t-micro t-faint">Mods are free. Extras are paid at the counter, not charged through LCC.</p>`;
+      }
+      function paintMods() {
+        const box = $("[data-mods]", el);
+        if (box) box.innerHTML = modsHtml().s;
       }
 
       function pickerHtml() {
@@ -365,9 +422,14 @@
             ${ui.segmented({ name: "cttemp", label: "Hot or iced", value: temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
           </div>
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
-            ${rows.length ? rows.map((d) => html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
+            ${rows.length ? rows.map((d) => d.item.inPlan === false
+              ? html`<button type="button" role="radio" class="ct-menu__row is-off" aria-checked="false" aria-disabled="true" disabled>
+                  <span class="ct-menu__name">${d.name}</span>
+                  <span class="ct-menu__price">Not in plan</span>
+                </button>`
+              : html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
                 <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
-                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : "Cup + top-up"}</span>
               </button>`) : html`<p class="t-small t-muted">Nothing ${temp} matches${pickerQuery ? ` “${pickerQuery}”` : ""} today.</p>`}
           </div>`;
       }
@@ -390,10 +452,10 @@
 
       function redeemNow() {
         if (!picked || !drink) return;
-        const res = A.counterRedeem({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method });
+        const res = A.counterRedeem({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
         if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.title || "That didn’t go through.", { iconName: "info" }); }
         done = { entry: res.entry, member: res.member, left: res.left, plan: res.plan };
-        picked = null; drink = null; query = ""; mode = "number";
+        picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
         A.refreshAutoBusy(branch().id);
         paintField();
         setView("done");
@@ -409,7 +471,8 @@
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
           <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
-          ${entry.topUp ? html`<p class="ct-collect num">Collect ${fmt.rs(entry.topUp)}</p>` : ""}
+          ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
+          ${entry.topUp || entry.extras?.length ? html`<p class="ct-collect">Collect at the counter: ${[entry.topUp ? "the top-up" : "", ...(entry.extras || []).map((x) => x.label.toLowerCase())].filter(Boolean).join(", ")}</p>` : ""}
           <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
           <p class="t-small t-faint num">${fmt.time(entry.at)} · ${plan.name}, ${fmt.cups(left)} left</p>
           <div class="ct-done__acts">
@@ -544,8 +607,14 @@
       /* ---------------------------------------------------------------
          Orders: the pickup queue for this branch (unchanged behaviour)
          --------------------------------------------------------------- */
-      const STATE_LABEL = { placed: "New", preparing: "Being made", ready: "Ready" };
-      const NEXT_LABEL = { placed: "Start", preparing: "Ready", ready: "Collected" };
+      const STEPS = [["placed", "Placed"], ["preparing", "Preparing"], ["ready", "Ready"], ["collected", "Collected"]];
+      const STATE_LABEL = { placed: "Placed · new", preparing: "Preparing", ready: "Ready" };
+      const NEXT_LABEL = { placed: "Start preparing", preparing: "Mark ready", ready: "Collected" };
+      /** placed → preparing → ready → collected, the current one marked. */
+      function stepsHtml(o) {
+        const at = STEPS.findIndex(([id]) => id === o.status);
+        return html`<ol class="ct-steps" aria-label="Order status">${STEPS.map(([id, label], i) => html`<li class="ct-steps__step" data-done="${i <= at}" ${i === at ? raw('aria-current="step"') : ""}>${label}</li>`)}</ol>`;
+      }
       const DONE_LABEL = { collected: "collected", cancelled: "cancelled by the member", rejected: "rejected" };
       const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
 
@@ -563,14 +632,14 @@
         return html`<ul class="cv-items" role="list">${o.items.map((i) => html`<li>
             <span class="cv-items__who">${i.name}</span>
             <span class="cv-items__drink">${S.itemDrinkName(o.cafeId, i)}</span>
-            <span class="t-faint num">${i.pay === "cup" ? (i.topUp ? `Cup + ${fmt.rs(i.topUp)}` : "Cup") : i.pay === "online" ? "Paid" : "Covered"}</span>
+            <span class="t-faint num">${i.pay === "cup" ? (i.topUp ? "Cup + top-up" : "Cup") : i.pay === "online" ? "Paid" : "Covered"}</span>
           </li>`)}</ul>
-          <p class="cv-items__total num"><span>Total ${fmt.rs(o.price)}</span><span>${paid} of ${o.items.length} paid</span></p>
+          <p class="cv-items__total num"><span>${o.items.length} ${o.items.length === 1 ? "drink" : "drinks"}</span><span>${paid} of ${o.items.length} paid</span></p>
           <p class="t-small t-muted num">${parts.join(", ")}. Nothing to collect.</p>`;
       }
       function ticketPayLine(o) {
-        if (o.pay === "cup") return o.topUp ? `Member cup. ${fmt.rs(o.topUp)} top-up paid online, nothing to collect.` : "Member cup. Nothing to collect.";
-        return `Paid online, ${fmt.rs(o.amount)}. Nothing to collect.`;
+        if (o.pay === "cup") return o.topUp ? "Member cup. Top-up paid online, nothing to collect." : "Member cup. Nothing to collect.";
+        return "Paid online. Nothing to collect.";
       }
       function ticketHtml(o, fresh) {
         const code = S.pickupCode(o);
@@ -593,6 +662,7 @@
           </div>
           <p class="cv-ticket__name" id="tk-${o.id}">${o.items ? `${o.memberName}’s table` : o.memberName}</p>
           ${o.items ? tableHtml(o) : html`<p class="cv-ticket__drink">${S.pickupDrinkName(o)}</p>`}
+          ${stepsHtml(o)}
           <dl class="cv-ticket__facts">
             <div><dt>Pickup</dt><dd class="num">${o.asap ? `ASAP · ${fmt.time(o.pickupAt)}` : fmt.time(o.pickupAt)}</dd></div>
             <div><dt>Code</dt><dd class="num cv-ticket__code" aria-label="${code.split("").join(" ")}">${spaced(code)}</dd></div>
@@ -623,13 +693,44 @@
               <ol class="cv-list" role="list">
                 ${doneList.length ? doneList.map((o) => html`<li class="cv-row">
                   <span class="cv-row__time num">${fmt.time(o.updatedAt)}</span>
-                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.items ? "table" : o.pay === "cup" ? "cup" : fmt.rs(o.amount)} · ${DONE_LABEL[o.status]}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
+                  <span class="cv-row__main">${o.memberName} <span class="t-faint">· ${S.pickupDrinkName(o)} · ${o.items ? "table" : o.pay === "cup" ? "cup" : "paid online"} · ${DONE_LABEL[o.status]}${o.uncollected ? ", not picked up" : ""}${o.status === "rejected" && o.reason ? `, ${(store.pickupReasons[o.reason] || "").toLowerCase()}` : ""}</span></span>
                   <span class="cv-row__ref num">${o.status === "collected" ? S.pickupRef(o) : ""}</span>
                 </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">Nothing collected yet today.</span></li>`}
               </ol>
             </section>
           </div>`;
       }
+      /* Today: what this counter served, without money */
+      const PICKUP_WORD = { placed: "Placed", preparing: "Preparing", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
+      function todayHtml() {
+        const t = S.counterToday(branch().id);
+        return html`<div class="cv-section">
+          <div class="cv-section__head">
+            <h2 class="ct-title">Today</h2>
+            <p class="t-small t-muted num">${t.served} ${t.served === 1 ? "cup" : "cups"} served at ${heading()} today, and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
+          </div>
+          <section aria-labelledby="td-cups-h">
+            <h3 class="eyebrow" id="td-cups-h">Cups served</h3>
+            <ol class="cv-list" role="list">
+              ${t.cups.length ? t.cups.map((x) => html`<li class="cv-row">
+                <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="cv-row__main">${shortName(x.member)} <span class="t-faint">· ${x.drink}${modLine(x.entry) ? ` (${modLine(x.entry)})` : ""} · ${x.staff || "Counter"}${x.undone ? " · undone" : ""}</span></span>
+              </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No cups yet today.</span></li>`}
+            </ol>
+          </section>
+          <section aria-labelledby="td-pk-h">
+            <h3 class="eyebrow" id="td-pk-h">Pickups</h3>
+            <ol class="cv-list" role="list">
+              ${t.pickups.length ? t.pickups.map((x) => html`<li class="cv-row">
+                <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="cv-row__main">${x.member ? shortName(x.member) : x.name} <span class="t-faint">· ${x.drink} · Pickup · ${PICKUP_WORD[x.status] || x.status}${x.staff ? ` · ${x.staff}` : ""}</span></span>
+              </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No pickups yet today.</span></li>`}
+            </ol>
+          </section>
+        </div>`;
+      }
+      function paintToday() { if (tab === "today") { const p = $("[data-tabpanel]", el); if (p) p.innerHTML = `<div>${todayHtml().s}</div>`; } }
+
       function paintOrders({ freshId = null, focusId = null } = {}) {
         if (tab !== "orders") return;
         const panel = $("[data-tabpanel]", el);
@@ -646,6 +747,7 @@
         if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as LCC member.`, { duration: 4200 });
         else if (o.status === "ready") ui.toast(`${o.memberName} has been told it’s ready.`);
         paintOrders({ focusId: o.status === "collected" ? null : id });
+        if (view === "member") paintPanel();
       }
 
       /* ---------------------------------------------------------------
@@ -661,19 +763,27 @@
       }
       function openPin(forWhat) {
         pin = ""; pinFor = forWhat;
+        const who = forWhat?.shift ? (branch().staff || []).find((s) => s.id === forWhat.shift) : null;
+        const title = who ? `${who.name}, your PIN` : forWhat === "exec" ? "Executive PIN" : "Manager PIN";
+        const line = who ? "Type your 4-digit PIN to start your shift."
+          : forWhat === "exec" ? `This branch’s or the ${brand().name} owner’s 6-digit PIN. Opens the dashboard on this device; it locks after 5 minutes idle.`
+          : forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter.";
+        const demo = who ? `Demo: ${branch().staff.map((s) => `${s.name} ${s.pin}`).join(", ")}.`
+          : forWhat === "exec" ? `Demo: this branch ${branch().executivePin}${S.branches(brand().id).length > 1 ? `, ${brand().name} owner ${brand().executive?.pin}` : ""}.`
+          : "Demo: Gulberg manager 1678, Kiln &amp; Bean manager 2468, owner 0000 / 1111.";
         $("[data-ct-pin-sheet-body]", el).innerHTML = html`
-          <h2 class="ct-title" id="ct-pin-title">Manager PIN</h2>
-          <p class="t-small t-muted">${forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter."}</p>
-          <div class="cv-pin__dots" data-pin-dots aria-hidden="true">${[0, 1, 2, 3].map(() => html`<span></span>`)}</div>
+          <h2 class="ct-title" id="ct-pin-title">${title}</h2>
+          <p class="t-small t-muted">${line}</p>
+          <div class="cv-pin__dots" data-pin-dots aria-hidden="true">${Array.from({ length: pinLen() }, () => html`<span></span>`)}</div>
           <label class="sr-only" for="ct-pin-input">PIN</label>
-          <input class="sr-only" id="ct-pin-input" inputmode="numeric" maxlength="4" autocomplete="off" data-pin-input>
+          <input class="sr-only" id="ct-pin-input" inputmode="numeric" maxlength="${pinLen()}" autocomplete="off" data-pin-input>
           <p class="cv-error" data-pin-err role="alert"></p>
           <div class="cv-pad" role="group" aria-label="PIN keypad">
             ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"].map((k) => k === ""
               ? html`<span></span>`
               : html`<button type="button" class="cv-pad__key" data-pin-key="${k}" aria-label="${k === "del" ? "Delete" : k}">${k === "del" ? icon("arrowLeft", { size: 22 }) : k}</button>`)}
           </div>
-          <p class="t-micro t-faint">Demo: Gulberg manager 1678, Kiln &amp; Bean manager 2468, owner 0000 / 1111.</p>`.s;
+          <p class="t-micro t-faint">${raw(demo)}</p>`.s;
         ui.openSheet($("#ct-pin-sheet", el));
       }
       function paintPin(err = "") {
@@ -682,6 +792,22 @@
         const inp = $("[data-pin-input]", el); if (inp && inp.value !== pin) inp.value = pin;
       }
       function tryPin() {
+        if (pinFor?.shift) {
+          const res = A.startShift(pinFor.shift, pin);
+          if (!res.ok) { pin = ""; return paintPin(res.message); }
+          ui.closeSheet($("#ct-pin-sheet", el));
+          pinFor = null; switching = false;
+          renderAll(); $("[data-q]", el)?.focus();
+          return ui.toast(`${res.staff.name} is on the counter.`);
+        }
+        if (pinFor === "exec") {
+          const who = S.execRole(brand().id, pin);
+          if (!who) { pin = ""; return paintPin("That isn’t an executive PIN here."); }
+          if (who.role !== "owner" && who.branchId !== branch().id) { pin = ""; return paintPin("That’s another branch’s PIN. Use this branch’s, or the owner’s."); }
+          ui.closeSheet($("#ct-pin-sheet", el));
+          pinFor = null;
+          return LCC.partnerSession.openFromCounter(who, branch().id);
+        }
         const res = A.unlockManager(pin);
         if (!res.ok) { pin = ""; return paintPin(res.message); }
         ui.closeSheet($("#ct-pin-sheet", el));
@@ -690,9 +816,9 @@
         else openManager();
       }
       function pinKey(k) {
-        if (k === "del") pin = pin.slice(0, -1); else if (pin.length < 4) pin += k;
+        if (k === "del") pin = pin.slice(0, -1); else if (pin.length < pinLen()) pin += k;
         paintPin();
-        if (pin.length === 4) tryPin();
+        if (pin.length === pinLen()) tryPin();
       }
       function openManager() {
         if (!managerOn()) return openPin("manager");
@@ -740,12 +866,35 @@
         const tb = t.closest("[data-tab]");
         if (tb) return showTab(tb.dataset.tab);
         const sh = t.closest("[data-shift]");
-        if (sh) {
-          const was = C().staffId;
-          A.startShift(sh.dataset.shift);
-          if (!was) { renderAll(); $("[data-q]", el)?.focus(); }
-          else paintHead();
-          return ui.toast(`${staffOn().name} is on the counter.`);
+        if (sh) return openPin({ shift: sh.dataset.shift });
+        if (t.closest("[data-switch-staff]")) { switching = true; return renderAll(); }
+        if (t.closest("[data-switch-cancel]")) { switching = false; return renderAll(); }
+        if (t.closest("[data-exec]")) return openPin("exec");
+        const ex = t.closest("[data-extra]");
+        if (ex) {
+          const id = ex.dataset.extra;
+          choices.extras = choices.extras.includes(id) ? choices.extras.filter((x) => x !== id) : [...choices.extras, id];
+          return ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+        }
+        const mseg = t.closest('[data-segmented^="ctmod-"] .segmented__option');
+        if (mseg) {
+          const group = mseg.parentElement;
+          ui.selectSegment(group, mseg.dataset.value);
+          choices.mods[group.dataset.segmented.slice(6)] = mseg.dataset.value;
+          return;
+        }
+        const adv = t.closest("[data-advance]");
+        if (adv) return advance(adv.dataset.advance);
+        const ro = t.closest("[data-reject-open]");
+        if (ro) { rejecting = ro.dataset.rejectOpen; paintOrders(); return $(`[data-reject="${rejecting}"]`, el)?.focus(); }
+        const rk = t.closest("[data-reject-keep]");
+        if (rk) { const id = rk.dataset.rejectKeep; rejecting = null; paintOrders({ focusId: id }); return; }
+        const rj = t.closest("[data-reject]");
+        if (rj) {
+          const res = A.rejectPickup(rj.dataset.reject, rj.dataset.reason);
+          rejecting = null; paintOrders();
+          if (res.ok) ui.toast(`${res.order.memberName} has been told, and ${res.order.items ? "the table’s cups and payments go back" : res.order.pay === "cup" ? "gets the cup back" : "is refunded"}.`, { duration: 4200 });
+          return;
         }
         const key = t.closest("[data-key]");
         if (key) return typeKey(key.dataset.key);
@@ -769,7 +918,7 @@
           const item = S.menuItem(brand().id, dr.dataset.drink);
           drink = { drinkId: item.id, temp: S.servedTemp(item, drink?.temp || "hot"), source: S.usualDrink(member().id, brand().id)?.drinkId === item.id ? "usual" : "pick" };
           $$("[data-drink]", el).forEach((b) => b.setAttribute("aria-checked", String(b === dr)));
-          paintDrinkLine();
+          paintDrinkLine(); paintMods();
           return $("[data-redeem]", el)?.focus();
         }
         const tseg = t.closest('[data-segmented="cttemp"] .segmented__option');
@@ -779,7 +928,8 @@
           const item = drink ? S.menuItem(brand().id, drink.drinkId) : null;
           if (item && item[temp] != null) { drink = { ...drink, temp }; paintDrinkLine(); }
           else drink = { ...(drink || {}), temp };
-          paintPicker();
+          if (temp !== "iced") delete choices.mods.ice;
+          paintPicker(); paintMods();
           return $(`[data-segmented="cttemp"] [data-value="${temp}"]`, el)?.focus();
         }
         if (t.closest("[data-scan]")) return openScan();
@@ -808,7 +958,7 @@
           return afterQuery();
         }
         if (t.matches("[data-drink-q]")) { pickerQuery = t.value; const pos = t.selectionStart; paintPicker(); const n = $("#ct-drink-q", el); n.focus(); n.setSelectionRange(pos, pos); return; }
-        if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, 4); paintPin(); if (pin.length === 4) tryPin(); return; }
+        if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, pinLen()); paintPin(); if (pin.length === pinLen()) tryPin(); return; }
         if (t.id === "ct-setup-code") t.value = t.value.toUpperCase();
       };
       const onChange = (e) => {
@@ -855,14 +1005,16 @@
         store.on("cafe:pause", ({ cafeId }) => { if (!here(cafeId)) return; paintHead(); if (tab === "orders") paintOrders(); if (view === "member") paintPanel(); }),
         store.on("redeem", ({ entry }) => {
           if (!branch()) return;
-          if (here(entry.cafeId)) { A.refreshAutoBusy(branch().id); paintRecent(); }
+          if (here(entry.cafeId)) { A.refreshAutoBusy(branch().id); paintRecent(); paintToday(); }
           refreshMember(entry.memberId);
           if (view === "find" && query && tab === "counter") paintPanel();
         }),
-        store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) paintRecent(); refreshMember(entry.memberId); }),
+        store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) { paintRecent(); paintToday(); } refreshMember(entry.memberId); }),
         store.on("pickup", ({ order, prev, quiet }) => {
           if (!branch() || !here(order.cafeId)) return;
           paintOrdersCount();
+          paintToday();
+          refreshMember(order.memberId);
           if (tab === "orders") paintOrders({ freshId: !prev ? order.id : null, focusId: el.contains(document.activeElement) && document.activeElement.dataset?.advance === order.id ? order.id : null });
           if (quiet) return;
           const name = S.pickupDrinkName(order);

@@ -603,6 +603,25 @@ next pass until asked.**
   the 5th; three months of seeded history per branch. CSV and PDF are
   simulated with a toast.
 
+## Café pass (after the Ledger pass)
+
+- Counter header: "At counter: Bilal", Switch staff (the names screen,
+  with a way back), and a small "Executive" link: a branch or brand-owner
+  PIN (another branch's is refused) opens #/partner on the same device
+  (`LCC.partnerSession.openFromCounter`). It locks after 5 minutes idle, on
+  Lock, or when leaving #/partner, and goes back to `#/cafe/<branch>`.
+- No money at the counter: no Rs amounts, rates, payouts or totals
+  anywhere in `#/cafe`. Top-ups say "Cup + top-up · pay at counter"; the
+  Done screen says what to collect ("the top-up, extra shot") without
+  amounts. Tabs: Counter · Orders · Today (`select.counterToday`: cups
+  served and pickups, time, member, drink, staff; a collected pickup
+  records the signed-in staff member as `order.collectedBy` and on its
+  redeem entry's `staffId`) · Members (manager PIN).
+- Pickups: tickets and the member card show the steps placed → preparing
+  → ready → collected ("Start preparing", "Mark ready", "Collected"). A
+  member's waiting pickup sits at the top of their card when looked up
+  (and "pickup waiting" in the search result).
+
 ## Café side (Pass 11)
 
 - Every partner is a brand with branches (`data.js` `brands`; a branch is a
@@ -617,17 +636,27 @@ next pass until asked.**
   `select.brandFor` is any branch's brand. Single cafés' drinks come from
   their brand menu (one cup each; above the plan's band it's "Cup + Rs X").
 - Owner PINs: Double Shot 0000, Kiln & Bean 1111 (others 2222 … 8888).
-  Executive group (`brand.executive.pin`, 6 digits, one per brand, for the
-  next pass's dashboard): the owner PIN's digit six times (000000, 111111 …
-  888888; `select.checkExecutivePin`). Cashier PINs (`staff.pin`, not asked
-  at the counter yet; `select.checkStaffPin`): the branch digit then 101 /
-  202 (Double Shot Gulberg 1101 / 1202 … Dolmen 7101 / 7202; single cafés
-  use the owner PIN's digit: Kiln & Bean 1101 / 1202, Maple 2101 / 2202 …).
+  Executive PINs (6 digits, `select.execRole`): the brand owner's
+  (`brand.executive.pin`) sees every branch with per-branch totals; each
+  branch has its own (`cafe.executivePin`) that sees that branch only.
+  Double Shot owner 000000, branches 111111 (Gulberg) … 777777 (Dolmen);
+  single cafés have one PIN for both: the owner PIN's digit six times
+  (Kiln & Bean 111111 … Grind & Grain 888888). New branches get a random
+  one. Only these open #/partner; the 4-digit manager PINs (and the old
+  owner PINs) unlock the counter's Manager tools only. Cashier PINs (`staff.pin`, 4 digits, everyone has
+  one; asked when tapping a name at the counter, `actions.startShift(id,
+  pin)`): the branch digit then 101 / 202 (Double Shot Gulberg 1101 / 1202
+  … Dolmen 7101 / 7202; Kiln & Bean 1101 / 1202, Maple 2101 / 2202 …);
+  managers start a shift with their manager PIN.
 - Menus (Ledger pass): every brand menu item has `size` and `inPlan` (in a
   band, so up to Rs 1,500; every seeded drink is). Brands have free `mods`
   (sugar, milk regular / oat / almond, ice for iced drinks) and paid
   `extras` (extra shot, larger size, counter prices per brand; see
-  `EXTRAS` in data.js). No screen shows them yet.
+  `EXTRAS` in data.js). The counter shows them after the drink (Café
+  pass). Drinks with `inPlan: false` (Kiln & Bean pour-over, Maple Geisha,
+  Slow Pour flight, Double Shot Espresso Protein Shake) are kept out of LCC
+  plans: greyed "Not in plan" at the counter, refused by `counterRedeem`
+  and for a cup in `pickupQuote` (paying the full price still works).
   Manager PINs: Kiln & Bean Saad 2468, other single cafés 2678 … 8678.
   Setup codes: KB-01, MR-01, EC-01, TF-01, QH-01, SP-01, NC-01, GG-01.
 - Members: `memberNo` is club-wide and unique ("LCC 42", `fmt.lcc`); every

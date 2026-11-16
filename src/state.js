@@ -27,9 +27,10 @@
               at, ref (select.redemptionRef), undone (an `undo` entry
               arrived), reported (state.reports)
      roles    owner (brand PIN, every branch), manager (PIN, one branch),
-              staff (tap their name at the counter; each has a 4-digit PIN,
-              not asked yet), executive group (brand.executive, 6-digit PIN,
-              for the dashboard in a later pass)
+              staff (tap their name, then their own 4-digit PIN, to start
+              a shift), executive (6-digit PIN for the dashboard:
+              brand.executive.pin sees every branch, branch.executivePin
+              that branch only; select.execRole)
    Sync messages about a brand carry its id as a scope (sync.js), so a
    counter or dashboard ignores other brands' menus, statuses and reports.
 
@@ -579,10 +580,29 @@
       const s = (state.cafes[branchId]?.staff || []).find((x) => x.id === staffId);
       return !!s && !!s.pin && s.pin === String(pin);
     },
-    /** The brand's executive group: a 6-digit PIN. */
-    checkExecutivePin(brandId, pin) {
-      const ex = state.brands[brandId]?.executive;
-      return !!ex && String(pin).length === 6 && ex.pin === String(pin);
+    /** Executive access (6 digits): the brand owner's PIN sees every branch,
+        a branch's PIN sees that branch only. A single café has one PIN for both. */
+    execRole(brandId, pin) {
+      const b = state.brands[brandId];
+      const p = String(pin || "");
+      if (!b || !/^\d{6}$/.test(p)) return null;
+      const list = select.branches(brandId);
+      if (p === b.executive?.pin) return { role: "owner", brandId, via: "executive" };
+      const c = list.find((x) => x.executivePin === p);
+      if (!c) return null;
+      return list.length === 1 ? { role: "owner", brandId, via: "executive" } : { role: "manager", brandId, branchId: c.id, via: "executive" };
+    },
+    checkExecutivePin: (brandId, pin) => !!select.execRole(brandId, pin),
+    /** The counter's day at a branch, without money: cups served (newest
+        first) and pickup orders, each with time, member, drink and staff. */
+    counterToday(branchId, at = Date.now()) {
+      // BACKEND: GET /branches/:id/today (no amounts for the counter role)
+      const since = startOfDay(at);
+      const cups = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === branchId && e.at >= since && !e.orderId)
+        .map((e) => ({ kind: "cup", at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
+      const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
+        .map((o) => ({ kind: "pickup", at: o.updatedAt, member: state.members[o.memberId], name: o.memberName, drink: select.pickupDrinkName(o), status: o.status, staff: o.collectedBy ? select.staffMember(o.collectedBy)?.name || null : null, order: o }));
+      return { cups: cups.sort((x, y) => y.at - x.at), pickups: pickups.sort((x, y) => y.at - x.at), served: cups.filter((x) => !x.undone).length };
     },
     /** The drink a member chose in the app, if it's still fresh (3 hours). */
     order(memberId = state.memberId, at = Date.now()) {
@@ -1507,6 +1527,7 @@
       const p = select.drinkPrice(cafe.brandId, item, temp, band);
       const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
+      if (item.inPlan === false) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "not-in-plan", message: `${q.name} isn’t in LCC plans here. You can pay the full price.` } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
       return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
@@ -1935,6 +1956,13 @@
     b.configAt = Date.now();
     emit("brand", { brandId });
   }
+  /** A 6-digit executive PIN no other branch of the brand (or its owner) uses. */
+  function newExecPin(b) {
+    for (;;) {
+      const p = String(100000 + Math.floor(Math.random() * 900000));
+      if (p !== b.executive?.pin && !select.branches(b.id).some((c) => c.executivePin === p)) return p;
+    }
+  }
   /** "DS-K7Q": the brand's monogram and three letters, unused by any other branch. */
   function newCode(b) {
     for (;;) {
@@ -1967,6 +1995,7 @@
           id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
           ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan, o.cafeId),
           firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, channel: "pickup", at: now + 1, cycle: l.cycle, live: true, ...extra,
+          ...(!uncollected && state.counter.staffId && state.counter.branchId === o.cafeId ? { staffId: state.counter.staffId } : {}),
           ...(uncollected ? { uncollected: true } : {}),
         });
       }
@@ -1975,6 +2004,8 @@
     Object.assign(o, { status, updatedAt: now, times: { ...o.times, [status]: now } });
     if (reason) o.reason = reason;
     if (uncollected) o.uncollected = true;
+    // Who handed it over: the staff member signed in at this counter (none when closed at closing time)
+    if (status === "collected" && !uncollected && state.counter.staffId && state.counter.branchId === o.cafeId) o.collectedBy = state.counter.staffId;
     if ((status === "cancelled" || status === "rejected") && o.amount > 0) o.refunded = true; // BACKEND: refund via the payment provider
     appendEntries(entries);
     stamped.forEach(grantPassportReward);
@@ -2061,12 +2092,16 @@
       state.counter = { branchId, staffId: null, managerUntil: 0 };
       emit("counter", { ...state.counter }, { remote: true });
     },
-    /** Tap your name to start your shift. No PIN per cup. */
-    startShift(staffId) {
+    /** A cashier (or the manager) starts a shift with their own 4-digit PIN. */
+    startShift(staffId, pin) {
+      // BACKEND: POST /branches/:id/shifts { staffId, pin } (PIN checked server-side, stored hashed)
       const c = state.cafes[state.counter.branchId];
-      if (!c || !(c.staff || []).some((s) => s.id === staffId)) return;
+      const s = c && (c.staff || []).find((x) => x.id === staffId);
+      if (!s) return { ok: false, message: "That name isn’t on this branch." };
+      if (!select.checkStaffPin(c.id, staffId, pin)) return { ok: false, message: "That PIN isn’t right. Try again." };
       state.counter.staffId = staffId;
       emit("counter", { ...state.counter }, { remote: true });
+      return { ok: true, staff: s };
     },
     endShift() { state.counter.staffId = null; state.counter.managerUntil = 0; emit("counter", { ...state.counter }, { remote: true }); },
     /** A manager of this branch, or the brand's owner, unlocks manager things on this counter for 10 minutes. */
@@ -2091,6 +2126,7 @@
       const b = select.brandFor(branchId);
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
       if (!select.isAvailable(branchId, item.id)) return { ...check, ok: false, reason: "unavailable", title: "Not available today", line: "Pick another drink." };
+      if (item.inPlan === false) return { ...check, ok: false, reason: "not-in-plan", title: "Not in plan", line: "Members pay for this one as usual. Pick another drink for a cup." };
       const m = check.member;
       const plan = check.plan;
       const band = select.planBand(plan.plan, branchId);
@@ -2206,7 +2242,7 @@
       const c = {
         ...clone(first), id, brandId, name: b.name, branch: nm, short: nm, label: `${b.name} · ${nm}`, pinName: `${b.monogram} · ${nm}`,
         area: a.id, x: a.x + 18, y: a.y - 14, status: "quiet", statusUpdatedAt: Date.now(), busyMode: "auto", pausedUntil: 0,
-        avgDailyCups: 5, distanceKm: 5, added: true, setupCode: newCode(b),
+        avgDailyCups: 5, distanceKm: 5, added: true, setupCode: newCode(b), executivePin: newExecPin(b),
         staff: [{ id: uid("st"), name: "Manager", role: "manager", pin: String(1000 + Math.floor(Math.random() * 9000)) }],
       };
       state.cafes[id] = c;
@@ -2224,17 +2260,16 @@
       else { c.name = nm; }
       touchBrand(c.brandId);
     },
-    /** Staff at a branch. Managers need a 4-digit PIN, unique at the brand; counter staff need none. */
+    /** Staff at a branch. Everyone has a 4-digit PIN (they type it to start a
+        shift), unique at the branch; managers' PINs are also unique at the brand. */
     addStaff(branchId, { name, role = "staff", pin = "" }) {
       // BACKEND: POST /branches/:id/staff (PIN stored hashed)
       const c = state.cafes[branchId];
       const nm = String(name || "").trim();
       if (!c || !nm) return { ok: false, message: "Add a name." };
-      if (role === "manager") {
-        if (!/^\d{4}$/.test(pin)) return { ok: false, message: "Manager PINs are four digits." };
-        if (select.pinRole(c.brandId, pin)) return { ok: false, message: "Someone at this brand already uses that PIN." };
-      }
-      const s = { id: uid("st"), name: nm, role, ...(role === "manager" ? { pin } : {}) };
+      if (!/^\d{4}$/.test(pin)) return { ok: false, message: "PINs are four digits." };
+      if (c.staff.some((x) => x.pin === pin) || (role === "manager" && select.pinRole(c.brandId, pin))) return { ok: false, message: "Someone already uses that PIN." };
+      const s = { id: uid("st"), name: nm, role, pin };
       c.staff.push(s);
       touchBrand(c.brandId);
       return { ok: true, staff: s };
@@ -2251,8 +2286,8 @@
       const c = state.cafes[branchId];
       const s = c?.staff.find((x) => x.id === staffId);
       if (!s || !/^\d{4}$/.test(pin)) return { ok: false, message: "PINs are four digits." };
-      const taken = select.pinRole(c.brandId, pin);
-      if (taken && taken.staff?.id !== staffId) return { ok: false, message: "Someone at this brand already uses that PIN." };
+      const taken = s.role === "manager" ? select.pinRole(c.brandId, pin) : null;
+      if ((taken && taken.staff?.id !== staffId) || c.staff.some((x) => x.id !== staffId && x.pin === pin)) return { ok: false, message: "Someone already uses that PIN." };
       s.pin = pin;
       touchBrand(c.brandId);
       return { ok: true };

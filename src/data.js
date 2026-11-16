@@ -105,8 +105,9 @@
       name: "Double Shot",
       monogram: "DS",
       ownerPin: "0000",
-      // The executive group (owners and head office): one 6-digit PIN for the whole brand
-      executive: { name: "Executive group", pin: "000000" },
+      // Executive access to the dashboard (6 digits): the brand owner sees every branch;
+      // each branch also has its own (branch.executivePin) that sees that branch only
+      executive: { name: "Brand owner", pin: "000000" },
       rules: { perMemberPerDay: 2, branchCupsPerDay: 150 },
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
@@ -189,7 +190,7 @@
         { id: "ds-pb-smoothie",   section: "Zero shot and more", name: "Peanut Butter Date Smoothie", hot: null, iced: 840 },
         { id: "ds-berry-smoothie", section: "Zero shot and more", name: "Berry Smoothie",       hot: null, iced: 840 },
         { id: "ds-mango-smoothie", section: "Zero shot and more", name: "Mango Drift Smoothie", hot: null, iced: 840 },
-        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980 },
+        { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980, inPlan: false },
       ],
     },
   ];
@@ -221,6 +222,7 @@
       tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
       blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
       setupCode: DS_CODES[n - 1],
+      executivePin: String(n).repeat(6), // Gulberg 111111 … Dolmen 777777
       staff: [
         { id: `st_${id}_1`, name: a, role: "staff", pin: `${n}101` },
         { id: `st_${id}_2`, name: b, role: "staff", pin: `${n}202` },
@@ -256,7 +258,7 @@
         { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
         { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
         { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950 },
+        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950, inPlan: false },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
       avgDailyCups: 9,
@@ -278,7 +280,7 @@
         { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
         { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
         { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
-        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null },
+        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null, inPlan: false },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -366,7 +368,7 @@
         { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
         { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
         { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
-        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null },
+        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null, inPlan: false },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
       avgDailyCups: 7,
@@ -436,7 +438,7 @@
     c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
-      id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Executive group", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
+      id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Brand owner", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
       menuNote: "Demo menu. Prices are fictional.",
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
@@ -446,6 +448,7 @@
     brands.push(brand);
     Object.assign(c, {
       brandId: brand.id, drinks: brandDrinks(brand), setupCode,
+      executivePin: brand.executive.pin, // one branch: the same PIN is the owner's
       staff: [
         { id: `st_${c.id}_1`, name: a, role: "staff", pin: `${ownerPin[0]}101` },
         { id: `st_${c.id}_2`, name: b, role: "staff", pin: `${ownerPin[0]}202` },
@@ -455,10 +458,10 @@
     delete c.menu;
   });
   /* LCC menu details for every partner ------------------------------------
-     size: what a cup is at the counter. inPlan: the drink can be had with a
-     cup (it falls in a band, so up to Rs 1,500; above the plan's band it's
-     "Cup + Rs X"). The counter recomputes this from today's price
-     (LCC.ledger.eligibleItems); this flag is the seed's view.
+     size: what a cup is at the counter. inPlan: false when the café keeps a
+     drink out of LCC plans (members pay for it as usual; the counter shows
+     it greyed, "Not in plan"). Every other drink can be had with a cup;
+     above the plan's band it's "Cup + Rs X".
      mods are free and change nothing in the ledger beyond being recorded.
      extras are paid at the till at the counter price; they never touch
      cups or payouts.                                                      */
@@ -474,7 +477,7 @@
   brands.forEach((b) => {
     b.menu.forEach((d) => {
       d.size = d.size || sizeOf(d);
-      d.inPlan = !!bandOf(Math.min(...[d.hot, d.iced].filter((x) => x != null)));
+      d.inPlan = d.inPlan !== false;
     });
     b.mods = MODS.map((m) => ({ ...m, options: [...m.options] }));
     const [shot, larger] = EXTRAS[b.id] || [200, 150];

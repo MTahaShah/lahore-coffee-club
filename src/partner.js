@@ -1,8 +1,12 @@
 /* =====================================================================
    Lahore Coffee Club — partner.js
-   The owner dashboard (#/partner). Sign in with the brand's owner PIN
-   (demo: Double Shot 0000, Kiln & Bean 1111), or a branch manager's PIN
-   (that branch only). A left rail on laptops and tablets, tabs on phones,
+   The owner dashboard (#/partner). Sign in with an executive PIN (6
+   digits): the brand owner's sees every branch with per-branch totals
+   (demo: Double Shot 000000, Kiln & Bean 111111), a branch's sees that
+   branch only (Double Shot Gulberg 111111 … Dolmen 777777). A single café
+   has one PIN for both. The 4-digit manager PINs don't open it (they're
+   for the counter's Manager tools only). Opened from a counter ("Executive"), it locks after 5 minutes
+   idle or on Lock, and goes back to that counter. A left rail on laptops and tablets, tabs on phones,
    and a branch filter everywhere: "All branches" or one.
 
      Live      redemptions, pickup orders, undos and "Not you" reports as
@@ -117,7 +121,16 @@
   /* ===================================================================
      The dashboard
      =================================================================== */
-  let session = null; // { brandId, role, branchId (manager), name }, in memory only
+  let session = null; // { brandId, role, branchId (branch scope), via, fromCounter }, in memory only
+  const IDLE_MS = 5 * 60 * 1000;
+  /** The counter's "Executive" link: open the dashboard on this device for that scope. */
+  LCC.partnerSession = {
+    openFromCounter(who, counterBranchId) {
+      // BACKEND: POST /sessions/executive { brandId, pin } -> a short-lived session
+      session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null, via: who.via || "executive", fromCounter: counterBranchId };
+      LCC.router.navigate(LCC.sync ? LCC.sync.withRoom("#/partner") : "#/partner");
+    },
+  };
 
   LCC.router.register("partner", {
     title: "Partner dashboard",
@@ -134,6 +147,20 @@
       const scope = () => (session.role === "manager" ? session.branchId : filter);
       const scopeIds = () => (scope() ? [scope()] : branches().map((c) => c.id));
       const owner = () => session.role === "owner";
+      const roleLabel = () => (owner() ? `Owner · ${branches().length} ${branches().length === 1 ? "branch" : "branches"}`
+        : `${session.via === "executive" ? "Branch executive" : "Manager"} · ${branchShort(S.branch(session.branchId))}`);
+
+      /* Opened from a counter: lock after 5 minutes idle, or on Lock, and go back */
+      let idleTimer = null;
+      function lock({ idle = false } = {}) {
+        clearTimeout(idleTimer);
+        const back = session?.fromCounter;
+        session = null;
+        if (!back) return renderSignIn();
+        ui.toast(idle ? "Executive view locked after 5 minutes idle." : "Executive view locked.");
+        LCC.router.navigate(LCC.sync ? LCC.sync.withRoom(`#/cafe/${back}`) : `#/cafe/${back}`);
+      }
+      const bump = () => { if (!session?.fromCounter) return; clearTimeout(idleTimer); idleTimer = setTimeout(() => lock({ idle: true }), IDLE_MS); };
 
       /* Sign in ----------------------------------------------------------- */
       function renderSignIn(err = "", brandId = "doubleshot") {
@@ -146,9 +173,9 @@
               <span class="select"><select class="input" name="brand">${S.partnerBrands().map((b) => html`<option value="${b.id}" ${b.id === brandId ? raw("selected") : ""}>${b.name}${S.branches(b.id).length > 1 ? ` (${S.branches(b.id).length} branches)` : ""}</option>`)}</select></span>
             </label>
             <div class="field" data-invalid="${!!err}">
-              <label class="field__label" for="pd-pin">Owner or manager PIN</label>
-              <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
-              <p class="field__hint" id="pd-pin-hint">Demo: Double Shot owner 0000, Kiln &amp; Bean owner 1111. A manager’s PIN opens their branch only.</p>
+              <label class="field__label" for="pd-pin">Executive PIN</label>
+              <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
+              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Kiln &amp; Bean 111111.</p>
               <p class="field__error" id="pd-pin-err" role="alert">${err}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block btn--tall">Sign in</button>
@@ -167,14 +194,16 @@
               <span class="monogram" aria-hidden="true">${b.monogram}</span>
               <div>
                 <h1 class="ct-name">${b.name}</h1>
-                <p class="t-small t-muted">${owner() ? `Owner · ${branches().length} ${branches().length === 1 ? "branch" : "branches"}` : `Manager · ${branchShort(S.branch(session.branchId))}`} · ${fmt.date(Date.now())}</p>
+                <p class="t-small t-muted">${roleLabel()} · ${fmt.date(Date.now())}</p>
               </div>
             </div>
             <div class="pd-head__aside">
               ${owner() && branches().length > 1 ? html`<label class="pd-filter"><span class="t-micro t-faint">Showing</span>
                 <span class="select"><select class="input" data-branch-filter><option value="">All branches</option>${branches().map((c) => html`<option value="${c.id}" ${filter === c.id ? raw("selected") : ""}>${branchShort(c)}</option>`)}</select></span></label>` : ""}
               ${LCC.sync ? LCC.sync.pill() : ""}
-              <button type="button" class="btn btn--link" data-signout>Sign out</button>
+              ${session.fromCounter
+                ? html`<span class="t-micro t-faint">Locks after 5 minutes idle</span><button type="button" class="btn btn--secondary btn--compact" data-signout>Lock</button>`
+                : html`<button type="button" class="btn btn--link" data-signout>Sign out</button>`}
             </div>
           </header>
           <div class="cv-body pd-body">
@@ -233,6 +262,11 @@
             ${stat("Undos", fmt.num(t.undos), "cups given back")}
             ${stat("“Not you” reports", fmt.num(t.reports), t.reports ? "for you to check" : "none today")}
           </div>
+          ${multi ? html`<div class="pd-table pd-table--3" role="table" aria-label="Today by branch">
+            <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Branch</span><span role="columnheader">Cups</span><span role="columnheader">Pickups</span><span role="columnheader">Payout today</span></div>
+            ${branches().map((c) => { const x = S.brandToday(session.brandId, c.id); return html`<div class="pd-table__row" role="row"><span role="cell">${branchShort(c)}</span><span role="cell" class="num">${fmt.num(x.cups)}</span><span role="cell" class="num">${fmt.num(x.pickups)}</span><span role="cell" class="num">${fmt.rs(x.payout)}</span></div>`; })}
+            <div class="pd-table__row pd-table__row--foot" role="row"><span role="cell">All branches</span><span role="cell" class="num">${fmt.num(t.cups)}</span><span role="cell" class="num">${fmt.num(t.pickups)}</span><span role="cell" class="num"><strong>${fmt.rs(t.payout)}</strong></span></div>
+          </div>` : ""}
           <h3 class="eyebrow">As it happens</h3>
           <ol class="pd-feed" role="list" aria-live="polite" aria-relevant="additions">
             ${feed.length ? feed.map((x) => feedRow(x, multi)) : html`<li class="t-small t-muted">Nothing yet today. Cups appear here the moment a counter redeems them.</li>`}
@@ -425,7 +459,7 @@
         const b = brand();
         const list = scopeIds().map((id) => S.branch(id));
         return html`<section class="pd-section">
-          ${head("Branches and staff", "Counter staff tap their name to start a shift; managers have a PIN. Each branch’s counter is set up once with its setup code.")}
+          ${head("Branches and staff", "Everyone taps their name and types their own 4-digit PIN to start a shift. Each branch’s counter is set up once with its setup code.")}
           <ul class="pd-branches" role="list">
             ${list.map((c) => html`<li class="pd-card pd-branch">
               <form class="pd-branch__name" data-rename="${c.id}">
@@ -440,7 +474,7 @@
                 ${c.staff.map((s) => html`<li class="pd-staff__row">
                   ${ui.avatar({ firstName: s.name, initials: s.name.slice(0, 2) }, { size: 32 })}
                   <span class="pd-staff__name">${s.name} <span class="t-faint t-small">· ${s.role === "manager" ? "manager" : "counter"}</span></span>
-                  ${s.role === "manager" ? (editingPin === s.id
+                  ${s.pin ? (editingPin === s.id
                     ? html`<form class="pd-inline" data-pinform="${c.id}" data-staff="${s.id}"><label class="sr-only" for="pin-${s.id}">New PIN for ${s.name}</label><input class="input num pd-pininput" id="pin-${s.id}" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"><button type="submit" class="btn btn--secondary btn--compact">Save</button></form>`
                     : html`<span class="t-small t-faint num">PIN ••••</span><button type="button" class="btn btn--link" data-editpin="${s.id}" data-fk="pin-${s.id}">Change PIN</button>`) : ""}
                   <button type="button" class="btn btn--link" data-rmstaff="${c.id}" data-staff="${s.id}" aria-label="Remove ${s.name}" data-fk="rm-${s.id}">Remove</button>
@@ -449,7 +483,7 @@
               ${addingStaff === c.id ? html`<form class="pd-addstaff" data-addstaff="${c.id}" novalidate>
                   <label class="field"><span class="t-micro t-faint">Name</span><input class="input" name="name" autocomplete="off"></label>
                   <label class="field"><span class="t-micro t-faint">Role</span><span class="select"><select class="input" name="role"><option value="staff">Counter</option><option value="manager">Manager</option></select></span></label>
-                  <label class="field"><span class="t-micro t-faint">PIN (managers)</span><input class="input num" name="pin" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+                  <label class="field"><span class="t-micro t-faint">PIN (4 digits)</span><input class="input num" name="pin" inputmode="numeric" maxlength="4" autocomplete="off"></label>
                   <p class="cv-error" data-add-err role="alert"></p>
                   <span class="pd-inline"><button type="submit" class="btn btn--primary btn--compact">Add</button><button type="button" class="btn btn--link" data-addstaff-cancel>Cancel</button></span>
                 </form>`
@@ -472,7 +506,7 @@
         const t = e.target;
         const tab = t.closest("[data-section]");
         if (tab) return showSection(tab.dataset.section);
-        if (t.closest("[data-signout]")) { session = null; return renderSignIn(); }
+        if (t.closest("[data-signout]")) return lock();
         const pz = t.closest("[data-pause]");
         if (pz) { A.pauseMemberCups(pz.dataset.pause, 30); paint(); return ui.toast(`Member cups paused at ${branchShort(S.branch(pz.dataset.pause))} until ${fmt.time(S.branch(pz.dataset.pause).pausedUntil)}.`); }
         const rs = t.closest("[data-resume]");
@@ -532,9 +566,11 @@
         const f = e.target;
         if (f.matches("[data-signin]")) {
           e.preventDefault();
-          const who = S.pinRole(f.elements.brand.value, f.elements.pin.value);
-          if (!who) return renderSignIn("That PIN doesn’t match this café’s owner or a manager.", f.elements.brand.value);
-          session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null };
+          const pin = f.elements.pin.value.trim();
+          // Only the 6-digit executive PINs open the dashboard (4-digit manager PINs are for the counter's Manager tools)
+          const who = S.execRole(f.elements.brand.value, pin);
+          if (!who) return renderSignIn("That PIN doesn’t match this café’s owner or one of its branches.", f.elements.brand.value);
+          session = { brandId: who.brandId, role: who.role, branchId: who.branchId || null, via: who.via || "pin" };
           filter = null; section = "live";
           return renderAll();
         }
@@ -593,9 +629,15 @@
         store.on("tick", () => { if (session && section === "live") paint(); }),
         store.on("snapshot", () => { if (session) paint(); }),
       ];
+      ["pointerdown", "keydown", "input"].forEach((ev) => el.addEventListener(ev, bump));
 
       renderAll();
+      bump();
       return () => {
+        clearTimeout(idleTimer);
+        ["pointerdown", "keydown", "input"].forEach((ev) => el.removeEventListener(ev, bump));
+        // Leaving the dashboard opened from a counter locks it: the next person at the counter can't walk in
+        if (session?.fromCounter) session = null;
         LCC.partnerScope = null;
         offs.forEach((off) => off());
         el.removeEventListener("click", onClick);
