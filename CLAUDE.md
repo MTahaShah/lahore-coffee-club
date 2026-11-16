@@ -113,7 +113,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   and filters apply to both) and café detail (`#/app/cafes/:id`)
 - `app-brand.js` — a brand's page (`#/app/cafes/doubleshot`, also from any
   branch row or pin): your cups, menu with Hot / Iced, ordering ("Use a
-  cup"), branches, plans
+  cup"), branches, "Add to my plan" (no plans section: Double Shot plans
+  are legacy)
 - `app-plan.js` — plan picker (Explorer / My cafés), simulated payment
   (`#/app/plan`, `#/app/plan/pay`); shares its payment helpers as
   `LCC.payKit`
@@ -195,10 +196,26 @@ next pass until asked.**
   Reserve 12 Rs 12,500 up to Reserve): one pool of cups for any partner
   café, at most `rules.explorerCapPerCafe` (2) at one café per plan cycle.
   Tier names stay; the type is called Explorer.
-- **My cafés** (formerly Build your own; Classic only): cups reserved per
-  café, usable only there. Price = sum(cups × the café's latte price ×
-  0.80), rounded to Rs 50; min 6 total, max 10 per café. A café's `price`
-  is its latte price (`cafe.latte` names the drink).
+- **My cafés** (formerly Build your own): cups reserved per venue, usable
+  only there, each venue with a band (`plan.bands[venueId]`, missing =
+  Classic; draft in `state.builderBands`, `actions.setBuilderBand`). Price =
+  sum(cups × the band's `myCafesPrice`: Rs 560 / 760 / 1,040); min 6 total,
+  max 10 per venue. A venue offers only the bands it serves
+  (`select.venueBands`). Savings vs the counter: latte price for Classic
+  (`cafe.price`, `cafe.latte` names the drink), else the average of the
+  venue's drinks in that band (`select.venueRefPrice`).
+- Venues (`select.venues`, `venueOf`, `venueName`): single cafés, and
+  Double Shot as one (allocation key `doubleshot`; its purchase entries carry
+  `cafeId: "doubleshot"`, redeems the serving branch, so payouts stay per
+  branch). `balance().perCafe` is keyed by venue.
+- Plan picker (`#/app/plan`): Explorer | My cafés. Explorer is one list in
+  two groups ("Classic"; "More of the menu"), one line per tier. My cafés
+  starts empty ("Pick the cafés you love. Choose cups for each."); "Add a
+  café" opens a sheet (search, list) that adds 2 Classic cups; each row
+  has the band control, a stepper (1–10) and Remove. One summary bar: plan,
+  total, "You save Rs X vs the counter", Continue. "Add to my plan" (a quiet
+  link on café pages and the Double Shot page) opens My cafés with that
+  venue added.
 - Both: max 2 cups per café per day (`rules.dailyLimitPerCafe`).
 - Internal ids: `plan.type` is `"explorer"` (`tierId`) or `"mycafes"`
   (`allocation`), stored on each member (`member.plan`), with `member.cycle`.
@@ -209,8 +226,10 @@ next pass until asked.**
   left there (the redeem entry carries `bonus: true`).
 - A new member has `plan: null` until they pay; selectors treat that as no
   cups and "No plan yet".
-- **Brand** (`plan.type` `"brand"`, `brandId`, `planId`): Double Shot plans,
-  8 cups Rs 5,600 · 15 Rs 9,750 · 22 Rs 13,500. Cups belong to the brand, not
+- **Brand** (`plan.type` `"brand"`, `brandId`, `planId`): legacy Double Shot
+  plans, not for sale and not in the picker (held by Rabia, Kamran, Nida,
+  Iqra, Hira, Faraz and the 90 Double Shot regulars), 8 cups Rs 5,600 · 15
+  Rs 9,750 · 22 Rs 13,500. Cups belong to the brand, not
   a branch: one pool, any branch. A brand branch takes only its own brand's
   cups (`brand-only`); brand cups work nowhere else (`not-brand`). Explorer
   and My cafés cover the other cafés only (`select.clubCafes()`).
@@ -453,11 +472,11 @@ next pass until asked.**
   the cap at Kiln & Bean), Sana 207341 (My cafés: Kiln & Bean 6, Maple 4;
   3 + 3 left), Omar 558190 (Explorer Starter, 2 left), Zara 482913 (My cafés,
   daily limit at Kiln & Bean), Hamza 730215 (no cups left).
-- Mumtaz: LCC 42. Double Shot, 15-cup plan, 11 left (cups at Gulberg,
-  Phase 6, Model Town and Pine Avenue this month; her usual there is an
-  Iced Spanish Latte), and an Explorer Starter plan with 6 of 8 left
-  (`member.extraPlans`; Slow Pour and Noon, dated before the 1st so her
-  Beans stay 130). At Kiln & Bean she redeems from Explorer.
+- Mumtaz: LCC 42. Explorer Regular, 11 of 16 left (Plans pass: her Double
+  Shot and Explorer Starter plans merged). This cycle: Slow Pour, Kiln &
+  Bean (8:20 am), Noon Café twice (at the Explorer cap there), and Double
+  Shot Phase 6 (her usual, an Iced Spanish Latte), so 1 more at Double
+  Shot and at Kiln. Beans 150, passport 4 of 9.
 - Payout today (dashboard, Live) = each cup's band rate today plus paid
   orders collected today, less the fee; "This month: Rs X" under it.
 - 80 background regulars (mixed Explorer / My cafés) have no codes; the seed

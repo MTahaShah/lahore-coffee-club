@@ -47,27 +47,57 @@ Café cost = cups × that band's rate. Margin = price − café cost.
 Members who drink below their plan's top band cost less. For example, an
 Executive cup of a Classic drink costs Rs 500, not Rs 700.
 
-### Other plans, for reference
+## Legacy Double Shot plans (not for sale)
 
-**Double Shot plans** are Double Shot's own and cover Classic drinks only.
-They pay out at the same band rates.
+Double Shot's own plans (8 cups Rs 5,600, 15 cups Rs 9,750, 22 cups
+Rs 13,500) are no longer sold and don't appear in the plan picker. Members
+who already hold one keep it until they change plans. They cover Classic
+drinks, and every cup is paid at the band rates like any other. Double Shot
+is now a partner café on Explorer and My cafés, counted as one café across
+its seven branches.
 
-| Plan     | Price     | Per cup   | Café cost            | Margin   | Margin % |
-|----------|----------:|----------:|---------------------:|---------:|---------:|
-| 8 cups   | Rs 5,600  | Rs 700.00 | 8 × 500 = Rs 4,000   | Rs 1,600 | 28.6%    |
-| 15 cups  | Rs 9,750  | Rs 650.00 | 15 × 500 = Rs 7,500  | Rs 2,250 | 23.1%    |
-| 22 cups  | Rs 13,500 | Rs 613.64 | 22 × 500 = Rs 11,000 | Rs 2,500 | 18.5%    |
+## My cafés
 
-**My cafés** (Build your own) covers Classic only. Price = the sum over cafés
-of cups × that café's latte price × 0.80, rounded to the nearest Rs 50. At
-least 6 cups in total and at most 10 at one café. Every cup costs Rs 500,
-so the margin per cup is 0.80 × latte price − 500. The prototype's default
-plan is Kiln & Bean 4, Slow Pour 2, Noon Café 2:
+Cups reserved at chosen cafés, usable only there. For each café the member
+picks a band, and every cup at that café costs the band's My cafés price:
 
-- Counter value: 4 × 700 + 2 × 800 + 2 × 650 = Rs 5,700
-- Price: 5,700 × 0.80 = 4,560, rounded to Rs 4,550
-- Café cost: 8 × 500 = Rs 4,000
-- Margin: Rs 550 (12.1%)
+| Band      | Member pays per cup | Café rate | Margin per cup | Margin % |
+|-----------|--------------------:|----------:|---------------:|---------:|
+| Classic   | Rs 560              | Rs 500    | Rs 60          | 10.7%    |
+| Signature | Rs 760              | Rs 700    | Rs 60          | 7.9%     |
+| Reserve   | Rs 1,040            | Rs 950    | Rs 90          | 8.7%     |
+
+- Price = the sum over cafés of cups × the band's price per cup.
+- At most 10 cups at one café and at least 6 in total.
+- A café offers only the bands it serves. Maple Roastery and Slow Pour offer
+  Classic and Reserve; Double Shot offers all three; the others offer
+  Classic and Signature.
+- Double Shot counts as one café: its cups work at any branch, and each cup
+  is paid to the branch that served it.
+- The margins above are the worst case. A member who drinks below the band
+  they chose costs less: a Classic drink on a Signature cup pays the café
+  Rs 500, not Rs 700.
+- "You save Rs X vs the counter" compares the plan with the counter price
+  of the same cups. For Classic that's the café's latte price. For
+  Signature and Reserve it's the average price of that café's drinks in
+  that band.
+
+Worked example: Kiln & Bean 3 Classic, Maple Roastery 2 Reserve, Double
+Shot 2 Signature.
+
+| Café           | Cups | Band      | Member pays      | Counter price              | Café paid (top of band) |
+|----------------|-----:|-----------|-----------------:|---------------------------:|------------------------:|
+| Kiln & Bean    | 3    | Classic   | 3 × 560 = 1,680  | 3 × 700 (latte) = 2,100    | 3 × 500 = 1,500         |
+| Maple Roastery | 2    | Reserve   | 2 × 1,040 = 2,080 | 2 × 1,325 = 2,650         | 2 × 950 = 1,900         |
+| Double Shot    | 2    | Signature | 2 × 760 = 1,520  | 2 × 950 = 1,900            | 2 × 700 = 1,400         |
+| Total          | 7    |           | Rs 5,280         | Rs 6,650                   | Rs 4,800                |
+
+- Maple's Reserve price is the average of its two Reserve pour-overs:
+  (1,200 + 1,450) ÷ 2 = Rs 1,325. Double Shot's Signature price is the
+  average of its 31 Signature drinks, Rs 29,435 ÷ 31 = Rs 949.52, shown as
+  Rs 950.
+- The member saves 6,650 − 5,280 = Rs 1,370 vs the counter.
+- Margin: 5,280 − 4,800 = Rs 480 (9.1%).
 
 ## Worked example: one Executive member's month
 
@@ -105,7 +135,8 @@ each café, here is a month across eight cafés:
 The member still uses one cup and pays the difference at the counter:
 "Cup + Rs X", where X = drink price − the plan's band ceiling (Rs 800
 Classic, Rs 1,100 Signature, Rs 1,500 Reserve). The member pays X to the
-café directly. We pay the café the rate of the plan's band.
+café directly. We pay the café the rate of the plan's band. On My cafés,
+the plan's band is the one chosen for that café.
 
 Worked example: a member on Regular (Classic) orders a Salted Caramel Latte
 at Double Shot, Rs 910 (Signature).
@@ -135,9 +166,10 @@ with any online payment.
   thin for Executive (6.7%) and Reserve (8.8%). The 2-cups-per-café cap
   spreads cups out, but a Reserve member with enough Reserve-priced cafés
   could land at that floor every month.
-- **My cafés at low latte prices.** At a Rs 600 latte the member pays Rs 480
-  a cup and the café is paid Rs 500, a Rs 20 loss per cup. Break-even is a
-  Rs 625 latte. Ember Coffee Co. and Third Floor are at Rs 600 today.
+- **My cafés savings are small at lower-priced cafés.** A Classic cup is
+  Rs 560. Where the latte is Rs 600 (Ember Coffee Co., Third Floor) the
+  member saves only Rs 40 a cup. The Signature margin, Rs 60 on Rs 760
+  (7.9%), is the thinnest per cup.
 - **Complimentary cups.** Beans rewards and passport rewards are paid to
   cafés at band rates with no plan revenue behind them.
 - **Top-ups pay cafés less than the menu.** In the example above the café

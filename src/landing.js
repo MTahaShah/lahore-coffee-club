@@ -136,7 +136,7 @@
     return html`<div class="card lp-teaser">
       <div class="lp-teaser__head">
         <h3 class="t-h3">My cafés</h3>
-        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of each café’s latte price.</p>
+        <p class="t-small t-muted">Reserve cups at the cafés you love. Classic cups are ${fmt.rs(store.getState().bands[0].myCafesPrice)} each.</p>
       </div>
       <ul role="list">
         ${TEASER_CAFES.map((id) => {

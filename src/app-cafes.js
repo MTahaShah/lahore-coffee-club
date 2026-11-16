@@ -320,9 +320,9 @@
       if (here.type === "mycafes") {
         return here.reserved
           ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
-              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Change my cups</button>`
+              <button type="button" class="btn btn--link" data-start-plan="${c.id}">Change my cups</button>`
           : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
-              <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Add to my plan</button>`;
+              <button type="button" class="btn btn--link" data-start-plan="${c.id}">Add to my plan</button>`;
       }
       const line = here.left > 0
         ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
@@ -330,7 +330,7 @@
           ? html`<strong>You’ve had your ${here.cap} here this month.</strong> Every other partner café is still open to you.`
           : html`<strong>No cups left this month.</strong> Your plan renews on ${fmt.shortDate(ctx.member().renewsAt)}.`;
       return html`<p class="t-small t-muted num" data-here-line>${line}</p>
-        <button type="button" class="btn btn--secondary btn--block" data-start-plan="${c.id}">Reserve cups here with My cafés</button>`;
+        <button type="button" class="btn btn--link" data-start-plan="${c.id}">Add to my plan</button>`;
     }
 
     function paintOpen() {

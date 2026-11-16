@@ -2,7 +2,7 @@
    Lahore Coffee Club — app-brand.js
    Member app: a brand partner's page (#/app/cafes/doubleshot, also
    reached from any branch's row or pin). Your cups, the drinks menu with
-   a Hot / Iced toggle, ordering ("Use a cup"), branches and plans.
+   a Hot / Iced toggle, ordering ("Use a cup"), branches, and "Add to my plan" (My cafés, any branch).
 
    Cups belong to the brand, not a branch: they work at every branch.
    "Use a cup at the counter" only tells the counter what you'd like; the
@@ -30,8 +30,13 @@
     let picked = null; // { item, temp } while the order sheet is open
     let onScroll = null;
 
-    const hasPlan = () => ctx.member().plan?.type === "brand" && ctx.member().plan.brandId === b.id;
-    const left = () => (hasPlan() ? Math.max(0, S.balance().left) : 0);
+    /** The member's cups at this brand (any branch): the plan the counter would use, and how many. */
+    const cups = () => {
+      const chk = S.counterCheck(ctx.member().id, S.branches(b.id)[0].id);
+      const opt = chk.options.find((o) => o.here > 0 && !o.plan.paused) || chk.options[0] || null;
+      return { opt, here: opt && !opt.plan.paused ? opt.here : 0 };
+    };
+    const canUse = () => cups().here > 0;
     const priceTag = (item, temp) => {
       const p = S.drinkPrice(b.id, item, temp, band());
       return p.included ? html`<span class="badge">${p.band.label}</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
@@ -40,13 +45,23 @@
     /* ---------------- Your cups ---------------- */
     function cupsHtml() {
       const m = ctx.member();
-      if (hasPlan()) {
-        return html`<p class="brand-cups__line num">${S.brandBalanceLine()}</p>
-          <p class="t-small t-muted num">${S.planLabel(m)} plan · renews on ${fmt.shortDate(m.renewsAt)}. Pick a drink below, or just show your pass at the counter.</p>`;
+      const { opt, here } = cups();
+      const add = html`<button type="button" class="btn btn--link" data-start-plan="${b.id}">Add to my plan</button>`;
+      if (!opt) {
+        return html`<p class="brand-cups__line">One plan, all ${S.branches(b.id).length} branches.</p>
+          <p class="t-small t-muted">${m.plan ? `Your ${S.planLabel(m)} plan doesn’t include ${b.name} yet.` : "No plan yet."} Add it to My cafés, and its cups work at any branch.</p>
+          ${add}`;
       }
-      return html`<p class="brand-cups__line">One plan, all ${S.branches(b.id).length} branches.</p>
-        <p class="t-small t-muted">${b.name} cups come with a ${b.name} plan and work at any branch.${m.plan ? ` Your ${S.planLabel(m)} plan covers the other partner cafés.` : ""}</p>
-        <a class="btn btn--secondary btn--compact" href="#brand-plans" data-to-plans>See ${b.name} plans</a>`;
+      const type = opt.plan.type;
+      const line = type === "brand" ? S.brandBalanceLine()
+        : type === "explorer" ? `${here === 1 ? "1 more cup" : `${here} more cups`} here this month · any branch`
+        : `${here} of ${opt.reserved || here} reserved here · any branch`;
+      const sub = here > 0 ? "Pick a drink below, or just show your pass at the counter."
+        : opt.why === "cap" ? `You’ve had your ${opt.cap} on Explorer here this month. Every other partner café is still open to you.`
+        : `No cups left here this month. Your plan renews on ${fmt.shortDate(m.renewsAt)}.`;
+      return html`<p class="brand-cups__line num">${line}</p>
+        <p class="t-small t-muted num">${S.planLabel(m)} · ${sub}</p>
+        ${type === "brand" ? "" : add}`;
     }
 
     /* ---------------- Menu ---------------- */
@@ -93,31 +108,12 @@
       </ul>`;
     }
 
-    /* ---------------- Plans ---------------- */
-    function plansHtml() {
-      const cur = ctx.member().plan;
-      return html`<ul role="list" class="brand-plans">
-        ${b.plans.map((p) => {
-          const mine = cur?.type === "brand" && cur.brandId === b.id && cur.planId === p.id;
-          return html`<li class="card brand-plan${mine ? " is-mine" : ""}">
-            <div class="brand-plan__head">
-              <span class="t-h3 num">${fmt.cups(p.cups)}</span>
-              ${mine ? html`<span class="badge badge--accent">Your plan</span>` : ""}
-              <span class="t-h3 num brand-plan__price">${fmt.rs(p.price)}</span>
-            </div>
-            <p class="t-small t-muted num">About ${fmt.rs(p.price / p.cups)} a cup, at any branch, every month.</p>
-            ${mine ? "" : html`<button type="button" class="btn btn--secondary btn--block" data-brand-plan="${p.id}">Choose ${p.cups} cups</button>`}
-          </li>`;
-        })}
-      </ul>`;
-    }
-
     /* ---------------- Order sheet ---------------- */
     function sheetHtml() {
       const { item, temp } = picked;
       const p = S.drinkPrice(b.id, item, temp, band());
       const both = item.hot != null && item.iced != null;
-      const canUse = hasPlan() && left() > 0;
+      const use = canUse();
       return html`
         <div class="sheet__scrim" data-sheet-close></div>
         <div class="sheet__panel">
@@ -133,11 +129,10 @@
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
             <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
             <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
-            ${canUse
+            ${use
               ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
                   <p class="t-micro t-faint">Order ahead and collect, or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
-              : html`<p class="t-small t-muted">${hasPlan() ? "No cups left this month. You can still order and pay for it." : `Order and pay for it, or choose a ${b.name} plan to use cups.`}</p>
-                  ${hasPlan() ? "" : html`<button type="button" class="btn btn--secondary btn--block" data-sheet-to-plans>See ${b.name} plans</button>`}`}
+              : html`<p class="t-small t-muted">No cups to use here right now. You can still order and pay for it.</p>`}
             <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
           </div>
         </div>`;
@@ -157,7 +152,6 @@
       $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}`;
       $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`;
     }
-    const toPlans = () => $("#brand-plans", view)?.scrollIntoView({ block: "start", behavior: ui.reducedMotion() ? "auto" : "smooth" });
 
     function onSheetClick(e) {
       const seg = e.target.closest('[data-segmented="ordertemp"] .segmented__option');
@@ -173,7 +167,6 @@
         return;
       }
       if (e.target.closest("[data-skip-order]")) { A.placeOrder({}); ctx.go("#/app/pass"); return; }
-      if (e.target.closest("[data-sheet-to-plans]")) { ui.closeSheet(sheet); toPlans(); }
     }
 
     function onClick(e) {
@@ -187,15 +180,11 @@
       }
       const d = e.target.closest("[data-drink]");
       if (d) { openOrder(d, d.dataset.drink); return; }
-      if (e.target.closest("[data-to-plans]")) { e.preventDefault(); toPlans(); return; }
-      const pl = e.target.closest("[data-brand-plan]");
-      if (pl) { LCC.appPlan?.start({ mode: "brand", brandPlanId: pl.dataset.brandPlan }); ctx.go("#/app/plan"); }
     }
 
     const repaintMine = () => {
       const set = (sel, markup) => { const n = $(sel, view); if (n) n.innerHTML = markup.s; };
       set("[data-brand-cups]", cupsHtml());
-      set("[data-brand-plans]", plansHtml());
     };
 
     return {
@@ -221,7 +210,7 @@
                 <h2 class="eyebrow" id="menu-h">Drinks</h2>
                 ${ui.segmented({ name: "menutemp", label: "Hot or iced drinks", value: menuTemp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
               </div>
-              <p class="t-small t-muted num">A cup covers any drink up to ${fmt.rs(cover)}. Above that, you pay the difference at the till.</p>
+              <p class="t-small t-muted num">Your cups cover drinks up to ${fmt.rs(cover)}. Above that, you pay the difference at the till.</p>
               <div data-menu>${menuHtml()}</div>
               <p class="t-micro t-faint">${b.menuNote}</p>
             </section>
@@ -231,10 +220,6 @@
               <div data-branches>${branchesHtml()}</div>
             </section>
 
-            <section class="app-section" id="brand-plans" aria-labelledby="plans-h">
-              <h2 class="eyebrow app-section__title" id="plans-h">${b.name} plans</h2>
-              <div data-brand-plans>${plansHtml()}</div>
-            </section>
           </div>
         </div>`.s,
       mount() {

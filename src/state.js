@@ -100,6 +100,7 @@
     memberId: seed.memberId,
     partnerCafeId: seed.partnerCafeId,
     builder: clone(seed.builderDraft),
+    builderBands: {}, // My cafés draft: band per venue (missing = Classic)
     ledger: clone(seed.ledger), // append-only; see appendEntries()
     club: clone(seed.club),
     rsvps: {},                   // gatheringId -> memberId -> { going, at }
@@ -429,12 +430,14 @@
   /** A redemption that still counts: not undone at the counter. */
   function isRedeem(e) { return e.type === "redeem" && !e.undone; }
   const listNames = (ids) => {
-    const names = ids.map((id) => state.cafes[id].name);
+    const names = ids.map((id) => venueName(id));
     return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   };
 
   /** The club counts a brand as one café: one passport stamp for any branch. */
   const venueOf = (cafeId) => state.cafes[cafeId]?.brandId || cafeId;
+  /** A venue's name: the brand for a chain ("Double Shot"), the café otherwise. */
+  const venueName = (id) => (state.cafes[id] && !state.cafes[id].chainId ? state.cafes[id].name : state.brands[venueOf(id)]?.name || state.cafes[id]?.name || "");
   function venues() {
     const seen = new Set();
     return state.cafeOrder.map((id) => state.cafes[id]).filter((c) => !seen.has(venueOf(c.id)) && seen.add(venueOf(c.id))).map((c) => {
@@ -490,7 +493,8 @@
     /** A menu item's band (from its higher price, hot or iced). */
     itemBand: (item) => select.bandOf(Math.max(item.hot || 0, item.iced || 0)),
     /** The highest band a plan covers: Explorer from its tier, Double Shot from its plan, My cafés Classic. */
-    planBand(plan) {
+    planBand(plan, cafeId) {
+      if (plan?.type === "mycafes") return select.band(plan.bands?.[venueOf(cafeId)]).id;
       if (plan?.type === "explorer") return select.band(select.tier(plan.tierId)?.maxBand).id;
       if (plan?.type === "brand") return select.band(state.brands[plan.brandId]?.plans.find((x) => x.id === plan.planId)?.maxBand).id;
       return state.bands[0].id;
@@ -499,7 +503,7 @@
     bandAt(memberId = state.memberId, brandId) {
       const ps = select.plansOf(memberId);
       const p = ps.find((x) => x.plan.type === "brand" && x.plan.brandId === brandId) || ps.find((x) => x.plan.type === "explorer") || ps[0];
-      return select.planBand(p?.plan);
+      return select.planBand(p?.plan, brandId);
     },
     /** "Classic", "up to Signature", "up to Reserve". */
     coversLabel(bandId) {
@@ -590,7 +594,8 @@
       if (type === "mycafes") {
         es.forEach((e) => {
           if (!e.cafeId || e.bonus) { bonus += e.cups; return; }
-          const b = (perCafe[e.cafeId] = perCafe[e.cafeId] || { reserved: 0, left: 0, used: 0 });
+          const v = venueOf(e.cafeId); // a chain (Double Shot) is one café: cups work at any branch
+          const b = (perCafe[v] = perCafe[v] || { reserved: 0, left: 0, used: 0 });
           if (e.type === "purchase") b.reserved += e.cups;
           b.left += e.cups;
           if (isRedeem(e)) b.used += e.credits;
@@ -619,7 +624,7 @@
       }
       if (m.plan.type === "mycafes") {
         const bal = select.balance(memberId);
-        const b = bal.perCafe[cafeId];
+        const b = bal.perCafe[venueOf(cafeId)];
         const reserved = b?.reserved || 0;
         // Nothing reserved left here, but a free cup to spend: use that
         if ((!reserved || b.left <= 0) && bal.bonus > 0) return { type: "mycafes", reserved, left: bal.bonus, of: reserved, bonus: true, label: `${fmt.cups(bal.bonus)} complimentary, any café` };
@@ -659,18 +664,19 @@
       return { ...base, ok: true };
     },
 
-    /** Build-your-own pricing. Spec §6. */
-    customPrice(allocation = state.builder) {
-      const { customDiscount, roundTo: step, minCupsTotal } = state.rules;
-      let cups = 0;
-      let counter = 0;
-      Object.entries(allocation).forEach(([cafeId, n]) => {
-        const cafe = state.cafes[cafeId];
-        if (!cafe || !n) return;
+    /** My cafés pricing: each venue's cups at its band's per-cup price
+        (BANDS myCafesPrice). savings: against the counter, the venue's latte
+        for Classic, the average of its drinks in that band otherwise. */
+    customPrice(allocation = state.builder, bands = state.builderBands) {
+      const { minCupsTotal } = state.rules;
+      let cups = 0, price = 0, counter = 0;
+      Object.entries(allocation).forEach(([id, n]) => {
+        if (!n || !select.venue(id)) return;
+        const band = select.band(bands?.[id]);
         cups += n;
-        counter += n * cafe.price;
+        price += n * band.myCafesPrice;
+        counter += n * select.venueRefPrice(id, band.id);
       });
-      const price = roundTo(counter * customDiscount, step);
       return {
         cups,
         price,
@@ -679,6 +685,28 @@
         meetsMinimum: cups >= minCupsTotal,
         cupsShort: Math.max(0, minCupsTotal - cups),
       };
+    },
+    /** Cafés for My cafés, one per venue: single cafés, and each chain as one (Double Shot, any branch). */
+    venues: () => venues().map((v) => ({ id: v.id, name: venueName(v.id), area: v.area, brandId: v.brandId || v.id })),
+    venue: (id) => select.venues().find((v) => v.id === id) || null,
+    venueName,
+    venueOf,
+    /** The bands a venue actually serves, in order (from its menu). */
+    venueBands(id) {
+      const b = state.brands[venueOf(id)];
+      const served = new Set((b?.menu || []).map((d) => select.itemBand(d)?.id).filter(Boolean));
+      return state.bands.filter((x) => served.has(x.id));
+    },
+    /** What a cup costs at the counter here: the latte for Classic, else the average drink in that band. */
+    venueRefPrice(id, bandId) {
+      const b = state.brands[venueOf(id)];
+      if (!b) return 0;
+      if (bandId === state.bands[0].id) {
+        const c = state.cafes[id] || select.branches(b.id)[0];
+        return c?.price || 0;
+      }
+      const prices = b.menu.filter((d) => select.itemBand(d)?.id === bandId).map((d) => Math.max(d.hot || 0, d.iced || 0));
+      return prices.length ? Math.round(prices.reduce((n, x) => n + x, 0) / prices.length) : 0;
     },
 
     /** Savings for an Explorer tier: Classic tiers against the average latte across cafés,
@@ -792,7 +820,7 @@
         const t = select.tier(plan.tierId);
         return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
       }
-      return { name: "My cafés", typeName: "My cafés", ...select.customPrice(plan.allocation || state.builder) };
+      return { name: "My cafés", typeName: "My cafés", ...select.customPrice(plan.allocation || state.builder, plan.allocation ? plan.bands || {} : state.builderBands) };
     },
 
     /** Is this the plan the member is on now? */
@@ -802,8 +830,10 @@
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
       if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
+      const ba = plan.allocation ? plan.bands || {} : state.builderBands, bb = cur.bands || {};
       const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-      return [...keys].every((k) => (a[k] || 0) === (b[k] || 0));
+      const bandOf = (x, k) => select.band(x[k]).id;
+      return [...keys].every((k) => (a[k] || 0) === (b[k] || 0) && (!a[k] || bandOf(ba, k) === bandOf(bb, k)));
     },
 
     /* ---------------- The club: all earned by use, read from the ledger ---------------- */
@@ -1085,8 +1115,9 @@
           options.push({ ...p, rank: 1, used, cap, here: Math.max(0, Math.min(p.left, cap - used)), why: !p.left ? "empty" : used >= cap ? "cap" : null });
         } else if (p.plan.type === "mycafes") {
           const es = mine.filter((e) => e.cycle === p.cycle);
-          const reserved = sumCups(es.filter((e) => e.type === "purchase" && e.cafeId === branchId));
-          const leftHere = sumCups(es.filter((e) => e.cafeId === branchId && !e.bonus));
+          const here = (e) => e.cafeId && venueOf(e.cafeId) === venueOf(branchId); // a chain's cups work at any branch
+          const reserved = sumCups(es.filter((e) => e.type === "purchase" && here(e)));
+          const leftHere = sumCups(es.filter((e) => here(e) && !e.bonus));
           const bonus = Math.max(0, sumCups(es.filter((e) => !e.cafeId || e.bonus)));
           if (reserved || bonus) options.push({ ...p, rank: 2, reserved, here: leftHere > 0 ? leftHere : bonus, bonus: leftHere <= 0 && bonus > 0, why: leftHere > 0 || bonus > 0 ? null : "empty" });
         }
@@ -1201,7 +1232,7 @@
         if (!plans.length && !(byMember.get(m.id) || []).length) return;
         const visits = (byMember.get(m.id) || []).filter((e) => isRedeem(e) && ids.includes(e.cafeId));
         const brandPlan = plans.find((p) => p.plan.type === "brand" && p.plan.brandId === brandId);
-        const myCafes = plans.find((p) => p.plan.type === "mycafes" && ids.some((id) => (byMember.get(m.id) || []).some((e) => e.cycle === p.cycle && e.type === "purchase" && e.cafeId === id)));
+        const myCafes = plans.find((p) => p.plan.type === "mycafes" && ids.some((id) => (byMember.get(m.id) || []).some((e) => e.cycle === p.cycle && e.type === "purchase" && (e.cafeId === id || e.cafeId === b.id))));
         const explorer = plans.find((p) => p.plan.type === "explorer");
         let type = null, plan = null;
         if (brandPlan) { type = "brand"; plan = brandPlan; }
@@ -1417,7 +1448,7 @@
       // Every brand has a menu now: one cup per drink, and anything above what a cup covers is a top-up
       const item = select.menuItem(cafe.brandId, drinkId) || state.brands[cafe.brandId].menu[0];
       // Pickup orders and tables use the member's first plan, so its band sets the top-up
-      const band = select.planBand(state.members[memberId]?.plan);
+      const band = select.planBand(state.members[memberId]?.plan, cafeId);
       const p = select.drinkPrice(cafe.brandId, item, temp, band);
       const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
@@ -1647,8 +1678,8 @@
     "plan-paused": () => "Your plan is paused. Resume it to use a cup.",
     "not-brand": (m) => `Your cups are for ${state.brands[m.plan.brandId].name}.`,
     "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups.`,
-    "not-reserved": (m, { cafeId }) => `${state.cafes[cafeId].name} isn’t in your plan.`,
-    "reserved-used": (m, { cafeId }) => `You’ve used the cups reserved at ${state.cafes[cafeId].name} this month.`,
+    "not-reserved": (m, { cafeId }) => `${venueName(cafeId)} isn’t in your plan.`,
+    "reserved-used": (m, { cafeId }) => `You’ve used the cups reserved at ${venueName(cafeId)} this month.`,
     "explorer-cap": (m, { here, cafeId }) => `You’ve had your ${here.cap} at ${state.cafes[cafeId].name} this month.`,
     "daily-limit": (m, { limit }) => `You’ve had ${fmt.cups(limit)} here today, the most in a day.`,
     "not-enough": (m, { credits, here }) => `This drink uses ${credits} cups and you have ${fmt.cups(here.left)} here.`,
@@ -1862,7 +1893,7 @@
         if (!select.activity(l.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId))) stamped.push(member);
         entries.push({
           id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
-          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan),
+          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan, o.cafeId),
           firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: l.cycle, live: true, ...extra,
         });
       }
@@ -1977,7 +2008,7 @@
       if (!select.isAvailable(branchId, item.id)) return { ...check, ok: false, reason: "unavailable", title: "Not available today", line: "Pick another drink." };
       const m = check.member;
       const plan = check.plan;
-      const band = select.planBand(plan.plan);
+      const band = select.planBand(plan.plan, branchId);
       const p = select.drinkPrice(b.id, item, temp, band);
       const entry = {
         id: uid("rd"), type: "redeem", memberId, cafeId: branchId, branchId, brandId: b.id, staffId: state.counter.staffId || null,
@@ -2221,7 +2252,12 @@
         ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
         : plan.type === "explorer"
         ? { type: "explorer", tierId: select.tier(plan.tierId).id }
-        : { type: "mycafes", allocation: Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0)) };
+        : (() => {
+          const allocation = Object.fromEntries(Object.entries(clone(plan.allocation || state.builder)).filter(([, n]) => n > 0));
+          const from = plan.allocation ? plan.bands || {} : state.builderBands;
+          const bands = Object.fromEntries(Object.keys(allocation).map((id) => [id, select.band(from[id]).id]));
+          return { type: "mycafes", allocation, bands };
+        })();
       member.cycle = cycle;
       member.cycleStartedAt = now;
       member.renewsAt = addMonths(now, 1);
@@ -2259,21 +2295,29 @@
       });
     },
 
+    /** My cafés draft: cups at one venue (a single café, or a chain as one). 0 removes it. */
     setBuilderCups(cafeId, cups) {
-      if (!state.cafes[cafeId]) return;
+      if (!select.venue(cafeId)) return;
       const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
-      if (n === 0) delete state.builder[cafeId];
+      if (n === 0) { delete state.builder[cafeId]; delete state.builderBands[cafeId]; }
       else state.builder[cafeId] = n;
       emit("builder", { cafeId, cups: n, price: select.customPrice() });
     },
+    /** My cafés draft: the band for one venue (only bands it serves). */
+    setBuilderBand(cafeId, bandId) {
+      if (!select.venueBands(cafeId).some((b) => b.id === bandId)) return;
+      state.builderBands[cafeId] = bandId;
+      emit("builder", { cafeId, band: bandId, price: select.customPrice() });
+    },
 
     /** Replace the whole builder draft (e.g. start from the current plan). */
-    setBuilder(allocation) {
+    setBuilder(allocation, bands = {}) {
       const max = state.rules.maxCupsPerCafe;
       state.builder = {};
+      state.builderBands = {};
       Object.entries(allocation || {}).forEach(([id, n]) => {
         const v = Math.max(0, Math.min(max, Math.round(n)));
-        if (state.cafes[id] && v) state.builder[id] = v;
+        if (select.venue(id) && v) { state.builder[id] = v; if (bands[id]) state.builderBands[id] = bands[id]; }
       });
       emit("builder", { price: select.customPrice() });
     },
@@ -2291,7 +2335,7 @@
       const member = select.member();
       const n = Math.max(1, Math.min(state.rules.giftMaxCups, cups | 0));
       const from = member.plan?.type === "mycafes" ? cafeId : null;
-      if (member.plan?.type === "mycafes" && !state.cafes[from]) return { ok: false, message: "Choose which café’s cups to give." };
+      if (member.plan?.type === "mycafes" && !select.venue(from)) return { ok: false, message: "Choose which café’s cups to give." };
       const have = from ? (select.balance(member.id).perCafe[from]?.left || 0) : select.poolBalance(member.id) || 0;
       if (have < n) return { ok: false, message: `You have ${fmt.cups(have)} to give${from ? ` at ${state.cafes[from].name}` : ""}, so you can gift up to ${have}.` };
       const sentAt = Date.now();

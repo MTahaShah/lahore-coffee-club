@@ -366,21 +366,41 @@
 .flow { min-height: 100%; display: flex; flex-direction: column; }
 .flow__body { flex: 1; display: grid; align-content: start; gap: var(--space-5); }
 .plan-intro { margin-bottom: var(--space-1); }
-.tier-list { display: grid; gap: var(--space-3); border: 0; padding: 0; min-width: 0; }
-.tier { display: grid; gap: var(--space-1); cursor: pointer; transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
-.tier:hover { border-color: var(--line-strong); }
-.tier:active { transform: scale(0.99); }
-.tier:has(input:checked) { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
-.tier:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
-.tier__head { display: flex; align-items: center; gap: var(--space-2); }
-.tier__price { margin-left: auto; }
+/* Explorer: one list in two quiet groups; a row is one line */
+.plan-groups { display: grid; gap: var(--space-6); border: 0; padding: 0; margin: 0; min-width: 0; }
+.plan-group { display: grid; gap: var(--space-2); }
+.plan-rows { border-top: var(--hairline); }
+.plan-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: var(--space-4);
+  min-height: 56px; padding: var(--space-3) var(--space-3); border-bottom: var(--hairline); cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease);
+}
+.plan-row__text { min-width: 0; }
+.plan-row__name { font-weight: 700; margin-right: var(--space-2); }
+.plan-row__price { text-align: right; }
+.plan-row:hover { background: var(--primary-soft); }
+.plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); border-radius: var(--radius-sm); }
+.plan-row:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.builder-row .row__meta { transition: color var(--dur-1) var(--ease); }
+/* My cafés: cafés added one by one */
+.plan-body { display: grid; gap: var(--space-4); }
+.builder-empty { display: grid; gap: var(--space-4); justify-items: start; padding: var(--space-6) 0; }
+.builder-list { border-top: var(--hairline); }
+.builder-row { display: grid; gap: var(--space-3); padding: var(--space-4) 0; border-bottom: var(--hairline); min-width: 0; }
+.builder-row__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.builder-row__remove { font-size: var(--fs-14); min-height: 0; padding: 0; }
+.builder-row__controls { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.builder-row__controls .stepper { flex: none; }
+.builder-row > .segmented { width: 100%; min-width: 0; }
+.builder-row [data-row-meta] { min-width: 0; transition: color var(--dur-1) var(--ease); }
 .builder-row.is-new { background: var(--primary-soft); margin-inline: calc(-1 * var(--space-3)); padding-inline: var(--space-3); border-radius: var(--radius-sm); }
+.builder-add { justify-self: start; }
+.add-cafe-sheet { display: grid; gap: var(--space-3); }
+.add-cafe-list { max-height: 50vh; overflow-y: auto; border-top: var(--hairline); }
+.add-cafe-row { width: 100%; text-align: left; border-bottom: var(--hairline); }
 
 .summary-bar { gap: var(--space-2); box-shadow: var(--shadow-float); }
 .summary-bar__nums { display: flex; justify-content: space-between; align-items: baseline; }
-.summary-bar__cups { font-weight: 500; }
 .summary-bar__note { min-height: 2.9em; }
 .summary-bar__note.is-warn { color: var(--danger); }
 .summary-bar__note.is-save { color: var(--accent-text); }   /* accent: the savings line */
@@ -481,11 +501,6 @@
 .branch-row { width: 100%; text-align: left; cursor: pointer; border-bottom: var(--hairline); }
 li:last-child > .branch-row { border-bottom: 0; }
 .branch-row .row__main { display: grid; gap: 2px; }
-.brand-plans { display: grid; gap: var(--space-3); }
-.brand-plan { display: grid; gap: var(--space-2); }
-.brand-plan.is-mine { border-color: var(--primary); }
-.brand-plan__head { display: flex; align-items: baseline; gap: var(--space-2); }
-.brand-plan__price { margin-left: auto; }
 .order-sheet { display: grid; gap: var(--space-4); }
 .order-sheet .segmented { width: 100%; }
 .order-sheet__cover { font-size: var(--fs-16); }

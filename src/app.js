@@ -232,7 +232,7 @@
                 <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
                 <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
               </div>
-              <p class="t-small t-muted">Your cups cover drinks up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
+              <p class="t-small t-muted">Your cups cover drinks up to ${fmt.rs(cover)}, at any ${brand.name} branch.</p>
               <div class="cafe-sheet__actions">
                 <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
                 <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>

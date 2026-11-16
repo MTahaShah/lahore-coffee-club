@@ -18,7 +18,6 @@
 
   /* Pricing rules, shared by the builder and the landing teaser ------- */
   const rules = {
-    customDiscount: 0.8,       // member pays 80% of list price
     roundTo: 50,               // round monthly price to nearest Rs 50
     maxCupsPerCafe: 10,
     minCupsTotal: 6,
@@ -46,11 +45,12 @@
      The café is paid the rate of the drink's band, capped at the plan's
      band: a Rs 910 drink on a Classic plan pays the café Rs 500.
      Drinks above Rs 1,500 are in no band; any plan pays its top rate.
+     myCafesPrice: what a My cafés cup costs the member in that band.
      docs/pricing.md has the margins.                                     */
   const BANDS = [
-    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500 },
-    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700 },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950 },
+    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500, myCafesPrice: 560 },
+    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700, myCafesPrice: 760 },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950, myCafesPrice: 1040 },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
@@ -108,7 +108,9 @@
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
       menuNote: "Prices from Double Shot’s public menu, Nov 2026. Demo only.",
-      // Its own plans cover Classic drinks; payouts follow the bands, as everywhere.
+      // Legacy plans: no longer for sale and not in the plan picker. Members who
+      // already hold one keep it (Rabia, Kamran, Nida, Iqra, Hira, Faraz and the
+      // Double Shot regulars). They cover Classic; payouts follow the bands.
       plans: [
         { id: "ds8",  cups: 8,  maxBand: "classic", price: 5600 },
         { id: "ds15", cups: 15, maxBand: "classic", price: 9750 },
@@ -476,18 +478,14 @@
     pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    plan: { type: "brand", brandId: "doubleshot", planId: "ds15" },   // 15 Double Shot cups, 11 left
+    plan: { type: "explorer", tierId: "regular" },   // Explorer Regular: 16 cups, 11 left
     cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
     payment: { method: "JazzCash", last4: "4567" },
-    // A member can hold more than one plan. Each has its own cycle, and its
-    // balance belongs to the plan, never to a branch. member.plan is the
-    // first (shown on Home); the others are in extraPlans.
+    // A member can hold more than one plan (member.extraPlans, each with its
+    // own cycle); Mumtaz holds one.
     // BACKEND: subscriptions (member_id, plan, cycle, renews_at), many per member
-    extraPlans: [
-      { plan: { type: "explorer", tierId: "starter" }, cycle: "c_m_ayesha_explorer", cycleStartedAt: daysAgo(18), renewsAt: daysAgo(-12) }, // 8 cups, 6 left
-    ],
     // BACKEND: member numbers come from a database sequence, issued once at sign-up.
     // Unique across the whole club: said at the counter as "LCC 42".
     memberNo: 42,
@@ -652,13 +650,13 @@
   };
   Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
 
-  /* Double Shot, this cycle. Mumtaz: 4 of 15 used at four branches (one
-     before 9 am), so 11 left. Rabia: 3 of 8. Kamran: 6 of 22, two of them
+  /* Double Shot, this cycle. Mumtaz: one Explorer cup (Phase 6, her usual
+     Iced Spanish Latte), so she has one more there this month. Rabia: 3 of 8. Kamran: 6 of 22, two of them
      at Gulberg today (the daily limit). Nida: all 8 used.                 */
   // Earlier today at h:m, or `backoff` minutes ago if that hasn't happened yet (never before midnight)
   const todayAt = (h, m, backoff) => Math.max(startOfToday + MIN, Math.min(clockAgo(0, h, m), now - backoff * MIN));
   const DS_HISTORY = {
-    m_ayesha: [["ds-gulberg", "ds-spanish", "iced", clockAgo(14, 8, 20), true], ["ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40), true], ["ds-modeltown", "ds-flat-white", "hot", clockAgo(6, 11, 10), true], ["ds-pine", "ds-caramel-f", "iced", clockAgo(2, 19, 5), true]],
+    m_ayesha: [["ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40), true]],
     m_rabia:  [["ds-cantt", "ds-latte", "iced"], ["ds-cantt", "ds-americano", "hot"], ["ds-gulberg", "ds-matcha", "iced"]],
     m_kamran: [["ds-dha6", "ds-v60", "hot"], ["ds-lalakjan", "ds-cortado", "hot"], ["ds-dolmen", "ds-java-chip", "iced"], ["ds-gulberg", "ds-flat-white", "hot"], ["ds-gulberg", "ds-americano", "iced", todayAt(9, 5, 70)], ["ds-gulberg", "ds-spanish", "iced", todayAt(9, 50, 25)]],
     m_nida:   [["ds-modeltown", "ds-latte", "hot"], ["ds-modeltown", "ds-caramel", "iced"], ["ds-pine", "ds-chai", "hot"], ["ds-pine", "ds-latte", "iced"], ["ds-gulberg", "ds-mocha-101", "iced"], ["ds-gulberg", "ds-spanish", "iced"], ["ds-dha6", "ds-matcha", "iced"], ["ds-dha6", "ds-kunafa", "iced"]],
@@ -670,16 +668,14 @@
       seen.add(cafeId);
     });
   });
+  seq += 3; // Mumtaz's three earlier Double Shot rows moved to Explorer; later seeded ids stay as they were
 
-  /* Mumtaz’s Explorer plan, this cycle: 8 cups, 2 used (Slow Pour and
-     Noon, cafés she already knew), so 6 left. Explorer works at any
-     partner brand; at Double Shot her Double Shot cups go first.       */
-  (function mumtazExplorer() {
-    const x = mumtaz.extraPlans[0];
-    ledger.push({ id: "s_mx_buy", type: "purchase", memberId: mumtaz.id, cafeId: null, cups: tierCups(x.plan.tierId), at: x.cycleStartedAt, cycle: x.cycle });
-    [["s_mx_1", "slowpour", "sp-gibraltar", clockAgo(17, 18, 40)], ["s_mx_2", "noon", "noon-latte", clockAgo(13, 12, 15)]].forEach(([id, cafeId, drinkId, at]) =>
-      ledger.push({ id, type: "redeem", memberId: mumtaz.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit: false, at, cycle: x.cycle, ...served(cafeId, id) }));
-  })();
+  /* Mumtaz’s Explorer Regular, this cycle: 16 cups, 5 used, 11 left.
+     Slow Pour, Kiln & Bean (before 9 am), Noon Café twice, and Double
+     Shot Phase 6 above: all cafés she already knew, at most 2 at each. */
+  [["s_mx_1", "slowpour", "sp-gibraltar", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", clockAgo(14, 8, 20)],
+    ["s_mx_2", "noon", "noon-latte", clockAgo(13, 12, 15)], ["s_mx_4", "noon", "noon-capp", clockAgo(6, 11, 10)]].forEach(([id, cafeId, drinkId, at]) =>
+    ledger.push({ id, type: "redeem", memberId: mumtaz.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit: false, at, cycle: mumtaz.cycle, ...served(cafeId, id) }));
 
   /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
      Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
