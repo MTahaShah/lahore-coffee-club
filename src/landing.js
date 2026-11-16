@@ -122,7 +122,7 @@
       <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
-          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · ${t.line}</span></th>
+          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · Covers: ${S.coversLabel(t.maxBand)}</span></th>
           <td class="num t-h3">${fmt.rs(t.price)}</td>
           <td class="num t-small t-muted lp-table__per">about ${fmt.rs(t.price / t.cups)}</td>
         </tr>`)}
@@ -136,13 +136,13 @@
     return html`<div class="card lp-teaser">
       <div class="lp-teaser__head">
         <h3 class="t-h3">My cafés</h3>
-        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
+        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of each café’s latte price.</p>
       </div>
       <ul role="list">
         ${TEASER_CAFES.map((id) => {
           const c = S.cafe(id);
           return html`<li class="row">
-            <div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} at the counter</div></div>
+            <div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta num">${S.area(c.area).name} · latte ${fmt.rs(c.price)} at the counter</div></div>
             ${ui.stepper({ id, value: b[id] || 0, min: 0, max, label: `Cups a month at ${c.name}` })}
           </li>`;
         })}

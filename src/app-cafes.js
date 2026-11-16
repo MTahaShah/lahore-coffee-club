@@ -27,6 +27,14 @@
   // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
   const matchaMode = () => LCC.theme?.flavour() === "matcha";
   const isMatcha = (d) => /matcha/i.test(d.name);
+  // A drink's band, and the top-up on the member's plan (empty when it's included)
+  const bandLabel = (c, d) => S.itemBand(S.menuItem(c.brandId, d.id) || { hot: d.price })?.label || "Above Reserve";
+  const topUpFor = (c, d) => {
+    const item = S.menuItem(c.brandId, d.id);
+    if (!item || !S.member().plan) return "";
+    const p = S.drinkPrice(c.brandId, item, "hot", S.bandAt(undefined, c.brandId));
+    return p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)} on your plan`;
+  };
   const servesMatcha = (c) => c.drinks.some(isMatcha);
 
   /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
@@ -349,17 +357,17 @@
             <dl class="facts">
               <div><dt>${icon("clock", { size: 18 })}<span class="sr-only">Hours</span></dt><dd>${c.hours.label}<span class="t-faint"> · <span data-open-state>${S.openState(c).label}</span></span></dd></div>
               <div><dt>${ui.cupIcon(S.usualStatus(c, USUAL_HOUR).status, { size: 18, cls: "" })}<span class="sr-only">Typical</span></dt><dd>Usually ${fmt.statusLabel(S.usualStatus(c, USUAL_HOUR).status).toLowerCase()} at 6 pm</dd></div>
-              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">${fmt.rs(c.price)} a cup at the counter</dd></div>
+              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">A latte is ${fmt.rs(c.price)} at the counter</dd></div>
             </dl>
             <div class="cluster" style="--cluster-gap:var(--space-2)">${c.tags.map((t) => html`<span class="badge">${t}</span>`)}</div>
 
             <section class="app-section" aria-labelledby="drinks-h">
-              <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
+              <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
-                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, uses ${fmt.cups(d.credits)}. Order for pickup">
-                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter</span></span>
-                    <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter${topUpFor(c, d)}</span></span>
+                    <span class="badge">${bandLabel(c, d)}</span>
                   </button>
                 </li>`)}
               </ul>

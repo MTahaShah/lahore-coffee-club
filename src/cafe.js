@@ -298,6 +298,16 @@
         paintPanel({ focus: true });
       }
 
+      /** The band the plan used here covers up to (undefined when no cup can be used). */
+      function planBand() {
+        const chk = S.counterCheck(member().id, branch().id);
+        return chk.ok ? S.planBand(chk.plan.plan) : undefined;
+      }
+      const bandName = (p) => (p.band ? p.band.label : "Above Reserve");
+      const priceText = (p) => (p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`);
+      /** One quiet line when the drink is above the plan's band. */
+      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}, up to ${fmt.rs(p.cover.maxPrice)}). ${m.firstName} pays ${fmt.rs(p.topUp)} at the counter.`);
+
       function memberHtml() {
         const m = member();
         const b = brand();
@@ -307,7 +317,8 @@
         const perks = S.perksAt ? S.perksAt(m.id, branch().id) : [];
         const others = chk.plans.filter((p) => !chk.ok || p.key !== chk.plan.key);
         const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
-        const price = item ? S.drinkPrice(b.id, item, drink.temp) : null;
+        const band = chk.ok ? S.planBand(chk.plan.plan) : undefined;
+        const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
           <div class="ct-card__who">
@@ -320,14 +331,15 @@
           </div>
           ${chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
-                <span class="t-small t-faint">${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
+                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
           ${others.length && chk.ok ? html`<p class="t-small t-faint num">Also: ${others.map((p) => `${p.name}, ${p.left} left`).join(" · ")}</p>` : ""}
           ${perks.length ? html`<p class="t-small ct-card__perk">Perk to offer: ${perks.map((p) => p.text).join("; ")}</p>` : ""}
           ${chk.ok && item ? html`
             <div class="ct-drink">
               <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
-              <p class="ct-drink__name"><span data-drink-name>${label}</span> <span class="ct-drink__price num">${price.included ? "Included" : `Cup + ${fmt.rs(price.topUp)} top-up`}</span></p>
+              <p class="ct-drink__name"><span data-drink-name>${label}</span> <span class="ct-drink__price num">${bandName(price)} · ${priceText(price)}</span></p>
+              <p class="t-small t-muted num" data-drink-note ${price.included ? raw("hidden") : ""}>${coverNote(m, price)}</p>
               <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
             </div>
             <button type="button" class="btn btn--primary btn--block ct-redeem" data-redeem aria-describedby="ct-who">Redeem 1 cup</button>
@@ -341,7 +353,7 @@
         const temp = drink?.temp || "hot";
         const usual = S.usualDrink(member().id, b.id);
         const norm = (s) => s.toLowerCase();
-        const list = S.counterMenu(branch().id, temp)
+        const list = S.counterMenu(branch().id, temp, planBand())
           .filter((d) => (temp === "iced" ? d.item.iced != null : d.item.hot != null))
           .filter((d) => !pickerQuery || norm(d.item.name).includes(norm(pickerQuery)));
         const usualRow = usual && list.find((d) => d.id === usual.drinkId);
@@ -355,7 +367,7 @@
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
             ${rows.length ? rows.map((d) => html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
                 <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
-                <span class="ct-menu__price num">${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
               </button>`) : html`<p class="t-small t-muted">Nothing ${temp} matches${pickerQuery ? ` “${pickerQuery}”` : ""} today.</p>`}
           </div>`;
       }
@@ -366,12 +378,14 @@
       function paintDrinkLine() {
         const b = brand();
         const item = S.menuItem(b.id, drink.drinkId);
-        const p = S.drinkPrice(b.id, item, drink.temp);
+        const p = S.drinkPrice(b.id, item, drink.temp, planBand());
         const card = $(".ct-drink", el);
         if (!card) return;
         $(".ct-drink__label", card).textContent = drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink";
         $("[data-drink-name]", card).textContent = S.drinkLabel(item, drink.temp);
-        $(".ct-drink__price", card).textContent = p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`;
+        $(".ct-drink__price", card).textContent = `${bandName(p)} · ${priceText(p)}`;
+        const note = $("[data-drink-note]", card);
+        if (note) { note.textContent = coverNote(member(), p); note.hidden = p.included; }
       }
 
       function redeemNow() {

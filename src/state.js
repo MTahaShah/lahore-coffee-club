@@ -15,9 +15,7 @@
            waitlist, partner, snapshot, tick (every 30s)
 
    Partners (the café side), all in one place in this file:
-     brand    id, name, menu (hot / iced prices), economics (a cup covers
-              up to coverUpTo; payoutShare of the price goes to the café),
-              plans, rules (perMemberPerDay, branchCupsPerDay), ownerPin
+     brand    id, name, menu (hot / iced prices), plans, rules (perMemberPerDay, branchCupsPerDay), ownerPin
      branch   a café: id, brandId, name, area, pin, hours, busy level,
               staff, setupCode, pausedUntil. chainId is set when the brand
               sells its own plans (the member app shows it as a chain)
@@ -25,7 +23,7 @@
               phone, plans: member.plan plus member.extraPlans, each with
               its own cycle; the balance belongs to the plan
      redeem   ledger entry: memberId, brandId, branchId (= cafeId), staffId,
-              drinkId, temp, price, topUp, method (number | scan | code),
+              drinkId, temp, price, topUp, band (the plan's band), method (number | scan | code),
               at, ref (select.redemptionRef), undone (an `undo` entry
               arrived), reported (state.reports)
      roles    owner (brand PIN, every branch), manager (PIN, one branch),
@@ -92,7 +90,8 @@
      ------------------------------------------------------------------- */
   const state = {
     rules: clone(seed.rules),
-    tiers: clone(seed.tiers),
+    bands: clone(seed.BANDS),
+    tiers: clone(seed.PLANS), // Explorer plans (member.plan.tierId)
     areas: clone(seed.areas),
     brands: byId(clone(seed.brands || [])),
     cafeOrder: seed.cafes.map((c) => c.id),
@@ -199,7 +198,7 @@
     return null;
   }
 
-  /** A brand's settings as one message: economics, rules, price changes,
+  /** A brand's settings as one message: rules, price changes,
       and each branch's name, hours, staff and setup code. Newest wins.
       // BACKEND: rows in brands / branches / staff, read by Postgres Changes */
   function brandConfig(brandId) {
@@ -208,14 +207,14 @@
     const branches = select.branches(brandId).map((c) => ({
       id: c.id, brandId, name: c.name, branch: c.branch || null, short: c.short || null, label: c.label || null, pinName: c.pinName || null,
       area: c.area, x: c.x, y: c.y, hours: c.hours, staff: c.staff, setupCode: c.setupCode, added: !!c.added,
-      ...(c.added ? { price: c.price, payoutPerCup: c.payoutPerCup, tags: c.tags, blurb: c.blurb, distanceKm: c.distanceKm, busyByHour: c.busyByHour, avgDailyCups: c.avgDailyCups, status: c.status, statusUpdatedAt: c.statusUpdatedAt } : {}),
+      ...(c.added ? { price: c.price, tags: c.tags, blurb: c.blurb, distanceKm: c.distanceKm, busyByHour: c.busyByHour, avgDailyCups: c.avgDailyCups, status: c.status, statusUpdatedAt: c.statusUpdatedAt } : {}),
     }));
-    return { brandId, at: b.configAt, economics: b.economics, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, branches };
+    return { brandId, at: b.configAt, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, branches };
   }
   function applyBrandConfig(cfg, opts) {
     const b = state.brands[cfg?.brandId];
     if (!b || (cfg.at || 0) <= (b.configAt || 0)) return;
-    Object.assign(b, { economics: clone(cfg.economics), rules: clone(cfg.rules), priceChanges: clone(cfg.priceChanges || {}), menu: clone(cfg.menu || b.menu), configAt: cfg.at });
+    Object.assign(b, { rules: clone(cfg.rules), priceChanges: clone(cfg.priceChanges || {}), menu: clone(cfg.menu || b.menu), configAt: cfg.at });
     (cfg.branches || []).forEach((x) => {
       let c = state.cafes[x.id];
       if (!c) {
@@ -480,22 +479,56 @@
       const t = select.servedTemp(item, temp);
       return item.hot != null && item.iced != null && t === "iced" ? `Iced ${item.name}` : item.name;
     },
-    /** Counter price, what a cup covers, and the top-up at the till. */
-    drinkPrice(brandId, item, temp) {
+    /* ---------------- Bands (pricing) ----------------
+       A drink's band comes from its menu price; a plan covers drinks up to
+       its band. The café is paid the rate of the drink's band, capped at
+       the plan's band. Above the plan's band: "Cup + Rs X", X = price minus
+       the band's ceiling, paid to the café directly.                      */
+    band: (id) => state.bands.find((b) => b.id === id) || state.bands[0],
+    /** The band a price falls in, or null above the top band (no plan covers it in full). */
+    bandOf: (price) => state.bands.find((b) => price <= b.maxPrice) || null,
+    /** A menu item's band (from its higher price, hot or iced). */
+    itemBand: (item) => select.bandOf(Math.max(item.hot || 0, item.iced || 0)),
+    /** The highest band a plan covers: Explorer from its tier, Double Shot from its plan, My cafés Classic. */
+    planBand(plan) {
+      if (plan?.type === "explorer") return select.band(select.tier(plan.tierId)?.maxBand).id;
+      if (plan?.type === "brand") return select.band(state.brands[plan.brandId]?.plans.find((x) => x.id === plan.planId)?.maxBand).id;
+      return state.bands[0].id;
+    },
+    /** The band a member's cups cover at a brand: its own brand plan, else Explorer, else Classic. */
+    bandAt(memberId = state.memberId, brandId) {
+      const ps = select.plansOf(memberId);
+      const p = ps.find((x) => x.plan.type === "brand" && x.plan.brandId === brandId) || ps.find((x) => x.plan.type === "explorer") || ps[0];
+      return select.planBand(p?.plan);
+    },
+    /** "Classic", "up to Signature", "up to Reserve". */
+    coversLabel(bandId) {
+      const i = state.bands.findIndex((b) => b.id === bandId);
+      return i <= 0 ? state.bands[0].label : `up to ${state.bands[i].label}`;
+    },
+    /** Counter price, its band, and the top-up for a plan covering up to bandId. */
+    drinkPrice(brandId, item, temp, bandId = state.bands[0].id) {
       const b = state.brands[brandId];
       const t = select.servedTemp(item, temp);
       const ch = b.priceChanges?.[item.id];
       const price = ch && Date.now() >= ch.from && ch[t] != null ? ch[t] : item[t];
-      const topUp = Math.max(0, price - b.economics.coverUpTo);
-      return { price, topUp, included: topUp === 0, temp: select.servedTemp(item, temp) };
+      const cover = select.band(bandId);
+      const topUp = Math.max(0, price - cover.maxPrice);
+      return { price, band: select.bandOf(price), cover, topUp, included: topUp === 0, temp: t };
     },
-    /** What a redemption pays the café. Brands: share of the drink's price, up to what a cup covers. */
+    /** A redemption's drink price: recorded on the entry, else the menu price. */
+    entryPrice(e) {
+      if (e.price != null) return e.price;
+      const b = select.brandFor(e.cafeId);
+      const item = b && select.menuItem(b.id, e.drinkId);
+      return item ? item[select.servedTemp(item, e.temp)] : state.cafes[e.cafeId]?.price || 0;
+    },
+    /** What a redemption pays the café: the rate of the drink's band, capped at the plan's band. */
     entryPayout(e) {
-      if (e.brandId && e.price != null && state.brands[e.brandId]) {
-        const { coverUpTo, payoutShare } = state.brands[e.brandId].economics;
-        return Math.round(payoutShare * Math.min(e.price || 0, coverUpTo));
-      }
-      return e.credits * (state.cafes[e.cafeId]?.payoutPerCup || 0);
+      const plan = select.band(e.band);
+      const drink = select.bandOf(select.entryPrice(e)) || plan;
+      const rate = (drink.maxPrice < plan.maxPrice ? drink : plan).cafeRate;
+      return e.credits * rate;
     },
     /** A redemption's drink, as served. */
     entryDrinkName(e) {
@@ -648,11 +681,16 @@
       };
     },
 
-    /** Savings for a fixed tier vs. the average list price across cafés. */
+    /** Savings for an Explorer tier: Classic tiers against the average latte across cafés,
+        higher tiers against the average drink in their top band. */
     tierSavings(tierId) {
       const tier = select.tier(tierId);
       const club = select.clubCafes();
-      const avg = club.reduce((n, c) => n + c.price, 0) / club.length;
+      let prices = club.map((c) => c.price);
+      if (tier.maxBand !== state.bands[0].id) {
+        prices = club.flatMap((c) => select.brandFor(c.id).menu.filter((d) => select.itemBand(d)?.id === tier.maxBand).map((d) => Math.max(d.hot || 0, d.iced || 0)));
+      }
+      const avg = prices.reduce((n, x) => n + x, 0) / (prices.length || 1);
       return Math.max(0, roundTo(tier.cups * avg - tier.price, state.rules.roundTo));
     },
 
@@ -965,7 +1003,8 @@
     /** What a member cup covers here, in one plain sentence. */
     coversLine(cafeId = state.partnerCafeId) {
       const b = select.brandFor(cafeId);
-      return `Any drink up to ${fmt.rs(b.economics.coverUpTo)}. Above that, the member pays the difference at the till.`;
+      const c = select.band(state.bands[0].id);
+      return `${c.label} drinks, up to ${fmt.rs(c.maxPrice)}. Above that, the member pays the difference at the till.`;
     },
 
     /* ---------------- Partners: brands, branches, the counter and the dashboard ----------------
@@ -1099,11 +1138,11 @@
       return ch && at < ch.from ? ch : null;
     },
     /** The counter's drink list here: what's on today, as served, with what the member pays on top. */
-    counterMenu(branchId, temp = "hot") {
+    counterMenu(branchId, temp = "hot", bandId) {
       const b = select.brandFor(branchId);
       return b.menu.filter((d) => select.isAvailable(branchId, d.id)).map((d) => {
-        const p = select.drinkPrice(b.id, d, temp);
-        return { item: d, id: d.id, section: d.section, name: select.drinkLabel(d, p.temp), price: p.price, topUp: p.topUp, included: p.included, temp: p.temp };
+        const p = select.drinkPrice(b.id, d, temp, bandId);
+        return { item: d, id: d.id, section: d.section, name: select.drinkLabel(d, p.temp), price: p.price, band: p.band, topUp: p.topUp, included: p.included, temp: p.temp };
       });
     },
 
@@ -1242,12 +1281,12 @@
       const hist = {};
       branches.forEach((c) => (state.partner[c.id]?.payouts || []).forEach((p) => {
         const h = (hist[p.month] = hist[p.month] || { month: p.month, cups: 0, amount: 0, paidAt: p.paidAt });
-        h.cups += p.cups; h.amount += p.amount ?? p.cups * c.payoutPerCup;
+        h.cups += p.cups; h.amount += p.amount ?? p.cups * state.bands[0].cafeRate;
       }));
       return {
         brand: b, rows, monthStart: month, nextAt: next.getTime(), account: b.account,
         cups: sum("cups"), cupEarned: sum("cupEarned"), paidNet: sum((r) => r.paid.net), paidCount: sum((r) => r.paid.count), earned: sum("earned"), topUps: sum("topUps"),
-        share: Math.round(b.economics.payoutShare * 100), maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare), feePct: Math.round(state.rules.orderFeeShare * 100),
+        bands: state.bands, feePct: Math.round(state.rules.orderFeeShare * 100),
         history: Object.values(hist).sort((x, y) => y.month - x.month),
       };
     },
@@ -1377,8 +1416,10 @@
       const cafe = state.cafes[cafeId];
       // Every brand has a menu now: one cup per drink, and anything above what a cup covers is a top-up
       const item = select.menuItem(cafe.brandId, drinkId) || state.brands[cafe.brandId].menu[0];
-      const p = select.drinkPrice(cafe.brandId, item, temp);
-      const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp };
+      // Pickup orders and tables use the member's first plan, so its band sets the top-up
+      const band = select.planBand(state.members[memberId]?.plan);
+      const p = select.drinkPrice(cafe.brandId, item, temp, band);
+      const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
@@ -1821,7 +1862,7 @@
         if (!select.activity(l.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId))) stamped.push(member);
         entries.push({
           id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
-          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}),
+          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan),
           firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: l.cycle, live: true, ...extra,
         });
       }
@@ -1934,12 +1975,13 @@
       const b = select.brandFor(branchId);
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
       if (!select.isAvailable(branchId, item.id)) return { ...check, ok: false, reason: "unavailable", title: "Not available today", line: "Pick another drink." };
-      const p = select.drinkPrice(b.id, item, temp);
       const m = check.member;
       const plan = check.plan;
+      const band = select.planBand(plan.plan);
+      const p = select.drinkPrice(b.id, item, temp, band);
       const entry = {
         id: uid("rd"), type: "redeem", memberId, cafeId: branchId, branchId, brandId: b.id, staffId: state.counter.staffId || null,
-        cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp, method, planType: plan.plan.type,
+        cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp, band, method, planType: plan.plan.type,
         firstVisit: !(m.visits && m.visits[branchId] > 0), at: Date.now(), cycle: plan.cycle, live: true, ...(plan.bonus ? { bonus: true } : {}),
       };
       entry.ref = select.redemptionRef(entry);
@@ -1996,14 +2038,6 @@
       const ch = { hot: item.hot == null ? null : Number(hot), iced: item.iced == null ? null : Number(iced), from: tomorrow, at: Date.now() };
       if (ch.hot === item.hot && ch.iced === item.iced) delete b.priceChanges[drinkId];
       else b.priceChanges[drinkId] = ch;
-      touchBrand(brandId);
-    },
-    /** What a cup covers, and the café's share of each drink's price. */
-    setEconomics(brandId, patch) {
-      const b = state.brands[brandId];
-      if (!b) return;
-      if (patch.coverUpTo != null) b.economics.coverUpTo = Math.max(100, Math.round(patch.coverUpTo));
-      if (patch.payoutShare != null) b.economics.payoutShare = Math.min(0.95, Math.max(0.3, patch.payoutShare));
       touchBrand(brandId);
     },
     /** Limits: cups per member a day at a branch, member cups a day per branch. */
@@ -2116,7 +2150,7 @@
       const cup = pay === "cup";
       const order = {
         id: uid("o"), memberId, memberName: m.firstName, cafeId, brandId: q.brandId, drinkId: q.drinkId, temp: q.temp, price: q.price,
-        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
+        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, band: q.band, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
         bonus: cup && q.cup.bonus, asap: !!asap || !pickupAt, pickupAt: when, status: "placed", placedAt: now, updatedAt: now, times: { placed: now },
         cycle: m.cycle, live: true, profiles: profilesFor([memberId]),
       };
@@ -2475,7 +2509,7 @@
       const now = Date.now();
       const item = {
         id: uid("ti"), memberId: m ? m.id : null, name: who, drinkId: q.drinkId, temp: q.temp, price: q.price,
-        credits: mode === "cup" ? q.credits : 0, topUp: mode === "cup" ? q.topUp : 0, pay: mode,
+        credits: mode === "cup" ? q.credits : 0, topUp: mode === "cup" ? q.topUp : 0, band: q.band, pay: mode,
         amount: mode === "cup" ? q.topUp : mode === "online" ? q.price : 0, payment, bonus: mode === "cup" && q.cup.bonus, cycle: m ? m.cycle : null, at: now,
       };
       g.items[item.id] = item;

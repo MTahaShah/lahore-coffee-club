@@ -77,6 +77,7 @@
 .pd-table { display: grid; border-top: var(--hairline); overflow-x: auto; }
 .pd-table__row { display: grid; grid-template-columns: minmax(140px, 1.4fr) repeat(4, minmax(90px, 1fr)); gap: var(--space-3); align-items: center; min-height: 48px; border-bottom: var(--hairline); font-size: var(--fs-14); min-width: 560px; }
 .pd-table--3 .pd-table__row { grid-template-columns: minmax(140px, 1.4fr) repeat(3, minmax(90px, 1fr)); min-width: 440px; }
+.pd-table--bands .pd-table__row { grid-template-columns: 1fr 1.4fr 1fr; min-width: 0; }
 .pd-table__row > :not(:first-child) { text-align: right; }
 .pd-table__row--head { min-height: 36px; font-size: var(--fs-12); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-3); }
 .pd-table__row--foot { border-bottom: 0; border-top: 1px solid var(--line-strong); }

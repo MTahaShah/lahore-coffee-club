@@ -1797,6 +1797,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .pd-table { display: grid; border-top: var(--hairline); overflow-x: auto; }
 .pd-table__row { display: grid; grid-template-columns: minmax(140px, 1.4fr) repeat(4, minmax(90px, 1fr)); gap: var(--space-3); align-items: center; min-height: 48px; border-bottom: var(--hairline); font-size: var(--fs-14); min-width: 560px; }
 .pd-table--3 .pd-table__row { grid-template-columns: minmax(140px, 1.4fr) repeat(3, minmax(90px, 1fr)); min-width: 440px; }
+.pd-table--bands .pd-table__row { grid-template-columns: 1fr 1.4fr 1fr; min-width: 0; }
 .pd-table__row > :not(:first-child) { text-align: right; }
 .pd-table__row--head { min-height: 36px; font-size: var(--fs-12); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-3); }
 .pd-table__row--foot { border-bottom: 0; border-top: 1px solid var(--line-strong); }
@@ -3118,7 +3119,7 @@ li:last-child > .branch-row { border-bottom: 0; }
    Seed data. Fictional, except one demo partner: Double Shot, a real
    Lahore chain, shown by name only (no logo; a neutral "DS" monogram).
    Timestamps are relative to page load so “updated 6 min ago” reads true.
-   // BACKEND: GET /cafes, GET /tiers, GET /me replace this file.
+   // BACKEND: GET /cafes, GET /bands, GET /plans, GET /me replace this file.
    ===================================================================== */
 (function () {
   "use strict";
@@ -3154,12 +3155,32 @@ li:last-child > .branch-row { border-bottom: 0; }
     counterResetSeconds: 5,    // the Done screen goes back to the keypad after this
   };
 
-  /* Fixed tiers --------------------------------------------------------- */
-  const tiers = [
-    { id: "starter",    name: "Starter",    cups: 8,  price: 3500,  line: "Two good coffees a week." },
-    { id: "regular",    name: "Regular",    cups: 16, price: 6500,  line: "Most weekdays, sorted." },
-    { id: "enthusiast", name: "Enthusiast", cups: 30, price: 11000, line: "One a day, and then some." },
+  /* Bands and plans: the one source of truth for pricing ----------------
+     Every drink falls in a band by its menu price before tax. A plan covers
+     drinks up to its band; above that the member pays the difference at
+     the café ("Cup + Rs X", X = price minus the plan's band ceiling).
+     The café is paid the rate of the drink's band, capped at the plan's
+     band: a Rs 910 drink on a Classic plan pays the café Rs 500.
+     Drinks above Rs 1,500 are in no band; any plan pays its top rate.
+     docs/pricing.md has the margins.                                     */
+  const BANDS = [
+    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500 },
+    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700 },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950 },
   ];
+  // The band a price falls in, or null above the top band
+  const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
+  const band = (id) => BANDS.find((b) => b.id === id);
+
+  /* Explorer plans: one pool of cups for any partner café ---------------- */
+  const PLANS = [
+    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4500,  line: "Two good coffees a week." },
+    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 9000,  line: "Most weekdays, sorted." },
+    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16500, line: "One a day, and then some." },
+    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 12000, line: "The signature drinks, most weekdays." },
+    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12500, line: "Pour-overs and single origins." },
+  ];
+  const tiers = PLANS; // internal name: Explorer tiers (member.plan.tierId)
 
   /* Map areas (SVG coordinates in a 1000 x 800 viewBox) ----------------- */
   const areas = [
@@ -3178,8 +3199,7 @@ li:last-child > .branch-row { border-bottom: 0; }
      seven. Nothing below is special to Double Shot.
 
        Brand   id, name, monogram, menu (drinks only: hot / iced prices),
-               economics (a cup covers up to coverUpTo; the café is paid
-               payoutShare of the drink's price, capped there), plans (its
+               plans (its
                own plans; empty for cafés on Explorer and My cafés only),
                rules (cups per member a day at a branch, member cups a day
                per branch), ownerPin, payout account
@@ -3204,16 +3224,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
       menuNote: "Prices from Double Shot’s public menu, Nov 2026. Demo only.",
-      // Economics, in one place:
-      //   a cup covers any drink up to coverUpTo; above that the member pays
-      //   the difference at the till ("Cup + Rs X").
-      //   payout per cup = payoutShare × the drink's counter price, capped at
-      //   the covered amount (72% of 880 = Rs 634 at most).
-      economics: { coverUpTo: 880, payoutShare: 0.72 },
+      // Its own plans cover Classic drinks; payouts follow the bands, as everywhere.
       plans: [
-        { id: "ds8",  cups: 8,  price: 5600 },
-        { id: "ds15", cups: 15, price: 9750 },
-        { id: "ds22", cups: 22, price: 13500 },
+        { id: "ds8",  cups: 8,  maxBand: "classic", price: 5600 },
+        { id: "ds15", cups: 15, maxBand: "classic", price: 9750 },
+        { id: "ds22", cups: 22, maxBand: "classic", price: 13500 },
       ],
       // Drinks only. hot / iced: the counter price in Rs, or null if not served that way.
       // Where the menu didn't say hot or iced, espresso-bar and seasonal drinks are hot
@@ -3302,7 +3317,8 @@ li:last-child > .branch-row { border-bottom: 0; }
 
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
-     payoutPerCup: the rate the café set; what we pay them per cup.
+     latte: the drink whose price is the café's latte price (My cafés
+     pricing and "Rs X a cup at the counter").
      avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
   // A branch: its own pin, row, hours and busy level; the brand's menu and cups.
@@ -3311,7 +3327,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     const [a, b, manager] = DS_STAFF[n - 1];
     return {
       id, brandId: DS.id, name: DS.name, branch: branchName, short: pinName.replace(/^DS · /, ""), label: `${DS.name} · ${branchName.replace(" · ", " ")}`, pinName,
-      area, price: 710, payoutPerCup: Math.round(DS.economics.coverUpTo * DS.economics.payoutShare),
+      area, price: DS.menu.find((d) => d.id === "ds-latte").hot,
       tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
       blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
       setupCode: DS_CODES[n - 1],
@@ -3336,8 +3352,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "kiln",
       name: "Kiln & Bean",
       area: "gulberg",
-      price: 650,
-      payoutPerCup: 520,
+      latte: "kiln-latte",
       tags: ["Roastery", "Pastries"],
       status: "moderate",
       statusUpdatedAt: minsAgo(6),
@@ -3348,11 +3363,10 @@ li:last-child > .branch-row { border-bottom: 0; }
       menu: [
         { id: "kiln-flat", section: "Coffee", name: "Kiln flat white", hot: 650, iced: 650 },
         { id: "kiln-cort", section: "Coffee", name: "Cardamom cortado", hot: 600, iced: null },
-        { id: "kiln-americano", section: "Coffee", name: "Americano", hot: 500, iced: 550 },
-        { id: "kiln-spanish", section: "Coffee", name: "Spanish latte", hot: 700, iced: 700 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 900, iced: 900 },
-        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 400, iced: null },
-        { id: "kiln-matcha", section: "Tea", name: "Matcha latte", hot: 750, iced: 750 },
+        { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
+        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
+        { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
+        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950 },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
       avgDailyCups: 9,
@@ -3361,8 +3375,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "maple",
       name: "Maple Roastery",
       area: "dha",
-      price: 750,
-      payoutPerCup: 560,
+      latte: "maple-latte",
       tags: ["Roastery", "Work-friendly"],
       status: "quiet",
       statusUpdatedAt: minsAgo(12),
@@ -3373,8 +3386,9 @@ li:last-child > .branch-row { border-bottom: 0; }
       menu: [
         { id: "maple-espresso", section: "Coffee", name: "Maple house espresso", hot: 550, iced: null },
         { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
-        { id: "maple-filter", section: "Brew bar", name: "Ethiopian filter", hot: 950, iced: 950 },
-        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 700 },
+        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
+        { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
+        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -3383,8 +3397,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "ember",
       name: "Ember Coffee Co.",
       area: "model-town",
-      price: 550,
-      payoutPerCup: 400,
+      latte: "ember-latte",
       tags: ["Pastries", "Garden"],
       status: "packed",
       statusUpdatedAt: minsAgo(3),
@@ -3393,9 +3406,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 5.1,
       x: 500, y: 615,
       menu: [
-        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 550, iced: 550 },
-        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 600, iced: 600 },
-        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 650 },
+        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 600, iced: 600 },
+        { id: "ember-flat", section: "Coffee", name: "Flat white", hot: 620, iced: null },
+        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 700, iced: 700 },
+        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 750 },
+        { id: "ember-pistachio", section: "Coffee", name: "Pistachio latte", hot: 900, iced: 900 },
       ],
       busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
       avgDailyCups: 7,
@@ -3404,8 +3419,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "thirdfloor",
       name: "Third Floor",
       area: "johar-town",
-      price: 500,
-      payoutPerCup: 360,
+      latte: "tf-latte",
       tags: ["Work-friendly", "Late hours"],
       status: "quiet",
       statusUpdatedAt: minsAgo(18),
@@ -3414,9 +3428,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 9.7,
       x: 290, y: 625,
       menu: [
-        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 450, iced: 450 },
-        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 550, iced: 550 },
-        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 650, iced: null },
+        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 500, iced: 500 },
+        { id: "tf-latte", section: "Coffee", name: "Latte", hot: 600, iced: 600 },
+        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 650, iced: 650 },
+        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 850, iced: null },
+        { id: "tf-lotus", section: "Cold", name: "Lotus iced latte", hot: null, iced: 950 },
       ],
       busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
       avgDailyCups: 4,
@@ -3425,8 +3441,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "quiethours",
       name: "Quiet Hours",
       area: "fortress",
-      price: 600,
-      payoutPerCup: 440,
+      latte: "qh-latte",
       tags: ["Work-friendly", "Pastries"],
       status: "moderate",
       statusUpdatedAt: minsAgo(9),
@@ -3435,9 +3450,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 3.2,
       x: 670, y: 290,
       menu: [
-        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 600, iced: null },
-        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 500, iced: null },
-        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 650, iced: null },
+        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 650, iced: null },
+        { id: "qh-latte", section: "Coffee", name: "Latte", hot: 650, iced: 650 },
+        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 700, iced: null },
+        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 550, iced: null },
+        { id: "qh-mocha", section: "Coffee", name: "Dark chocolate mocha", hot: 880, iced: 880 },
       ],
       busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
       avgDailyCups: 4,
@@ -3446,8 +3463,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "slowpour",
       name: "Slow Pour",
       area: "liberty",
-      price: 700,
-      payoutPerCup: 520,
+      latte: "sp-latte",
       tags: ["Roastery", "Pour-over"],
       status: "packed",
       statusUpdatedAt: minsAgo(4),
@@ -3456,9 +3472,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 1.6,
       x: 440, y: 405,
       menu: [
+        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 700, iced: null },
+        { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
         { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
-        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 650, iced: null },
-        { id: "sp-flight", section: "Brew bar", name: "Tasting flight", hot: 1300, iced: null },
+        { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
+        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
       avgDailyCups: 7,
@@ -3467,8 +3485,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "noon",
       name: "Noon Café",
       area: "gulberg",
-      price: 450,
-      payoutPerCup: 330,
+      latte: "noon-latte",
       tags: ["Pastries", "Breakfast"],
       status: "quiet",
       statusUpdatedAt: minsAgo(22),
@@ -3477,9 +3494,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 1.1,
       x: 575, y: 395,
       menu: [
-        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 450, iced: null },
-        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 500, iced: 500 },
-        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 450 },
+        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 600, iced: null },
+        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 650, iced: 650 },
+        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 550 },
+        { id: "noon-chai", section: "Tea", name: "Doodh patti", hot: 400, iced: null },
+        { id: "noon-kunafa", section: "Coffee", name: "Kunafa latte", hot: 950, iced: 950 },
       ],
       busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
       avgDailyCups: 6,
@@ -3488,8 +3507,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       id: "grind",
       name: "Grind & Grain",
       area: "dha",
-      price: 550,
-      payoutPerCup: 400,
+      latte: "gg-latte",
       tags: ["Pastries", "Roastery"],
       status: "moderate",
       statusUpdatedAt: minsAgo(14),
@@ -3498,9 +3516,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       distanceKm: 7.2,
       x: 735, y: 600,
       menu: [
-        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 550, iced: 550 },
-        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 450, iced: null },
-        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 600, iced: 600 },
+        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 650, iced: 650 },
+        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 550, iced: null },
+        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 700, iced: 700 },
+        { id: "gg-brown", section: "Coffee", name: "Brown sugar oat latte", hot: 850, iced: 850 },
+        { id: "gg-praline", section: "Cold", name: "Hazelnut praline latte", hot: null, iced: 1000 },
       ],
       busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -3508,11 +3528,9 @@ li:last-child > .branch-row { border-bottom: 0; }
   ];
 
   /* Single-branch cafés: each one is a brand with one branch (the café
-     itself, same id). The brand owns the menu, the economics and the
-     rules; the branch keeps its pin, hours, busy level and staff. A cup
-     covers the café's list price; above that it's "Cup + Rs X". The café
-     is paid its rate as a share of the drink's price (Kiln & Bean: 80%,
-     so Rs 520 on a Rs 650 drink).                                      */
+     itself, same id). The brand owns the menu and the
+     rules; the branch keeps its pin, hours, busy level and staff. Cups
+     and payouts follow the bands above, as at Double Shot.             */
   const SINGLE = {
     //            monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
     kiln:       ["KB", "1111", "KB-01", ["Bilal", "Hira", "Saad"], "2468", 40],
@@ -3525,11 +3543,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     grind:      ["GG", "8888", "GG-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
   };
   cafes.filter((c) => c.menu).forEach((c) => {
+    c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
       id: c.id, name: c.name, monogram, ownerPin, line: c.blurb,
       menuNote: "Demo menu. Prices are fictional.",
-      economics: { coverUpTo: c.price, payoutShare: Math.round((c.payoutPerCup / c.price) * 1000) / 1000 },
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
       account: { label: "bank account", last4: c.id === "kiln" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
@@ -3705,7 +3723,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     const price = d[t];
     const id = `s${seq++}`;
     ledger.push({ id, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price,
-      topUp: Math.max(0, price - DS.economics.coverUpTo), firstVisit, at, cycle: m.cycle, ...served(cafeId, id) });
+      topUp: Math.max(0, price - band("classic").maxPrice), firstVisit, at, cycle: m.cycle, ...served(cafeId, id) });
   }
 
   /* Mumtaz’s earlier months --------------------------------------------
@@ -3939,7 +3957,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           const item = dsItem(d);
           const t = item.iced != null && rp() < 0.55 ? "iced" : item.hot != null ? "hot" : "iced";
           ledger.push({ id, type: "redeem", memberId: m.id, cafeId: c.id, brandId: DS.id, cups: -1, credits: 1, drinkId: d, temp: t, price: item[t],
-            topUp: Math.max(0, item[t] - DS.economics.coverUpTo), firstVisit: false, at, cycle: `${m.cycle}_prev`, ...served(c.id, id) });
+            topUp: Math.max(0, item[t] - band("classic").maxPrice), firstVisit: false, at, cycle: `${m.cycle}_prev`, ...served(c.id, id) });
         } else {
           const own = m.plan.type === "mycafes" ? Object.keys(m.plan.allocation) : clubCafes.map((c) => c.id);
           const c = cafeById[own[Math.floor(rp() * own.length)]];
@@ -4015,7 +4033,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const d = dsItem(drinkId);
       const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
       ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price: d[t],
-        topUp: Math.max(0, d[t] - DS.economics.coverUpTo), firstVisit: first, at, cycle: cyc });
+        topUp: Math.max(0, d[t] - band("classic").maxPrice), firstVisit: first, at, cycle: cyc });
     } else {
       const credits = drinkCredits(cafeId, drinkId);
       ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit: first, at, cycle: cyc });
@@ -4194,7 +4212,7 @@ li:last-child > .branch-row { border-bottom: 0; }
      brand and branch objects above.
      // BACKEND: payouts table (branch_id, month, cups, amount, paid_at)  */
   const monthStart = (n) => { const d = new Date(startOfToday); d.setDate(1); d.setMonth(d.getMonth() - n); return d.getTime(); };
-  const DS_AVG_PAYOUT = [552, 547, 549, 556, 551, 545, 558]; // Rs a cup, from each branch's drink mix
+  const DS_AVG_PAYOUT = [514, 509, 511, 518, 512, 507, 520]; // Rs a cup, from each branch's mix of bands
   const KILN_CUPS = [248, 231, 204];
   const partner = {};
   cafes.forEach((c) => {
@@ -4203,7 +4221,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       payoutDay: 5,
       payouts: [1, 2, 3].map((k) => {
         const cups = c.id === "kiln" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
-        const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : c.payoutPerCup;
+        const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : band("classic").cafeRate;
         return { month: monthStart(k), cups, amount: cups * perCup, paidAt: monthStart(k - 1) + 4 * DAY };
       }),
     };
@@ -4238,6 +4256,8 @@ li:last-child > .branch-row { border-bottom: 0; }
   LCC.data = {
     seededAt: now,
     rules,
+    BANDS,
+    PLANS,
     tiers,
     areas,
     brands,
@@ -4281,9 +4301,7 @@ li:last-child > .branch-row { border-bottom: 0; }
            waitlist, partner, snapshot, tick (every 30s)
 
    Partners (the café side), all in one place in this file:
-     brand    id, name, menu (hot / iced prices), economics (a cup covers
-              up to coverUpTo; payoutShare of the price goes to the café),
-              plans, rules (perMemberPerDay, branchCupsPerDay), ownerPin
+     brand    id, name, menu (hot / iced prices), plans, rules (perMemberPerDay, branchCupsPerDay), ownerPin
      branch   a café: id, brandId, name, area, pin, hours, busy level,
               staff, setupCode, pausedUntil. chainId is set when the brand
               sells its own plans (the member app shows it as a chain)
@@ -4291,7 +4309,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               phone, plans: member.plan plus member.extraPlans, each with
               its own cycle; the balance belongs to the plan
      redeem   ledger entry: memberId, brandId, branchId (= cafeId), staffId,
-              drinkId, temp, price, topUp, method (number | scan | code),
+              drinkId, temp, price, topUp, band (the plan's band), method (number | scan | code),
               at, ref (select.redemptionRef), undone (an `undo` entry
               arrived), reported (state.reports)
      roles    owner (brand PIN, every branch), manager (PIN, one branch),
@@ -4358,7 +4376,8 @@ li:last-child > .branch-row { border-bottom: 0; }
      ------------------------------------------------------------------- */
   const state = {
     rules: clone(seed.rules),
-    tiers: clone(seed.tiers),
+    bands: clone(seed.BANDS),
+    tiers: clone(seed.PLANS), // Explorer plans (member.plan.tierId)
     areas: clone(seed.areas),
     brands: byId(clone(seed.brands || [])),
     cafeOrder: seed.cafes.map((c) => c.id),
@@ -4465,7 +4484,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     return null;
   }
 
-  /** A brand's settings as one message: economics, rules, price changes,
+  /** A brand's settings as one message: rules, price changes,
       and each branch's name, hours, staff and setup code. Newest wins.
       // BACKEND: rows in brands / branches / staff, read by Postgres Changes */
   function brandConfig(brandId) {
@@ -4474,14 +4493,14 @@ li:last-child > .branch-row { border-bottom: 0; }
     const branches = select.branches(brandId).map((c) => ({
       id: c.id, brandId, name: c.name, branch: c.branch || null, short: c.short || null, label: c.label || null, pinName: c.pinName || null,
       area: c.area, x: c.x, y: c.y, hours: c.hours, staff: c.staff, setupCode: c.setupCode, added: !!c.added,
-      ...(c.added ? { price: c.price, payoutPerCup: c.payoutPerCup, tags: c.tags, blurb: c.blurb, distanceKm: c.distanceKm, busyByHour: c.busyByHour, avgDailyCups: c.avgDailyCups, status: c.status, statusUpdatedAt: c.statusUpdatedAt } : {}),
+      ...(c.added ? { price: c.price, tags: c.tags, blurb: c.blurb, distanceKm: c.distanceKm, busyByHour: c.busyByHour, avgDailyCups: c.avgDailyCups, status: c.status, statusUpdatedAt: c.statusUpdatedAt } : {}),
     }));
-    return { brandId, at: b.configAt, economics: b.economics, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, branches };
+    return { brandId, at: b.configAt, rules: b.rules, priceChanges: b.priceChanges, menu: b.menu, branches };
   }
   function applyBrandConfig(cfg, opts) {
     const b = state.brands[cfg?.brandId];
     if (!b || (cfg.at || 0) <= (b.configAt || 0)) return;
-    Object.assign(b, { economics: clone(cfg.economics), rules: clone(cfg.rules), priceChanges: clone(cfg.priceChanges || {}), menu: clone(cfg.menu || b.menu), configAt: cfg.at });
+    Object.assign(b, { rules: clone(cfg.rules), priceChanges: clone(cfg.priceChanges || {}), menu: clone(cfg.menu || b.menu), configAt: cfg.at });
     (cfg.branches || []).forEach((x) => {
       let c = state.cafes[x.id];
       if (!c) {
@@ -4746,22 +4765,56 @@ li:last-child > .branch-row { border-bottom: 0; }
       const t = select.servedTemp(item, temp);
       return item.hot != null && item.iced != null && t === "iced" ? `Iced ${item.name}` : item.name;
     },
-    /** Counter price, what a cup covers, and the top-up at the till. */
-    drinkPrice(brandId, item, temp) {
+    /* ---------------- Bands (pricing) ----------------
+       A drink's band comes from its menu price; a plan covers drinks up to
+       its band. The café is paid the rate of the drink's band, capped at
+       the plan's band. Above the plan's band: "Cup + Rs X", X = price minus
+       the band's ceiling, paid to the café directly.                      */
+    band: (id) => state.bands.find((b) => b.id === id) || state.bands[0],
+    /** The band a price falls in, or null above the top band (no plan covers it in full). */
+    bandOf: (price) => state.bands.find((b) => price <= b.maxPrice) || null,
+    /** A menu item's band (from its higher price, hot or iced). */
+    itemBand: (item) => select.bandOf(Math.max(item.hot || 0, item.iced || 0)),
+    /** The highest band a plan covers: Explorer from its tier, Double Shot from its plan, My cafés Classic. */
+    planBand(plan) {
+      if (plan?.type === "explorer") return select.band(select.tier(plan.tierId)?.maxBand).id;
+      if (plan?.type === "brand") return select.band(state.brands[plan.brandId]?.plans.find((x) => x.id === plan.planId)?.maxBand).id;
+      return state.bands[0].id;
+    },
+    /** The band a member's cups cover at a brand: its own brand plan, else Explorer, else Classic. */
+    bandAt(memberId = state.memberId, brandId) {
+      const ps = select.plansOf(memberId);
+      const p = ps.find((x) => x.plan.type === "brand" && x.plan.brandId === brandId) || ps.find((x) => x.plan.type === "explorer") || ps[0];
+      return select.planBand(p?.plan);
+    },
+    /** "Classic", "up to Signature", "up to Reserve". */
+    coversLabel(bandId) {
+      const i = state.bands.findIndex((b) => b.id === bandId);
+      return i <= 0 ? state.bands[0].label : `up to ${state.bands[i].label}`;
+    },
+    /** Counter price, its band, and the top-up for a plan covering up to bandId. */
+    drinkPrice(brandId, item, temp, bandId = state.bands[0].id) {
       const b = state.brands[brandId];
       const t = select.servedTemp(item, temp);
       const ch = b.priceChanges?.[item.id];
       const price = ch && Date.now() >= ch.from && ch[t] != null ? ch[t] : item[t];
-      const topUp = Math.max(0, price - b.economics.coverUpTo);
-      return { price, topUp, included: topUp === 0, temp: select.servedTemp(item, temp) };
+      const cover = select.band(bandId);
+      const topUp = Math.max(0, price - cover.maxPrice);
+      return { price, band: select.bandOf(price), cover, topUp, included: topUp === 0, temp: t };
     },
-    /** What a redemption pays the café. Brands: share of the drink's price, up to what a cup covers. */
+    /** A redemption's drink price: recorded on the entry, else the menu price. */
+    entryPrice(e) {
+      if (e.price != null) return e.price;
+      const b = select.brandFor(e.cafeId);
+      const item = b && select.menuItem(b.id, e.drinkId);
+      return item ? item[select.servedTemp(item, e.temp)] : state.cafes[e.cafeId]?.price || 0;
+    },
+    /** What a redemption pays the café: the rate of the drink's band, capped at the plan's band. */
     entryPayout(e) {
-      if (e.brandId && e.price != null && state.brands[e.brandId]) {
-        const { coverUpTo, payoutShare } = state.brands[e.brandId].economics;
-        return Math.round(payoutShare * Math.min(e.price || 0, coverUpTo));
-      }
-      return e.credits * (state.cafes[e.cafeId]?.payoutPerCup || 0);
+      const plan = select.band(e.band);
+      const drink = select.bandOf(select.entryPrice(e)) || plan;
+      const rate = (drink.maxPrice < plan.maxPrice ? drink : plan).cafeRate;
+      return e.credits * rate;
     },
     /** A redemption's drink, as served. */
     entryDrinkName(e) {
@@ -4914,11 +4967,16 @@ li:last-child > .branch-row { border-bottom: 0; }
       };
     },
 
-    /** Savings for a fixed tier vs. the average list price across cafés. */
+    /** Savings for an Explorer tier: Classic tiers against the average latte across cafés,
+        higher tiers against the average drink in their top band. */
     tierSavings(tierId) {
       const tier = select.tier(tierId);
       const club = select.clubCafes();
-      const avg = club.reduce((n, c) => n + c.price, 0) / club.length;
+      let prices = club.map((c) => c.price);
+      if (tier.maxBand !== state.bands[0].id) {
+        prices = club.flatMap((c) => select.brandFor(c.id).menu.filter((d) => select.itemBand(d)?.id === tier.maxBand).map((d) => Math.max(d.hot || 0, d.iced || 0)));
+      }
+      const avg = prices.reduce((n, x) => n + x, 0) / (prices.length || 1);
       return Math.max(0, roundTo(tier.cups * avg - tier.price, state.rules.roundTo));
     },
 
@@ -5231,7 +5289,8 @@ li:last-child > .branch-row { border-bottom: 0; }
     /** What a member cup covers here, in one plain sentence. */
     coversLine(cafeId = state.partnerCafeId) {
       const b = select.brandFor(cafeId);
-      return `Any drink up to ${fmt.rs(b.economics.coverUpTo)}. Above that, the member pays the difference at the till.`;
+      const c = select.band(state.bands[0].id);
+      return `${c.label} drinks, up to ${fmt.rs(c.maxPrice)}. Above that, the member pays the difference at the till.`;
     },
 
     /* ---------------- Partners: brands, branches, the counter and the dashboard ----------------
@@ -5365,11 +5424,11 @@ li:last-child > .branch-row { border-bottom: 0; }
       return ch && at < ch.from ? ch : null;
     },
     /** The counter's drink list here: what's on today, as served, with what the member pays on top. */
-    counterMenu(branchId, temp = "hot") {
+    counterMenu(branchId, temp = "hot", bandId) {
       const b = select.brandFor(branchId);
       return b.menu.filter((d) => select.isAvailable(branchId, d.id)).map((d) => {
-        const p = select.drinkPrice(b.id, d, temp);
-        return { item: d, id: d.id, section: d.section, name: select.drinkLabel(d, p.temp), price: p.price, topUp: p.topUp, included: p.included, temp: p.temp };
+        const p = select.drinkPrice(b.id, d, temp, bandId);
+        return { item: d, id: d.id, section: d.section, name: select.drinkLabel(d, p.temp), price: p.price, band: p.band, topUp: p.topUp, included: p.included, temp: p.temp };
       });
     },
 
@@ -5508,12 +5567,12 @@ li:last-child > .branch-row { border-bottom: 0; }
       const hist = {};
       branches.forEach((c) => (state.partner[c.id]?.payouts || []).forEach((p) => {
         const h = (hist[p.month] = hist[p.month] || { month: p.month, cups: 0, amount: 0, paidAt: p.paidAt });
-        h.cups += p.cups; h.amount += p.amount ?? p.cups * c.payoutPerCup;
+        h.cups += p.cups; h.amount += p.amount ?? p.cups * state.bands[0].cafeRate;
       }));
       return {
         brand: b, rows, monthStart: month, nextAt: next.getTime(), account: b.account,
         cups: sum("cups"), cupEarned: sum("cupEarned"), paidNet: sum((r) => r.paid.net), paidCount: sum((r) => r.paid.count), earned: sum("earned"), topUps: sum("topUps"),
-        share: Math.round(b.economics.payoutShare * 100), maxPerCup: Math.round(b.economics.coverUpTo * b.economics.payoutShare), feePct: Math.round(state.rules.orderFeeShare * 100),
+        bands: state.bands, feePct: Math.round(state.rules.orderFeeShare * 100),
         history: Object.values(hist).sort((x, y) => y.month - x.month),
       };
     },
@@ -5643,8 +5702,10 @@ li:last-child > .branch-row { border-bottom: 0; }
       const cafe = state.cafes[cafeId];
       // Every brand has a menu now: one cup per drink, and anything above what a cup covers is a top-up
       const item = select.menuItem(cafe.brandId, drinkId) || state.brands[cafe.brandId].menu[0];
-      const p = select.drinkPrice(cafe.brandId, item, temp);
-      const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp };
+      // Pickup orders and tables use the member's first plan, so its band sets the top-up
+      const band = select.planBand(state.members[memberId]?.plan);
+      const p = select.drinkPrice(cafe.brandId, item, temp, band);
+      const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
@@ -6087,7 +6148,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         if (!select.activity(l.memberId, ["redeem"]).some((e) => venueOf(e.cafeId) === venueOf(o.cafeId))) stamped.push(member);
         entries.push({
           id: `rd_${l.key}`, type: "redeem", memberId: l.memberId, cafeId: o.cafeId, cups: -l.credits, credits: l.credits, drinkId: l.drinkId,
-          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}),
+          ...(o.brandId ? { brandId: o.brandId, temp: l.temp, price: l.price, topUp: l.topUp, topUpOnline: l.topUp > 0 } : {}), band: l.band || select.planBand(member.plan),
           firstVisit: !(member.visits && member.visits[o.cafeId] > 0), orderId: o.id, at: now + 1, cycle: l.cycle, live: true, ...extra,
         });
       }
@@ -6200,12 +6261,13 @@ li:last-child > .branch-row { border-bottom: 0; }
       const b = select.brandFor(branchId);
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
       if (!select.isAvailable(branchId, item.id)) return { ...check, ok: false, reason: "unavailable", title: "Not available today", line: "Pick another drink." };
-      const p = select.drinkPrice(b.id, item, temp);
       const m = check.member;
       const plan = check.plan;
+      const band = select.planBand(plan.plan);
+      const p = select.drinkPrice(b.id, item, temp, band);
       const entry = {
         id: uid("rd"), type: "redeem", memberId, cafeId: branchId, branchId, brandId: b.id, staffId: state.counter.staffId || null,
-        cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp, method, planType: plan.plan.type,
+        cups: -1, credits: 1, drinkId: item.id, temp: p.temp, price: p.price, topUp: p.topUp, band, method, planType: plan.plan.type,
         firstVisit: !(m.visits && m.visits[branchId] > 0), at: Date.now(), cycle: plan.cycle, live: true, ...(plan.bonus ? { bonus: true } : {}),
       };
       entry.ref = select.redemptionRef(entry);
@@ -6262,14 +6324,6 @@ li:last-child > .branch-row { border-bottom: 0; }
       const ch = { hot: item.hot == null ? null : Number(hot), iced: item.iced == null ? null : Number(iced), from: tomorrow, at: Date.now() };
       if (ch.hot === item.hot && ch.iced === item.iced) delete b.priceChanges[drinkId];
       else b.priceChanges[drinkId] = ch;
-      touchBrand(brandId);
-    },
-    /** What a cup covers, and the café's share of each drink's price. */
-    setEconomics(brandId, patch) {
-      const b = state.brands[brandId];
-      if (!b) return;
-      if (patch.coverUpTo != null) b.economics.coverUpTo = Math.max(100, Math.round(patch.coverUpTo));
-      if (patch.payoutShare != null) b.economics.payoutShare = Math.min(0.95, Math.max(0.3, patch.payoutShare));
       touchBrand(brandId);
     },
     /** Limits: cups per member a day at a branch, member cups a day per branch. */
@@ -6382,7 +6436,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const cup = pay === "cup";
       const order = {
         id: uid("o"), memberId, memberName: m.firstName, cafeId, brandId: q.brandId, drinkId: q.drinkId, temp: q.temp, price: q.price,
-        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
+        credits: cup ? q.credits : 0, topUp: cup ? q.topUp : 0, band: q.band, pay: cup ? "cup" : "paid", amount: cup ? q.topUp : q.price, payment,
         bonus: cup && q.cup.bonus, asap: !!asap || !pickupAt, pickupAt: when, status: "placed", placedAt: now, updatedAt: now, times: { placed: now },
         cycle: m.cycle, live: true, profiles: profilesFor([memberId]),
       };
@@ -6741,7 +6795,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const now = Date.now();
       const item = {
         id: uid("ti"), memberId: m ? m.id : null, name: who, drinkId: q.drinkId, temp: q.temp, price: q.price,
-        credits: mode === "cup" ? q.credits : 0, topUp: mode === "cup" ? q.topUp : 0, pay: mode,
+        credits: mode === "cup" ? q.credits : 0, topUp: mode === "cup" ? q.topUp : 0, band: q.band, pay: mode,
         amount: mode === "cup" ? q.topUp : mode === "online" ? q.price : 0, payment, bonus: mode === "cup" && q.cup.bonus, cycle: m ? m.cycle : null, at: now,
       };
       g.items[item.id] = item;
@@ -7907,7 +7961,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
-              <p class="t-micro t-faint num">Micro 12 · Rs 6,500 · 11 of 16</p>
+              <p class="t-micro t-faint num">Micro 12 · Rs 9,000 · 11 of 16</p>
             </section>
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
@@ -8379,6 +8433,16 @@ li:last-child > .branch-row { border-bottom: 0; }
         paintPanel({ focus: true });
       }
 
+      /** The band the plan used here covers up to (undefined when no cup can be used). */
+      function planBand() {
+        const chk = S.counterCheck(member().id, branch().id);
+        return chk.ok ? S.planBand(chk.plan.plan) : undefined;
+      }
+      const bandName = (p) => (p.band ? p.band.label : "Above Reserve");
+      const priceText = (p) => (p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`);
+      /** One quiet line when the drink is above the plan's band. */
+      const coverNote = (m, p) => (p.included ? "" : `Above ${m.firstName}’s plan (${S.coversLabel(p.cover.id)}, up to ${fmt.rs(p.cover.maxPrice)}). ${m.firstName} pays ${fmt.rs(p.topUp)} at the counter.`);
+
       function memberHtml() {
         const m = member();
         const b = brand();
@@ -8388,7 +8452,8 @@ li:last-child > .branch-row { border-bottom: 0; }
         const perks = S.perksAt ? S.perksAt(m.id, branch().id) : [];
         const others = chk.plans.filter((p) => !chk.ok || p.key !== chk.plan.key);
         const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
-        const price = item ? S.drinkPrice(b.id, item, drink.temp) : null;
+        const band = chk.ok ? S.planBand(chk.plan.plan) : undefined;
+        const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
           <div class="ct-card__who">
@@ -8401,14 +8466,15 @@ li:last-child > .branch-row { border-bottom: 0; }
           </div>
           ${chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
-                <span class="t-small t-faint">${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
+                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
           ${others.length && chk.ok ? html`<p class="t-small t-faint num">Also: ${others.map((p) => `${p.name}, ${p.left} left`).join(" · ")}</p>` : ""}
           ${perks.length ? html`<p class="t-small ct-card__perk">Perk to offer: ${perks.map((p) => p.text).join("; ")}</p>` : ""}
           ${chk.ok && item ? html`
             <div class="ct-drink">
               <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
-              <p class="ct-drink__name"><span data-drink-name>${label}</span> <span class="ct-drink__price num">${price.included ? "Included" : `Cup + ${fmt.rs(price.topUp)} top-up`}</span></p>
+              <p class="ct-drink__name"><span data-drink-name>${label}</span> <span class="ct-drink__price num">${bandName(price)} · ${priceText(price)}</span></p>
+              <p class="t-small t-muted num" data-drink-note ${price.included ? raw("hidden") : ""}>${coverNote(m, price)}</p>
               <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
             </div>
             <button type="button" class="btn btn--primary btn--block ct-redeem" data-redeem aria-describedby="ct-who">Redeem 1 cup</button>
@@ -8422,7 +8488,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         const temp = drink?.temp || "hot";
         const usual = S.usualDrink(member().id, b.id);
         const norm = (s) => s.toLowerCase();
-        const list = S.counterMenu(branch().id, temp)
+        const list = S.counterMenu(branch().id, temp, planBand())
           .filter((d) => (temp === "iced" ? d.item.iced != null : d.item.hot != null))
           .filter((d) => !pickerQuery || norm(d.item.name).includes(norm(pickerQuery)));
         const usualRow = usual && list.find((d) => d.id === usual.drinkId);
@@ -8436,7 +8502,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
             ${rows.length ? rows.map((d) => html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
                 <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
-                <span class="ct-menu__price num">${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${bandName(d)}</span> · ${d.included ? "Included" : `Cup + ${fmt.rs(d.topUp)}`}</span>
               </button>`) : html`<p class="t-small t-muted">Nothing ${temp} matches${pickerQuery ? ` “${pickerQuery}”` : ""} today.</p>`}
           </div>`;
       }
@@ -8447,12 +8513,14 @@ li:last-child > .branch-row { border-bottom: 0; }
       function paintDrinkLine() {
         const b = brand();
         const item = S.menuItem(b.id, drink.drinkId);
-        const p = S.drinkPrice(b.id, item, drink.temp);
+        const p = S.drinkPrice(b.id, item, drink.temp, planBand());
         const card = $(".ct-drink", el);
         if (!card) return;
         $(".ct-drink__label", card).textContent = drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink";
         $("[data-drink-name]", card).textContent = S.drinkLabel(item, drink.temp);
-        $(".ct-drink__price", card).textContent = p.included ? "Included" : `Cup + ${fmt.rs(p.topUp)} top-up`;
+        $(".ct-drink__price", card).textContent = `${bandName(p)} · ${priceText(p)}`;
+        const note = $("[data-drink-note]", card);
+        if (note) { note.textContent = coverNote(member(), p); note.hidden = p.included; }
       }
 
       function redeemNow() {
@@ -9228,7 +9296,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           ${head("Live", `${scopeLabel()} · today, as it happens.`)}
           <div class="pd-stats">
             ${stat("Cups today", fmt.num(t.cups), `${t.members} ${t.members === 1 ? "member" : "members"}`)}
-            ${stat("Payout so far", fmt.rs(t.payout), "cups and paid orders")}
+            <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">each cup at its band rate, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
             ${stat("Pickup orders", fmt.num(t.pickups), t.pickupsOpen ? `${t.pickupsOpen} still open` : "none open")}
             ${stat("Undos", fmt.num(t.undos), "cups given back")}
             ${stat("“Not you” reports", fmt.num(t.reports), t.reports ? "for you to check" : "none today")}
@@ -9281,13 +9349,13 @@ li:last-child > .branch-row { border-bottom: 0; }
         return html`<section class="pd-section">
           ${head("Menu", `${b.menuNote || ""} Price changes apply from tomorrow. “Available today” is back on at midnight.`)}
           ${owner() ? "" : html`<p class="t-small cv-note">Prices are set by the owner. You can switch drinks off for today at your branch.</p>`}
-          <p class="t-small t-muted">A cup covers drinks up to ${fmt.rs(b.economics.coverUpTo)}; above that the counter says “Cup + Rs X”. ${ids.length > 1 ? "Switches apply to every branch shown." : `Switches apply to ${scopeLabel()}.`}</p>
+          <p class="t-small t-muted">Each drink’s band comes from its price. Above a member’s plan, the counter says “Cup + Rs X”. ${ids.length > 1 ? "Switches apply to every branch shown." : `Switches apply to ${scopeLabel()}.`}</p>
           ${sections.map((sec) => html`<div class="pd-menu" role="table" aria-label="${sec}">
             <div class="pd-menu__row pd-menu__row--head" role="row"><span role="columnheader">${sec}</span><span role="columnheader">Hot</span><span role="columnheader">Iced</span><span role="columnheader">Available today</span></div>
             ${b.menu.filter((d) => d.section === sec).map((d) => {
               const off = ids.filter((id) => !S.isAvailable(id, d.id)).length;
               return html`<div class="pd-menu__row" role="row">
-                <span role="cell" class="pd-menu__name">${d.name}</span>
+                <span role="cell" class="pd-menu__name">${d.name} <span class="t-small t-faint">${S.itemBand(d)?.label || "Above Reserve"}</span></span>
                 <span role="cell">${priceCell(d, "hot")}</span>
                 <span role="cell">${priceCell(d, "iced")}</span>
                 <span role="cell" class="pd-menu__avail">
@@ -9303,19 +9371,18 @@ li:last-child > .branch-row { border-bottom: 0; }
       /* Rules ------------------------------------------------------------- */
       function rulesHtml() {
         const b = brand();
-        const e = b.economics;
         const list = scopeIds().map((id) => S.branch(id));
         const time = (s) => { const [h, m] = s.split(":").map(Number); return `${String(h % 24).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`; };
         return html`<section class="pd-section">
-          ${head("Rules", owner() ? "What a cup covers, what you’re paid, and the limits at every branch." : "Set by the owner. You can pause member cups, set the busy level and the hours at your branch.")}
+          ${head("Rules", owner() ? "What you’re paid per cup, and the limits at every branch." : "Set by the owner. You can pause member cups, set the busy level and the hours at your branch.")}
           <div class="pd-grid2">
             <div class="pd-card">
               <h3 class="eyebrow">Rate per cup</h3>
-              <label class="field"><span class="field__label">A cup covers drinks up to</span>
-                <span class="pd-inline"><span class="t-muted">Rs</span><input class="input num" type="number" min="100" step="10" value="${e.coverUpTo}" data-econ="coverUpTo" data-fk="econ-cover" ${owner() ? "" : raw("disabled")}></span></label>
-              <label class="field"><span class="field__label">You’re paid this share of each drink’s price</span>
-                <span class="pd-inline"><input class="input num" type="number" min="30" max="95" step="1" value="${Math.round(e.payoutShare * 100)}" data-econ="payoutShare" data-fk="econ-share" ${owner() ? "" : raw("disabled")}><span class="t-muted">%</span></span></label>
-              <p class="t-small t-muted num">So at most ${fmt.rs(Math.round(e.coverUpTo * e.payoutShare))} a cup. Above ${fmt.rs(e.coverUpTo)}, the member pays the difference at your till, and that stays with you.</p>
+              <div class="pd-table pd-table--bands" role="table" aria-label="Bands">
+                <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Band</span><span role="columnheader">Drink price</span><span role="columnheader">You’re paid</span></div>
+                ${S.state().bands.map((x, i, all) => html`<div class="pd-table__row" role="row"><span role="cell">${x.label}</span><span role="cell" class="num">${i ? `${fmt.rs(all[i - 1].maxPrice + 1)} to ${fmt.rs(x.maxPrice)}` : `Up to ${fmt.rs(x.maxPrice)}`}</span><span role="cell" class="num">${fmt.rs(x.cafeRate)}</span></div>`)}
+              </div>
+              <p class="t-small t-muted num">You’re paid the rate of the drink’s band, up to the band the member’s plan covers. Above that, the member pays the difference at your till, and that stays with you. Rates are agreed with LCC.</p>
             </div>
             <div class="pd-card">
               <h3 class="eyebrow">Limits</h3>
@@ -9365,7 +9432,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           ${head("Money", `${scopeLabel()} · ${monthName(m.monthStart)} so far.`)}
           <div class="pd-stats">
             ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
-            ${stat("Cups", fmt.rs(m.cupEarned), `${m.share}% of each drink, up to ${fmt.rs(m.maxPerCup)}`)}
+            ${stat("Cups", fmt.rs(m.cupEarned), `at band rates: ${m.bands.map((x) => fmt.rs(x.cafeRate)).join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
             ${stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}
           </div>
@@ -9518,12 +9585,6 @@ li:last-child > .branch-row { border-bottom: 0; }
           A.setMenuPrice(session.brandId, d.id, next);
           paint();
           return ui.toast(`${d.name}: the new price applies from tomorrow.`);
-        }
-        if (t.matches("[data-econ]")) {
-          const v = Number(t.value);
-          if (!v) return paint();
-          A.setEconomics(session.brandId, t.dataset.econ === "payoutShare" ? { payoutShare: v / 100 } : { coverUpTo: v });
-          paint(); return ui.toast("Saved. Counters use it from the next cup.");
         }
         if (t.matches("[data-busy]")) { A.setBusyMode(t.dataset.busy, t.value); paint(); return ui.toast(`Busy level at ${branchShort(S.branch(t.dataset.busy))}: ${t.value === "auto" ? "Auto" : fmt.statusLabel(t.value)}.`); }
         if (t.matches("[data-hours]")) {
@@ -9839,7 +9900,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         const usual = S.usualStatus(c, USUAL_HOUR).status;
         const brand = S.brandOf(cafeId);
         if (brand) {
-          const cover = brand.economics.coverUpTo;
+          const cover = S.band(S.bandAt(undefined, brand.id)).maxPrice;
           $("[data-sheet-body]", el).innerHTML = html`
             <div class="cafe-sheet">
               <div class="stack" style="--stack-gap:var(--space-1)">
@@ -9851,7 +9912,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
                 <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
               </div>
-              <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
+              <p class="t-small t-muted">Your cups cover drinks up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
               <div class="cafe-sheet__actions">
                 <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
                 <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
@@ -10213,7 +10274,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           const o = S.order();
           if (!o) return "";
           const item = S.menuItem(o.brandId, o.drinkId);
-          const p = S.drinkPrice(o.brandId, item, o.temp);
+          const p = S.drinkPrice(o.brandId, item, o.temp, S.bandAt(undefined, o.brandId));
           return html`
             <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
             <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>
@@ -10650,6 +10711,14 @@ li:last-child > .branch-row { border-bottom: 0; }
   // Matcha mode: matcha drinks first, and a small tag on cafés that serve it (read from the drinks)
   const matchaMode = () => LCC.theme?.flavour() === "matcha";
   const isMatcha = (d) => /matcha/i.test(d.name);
+  // A drink's band, and the top-up on the member's plan (empty when it's included)
+  const bandLabel = (c, d) => S.itemBand(S.menuItem(c.brandId, d.id) || { hot: d.price })?.label || "Above Reserve";
+  const topUpFor = (c, d) => {
+    const item = S.menuItem(c.brandId, d.id);
+    if (!item || !S.member().plan) return "";
+    const p = S.drinkPrice(c.brandId, item, "hot", S.bandAt(undefined, c.brandId));
+    return p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)} on your plan`;
+  };
   const servesMatcha = (c) => c.drinks.some(isMatcha);
 
   /** Filters from the sheet that are on: one per choice, for “Filters · 2”. */
@@ -10972,17 +11041,17 @@ li:last-child > .branch-row { border-bottom: 0; }
             <dl class="facts">
               <div><dt>${icon("clock", { size: 18 })}<span class="sr-only">Hours</span></dt><dd>${c.hours.label}<span class="t-faint"> · <span data-open-state>${S.openState(c).label}</span></span></dd></div>
               <div><dt>${ui.cupIcon(S.usualStatus(c, USUAL_HOUR).status, { size: 18, cls: "" })}<span class="sr-only">Typical</span></dt><dd>Usually ${fmt.statusLabel(S.usualStatus(c, USUAL_HOUR).status).toLowerCase()} at 6 pm</dd></div>
-              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">${fmt.rs(c.price)} a cup at the counter</dd></div>
+              <div><dt>${icon("store", { size: 18 })}<span class="sr-only">Price</span></dt><dd class="num">A latte is ${fmt.rs(c.price)} at the counter</dd></div>
             </dl>
             <div class="cluster" style="--cluster-gap:var(--space-2)">${c.tags.map((t) => html`<span class="badge">${t}</span>`)}</div>
 
             <section class="app-section" aria-labelledby="drinks-h">
-              <h2 class="eyebrow app-section__title" id="drinks-h">Signature drinks</h2>
+              <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
-                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, uses ${fmt.cups(d.credits)}. Order for pickup">
-                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter</span></span>
-                    <span class="badge${d.credits > 1 ? " badge--accent" : ""}">Uses ${fmt.cups(d.credits)}</span>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter${topUpFor(c, d)}</span></span>
+                    <span class="badge">${bandLabel(c, d)}</span>
                   </button>
                 </li>`)}
               </ul>
@@ -11045,7 +11114,8 @@ li:last-child > .branch-row { border-bottom: 0; }
   REG.brand = (ctx, brandId) => {
     const { view, el } = ctx;
     const b = S.brand(brandId);
-    const cover = b.economics.coverUpTo;
+    const band = () => S.bandAt(undefined, b.id);
+    const cover = S.band(band()).maxPrice;
     const sections = [...new Set(b.menu.map((d) => d.section))];
     let sheet = null;
     let picked = null; // { item, temp } while the order sheet is open
@@ -11054,8 +11124,8 @@ li:last-child > .branch-row { border-bottom: 0; }
     const hasPlan = () => ctx.member().plan?.type === "brand" && ctx.member().plan.brandId === b.id;
     const left = () => (hasPlan() ? Math.max(0, S.balance().left) : 0);
     const priceTag = (item, temp) => {
-      const p = S.drinkPrice(b.id, item, temp);
-      return p.included ? html`<span class="badge">Included</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
+      const p = S.drinkPrice(b.id, item, temp, band());
+      return p.included ? html`<span class="badge">${p.band.label}</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
     };
 
     /* ---------------- Your cups ---------------- */
@@ -11136,7 +11206,7 @@ li:last-child > .branch-row { border-bottom: 0; }
     /* ---------------- Order sheet ---------------- */
     function sheetHtml() {
       const { item, temp } = picked;
-      const p = S.drinkPrice(b.id, item, temp);
+      const p = S.drinkPrice(b.id, item, temp, band());
       const both = item.hot != null && item.iced != null;
       const canUse = hasPlan() && left() > 0;
       return html`
@@ -11147,12 +11217,12 @@ li:last-child > .branch-row { border-bottom: 0; }
             <div class="stack" style="--stack-gap:var(--space-1)">
               <p class="eyebrow">${item.section}</p>
               <h2 class="t-h2" id="order-title" data-order-name>${S.drinkLabel(item, temp)}</h2>
-              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter</p>
+              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}</p>
             </div>
             ${both
               ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
-            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
             <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
             ${canUse
               ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
@@ -11173,10 +11243,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
     function paintOrder() {
       const { item, temp } = picked;
-      const p = S.drinkPrice(b.id, item, temp);
+      const p = S.drinkPrice(b.id, item, temp, band());
       $("[data-order-name]", sheet).textContent = S.drinkLabel(item, temp);
-      $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter`;
-      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`;
+      $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}`;
+      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`;
     }
     const toPlans = () => $("#brand-plans", view)?.scrollIntoView({ block: "start", behavior: ui.reducedMotion() ? "auto" : "smooth" });
 
@@ -11376,6 +11446,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const cur = S.member().plan;
       return html`
         <p class="t-small t-muted plan-intro">One pool of cups for any partner café, up to ${rules().explorerCapPerCafe} a month at each. Good for trying new places.</p>
+        <p class="t-micro t-faint num plan-bands">${bandsLine()}</p>
         <fieldset class="tier-list">
           <legend class="sr-only">Explorer plans</legend>
           ${store.getState().tiers.map((t) => html`
@@ -11387,9 +11458,15 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <span class="tier__price t-h3 num">${fmt.rs(t.price)}</span>
               </span>
               <span class="tier__meta t-small t-muted num">${fmt.cups(t.cups)} a month · ${t.line}</span>
-              <span class="t-micro t-faint num">About ${fmt.rs(t.price / t.cups)} a cup, at any partner café</span>
+              <span class="t-micro t-faint num">About ${fmt.rs(t.price / t.cups)} a cup · Covers: ${S.coversLabel(t.maxBand)}</span>
             </label>`)}
         </fieldset>`;
+    }
+
+    /** One quiet line on how bands work, from the store's bands. */
+    function bandsLine() {
+      const b = store.getState().bands;
+      return `Every drink has a band by its menu price: ${b.map((x) => `${x.label} up to ${fmt.rs(x.maxPrice)}`).join(", ")}. Above your plan’s band, you pay the difference at the café.`;
     }
 
     function builderRowHtml(c) {
@@ -11407,14 +11484,14 @@ li:last-child > .branch-row { border-bottom: 0; }
     function rowMeta(c, n) {
       const per = c.price * rules().customDiscount;
       if (n >= rules().maxCupsPerCafe) return `${n} a month, the most at one café`;
-      return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, ${fmt.rs(c.price)} at the counter`;
+      return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, a latte is ${fmt.rs(c.price)} at the counter`;
     }
 
     function brandPlansHtml() {
       const b = S.brand(draft.brandId);
       const cur = S.member().plan;
       return html`
-        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. A cup covers any drink up to ${fmt.rs(b.economics.coverUpTo)}; above that you pay the difference at the till.</p>
+        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. Covers: ${S.coversLabel(b.plans[0].maxBand)}, drinks up to ${fmt.rs(S.band(b.plans[0].maxBand).maxPrice)}; above that you pay the difference at the till.</p>
         <fieldset class="tier-list">
           <legend class="sr-only">${b.name} plans</legend>
           ${b.plans.map((p) => html`
@@ -11432,7 +11509,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 
     function builderHtml() {
       return html`
-        <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
+        <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of each café’s latte price. Covers: ${S.coversLabel("classic")}.</p>
         <ul role="list" class="builder-list">${S.clubCafes().map(builderRowHtml)}</ul>`;
     }
 
@@ -11771,7 +11848,8 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
               <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
-              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.brand(plan.brandId).economics.coverUpTo)} included</p>` : ""}
+              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)} included</p>` : ""}
+              ${plan.type === "explorer" ? html`<p class="t-micro t-faint num">Any partner café · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>` : ""}
               ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
@@ -12182,7 +12260,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const q = quote();
       const p = payWith(q);
       const cupLine = !q.cup.ok ? q.cup.message
-        : q.topUp ? `Cup + ${fmt.rs(q.topUp)}, paid online. A cup covers up to ${fmt.rs(S.brand(q.brandId).economics.coverUpTo)}.`
+        : q.topUp ? `Cup + ${fmt.rs(q.topUp)}, paid online. Your cups cover up to ${fmt.rs(S.band(q.band).maxPrice)}.`
         : q.cup.bonus ? "A complimentary cup from the club." : q.credits > 1 ? `Uses ${fmt.cups(q.credits)} from your plan.` : "Covered by your plan.";
       return html`<fieldset class="method-list">
         <legend class="field__label">Pay with</legend>
@@ -14758,7 +14836,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
-          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · ${t.line}</span></th>
+          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · Covers: ${S.coversLabel(t.maxBand)}</span></th>
           <td class="num t-h3">${fmt.rs(t.price)}</td>
           <td class="num t-small t-muted lp-table__per">about ${fmt.rs(t.price / t.cups)}</td>
         </tr>`)}
@@ -14772,13 +14850,13 @@ li:last-child > .branch-row { border-bottom: 0; }
     return html`<div class="card lp-teaser">
       <div class="lp-teaser__head">
         <h3 class="t-h3">My cafés</h3>
-        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of the counter price.</p>
+        <p class="t-small t-muted">Reserve cups at the cafés you love. You pay ${Math.round(store.getState().rules.customDiscount * 100)}% of each café’s latte price.</p>
       </div>
       <ul role="list">
         ${TEASER_CAFES.map((id) => {
           const c = S.cafe(id);
           return html`<li class="row">
-            <div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta num">${S.area(c.area).name} · ${fmt.rs(c.price)} at the counter</div></div>
+            <div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta num">${S.area(c.area).name} · latte ${fmt.rs(c.price)} at the counter</div></div>
             ${ui.stepper({ id, value: b[id] || 0, min: 0, max, label: `Cups a month at ${c.name}` })}
           </li>`;
         })}

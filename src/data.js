@@ -3,7 +3,7 @@
    Seed data. Fictional, except one demo partner: Double Shot, a real
    Lahore chain, shown by name only (no logo; a neutral "DS" monogram).
    Timestamps are relative to page load so “updated 6 min ago” reads true.
-   // BACKEND: GET /cafes, GET /tiers, GET /me replace this file.
+   // BACKEND: GET /cafes, GET /bands, GET /plans, GET /me replace this file.
    ===================================================================== */
 (function () {
   "use strict";
@@ -39,12 +39,32 @@
     counterResetSeconds: 5,    // the Done screen goes back to the keypad after this
   };
 
-  /* Fixed tiers --------------------------------------------------------- */
-  const tiers = [
-    { id: "starter",    name: "Starter",    cups: 8,  price: 3500,  line: "Two good coffees a week." },
-    { id: "regular",    name: "Regular",    cups: 16, price: 6500,  line: "Most weekdays, sorted." },
-    { id: "enthusiast", name: "Enthusiast", cups: 30, price: 11000, line: "One a day, and then some." },
+  /* Bands and plans: the one source of truth for pricing ----------------
+     Every drink falls in a band by its menu price before tax. A plan covers
+     drinks up to its band; above that the member pays the difference at
+     the café ("Cup + Rs X", X = price minus the plan's band ceiling).
+     The café is paid the rate of the drink's band, capped at the plan's
+     band: a Rs 910 drink on a Classic plan pays the café Rs 500.
+     Drinks above Rs 1,500 are in no band; any plan pays its top rate.
+     docs/pricing.md has the margins.                                     */
+  const BANDS = [
+    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500 },
+    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700 },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950 },
   ];
+  // The band a price falls in, or null above the top band
+  const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
+  const band = (id) => BANDS.find((b) => b.id === id);
+
+  /* Explorer plans: one pool of cups for any partner café ---------------- */
+  const PLANS = [
+    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4500,  line: "Two good coffees a week." },
+    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 9000,  line: "Most weekdays, sorted." },
+    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16500, line: "One a day, and then some." },
+    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 12000, line: "The signature drinks, most weekdays." },
+    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12500, line: "Pour-overs and single origins." },
+  ];
+  const tiers = PLANS; // internal name: Explorer tiers (member.plan.tierId)
 
   /* Map areas (SVG coordinates in a 1000 x 800 viewBox) ----------------- */
   const areas = [
@@ -63,8 +83,7 @@
      seven. Nothing below is special to Double Shot.
 
        Brand   id, name, monogram, menu (drinks only: hot / iced prices),
-               economics (a cup covers up to coverUpTo; the café is paid
-               payoutShare of the drink's price, capped there), plans (its
+               plans (its
                own plans; empty for cafés on Explorer and My cafés only),
                rules (cups per member a day at a branch, member cups a day
                per branch), ownerPin, payout account
@@ -89,16 +108,11 @@
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
       menuNote: "Prices from Double Shot’s public menu, Nov 2026. Demo only.",
-      // Economics, in one place:
-      //   a cup covers any drink up to coverUpTo; above that the member pays
-      //   the difference at the till ("Cup + Rs X").
-      //   payout per cup = payoutShare × the drink's counter price, capped at
-      //   the covered amount (72% of 880 = Rs 634 at most).
-      economics: { coverUpTo: 880, payoutShare: 0.72 },
+      // Its own plans cover Classic drinks; payouts follow the bands, as everywhere.
       plans: [
-        { id: "ds8",  cups: 8,  price: 5600 },
-        { id: "ds15", cups: 15, price: 9750 },
-        { id: "ds22", cups: 22, price: 13500 },
+        { id: "ds8",  cups: 8,  maxBand: "classic", price: 5600 },
+        { id: "ds15", cups: 15, maxBand: "classic", price: 9750 },
+        { id: "ds22", cups: 22, maxBand: "classic", price: 13500 },
       ],
       // Drinks only. hot / iced: the counter price in Rs, or null if not served that way.
       // Where the menu didn't say hot or iced, espresso-bar and seasonal drinks are hot
@@ -187,7 +201,8 @@
 
   /* Cafés ----------------------------------------------------------------
      busyByHour: typical busyness 0–1 for each hour from 8:00 to 23:00.
-     payoutPerCup: the rate the café set; what we pay them per cup.
+     latte: the drink whose price is the café's latte price (My cafés
+     pricing and "Rs X a cup at the counter").
      avgDailyCups: a typical day’s cups; the seed generates the month around it.
      credits: how many cups from the plan a drink uses.               */
   // A branch: its own pin, row, hours and busy level; the brand's menu and cups.
@@ -196,7 +211,7 @@
     const [a, b, manager] = DS_STAFF[n - 1];
     return {
       id, brandId: DS.id, name: DS.name, branch: branchName, short: pinName.replace(/^DS · /, ""), label: `${DS.name} · ${branchName.replace(" · ", " ")}`, pinName,
-      area, price: 710, payoutPerCup: Math.round(DS.economics.coverUpTo * DS.economics.payoutShare),
+      area, price: DS.menu.find((d) => d.id === "ds-latte").hot,
       tags: ["Late hours", "Work-friendly"], status, statusUpdatedAt: minsAgo(statusMins), hours,
       blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
       setupCode: DS_CODES[n - 1],
@@ -221,8 +236,7 @@
       id: "kiln",
       name: "Kiln & Bean",
       area: "gulberg",
-      price: 650,
-      payoutPerCup: 520,
+      latte: "kiln-latte",
       tags: ["Roastery", "Pastries"],
       status: "moderate",
       statusUpdatedAt: minsAgo(6),
@@ -233,11 +247,10 @@
       menu: [
         { id: "kiln-flat", section: "Coffee", name: "Kiln flat white", hot: 650, iced: 650 },
         { id: "kiln-cort", section: "Coffee", name: "Cardamom cortado", hot: 600, iced: null },
-        { id: "kiln-americano", section: "Coffee", name: "Americano", hot: 500, iced: 550 },
-        { id: "kiln-spanish", section: "Coffee", name: "Spanish latte", hot: 700, iced: 700 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 900, iced: 900 },
-        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 400, iced: null },
-        { id: "kiln-matcha", section: "Tea", name: "Matcha latte", hot: 750, iced: 750 },
+        { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
+        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
+        { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
+        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950 },
       ],
       busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
       avgDailyCups: 9,
@@ -246,8 +259,7 @@
       id: "maple",
       name: "Maple Roastery",
       area: "dha",
-      price: 750,
-      payoutPerCup: 560,
+      latte: "maple-latte",
       tags: ["Roastery", "Work-friendly"],
       status: "quiet",
       statusUpdatedAt: minsAgo(12),
@@ -258,8 +270,9 @@
       menu: [
         { id: "maple-espresso", section: "Coffee", name: "Maple house espresso", hot: 550, iced: null },
         { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
-        { id: "maple-filter", section: "Brew bar", name: "Ethiopian filter", hot: 950, iced: 950 },
-        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 700 },
+        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
+        { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
+        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null },
       ],
       busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -268,8 +281,7 @@
       id: "ember",
       name: "Ember Coffee Co.",
       area: "model-town",
-      price: 550,
-      payoutPerCup: 400,
+      latte: "ember-latte",
       tags: ["Pastries", "Garden"],
       status: "packed",
       statusUpdatedAt: minsAgo(3),
@@ -278,9 +290,11 @@
       distanceKm: 5.1,
       x: 500, y: 615,
       menu: [
-        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 550, iced: 550 },
-        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 600, iced: 600 },
-        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 650 },
+        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 600, iced: 600 },
+        { id: "ember-flat", section: "Coffee", name: "Flat white", hot: 620, iced: null },
+        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 700, iced: 700 },
+        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 750 },
+        { id: "ember-pistachio", section: "Coffee", name: "Pistachio latte", hot: 900, iced: 900 },
       ],
       busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
       avgDailyCups: 7,
@@ -289,8 +303,7 @@
       id: "thirdfloor",
       name: "Third Floor",
       area: "johar-town",
-      price: 500,
-      payoutPerCup: 360,
+      latte: "tf-latte",
       tags: ["Work-friendly", "Late hours"],
       status: "quiet",
       statusUpdatedAt: minsAgo(18),
@@ -299,9 +312,11 @@
       distanceKm: 9.7,
       x: 290, y: 625,
       menu: [
-        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 450, iced: 450 },
-        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 550, iced: 550 },
-        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 650, iced: null },
+        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 500, iced: 500 },
+        { id: "tf-latte", section: "Coffee", name: "Latte", hot: 600, iced: 600 },
+        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 650, iced: 650 },
+        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 850, iced: null },
+        { id: "tf-lotus", section: "Cold", name: "Lotus iced latte", hot: null, iced: 950 },
       ],
       busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
       avgDailyCups: 4,
@@ -310,8 +325,7 @@
       id: "quiethours",
       name: "Quiet Hours",
       area: "fortress",
-      price: 600,
-      payoutPerCup: 440,
+      latte: "qh-latte",
       tags: ["Work-friendly", "Pastries"],
       status: "moderate",
       statusUpdatedAt: minsAgo(9),
@@ -320,9 +334,11 @@
       distanceKm: 3.2,
       x: 670, y: 290,
       menu: [
-        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 600, iced: null },
-        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 500, iced: null },
-        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 650, iced: null },
+        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 650, iced: null },
+        { id: "qh-latte", section: "Coffee", name: "Latte", hot: 650, iced: 650 },
+        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 700, iced: null },
+        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 550, iced: null },
+        { id: "qh-mocha", section: "Coffee", name: "Dark chocolate mocha", hot: 880, iced: 880 },
       ],
       busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
       avgDailyCups: 4,
@@ -331,8 +347,7 @@
       id: "slowpour",
       name: "Slow Pour",
       area: "liberty",
-      price: 700,
-      payoutPerCup: 520,
+      latte: "sp-latte",
       tags: ["Roastery", "Pour-over"],
       status: "packed",
       statusUpdatedAt: minsAgo(4),
@@ -341,9 +356,11 @@
       distanceKm: 1.6,
       x: 440, y: 405,
       menu: [
+        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 700, iced: null },
+        { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
         { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
-        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 650, iced: null },
-        { id: "sp-flight", section: "Brew bar", name: "Tasting flight", hot: 1300, iced: null },
+        { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
+        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null },
       ],
       busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
       avgDailyCups: 7,
@@ -352,8 +369,7 @@
       id: "noon",
       name: "Noon Café",
       area: "gulberg",
-      price: 450,
-      payoutPerCup: 330,
+      latte: "noon-latte",
       tags: ["Pastries", "Breakfast"],
       status: "quiet",
       statusUpdatedAt: minsAgo(22),
@@ -362,9 +378,11 @@
       distanceKm: 1.1,
       x: 575, y: 395,
       menu: [
-        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 450, iced: null },
-        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 500, iced: 500 },
-        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 450 },
+        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 600, iced: null },
+        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 650, iced: 650 },
+        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 550 },
+        { id: "noon-chai", section: "Tea", name: "Doodh patti", hot: 400, iced: null },
+        { id: "noon-kunafa", section: "Coffee", name: "Kunafa latte", hot: 950, iced: 950 },
       ],
       busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
       avgDailyCups: 6,
@@ -373,8 +391,7 @@
       id: "grind",
       name: "Grind & Grain",
       area: "dha",
-      price: 550,
-      payoutPerCup: 400,
+      latte: "gg-latte",
       tags: ["Pastries", "Roastery"],
       status: "moderate",
       statusUpdatedAt: minsAgo(14),
@@ -383,9 +400,11 @@
       distanceKm: 7.2,
       x: 735, y: 600,
       menu: [
-        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 550, iced: 550 },
-        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 450, iced: null },
-        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 600, iced: 600 },
+        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 650, iced: 650 },
+        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 550, iced: null },
+        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 700, iced: 700 },
+        { id: "gg-brown", section: "Coffee", name: "Brown sugar oat latte", hot: 850, iced: 850 },
+        { id: "gg-praline", section: "Cold", name: "Hazelnut praline latte", hot: null, iced: 1000 },
       ],
       busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
       avgDailyCups: 5,
@@ -393,11 +412,9 @@
   ];
 
   /* Single-branch cafés: each one is a brand with one branch (the café
-     itself, same id). The brand owns the menu, the economics and the
-     rules; the branch keeps its pin, hours, busy level and staff. A cup
-     covers the café's list price; above that it's "Cup + Rs X". The café
-     is paid its rate as a share of the drink's price (Kiln & Bean: 80%,
-     so Rs 520 on a Rs 650 drink).                                      */
+     itself, same id). The brand owns the menu and the
+     rules; the branch keeps its pin, hours, busy level and staff. Cups
+     and payouts follow the bands above, as at Double Shot.             */
   const SINGLE = {
     //            monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
     kiln:       ["KB", "1111", "KB-01", ["Bilal", "Hira", "Saad"], "2468", 40],
@@ -410,11 +427,11 @@
     grind:      ["GG", "8888", "GG-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
   };
   cafes.filter((c) => c.menu).forEach((c) => {
+    c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
       id: c.id, name: c.name, monogram, ownerPin, line: c.blurb,
       menuNote: "Demo menu. Prices are fictional.",
-      economics: { coverUpTo: c.price, payoutShare: Math.round((c.payoutPerCup / c.price) * 1000) / 1000 },
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
       account: { label: "bank account", last4: c.id === "kiln" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
@@ -590,7 +607,7 @@
     const price = d[t];
     const id = `s${seq++}`;
     ledger.push({ id, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price,
-      topUp: Math.max(0, price - DS.economics.coverUpTo), firstVisit, at, cycle: m.cycle, ...served(cafeId, id) });
+      topUp: Math.max(0, price - band("classic").maxPrice), firstVisit, at, cycle: m.cycle, ...served(cafeId, id) });
   }
 
   /* Mumtaz’s earlier months --------------------------------------------
@@ -824,7 +841,7 @@
           const item = dsItem(d);
           const t = item.iced != null && rp() < 0.55 ? "iced" : item.hot != null ? "hot" : "iced";
           ledger.push({ id, type: "redeem", memberId: m.id, cafeId: c.id, brandId: DS.id, cups: -1, credits: 1, drinkId: d, temp: t, price: item[t],
-            topUp: Math.max(0, item[t] - DS.economics.coverUpTo), firstVisit: false, at, cycle: `${m.cycle}_prev`, ...served(c.id, id) });
+            topUp: Math.max(0, item[t] - band("classic").maxPrice), firstVisit: false, at, cycle: `${m.cycle}_prev`, ...served(c.id, id) });
         } else {
           const own = m.plan.type === "mycafes" ? Object.keys(m.plan.allocation) : clubCafes.map((c) => c.id);
           const c = cafeById[own[Math.floor(rp() * own.length)]];
@@ -900,7 +917,7 @@
       const d = dsItem(drinkId);
       const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
       ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, brandId: DS.id, cups: -1, credits: 1, drinkId, temp: t, price: d[t],
-        topUp: Math.max(0, d[t] - DS.economics.coverUpTo), firstVisit: first, at, cycle: cyc });
+        topUp: Math.max(0, d[t] - band("classic").maxPrice), firstVisit: first, at, cycle: cyc });
     } else {
       const credits = drinkCredits(cafeId, drinkId);
       ledger.push({ id: `sc_${key}`, type: "redeem", memberId: m.id, cafeId, cups: -credits, credits, drinkId, firstVisit: first, at, cycle: cyc });
@@ -1079,7 +1096,7 @@
      brand and branch objects above.
      // BACKEND: payouts table (branch_id, month, cups, amount, paid_at)  */
   const monthStart = (n) => { const d = new Date(startOfToday); d.setDate(1); d.setMonth(d.getMonth() - n); return d.getTime(); };
-  const DS_AVG_PAYOUT = [552, 547, 549, 556, 551, 545, 558]; // Rs a cup, from each branch's drink mix
+  const DS_AVG_PAYOUT = [514, 509, 511, 518, 512, 507, 520]; // Rs a cup, from each branch's mix of bands
   const KILN_CUPS = [248, 231, 204];
   const partner = {};
   cafes.forEach((c) => {
@@ -1088,7 +1105,7 @@
       payoutDay: 5,
       payouts: [1, 2, 3].map((k) => {
         const cups = c.id === "kiln" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
-        const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : c.payoutPerCup;
+        const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : band("classic").cafeRate;
         return { month: monthStart(k), cups, amount: cups * perCup, paidAt: monthStart(k - 1) + 4 * DAY };
       }),
     };
@@ -1123,6 +1140,8 @@
   LCC.data = {
     seededAt: now,
     rules,
+    BANDS,
+    PLANS,
     tiers,
     areas,
     brands,

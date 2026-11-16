@@ -43,7 +43,7 @@
               <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
-              <p class="t-micro t-faint num">Micro 12 · Rs 6,500 · 11 of 16</p>
+              <p class="t-micro t-faint num">Micro 12 · Rs 9,000 · 11 of 16</p>
             </section>
 
             <section class="card stack" style="--stack-gap:var(--space-3)">

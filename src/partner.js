@@ -228,7 +228,7 @@
           ${head("Live", `${scopeLabel()} · today, as it happens.`)}
           <div class="pd-stats">
             ${stat("Cups today", fmt.num(t.cups), `${t.members} ${t.members === 1 ? "member" : "members"}`)}
-            ${stat("Payout so far", fmt.rs(t.payout), "cups and paid orders")}
+            <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">each cup at its band rate, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
             ${stat("Pickup orders", fmt.num(t.pickups), t.pickupsOpen ? `${t.pickupsOpen} still open` : "none open")}
             ${stat("Undos", fmt.num(t.undos), "cups given back")}
             ${stat("“Not you” reports", fmt.num(t.reports), t.reports ? "for you to check" : "none today")}
@@ -281,13 +281,13 @@
         return html`<section class="pd-section">
           ${head("Menu", `${b.menuNote || ""} Price changes apply from tomorrow. “Available today” is back on at midnight.`)}
           ${owner() ? "" : html`<p class="t-small cv-note">Prices are set by the owner. You can switch drinks off for today at your branch.</p>`}
-          <p class="t-small t-muted">A cup covers drinks up to ${fmt.rs(b.economics.coverUpTo)}; above that the counter says “Cup + Rs X”. ${ids.length > 1 ? "Switches apply to every branch shown." : `Switches apply to ${scopeLabel()}.`}</p>
+          <p class="t-small t-muted">Each drink’s band comes from its price. Above a member’s plan, the counter says “Cup + Rs X”. ${ids.length > 1 ? "Switches apply to every branch shown." : `Switches apply to ${scopeLabel()}.`}</p>
           ${sections.map((sec) => html`<div class="pd-menu" role="table" aria-label="${sec}">
             <div class="pd-menu__row pd-menu__row--head" role="row"><span role="columnheader">${sec}</span><span role="columnheader">Hot</span><span role="columnheader">Iced</span><span role="columnheader">Available today</span></div>
             ${b.menu.filter((d) => d.section === sec).map((d) => {
               const off = ids.filter((id) => !S.isAvailable(id, d.id)).length;
               return html`<div class="pd-menu__row" role="row">
-                <span role="cell" class="pd-menu__name">${d.name}</span>
+                <span role="cell" class="pd-menu__name">${d.name} <span class="t-small t-faint">${S.itemBand(d)?.label || "Above Reserve"}</span></span>
                 <span role="cell">${priceCell(d, "hot")}</span>
                 <span role="cell">${priceCell(d, "iced")}</span>
                 <span role="cell" class="pd-menu__avail">
@@ -303,19 +303,18 @@
       /* Rules ------------------------------------------------------------- */
       function rulesHtml() {
         const b = brand();
-        const e = b.economics;
         const list = scopeIds().map((id) => S.branch(id));
         const time = (s) => { const [h, m] = s.split(":").map(Number); return `${String(h % 24).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`; };
         return html`<section class="pd-section">
-          ${head("Rules", owner() ? "What a cup covers, what you’re paid, and the limits at every branch." : "Set by the owner. You can pause member cups, set the busy level and the hours at your branch.")}
+          ${head("Rules", owner() ? "What you’re paid per cup, and the limits at every branch." : "Set by the owner. You can pause member cups, set the busy level and the hours at your branch.")}
           <div class="pd-grid2">
             <div class="pd-card">
               <h3 class="eyebrow">Rate per cup</h3>
-              <label class="field"><span class="field__label">A cup covers drinks up to</span>
-                <span class="pd-inline"><span class="t-muted">Rs</span><input class="input num" type="number" min="100" step="10" value="${e.coverUpTo}" data-econ="coverUpTo" data-fk="econ-cover" ${owner() ? "" : raw("disabled")}></span></label>
-              <label class="field"><span class="field__label">You’re paid this share of each drink’s price</span>
-                <span class="pd-inline"><input class="input num" type="number" min="30" max="95" step="1" value="${Math.round(e.payoutShare * 100)}" data-econ="payoutShare" data-fk="econ-share" ${owner() ? "" : raw("disabled")}><span class="t-muted">%</span></span></label>
-              <p class="t-small t-muted num">So at most ${fmt.rs(Math.round(e.coverUpTo * e.payoutShare))} a cup. Above ${fmt.rs(e.coverUpTo)}, the member pays the difference at your till, and that stays with you.</p>
+              <div class="pd-table pd-table--bands" role="table" aria-label="Bands">
+                <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Band</span><span role="columnheader">Drink price</span><span role="columnheader">You’re paid</span></div>
+                ${S.state().bands.map((x, i, all) => html`<div class="pd-table__row" role="row"><span role="cell">${x.label}</span><span role="cell" class="num">${i ? `${fmt.rs(all[i - 1].maxPrice + 1)} to ${fmt.rs(x.maxPrice)}` : `Up to ${fmt.rs(x.maxPrice)}`}</span><span role="cell" class="num">${fmt.rs(x.cafeRate)}</span></div>`)}
+              </div>
+              <p class="t-small t-muted num">You’re paid the rate of the drink’s band, up to the band the member’s plan covers. Above that, the member pays the difference at your till, and that stays with you. Rates are agreed with LCC.</p>
             </div>
             <div class="pd-card">
               <h3 class="eyebrow">Limits</h3>
@@ -365,7 +364,7 @@
           ${head("Money", `${scopeLabel()} · ${monthName(m.monthStart)} so far.`)}
           <div class="pd-stats">
             ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
-            ${stat("Cups", fmt.rs(m.cupEarned), `${m.share}% of each drink, up to ${fmt.rs(m.maxPerCup)}`)}
+            ${stat("Cups", fmt.rs(m.cupEarned), `at band rates: ${m.bands.map((x) => fmt.rs(x.cafeRate)).join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
             ${stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}
           </div>
@@ -518,12 +517,6 @@
           A.setMenuPrice(session.brandId, d.id, next);
           paint();
           return ui.toast(`${d.name}: the new price applies from tomorrow.`);
-        }
-        if (t.matches("[data-econ]")) {
-          const v = Number(t.value);
-          if (!v) return paint();
-          A.setEconomics(session.brandId, t.dataset.econ === "payoutShare" ? { payoutShare: v / 100 } : { coverUpTo: v });
-          paint(); return ui.toast("Saved. Counters use it from the next cup.");
         }
         if (t.matches("[data-busy]")) { A.setBusyMode(t.dataset.busy, t.value); paint(); return ui.toast(`Busy level at ${branchShort(S.branch(t.dataset.busy))}: ${t.value === "auto" ? "Auto" : fmt.statusLabel(t.value)}.`); }
         if (t.matches("[data-hours]")) {

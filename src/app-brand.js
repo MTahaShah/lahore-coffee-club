@@ -23,7 +23,8 @@
   REG.brand = (ctx, brandId) => {
     const { view, el } = ctx;
     const b = S.brand(brandId);
-    const cover = b.economics.coverUpTo;
+    const band = () => S.bandAt(undefined, b.id);
+    const cover = S.band(band()).maxPrice;
     const sections = [...new Set(b.menu.map((d) => d.section))];
     let sheet = null;
     let picked = null; // { item, temp } while the order sheet is open
@@ -32,8 +33,8 @@
     const hasPlan = () => ctx.member().plan?.type === "brand" && ctx.member().plan.brandId === b.id;
     const left = () => (hasPlan() ? Math.max(0, S.balance().left) : 0);
     const priceTag = (item, temp) => {
-      const p = S.drinkPrice(b.id, item, temp);
-      return p.included ? html`<span class="badge">Included</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
+      const p = S.drinkPrice(b.id, item, temp, band());
+      return p.included ? html`<span class="badge">${p.band.label}</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
     };
 
     /* ---------------- Your cups ---------------- */
@@ -114,7 +115,7 @@
     /* ---------------- Order sheet ---------------- */
     function sheetHtml() {
       const { item, temp } = picked;
-      const p = S.drinkPrice(b.id, item, temp);
+      const p = S.drinkPrice(b.id, item, temp, band());
       const both = item.hot != null && item.iced != null;
       const canUse = hasPlan() && left() > 0;
       return html`
@@ -125,12 +126,12 @@
             <div class="stack" style="--stack-gap:var(--space-1)">
               <p class="eyebrow">${item.section}</p>
               <h2 class="t-h2" id="order-title" data-order-name>${S.drinkLabel(item, temp)}</h2>
-              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter</p>
+              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}</p>
             </div>
             ${both
               ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
-            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
             <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
             ${canUse
               ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
@@ -151,10 +152,10 @@
     }
     function paintOrder() {
       const { item, temp } = picked;
-      const p = S.drinkPrice(b.id, item, temp);
+      const p = S.drinkPrice(b.id, item, temp, band());
       $("[data-order-name]", sheet).textContent = S.drinkLabel(item, temp);
-      $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter`;
-      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. A cup covers up to ${fmt.rs(cover)}; you pay the difference at the till.`;
+      $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}`;
+      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`;
     }
     const toPlans = () => $("#brand-plans", view)?.scrollIntoView({ block: "start", behavior: ui.reducedMotion() ? "auto" : "smooth" });
 

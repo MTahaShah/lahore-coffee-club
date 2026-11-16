@@ -380,7 +380,7 @@
       const q = quote();
       const p = payWith(q);
       const cupLine = !q.cup.ok ? q.cup.message
-        : q.topUp ? `Cup + ${fmt.rs(q.topUp)}, paid online. A cup covers up to ${fmt.rs(S.brand(q.brandId).economics.coverUpTo)}.`
+        : q.topUp ? `Cup + ${fmt.rs(q.topUp)}, paid online. Your cups cover up to ${fmt.rs(S.band(q.band).maxPrice)}.`
         : q.cup.bonus ? "A complimentary cup from the club." : q.credits > 1 ? `Uses ${fmt.cups(q.credits)} from your plan.` : "Covered by your plan.";
       return html`<fieldset class="method-list">
         <legend class="field__label">Pay with</legend>

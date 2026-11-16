@@ -80,7 +80,7 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `fonts/` — Glacial Indifference Regular and Bold (woff2)
 - `logos/` — wordmark, horizontal monogram, ring, app icons, favicon
 - `data.js` — seed: 8 fictional cafés, the Double Shot brand (7 branches,
-  menu, economics, plans), 3 tiers, members with plans and
+  menu, plans), `BANDS` and `PLANS` (5 Explorer tiers), members with plans and
   member numbers, the ledger (Mumtaz's earlier months, and a month generated
   under the real rules), club rules (levels, badges, perks, gatherings)
 - `state.js` — one store with pub-sub (`store.on`, `actions`, `select`), the
@@ -173,14 +173,32 @@ The user's "Pass E" is Pass 9 here.
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
 
+## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
+
+- `data.js` `BANDS` and `PLANS` are the single source (state: `state.bands`,
+  `state.tiers`). Bands by menu price before tax: Classic up to 800 (café
+  rate Rs 500), Signature 801–1,100 (Rs 700), Reserve 1,101–1,500 (Rs 950);
+  above 1,500 no band.
+- A plan covers up to a band (`select.planBand`: Explorer from the tier's
+  `maxBand`, brand plans from theirs, My cafés Classic; `select.bandAt` for
+  a member at a brand). Above it: "Cup + Rs X", X = price − the plan band's
+  `maxPrice`, paid to the café. Payout per cup = rate of the drink's band,
+  capped at the plan's band (`select.entryPayout`; redeem entries carry
+  `band`, missing = Classic). The old `economics` (`coverUpTo`,
+  `payoutShare`) and `payoutPerCup` are gone; the dashboard's Rules shows
+  the bands read-only.
+
 ## Plan types
 
-- **Explorer** (the tiers Starter 8 / Regular 16 / Enthusiast 30): one pool of
-  cups for any partner café, at most `rules.explorerCapPerCafe` (2) at one café
-  per plan cycle. Tier names stay; the type is called Explorer.
-- **My cafés** (formerly Build your own): cups reserved per café, usable only
-  there. Price = sum(cups × list price × 0.80), rounded to Rs 50; min 6 total,
-  max 10 per café.
+- **Explorer** (tiers Starter 8 Rs 4,500, Regular 16 Rs 9,000, Enthusiast
+  30 Rs 16,500, all Classic; Executive 16 Rs 12,000 up to Signature;
+  Reserve 12 Rs 12,500 up to Reserve): one pool of cups for any partner
+  café, at most `rules.explorerCapPerCafe` (2) at one café per plan cycle.
+  Tier names stay; the type is called Explorer.
+- **My cafés** (formerly Build your own; Classic only): cups reserved per
+  café, usable only there. Price = sum(cups × the café's latte price ×
+  0.80), rounded to Rs 50; min 6 total, max 10 per café. A café's `price`
+  is its latte price (`cafe.latte` names the drink).
 - Both: max 2 cups per café per day (`rules.dailyLimitPerCafe`).
 - Internal ids: `plan.type` is `"explorer"` (`tierId`) or `"mycafes"`
   (`allocation`), stored on each member (`member.plan`), with `member.cycle`.
@@ -202,10 +220,9 @@ next pass until asked.**
 - The one real brand, by name only: no logo, a neutral "DS" monogram
   (`.monogram`). Config in `data.js` `brands`: menu (drinks only; `hot` /
   `iced` prices, null if not served that way), `menuNote` ("Prices from
-  Double Shot's public menu, Nov 2026. Demo only."), plans, economics.
-- Economics: a cup covers any drink up to Rs 880 (`coverUpTo`); above that
-  "Cup + Rs X" is paid at the till (`topUp`). Payout per cup = 72%
-  (`payoutShare`) × min(price, 880), so at most Rs 634 (`select.entryPayout`).
+  Double Shot's public menu, Nov 2026. Demo only."), plans.
+- Bands apply at every branch. Its plans have `maxBand` Classic, so drinks
+  above Rs 800 are "Cup + Rs X" (`topUp`) on them.
 - Branches are cafés with `brandId`, `branch`, `short`, `label`, `pinName`:
   Gulberg · Falcon Complex, Cantt · C Block, Model Town, DHA · Phase 6,
   DHA · Lalak Jan Chowk, Pine Avenue, DHA · Dolmen Mall. New area: Cantt.
@@ -441,8 +458,8 @@ next pass until asked.**
   Iced Spanish Latte), and an Explorer Starter plan with 6 of 8 left
   (`member.extraPlans`; Slow Pour and Noon, dated before the 1st so her
   Beans stay 130). At Kiln & Bean she redeems from Explorer.
-- Payout today (dashboard, Live) = each cup's payout today plus paid
-  orders collected today, less the fee.
+- Payout today (dashboard, Live) = each cup's band rate today plus paid
+  orders collected today, less the fee; "This month: Rs X" under it.
 - 80 background regulars (mixed Explorer / My cafés) have no codes; the seed
   generates the last 10 days of their redemptions under the real rules,
   around each café's `avgDailyCups` (4–9 a day).
@@ -539,8 +556,7 @@ next pass until asked.**
   the counter's Manager sheet or the dashboard's Rules. While paused the
   counter says "Member cups paused until 4:40 pm".
 - Payouts (dashboard, Money): this month from the ledger (calendar month):
-  each cup pays `payoutShare` × min(price, `coverUpTo`) (Kiln & Bean 80% of
-  up to Rs 650 = Rs 520), plus paid orders less the 5% fee; next payout on
+  each cup pays its band rate (see Pricing), plus paid orders less the 5% fee; next payout on
   the 5th; three months of seeded history per branch. CSV and PDF are
   simulated with a toast.
 
@@ -548,14 +564,15 @@ next pass until asked.**
 
 - Every partner is a brand with branches (`data.js` `brands`; a branch is a
   café with `brandId`). A single café is a brand with one branch, same id
-  (`kiln`). Brand: menu (hot / iced), `economics` (`coverUpTo`,
-  `payoutShare`), `plans`, `rules` (`perMemberPerDay`, `branchCupsPerDay`),
+  (`kiln`). Brand: menu (hot / iced; single cafés have 4–6
+  drinks, Maple Roastery and Slow Pour 2 Reserve each, the others 1–2
+  Signature), `plans`, `rules` (`perMemberPerDay`, `branchCupsPerDay`),
   `ownerPin`, `account`. Branch: pin, hours, busy level, `staff` (`staff` or
   `manager` with `pin`), `setupCode`, `pausedUntil`. `cafe.chainId` is set
   only when the brand sells its own plans (Double Shot): the member app
   shows chains as a brand page and branch picker (`select.brandOf`);
   `select.brandFor` is any branch's brand. Single cafés' drinks come from
-  their brand menu (one cup each; above `coverUpTo` it's "Cup + Rs X").
+  their brand menu (one cup each; above the plan's band it's "Cup + Rs X").
 - Owner PINs: Double Shot 0000, Kiln & Bean 1111 (others 2222 … 8888).
   Manager PINs: Kiln & Bean Saad 2468, other single cafés 2678 … 8678.
   Setup codes: KB-01, MR-01, EC-01, TF-01, QH-01, SP-01, NC-01, GG-01.

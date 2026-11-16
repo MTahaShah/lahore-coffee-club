@@ -220,7 +220,7 @@
         const usual = S.usualStatus(c, USUAL_HOUR).status;
         const brand = S.brandOf(cafeId);
         if (brand) {
-          const cover = brand.economics.coverUpTo;
+          const cover = S.band(S.bandAt(undefined, brand.id)).maxPrice;
           $("[data-sheet-body]", el).innerHTML = html`
             <div class="cafe-sheet">
               <div class="stack" style="--stack-gap:var(--space-1)">
@@ -232,7 +232,7 @@
                 <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
                 <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
               </div>
-              <p class="t-small t-muted">A cup covers any drink up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
+              <p class="t-small t-muted">Your cups cover drinks up to ${fmt.rs(cover)}. ${S.member().plan?.brandId === brand.id ? html`Your ${brand.name} cups work at every branch.` : `${brand.name} cups come with a ${brand.name} plan.`}</p>
               <div class="cafe-sheet__actions">
                 <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
                 <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
@@ -594,7 +594,7 @@
           const o = S.order();
           if (!o) return "";
           const item = S.menuItem(o.brandId, o.drinkId);
-          const p = S.drinkPrice(o.brandId, item, o.temp);
+          const p = S.drinkPrice(o.brandId, item, o.temp, S.bandAt(undefined, o.brandId));
           return html`
             <p class="t-micro t-faint">Your order at ${S.brand(o.brandId).name}</p>
             <p class="pass-order__drink">${S.drinkLabel(item, o.temp)}</p>

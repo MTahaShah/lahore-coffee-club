@@ -77,6 +77,7 @@
       const cur = S.member().plan;
       return html`
         <p class="t-small t-muted plan-intro">One pool of cups for any partner café, up to ${rules().explorerCapPerCafe} a month at each. Good for trying new places.</p>
+        <p class="t-micro t-faint num plan-bands">${bandsLine()}</p>
         <fieldset class="tier-list">
           <legend class="sr-only">Explorer plans</legend>
           ${store.getState().tiers.map((t) => html`
@@ -88,9 +89,15 @@
                 <span class="tier__price t-h3 num">${fmt.rs(t.price)}</span>
               </span>
               <span class="tier__meta t-small t-muted num">${fmt.cups(t.cups)} a month · ${t.line}</span>
-              <span class="t-micro t-faint num">About ${fmt.rs(t.price / t.cups)} a cup, at any partner café</span>
+              <span class="t-micro t-faint num">About ${fmt.rs(t.price / t.cups)} a cup · Covers: ${S.coversLabel(t.maxBand)}</span>
             </label>`)}
         </fieldset>`;
+    }
+
+    /** One quiet line on how bands work, from the store's bands. */
+    function bandsLine() {
+      const b = store.getState().bands;
+      return `Every drink has a band by its menu price: ${b.map((x) => `${x.label} up to ${fmt.rs(x.maxPrice)}`).join(", ")}. Above your plan’s band, you pay the difference at the café.`;
     }
 
     function builderRowHtml(c) {
@@ -108,14 +115,14 @@
     function rowMeta(c, n) {
       const per = c.price * rules().customDiscount;
       if (n >= rules().maxCupsPerCafe) return `${n} a month, the most at one café`;
-      return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, ${fmt.rs(c.price)} at the counter`;
+      return `${S.area(c.area).name} · ${fmt.rs(per)} a cup, a latte is ${fmt.rs(c.price)} at the counter`;
     }
 
     function brandPlansHtml() {
       const b = S.brand(draft.brandId);
       const cur = S.member().plan;
       return html`
-        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. A cup covers any drink up to ${fmt.rs(b.economics.coverUpTo)}; above that you pay the difference at the till.</p>
+        <p class="t-small t-muted plan-intro">Cups for ${b.name}, at any of its ${S.branches(b.id).length} branches. Covers: ${S.coversLabel(b.plans[0].maxBand)}, drinks up to ${fmt.rs(S.band(b.plans[0].maxBand).maxPrice)}; above that you pay the difference at the till.</p>
         <fieldset class="tier-list">
           <legend class="sr-only">${b.name} plans</legend>
           ${b.plans.map((p) => html`
@@ -133,7 +140,7 @@
 
     function builderHtml() {
       return html`
-        <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of the counter price.</p>
+        <p class="t-small t-muted plan-intro">Reserve cups at the cafés you love, up to ${rules().maxCupsPerCafe} a month at each. They can only be used there. You pay ${Math.round(rules().customDiscount * 100)}% of each café’s latte price. Covers: ${S.coversLabel("classic")}.</p>
         <ul role="list" class="builder-list">${S.clubCafes().map(builderRowHtml)}</ul>`;
     }
 
@@ -472,7 +479,8 @@
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
               <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
-              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.brand(plan.brandId).economics.coverUpTo)} included</p>` : ""}
+              ${plan.type === "brand" ? html`<p class="t-micro t-faint">Any ${q.typeName} branch · drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)} included</p>` : ""}
+              ${plan.type === "explorer" ? html`<p class="t-micro t-faint num">Any partner café · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>` : ""}
               ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.cafe(id).name} ${n}`).join(" · ")}</p>` : ""}
             </div>
             <div data-pay-body></div>
