@@ -94,6 +94,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
   referrals (`select.invitations`), gifts, pickup orders (`state.orders`),
   group orders (`state.groups`), Circles (`state.circles`, `rounds`,
   `acks`, `member.privacy`), presenter sessions, `LCC.fmt` formatting
+- `ledger.js` — `LCC.ledger`, the read side of the ledger by membership
+  number: `cupsLeft`, `eligibleItems`, `ledgerFor`, `payoutFor`, and the
+  admin-only `adjust`. Loads right after `state.js`
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
 - `router.js` — hash router, top switcher (Landing, Member app, Counter
@@ -152,7 +155,7 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `og.png` (repo root) — 1200×630 link-preview image, rendered with
   headless Chrome; referenced by absolute URL in the template's OG tags
 
-Script order matters: data → state → ui → router → surfaces. New files must
+Script order matters: data → state → ledger → ui → router → surfaces. New files must
 be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
 
 ## Pass plan
@@ -270,7 +273,7 @@ next pass until asked.**
 
 ## Ledger
 
-- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release|beans|undo,
+- `state.ledger` is append-only: `{ id, type: purchase|redeem|gift|expire|reward|hold|release|cancel|undo|adjust|beans,
   memberId, cafeId|null, cups, at, cycle }`. `cups` is signed (purchase,
   reward and release +, the rest −). `hold` / `release` belong to pickup
   orders (they carry `orderId`, and `itemId` at a table; see Pickup
@@ -279,6 +282,13 @@ next pass until asked.**
   `firstVisit` (and `bonus` when a free cup is spent); the café's redemption
   list is read from them. Gift entries carry `giftCode` and `toName`; reward
   entries a `reason` (`passport-5`, `passport-all`, `invite`, `invited`).
+- Ledger pass: `cancel` (+cups, `cancels` the hold; the member's pickup
+  cancel), `adjust` (±cups, LCC admin only, `reason`, `adminId`;
+  `actions.adjustCups`), `release` carries `releases`. Redeem entries carry
+  `channel` (counter | pickup), and from the counter optional `mods`
+  (only non-default choices), `extras` and `extrasPaid` (paid at the till;
+  never in payouts). `LCC.ledger` (src/ledger.js) is how other surfaces
+  read it; `select.memberByNo` takes 42, "LCC 42" or "LCC-0042".
 - A month's `total` is purchases plus rewards; `left` is the sum of the
   cycle's entries.
 - Balances are never stored. `select.balance`, `poolBalance`, `cafeBalance`,
@@ -331,18 +341,22 @@ next pass until asked.**
 - `state.orders[id]`: `{ memberId, memberName, cafeId, brandId, drinkId,
   temp, price, credits, topUp, pay: "cup"|"paid", amount (paid online),
   payment, asap, pickupAt, status, placedAt, updatedAt, times, reason }`.
-  Status: placed → making → ready → collected, or cancelled / rejected.
+  Status: placed → preparing → ready → collected, or cancelled / rejected.
+  A "ready" order still not collected at the café's closing time is closed
+  as collected (`uncollected: true`; `select.closingAfter`, checked on
+  every tick): the cup is used and the café is paid, no Beans.
   Pickup code and reference are derived from the id
   (`select.pickupCode`, `pickupRef`; cup orders reuse `redemptionRef` of
   their redeem entry `rd_<orderId>`).
-- Cups: placing a cup order writes `hold` (−cups, `hd_<id>`); cancel or
-  reject writes `release` (+cups, `rl_<id>`); Collected writes the release
+- Cups: placing a cup order writes `hold` (−cups, `hd_<id>`); the member's
+  cancel writes `cancel` (+cups, `cn_<id>`), the café's reject `release`
+  (+cups, `rl_<id>`); Collected writes the release
   plus an ordinary `redeem` (with `orderId`, and `topUpOnline` when the
   top-up was paid in the app). So the counter's checks count held cups
   (`usedToday`, `usedHereThisCycle`, `cafeCupsToday`), and a collected cup
   pays out, stamps the passport and counts for the club like any other.
-- Cancel: the member, while the order is placed and within
-  `rules.orderCancelMinutes` (2). Reject: the café, before Ready, with
+- Cancel: the member, while the order is placed (no time limit; writes a
+  `cancel` entry). Reject: the café, before Ready, with
   "Out of stock" or "Closing soon"; the cup comes back, paid amounts are
   marked refunded. No new orders while the café is paused or closed.
 - Café view Orders tab: this branch's queue, oldest first, big Start /
@@ -603,6 +617,17 @@ next pass until asked.**
   `select.brandFor` is any branch's brand. Single cafés' drinks come from
   their brand menu (one cup each; above the plan's band it's "Cup + Rs X").
 - Owner PINs: Double Shot 0000, Kiln & Bean 1111 (others 2222 … 8888).
+  Executive group (`brand.executive.pin`, 6 digits, one per brand, for the
+  next pass's dashboard): the owner PIN's digit six times (000000, 111111 …
+  888888; `select.checkExecutivePin`). Cashier PINs (`staff.pin`, not asked
+  at the counter yet; `select.checkStaffPin`): the branch digit then 101 /
+  202 (Double Shot Gulberg 1101 / 1202 … Dolmen 7101 / 7202; single cafés
+  use the owner PIN's digit: Kiln & Bean 1101 / 1202, Maple 2101 / 2202 …).
+- Menus (Ledger pass): every brand menu item has `size` and `inPlan` (in a
+  band, so up to Rs 1,500; every seeded drink is). Brands have free `mods`
+  (sugar, milk regular / oat / almond, ice for iced drinks) and paid
+  `extras` (extra shot, larger size, counter prices per brand; see
+  `EXTRAS` in data.js). No screen shows them yet.
   Manager PINs: Kiln & Bean Saad 2468, other single cafés 2678 … 8678.
   Setup codes: KB-01, MR-01, EC-01, TF-01, QH-01, SP-01, NC-01, GG-01.
 - Members: `memberNo` is club-wide and unique ("LCC 42", `fmt.lcc`); every
@@ -625,7 +650,8 @@ next pass until asked.**
   `method` (number | scan | code), `planType`, `ref` ("DS-7K2Q",
   `select.redemptionRef`: the brand monogram and four letters) and the
   plan's `cycle`. Undo (`actions.undoRedemption`, 2 minutes,
-  `rules.undoMinutes`) appends an `undo` entry (+cups, `undoes`) and flags
+  `rules.undoMinutes`; only the cashier who served it, so the counter lists
+  only that cashier's cups) appends an `undo` entry (+cups, `undoes`) and flags
   the redemption `undone`; undone redemptions don't count anywhere
   (`isRedeem`), and the member sees "Cup returned". "Not you? Report"
   (`actions.reportRedemption`) sets `state.reports[entryId]` and flags the

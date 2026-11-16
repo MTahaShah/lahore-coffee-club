@@ -283,7 +283,6 @@
       function homeScreen() {
         const m = member();
         const hasPickup = () => !!LCC.appOrder?.visible().length;
-        let cancelTimer = null;
         function paintPickups() {
           const box = $("[data-home-pickups]", view);
           if (!box) return;
@@ -325,9 +324,6 @@
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
-            // The cancel countdown on an order card
-            cancelTimer = setInterval(() => { if (LCC.appOrder?.tickCancel(view)) paintPickups(); }, 1000);
-            return () => clearInterval(cancelTimer);
           },
           on: {
             pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
@@ -937,17 +933,11 @@
           ? (mineAt ? S.beans().perDrink : 0) + (order.memberId === me ? order.items.filter((i) => i.memberId !== me).length * S.beans().rules.hostPerFriend : 0)
           : S.beans().perDrink;
         if (order.status === "ready") ui.toast(`${your} is ready at ${place}.`, { iconName: "check", duration: 6000 });
-        else if (order.status === "making" && prev === "placed") ui.toast(`${place} is making ${your.replace(/^Your/, "your")}.`, { iconName: "clock" });
+        else if (order.status === "preparing" && prev === "placed") ui.toast(`${place} is making ${your.replace(/^Your/, "your")}.`, { iconName: "clock" });
         else if (order.status === "rejected") ui.toast(`${place} couldn’t make ${your.replace(/^Your/, "your")}. ${LCC.appOrder.backLine(order)}`, { iconName: "info", duration: 6000 });
+        else if (order.status === "collected" && order.uncollected) ui.toast(`${place} closed and ${your.replace(/^Your/, "your")} wasn’t collected, so it counts as used.`, { iconName: "info", duration: 6000 });
         else if (order.status === "collected") ui.toast(`Collected. Enjoy your ${order.items && !mineAt ? "table" : name}.${earned ? ` +${earned} Beans` : ""}`, { iconName: earned ? "bean" : "check" });
       }));
-      // The drawer's cancel countdown, while it's open
-      const drawerTimer = setInterval(() => {
-        const d = $("#profile-drawer", el);
-        const box = $("[data-drawer-pickups]", d);
-        if (d?.dataset.open === "true" && box && LCC.appOrder?.tickCancel(box)) box.innerHTML = LCC.appOrder.drawerHtml().s;
-      }, 1000);
-      offs.push(() => clearInterval(drawerTimer));
 
       // Club milestones: a free cup, a new badge, a new status. Same words on every device.
       const REWARD_TOASTS = {

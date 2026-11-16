@@ -219,7 +219,7 @@
 
       /* Live -------------------------------------------------------------- */
       const METHOD = { number: "said their number", scan: "scanned", code: "6-digit code" };
-      const PICKUP_WORD = { placed: "Placed", making: "Being made", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
+      const PICKUP_WORD = { placed: "Placed", preparing: "Being made", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
       function liveHtml() {
         const t = S.brandToday(session.brandId, scope());
         const feed = S.liveFeed(session.brandId, scope()).slice(0, 40);

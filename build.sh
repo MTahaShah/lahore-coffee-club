@@ -61,6 +61,7 @@ ICON_FILES=(
 JS_FILES=(
   data.js
   state.js
+  ledger.js
   ui.js
   router.js
   sync.js

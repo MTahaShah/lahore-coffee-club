@@ -30,11 +30,12 @@
     giftMessageMax: 140,
     // Pickup orders (order ahead, collect at the counter)
     orderFeeShare: 0.05,       // LCC keeps 5% of what a member pays online; the café gets the rest
-    orderCancelMinutes: 2,     // a member can cancel this long after placing, until the café starts it
+    // A member can cancel while the order is still "placed" (no time limit). An order left at
+    // "ready" past closing is closed as collected: the café made it, so the cup is used.
     orderAsapMinutes: 10,      // "ASAP, about 10 min"
     orderSlotMinutes: 15,      // pickup slots today, every 15 minutes
     // Counter (café side)
-    undoMinutes: 2,            // the counter can undo a redemption for this long
+    undoMinutes: 2,            // the cashier who served a cup can undo it for this long (nobody else can)
     counterResetSeconds: 5,    // the Done screen goes back to the keypad after this
   };
 
@@ -104,6 +105,8 @@
       name: "Double Shot",
       monogram: "DS",
       ownerPin: "0000",
+      // The executive group (owners and head office): one 6-digit PIN for the whole brand
+      executive: { name: "Executive group", pin: "000000" },
       rules: { perMemberPerDay: 2, branchCupsPerDay: 150 },
       account: { label: "Double Shot head office account", last4: "7302" },
       line: "Seven branches across Lahore. One membership for all of them.",
@@ -193,7 +196,8 @@
   const DS = brands[0];
   // Branches read the brand menu as their drinks (one cup each; any top-up is separate)
   const brandDrinks = (b) => b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 }));
-  // Double Shot staff per branch: the counter team, then the manager (PIN: branch number, then 678)
+  // Double Shot staff per branch: the counter team (cashier PINs: branch number, then 101 / 202),
+  // then the manager (PIN: branch number, then 678)
   const DS_STAFF = [
     ["Usman", "Iqra", "Hira"], ["Faraz", "Sadia", "Amna"], ["Danish", "Bushra", "Rida"], ["Saad", "Komal", "Mahnoor"],
     ["Taimur", "Aleena", "Iqbal"], ["Hamid", "Zoya", "Sara"], ["Ali", "Mehak", "Noor"],
@@ -218,8 +222,8 @@
       blurb: DS.line, distanceKm, x, y, drinks: brandDrinks(DS), busyByHour, avgDailyCups,
       setupCode: DS_CODES[n - 1],
       staff: [
-        { id: `st_${id}_1`, name: a, role: "staff" },
-        { id: `st_${id}_2`, name: b, role: "staff" },
+        { id: `st_${id}_1`, name: a, role: "staff", pin: `${n}101` },
+        { id: `st_${id}_2`, name: b, role: "staff", pin: `${n}202` },
         { id: `st_${id}_m`, name: manager, role: "manager", pin: `${n}678` },
       ],
     };
@@ -432,7 +436,7 @@
     c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
-      id: c.id, name: c.name, monogram, ownerPin, line: c.blurb,
+      id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Executive group", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
       menuNote: "Demo menu. Prices are fictional.",
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
@@ -443,13 +447,43 @@
     Object.assign(c, {
       brandId: brand.id, drinks: brandDrinks(brand), setupCode,
       staff: [
-        { id: `st_${c.id}_1`, name: a, role: "staff" },
-        { id: `st_${c.id}_2`, name: b, role: "staff" },
+        { id: `st_${c.id}_1`, name: a, role: "staff", pin: `${ownerPin[0]}101` },
+        { id: `st_${c.id}_2`, name: b, role: "staff", pin: `${ownerPin[0]}202` },
         { id: `st_${c.id}_m`, name: manager, role: "manager", pin: managerPin },
       ],
     });
     delete c.menu;
   });
+  /* LCC menu details for every partner ------------------------------------
+     size: what a cup is at the counter. inPlan: the drink can be had with a
+     cup (it falls in a band, so up to Rs 1,500; above the plan's band it's
+     "Cup + Rs X"). The counter recomputes this from today's price
+     (LCC.ledger.eligibleItems); this flag is the seed's view.
+     mods are free and change nothing in the ledger beyond being recorded.
+     extras are paid at the till at the counter price; they never touch
+     cups or payouts.                                                      */
+  const MODS = [
+    { id: "sugar", label: "Sugar", options: ["None", "Less", "Regular", "Extra"], default: "Regular" },
+    { id: "milk",  label: "Milk",  options: ["Regular", "Oat", "Almond"], default: "Regular" },
+    { id: "ice",   label: "Ice",   options: ["No ice", "Less", "Regular", "Extra"], default: "Regular", icedOnly: true },
+  ];
+  //              extra shot, larger size (Rs, at the counter)
+  const EXTRAS = { doubleshot: [200, 180], kiln: [150, 120], maple: [200, 150], ember: [180, 150], thirdfloor: [150, 100],
+                   quiethours: [150, 120], slowpour: [250, 200], noon: [150, 100], grind: [180, 150] };
+  const sizeOf = (d) => (/flight/i.test(d.name) ? "3 × 4 oz" : /cortado|gibraltar|macchiato|flat white/i.test(d.name) ? "8 oz" : d.hot == null ? "16 oz" : "12 oz");
+  brands.forEach((b) => {
+    b.menu.forEach((d) => {
+      d.size = d.size || sizeOf(d);
+      d.inPlan = !!bandOf(Math.min(...[d.hot, d.iced].filter((x) => x != null)));
+    });
+    b.mods = MODS.map((m) => ({ ...m, options: [...m.options] }));
+    const [shot, larger] = EXTRAS[b.id] || [200, 150];
+    b.extras = [
+      { id: "extra-shot", label: "Extra shot", price: shot },
+      { id: "larger",     label: "Larger size", price: larger },
+    ];
+  });
+
   // A brand that sells its own plans (Double Shot) shows in the member app as a chain: a brand page,
   // a branch picker, brand cups. Single cafés are on Explorer and My cafés.
   const isChain = (c) => brands.find((b) => b.id === c.brandId).plans.length > 0;
@@ -881,7 +915,7 @@
             drinkId, temp, price, credits: 0, topUp: 0, pay: "paid", amount: price,
             payment: { method: METHODS[Math.floor(rnd() * METHODS.length)], last4: String(1000 + Math.floor(rnd() * 9000)) },
             asap: rnd() < 0.7, pickupAt: at, status: "collected", placedAt: placed, updatedAt: at,
-            times: { placed, making: placed + 2 * MIN, ready: at - 2 * MIN, collected: at },
+            times: { placed, preparing: placed + 2 * MIN, ready: at - 2 * MIN, collected: at },
           });
         });
       }

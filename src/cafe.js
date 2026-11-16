@@ -544,8 +544,8 @@
       /* ---------------------------------------------------------------
          Orders: the pickup queue for this branch (unchanged behaviour)
          --------------------------------------------------------------- */
-      const STATE_LABEL = { placed: "New", making: "Being made", ready: "Ready" };
-      const NEXT_LABEL = { placed: "Start", making: "Ready", ready: "Collected" };
+      const STATE_LABEL = { placed: "New", preparing: "Being made", ready: "Ready" };
+      const NEXT_LABEL = { placed: "Start", preparing: "Ready", ready: "Collected" };
       const DONE_LABEL = { collected: "collected", cancelled: "cancelled by the member", rejected: "rejected" };
       const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
 

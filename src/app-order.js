@@ -103,10 +103,10 @@
   /* -------------------------------------------------------------------
      Order status card: Home and the drawer
      ------------------------------------------------------------------- */
-  const STEPS = [["placed", "Placed"], ["making", "Being made"], ["ready", "Ready"], ["collected", "Collected"]];
+  const STEPS = [["placed", "Placed"], ["preparing", "Being made"], ["ready", "Ready"], ["collected", "Collected"]];
   const NOTES = {
     placed: "Sent to the café. They’ll start on it shortly.",
-    making: "Being made now.",
+    preparing: "Being made now.",
     ready: "Ready at the counter. Show your pickup code.",
   };
   const when = (o) => (o.asap ? `ASAP, about ${fmt.time(o.pickupAt)}` : `Pickup at ${fmt.time(o.pickupAt)}`);
@@ -145,12 +145,12 @@
     }
     const idx = STEPS.findIndex(([id]) => id === o.status);
     const code = S.pickupCode(o);
-    const secs = view && !view.host ? 0 : S.canCancelPickup(o);
+    const canCancel = !(view && !view.host) && S.canCancelPickup(o);
     return html`<article class="pickup card" data-pickup="${o.id}" data-status="${o.status}" aria-labelledby="pk-${o.id}">
       <p class="eyebrow">Pickup · ${place}</p>
       <div class="pickup__head">
         <p class="t-small t-muted num">${when(o)}</p>
-        ${secs ? html`<button type="button" class="btn btn--link" data-cancel-pickup="${o.id}">Cancel <span class="num" data-cancel-left="${o.id}">${fmt.countdown(secs)}</span></button>` : ""}
+        ${canCancel ? html`<button type="button" class="btn btn--link" data-cancel-pickup="${o.id}">Cancel</button>` : ""}
       </div>
       <p class="pickup__drink" id="pk-${o.id}">${name}</p>
       <ol class="pickup__steps" role="list" aria-label="Status: ${STEPS[idx][1]}">
@@ -197,17 +197,6 @@
   const openTables = (memberId = S.member().id) => Object.values(store.getState().groups)
     .filter((g) => g.status === "open" && (g.hostId === memberId && hosted.has(g.id) || addedHere[g.id] || Object.values(g.items).some((i) => i.memberId === memberId)));
 
-  /** Every second while a card can still be cancelled. Returns true when one ran out (repaint). */
-  function tickCancel(root) {
-    let expired = false;
-    $$("[data-cancel-left]", root).forEach((n) => {
-      const o = S.pickup(n.dataset.cancelLeft);
-      const secs = o ? S.canCancelPickup(o) : 0;
-      if (!secs) expired = true; else n.textContent = fmt.countdown(secs);
-    });
-    return expired;
-  }
-
   /** A table for a Circle's round: café and time already chosen; this device hosts it. */
   function startTable({ cafeId, pickupAt }) {
     const res = A.startGroup({ cafeId, asap: false, pickupAt });
@@ -215,7 +204,7 @@
     return res;
   }
 
-  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, visible, tickCancel, dismiss: (id) => dismissed.add(id), backLine, openTables };
+  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, visible, dismiss: (id) => dismissed.add(id), backLine, openTables };
 
   /* -------------------------------------------------------------------
      Simulated payment fields, shared by the order, table and cover forms.
@@ -940,7 +929,6 @@
           const c = $("[data-g-clock]", view);
           if (c) c.textContent = clockText();
           if (g() && g().status === "open" && keyNow() !== joinKey) paint();
-          if (tickCancel(view)) set("[data-g-status]", statusHtml());
         }, 1000);
         view.addEventListener("input", onInput);
         view.addEventListener("focusout", onFocusOut);
