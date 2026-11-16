@@ -117,6 +117,10 @@
 .countdown circle { fill: none; stroke-width: 2.5; }
 .countdown .track { stroke: var(--line); }
 .countdown .bar { stroke: var(--ink-3); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.pass__head { display: grid; justify-items: center; gap: var(--space-2); }
+.pass__logo { width: 104px; margin-bottom: var(--space-2); }
+.pass__logo svg { display: block; width: 100%; height: auto; }
+.pass__no { font-size: var(--fs-16); color: var(--ink-2); letter-spacing: 0.04em; }
 .pass__stack { display: grid; justify-items: center; gap: var(--space-1); }
 .pass-who { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--fs-20); }
 .pass-who .btn--link { font-size: var(--fs-14); --btn-h: 36px; }

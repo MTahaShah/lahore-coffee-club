@@ -580,7 +580,11 @@
           const card = $("[data-pass-card]", view);
           const cafes = passCafes();
           card.innerHTML = html`
-            <div class="pass-order" data-pass-order>${orderHtml()}</div>
+            <div class="pass__head">
+              <div class="pass__logo">${ui.logo("monogram-horizontal")}</div>
+              <p class="pass-who" data-pass-who>${passWho()}</p>
+              <p class="pass__no num" aria-label="Member number LCC ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
+            </div>
             <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
             <div class="pass__codes">
               <p class="pass__code" data-code></p>
@@ -591,11 +595,11 @@
               <p class="sr-only">The code changes every 30 seconds. You can also tell the barista your number.</p>
             </div>
             <div class="pass__stack">
-              <p class="pass-who" data-pass-who>${passWho()}</p>
               <p class="t-small t-muted num" data-pass-plan>${planLine()}</p>
-              <p class="t-small t-muted num">${fmt.lcc(m2.memberNo)} · Card ${cardNo(m2.memberNo)}</p>
+              <p class="t-small t-muted num">Card ${cardNo(m2.memberNo)}</p>
               <div data-pass-plans>${extraPlansHtml()}</div>
             </div>
+            <div class="pass-order" data-pass-order>${orderHtml()}</div>
             ${cafes ? html`<div class="pass__cafes-box">
               <button type="button" class="disclosure" data-cafes-toggle aria-expanded="${cafesOpen}" aria-controls="pass-cafes">
                 <span class="eyebrow" id="pass-cafes-h">Cups by café</span>
