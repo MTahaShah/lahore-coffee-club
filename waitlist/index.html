@@ -296,8 +296,8 @@ h2{font-size:clamp(32px,8.6vw,56px)}
   input.addEventListener("blur", () => dial.classList.remove("focus"));
   render();
 
-  const done = () => { S.joined = true; S.joinT = performance.now(); root.classList.add("joined"); try { localStorage.setItem("lcc-joined", "1"); } catch {} };
-  try { if (localStorage.getItem("lcc-joined") === "1") { root.classList.add("joined"); S.joined = true; S.joinT = -1e9; } } catch {}
+  const done = () => { S.joined = true; S.joinT = performance.now(); root.classList.add("joined"); try { localStorage.setItem("lcc-joined-v2", "1"); } catch {} };
+  try { if (localStorage.getItem("lcc-joined-v2") === "1") { root.classList.add("joined"); S.joined = true; S.joinT = -1e9; } } catch {}
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -310,8 +310,10 @@ h2{font-size:clamp(32px,8.6vw,56px)}
     if (!ENDPOINT) { done(); return; }               // demo mode
     go.textContent = "Holding…"; go.disabled = true;
     try {
-      await fetch(ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      const res = await fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ whatsapp: "+92" + d, page: location.href, ref: document.referrer, ua: navigator.userAgent }) });
+      const reply = (await res.text()).trim();
+      if (reply !== "ok" && reply !== "dup") throw new Error(reply.slice(0, 200));  // only celebrate once the sheet confirms
       done();
     } catch {
       err.textContent = "That didn't go through. Check your connection and try again.";

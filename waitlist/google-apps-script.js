@@ -12,7 +12,8 @@ function doPost(e) {
     const n = String(d.whatsapp || "");
     if (!/^\+923\d{9}$/.test(n)) return out("bad");
 
-    const sh = SpreadsheetApp.getActive().getSheetByName(SHEET);
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName(SHEET) || ss.getSheets()[0]; // falls back to the first tab
     const last = sh.getLastRow();
     const nums = last > 1 ? sh.getRange(2, 2, last - 1, 1).getDisplayValues().flat() : [];
     if (nums.includes(n)) return out("dup"); // already on the list
