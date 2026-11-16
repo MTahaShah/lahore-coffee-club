@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, minimum-scale=1, interactive-widget=resizes-visual">
 <title>Lahore Coffee Club</title>
 <meta name="description" content="Lahore Coffee Club. Coming soon. By invitation first.">
 <meta property="og:title" content="Lahore Coffee Club">
@@ -19,10 +19,10 @@
 :root{color-scheme:dark;--bg:#0B0B0B;--ink:#FFF7E8;--ink2:#BDB7AD;--ink3:#807B74;--line:#2A2927;--accent:#CFAB71;--mocha:#7F5E35;--roast:#4F351C;
   --ease:cubic-bezier(.22,1,.36,1);--font:"Glacial Indifference","Century Gothic",Futura,system-ui,sans-serif;--pad:20px}
 *{box-sizing:border-box;min-width:0}
-html{background:var(--bg)}
+html{background:var(--bg);overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--font);overflow-x:clip;-webkit-font-smoothing:antialiased}
 #track{height:1000vh}
-#gl{position:fixed;inset:0;width:100%;height:100vh;height:100lvh;display:block;outline:none;will-change:transform}
+#gl{position:fixed;top:0;left:0;width:100%;height:100vh;height:100lvh;display:block;outline:none}
 .veil{position:fixed;inset:0;pointer-events:none;
   background:linear-gradient(to top,rgba(11,11,11,.94) 0,rgba(11,11,11,.6) 30%,transparent 52%),radial-gradient(120% 80% at 50% 32%,transparent 50%,rgba(0,0,0,.5))}
 .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;
@@ -92,7 +92,7 @@ h2{font-size:clamp(32px,8.6vw,56px)}
 @media (pointer:coarse){.grain{display:none}}
 
 /* Tape rewind */
-.tape{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:3}
+.tape{position:fixed;inset:0;overflow:hidden;pointer-events:none;opacity:0;z-index:3}
 .tape__lines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,247,232,.045) 0 1px,transparent 1px 3px)}
 .tape__band{position:absolute;left:0;right:0;height:14vh;top:0;background:linear-gradient(transparent,rgba(255,247,232,.09) 45%,rgba(255,247,232,.02) 60%,transparent)}
 .tape__osd{position:absolute;left:var(--pad);top:calc(env(safe-area-inset-top) + 86px);display:flex;align-items:center;gap:12px;margin:0;
@@ -274,10 +274,10 @@ h2{font-size:clamp(32px,8.6vw,56px)}
     const k = sm(0.736, 0.75, p) * (1 - sm(0.83, 0.846, p));
     if (tape._k !== k) { tape._k = k; tape.style.opacity = k.toFixed(3); }
     if (k > 0.01 && !reduced) {
-      gl.style.transform = `translate3d(${((Math.random() - 0.5) * 7 * k).toFixed(1)}px,0,0)`;
+      S.jit = (Math.random() - 0.5) * 7 * k;           // the shake happens inside the 3D view, never past the screen edge
       if (!touch) gl.style.filter = `contrast(${(1 + 0.18 * k).toFixed(2)}) saturate(${(1 - 0.45 * k).toFixed(2)}) blur(${(0.7 * k).toFixed(2)}px)`;
       band.style.transform = `translate3d(0,${((now / 5) % (innerHeight * 1.3)) - innerHeight * 0.15}px,0)`;
-    } else if (gl.style.transform) { gl.style.transform = ""; gl.style.filter = ""; }
+    } else if (S.jit || gl.style.filter) { S.jit = 0; gl.style.filter = ""; }
     if (k > 0.01) {
       const s = Math.min(1, Math.max(0, 1 - (p - 0.74) / 0.1));
       const sec = s * 134;
@@ -840,7 +840,7 @@ function frame(now) {
   ptr.sx = damp(ptr.sx, ptr.x, 3, dt); ptr.sy = damp(ptr.sy, ptr.y, 3, dt);
 
   /* frame the shot: shift the view, never the objects, so globe, ring and passport stay concentric */
-  const ox = L.portrait ? 0 : -0.2 * L.w * P.off, oy = L.portrait ? 0.15 * L.h * P.off : 0;
+  const ox = (L.portrait ? 0 : -0.2 * L.w * P.off) + (S.jit || 0), oy = L.portrait ? 0.15 * L.h * P.off : 0;
   camera.setViewOffset(L.w, L.h, ox, oy, L.w, L.h);
   camera.position.set(ptr.sx * 0.35, -ptr.sy * 0.25, L.dist * P.zoom);
   camera.lookAt(0, 0, 0);
