@@ -99,13 +99,7 @@
             </div>
           </div>`)}
         </fieldset>
-        <p class="t-micro t-faint num">${bandsLine()}</p>`;
-    }
-
-    /** One quiet line on how bands work, from the store's bands. */
-    function bandsLine() {
-      const b = store.getState().bands;
-      return `Every drink has a band by its menu price: ${b.map((x) => `${x.label} up to ${fmt.rs(x.maxPrice)}`).join(", ")}. Above your plan’s band, you pay the difference at the café.`;
+        <p class="plan-bands">${LCC.bandsGuide.link("What’s in Classic, Signature and Reserve")}</p>`;
     }
 
     /* My cafés: cafés added one by one ---------------------------------- */

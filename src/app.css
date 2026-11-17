@@ -600,3 +600,19 @@ li:last-child > .branch-row { border-bottom: 0; }
 }
 .cup-alert__title { font-size: var(--fs-16); font-weight: 700; line-height: 1.35; }
 .cup-alert__acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* "What your cup covers": a quiet link and its sheet */
+.band-hint { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-14); color: var(--ink-3); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.band-hint svg { flex: none; opacity: 0.8; }
+.band-hint:hover { color: var(--ink-2); }
+.band-hint:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+.home__lines .band-hint { margin-top: var(--space-1); }
+.plan-bands { margin: 0; }
+.bands-sheet { display: grid; gap: var(--space-4); }
+.bands { display: grid; gap: var(--space-5); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.bands__item { display: grid; gap: var(--space-1); }
+.bands__head { display: flex; align-items: baseline; gap: var(--space-2); }
+.bands__name { font-size: var(--fs-16); font-weight: 500; color: var(--ink); }
+.bands__head .badge { margin-left: auto; }
+.bands__eg { color: var(--ink-2); line-height: 1.6; }
+.bands__item:not(.is-covered) .bands__name { color: var(--ink-2); }

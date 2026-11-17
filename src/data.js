@@ -53,9 +53,13 @@
     // From the 17 Nov 2026 menu research (13 Lahore cafés): each band's cup is valued
     // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
     // The café is paid 70% of that value; a My cafés cup costs the member about 80%.
-    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550 },
-    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720 },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010 },
+    // line, examples: the member app's "What your cup covers" sheet (typical drinks, from the menus above)
+    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550,
+      line: "The everyday cup.", examples: ["Espresso", "Americano", "Cortado", "Flat white", "Latte", "Cappuccino", "Chai", "Iced teas"] },
+    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720,
+      line: "Flavoured and a little indulgent.", examples: ["Spanish latte", "Caramel and hazelnut lattes", "Mocha", "Matcha", "Frappes", "Hot chocolate"] },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010,
+      line: "Slow brews and showpieces.", examples: ["V60 pour-over", "Single origins", "Flavoured matcha", "Kunafa and Java chip", "Ube drinks"] },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;

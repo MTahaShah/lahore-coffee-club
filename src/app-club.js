@@ -339,6 +339,29 @@
     let beansSheet = null;
     let confirming = null; // reward id waiting for a second tap
     let confirmTimer = null;
+    const open = { invites: false, levels: false }; // folded sections, kept across repaints
+
+    /** A folded section: one quiet row with an arrow, the rest behind it. */
+    function fold(key, label, count, body) {
+      const o = open[key];
+      return html`
+        <button type="button" class="disclosure" data-fold="${key}" aria-expanded="${o}" aria-controls="fold-${key}">
+          <span class="t-small t-muted disclosure__label" id="fold-${key}-h">${label}</span>
+          ${count != null ? html`<span class="disclosure__count t-small t-faint num">${count}</span>` : ""}
+          <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 18 })}</span>
+        </button>
+        <div class="disclosure__panel" id="fold-${key}" role="region" aria-labelledby="fold-${key}-h" data-open="${o}" ${o ? "" : raw("inert")}>
+          <div class="disclosure__inner">${body}</div>
+        </div>`;
+    }
+    function toggleFold(btn) {
+      const key = btn.dataset.fold;
+      open[key] = !open[key];
+      const panel = $(`#fold-${key}`, view);
+      btn.setAttribute("aria-expanded", String(open[key]));
+      panel.dataset.open = String(open[key]);
+      panel.toggleAttribute("inert", !open[key]);
+    }
 
     /* Beans: balance and the way to the next complimentary drink */
     function beansHtml() {
@@ -433,14 +456,16 @@
     function statusHtml(c) {
       const levels = c.levels;
       const at = levels.findIndex((l) => l.id === c.level.id);
-      return html`
+      const ladder = html`
         <ol class="ladder" role="list" aria-label="Status levels">
           ${levels.map((l, i) => html`<li class="ladder__step${i <= at ? " is-reached" : ""}${i === at ? " is-current" : ""}" ${i === at ? raw('aria-current="step"') : ""}>
             <span class="ladder__dot" aria-hidden="true"></span>
             <span class="ladder__name">${l.name}</span>
             <span class="ladder__line">${l.line}</span>
           </li>`)}
-        </ol>
+        </ol>`;
+      return html`
+        <p class="club-level"><span class="t-h3">${c.level.name}</span>${c.next ? "" : html` <span class="t-small t-muted">The top of the club. Every perk is yours.</span>`}</p>
         ${c.next
           ? html`<div class="club-next">
               <p class="t-small"><strong>${c.next.name}</strong> <span class="t-muted">${c.next.line}</span></p>
@@ -449,7 +474,8 @@
                 <span class="t-small t-muted num">${n.label}</span>
               </div>`)}
             </div>`
-          : html`<p class="t-small t-muted">The top of the club. Every perk is yours.</p>`}`;
+          : ""}
+        <div class="club-fold">${fold("levels", "All levels", null, ladder)}</div>`;
     }
 
     function badgesRowHtml(c) {
@@ -611,26 +637,26 @@
       const msg = `I’ve been using Lahore Coffee Club. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
       const invites = S.invitations(c.member.id);
       return html`<div class="card invite">
-        <div class="stack" style="--stack-gap:var(--space-1)">
-          <h3 class="t-h3">Invite a friend</h3>
-          <p class="t-small t-muted num">When a friend joins with your code and buys a plan or pays for an order, you each receive ${n} Beans.</p>
+        <div class="invite__top">
+          <div class="invite__text">
+            <h3 class="t-h3">Invite a friend</h3>
+            <p class="t-small t-muted num">${n} Beans each when they join and buy.</p>
+          </div>
+          <a class="icon-btn invite__share" href="${waLink(msg)}" target="_blank" rel="noopener" aria-label="Share your code on WhatsApp">${icon("share", { size: 20 })}</a>
         </div>
         <div class="invite__code">
           <span class="t-micro t-faint">Your code</span>
           <span class="invite__value num" data-invite-code>${code}</span>
           <button type="button" class="icon-btn" data-copy="${code}" aria-label="Copy your invitation code">${icon("copy", { size: 20 })}</button>
         </div>
-        <a class="btn btn--secondary btn--block" href="${waLink(msg)}" target="_blank" rel="noopener">${icon("share")}Share on WhatsApp</a>
-        ${invites.length ? html`<div>
-          <p class="t-micro t-faint">Your invitations</p>
+        ${invites.length ? fold("invites", "Friends who joined", invites.length, html`
           <ul role="list" class="invite__list">${invites.map((x) => html`<li class="row">
             <span class="row__main">
               <span class="row__title">${[x.member.firstName, x.member.lastName].filter(Boolean).join(" ")}</span>
-              <span class="row__meta num">${x.rewardedAt ? `Rewarded ${fmt.shortDate(x.rewardedAt)} · +${n} Beans each` : `Joined ${fmt.shortDate(x.joinedAt)} · Beans after their first plan or paid order`}</span>
+              <span class="row__meta num">${x.rewardedAt ? `Rewarded ${fmt.shortDate(x.rewardedAt)} · +${n} Beans each` : `Joined ${fmt.shortDate(x.joinedAt)} · Beans after their first buy`}</span>
             </span>
             <span class="badge${x.rewardedAt ? " badge--accent" : ""}">${x.status}</span>
-          </li>`)}</ul>
-        </div>` : ""}
+          </li>`)}</ul>`) : ""}
       </div>`;
     }
 
@@ -701,6 +727,8 @@
     }
 
     function onClick(e) {
+      const fb = e.target.closest("[data-fold]");
+      if (fb) { toggleFold(fb); return; }
       const ob = e.target.closest("[data-open-badges]");
       if (ob) { openBadges(ob); return; }
       const bb = e.target.closest("[data-open-beans]");

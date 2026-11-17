@@ -2469,6 +2469,22 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cup-alert__title { font-size: var(--fs-16); font-weight: 700; line-height: 1.35; }
 .cup-alert__acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
+/* "What your cup covers": a quiet link and its sheet */
+.band-hint { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-14); color: var(--ink-3); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.band-hint svg { flex: none; opacity: 0.8; }
+.band-hint:hover { color: var(--ink-2); }
+.band-hint:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+.home__lines .band-hint { margin-top: var(--space-1); }
+.plan-bands { margin: 0; }
+.bands-sheet { display: grid; gap: var(--space-4); }
+.bands { display: grid; gap: var(--space-5); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.bands__item { display: grid; gap: var(--space-1); }
+.bands__head { display: flex; align-items: baseline; gap: var(--space-2); }
+.bands__name { font-size: var(--fs-16); font-weight: 500; color: var(--ink); }
+.bands__head .badge { margin-left: auto; }
+.bands__eg { color: var(--ink-2); line-height: 1.6; }
+.bands__item:not(.is-covered) .bands__name { color: var(--ink-2); }
+
 /* ---- src/club.css ---- */
 /* =====================================================================
    Lahore Coffee Club — club.css
@@ -3035,6 +3051,20 @@ li:last-child > .branch-row { border-bottom: 0; }
   }
 }
 
+/* Folded sections on the Club tab (invitations, all levels) */
+.club .disclosure { min-height: 44px; }
+.club .disclosure__label { flex: 1; }
+.club-level { margin: 0 0 var(--space-1); }
+.club-fold { margin-top: var(--space-3); }
+.club-fold .disclosure__inner > :first-child { margin-top: var(--space-3); }
+.invite { gap: var(--space-3); }
+.invite__top { display: flex; align-items: flex-start; gap: var(--space-3); }
+.invite__text { flex: 1; display: grid; gap: var(--space-1); }
+.invite__share { flex: none; margin: -6px -6px 0 0; }
+.invite__value { font-size: var(--fs-20); }
+.invite > .disclosure { margin-bottom: calc(-1 * var(--space-2)); }
+.invite .disclosure__inner > :first-child { margin-top: 0; }
+
 /* ---- src/history.css ---- */
 /* =====================================================================
    Lahore Coffee Club — history.css
@@ -3386,9 +3416,13 @@ li:last-child > .branch-row { border-bottom: 0; }
     // From the 17 Nov 2026 menu research (13 Lahore cafés): each band's cup is valued
     // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
     // The café is paid 70% of that value; a My cafés cup costs the member about 80%.
-    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550 },
-    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720 },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010 },
+    // line, examples: the member app's "What your cup covers" sheet (typical drinks, from the menus above)
+    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550,
+      line: "The everyday cup.", examples: ["Espresso", "Americano", "Cortado", "Flat white", "Latte", "Cappuccino", "Chai", "Iced teas"] },
+    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720,
+      line: "Flavoured and a little indulgent.", examples: ["Spanish latte", "Caramel and hazelnut lattes", "Mocha", "Matcha", "Frappes", "Hot chocolate"] },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010,
+      line: "Slow brews and showpieces.", examples: ["V60 pour-over", "Single origins", "Flavoured matcha", "Kunafa and Java chip", "Ube drinks"] },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
@@ -11044,6 +11078,15 @@ li:last-child > .branch-row { border-bottom: 0; }
   // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
   const REG = (LCC.appScreens = LCC.appScreens || {});
 
+  /** A quiet link that opens "What your cup covers" (the shell handles the tap). */
+  LCC.bandsGuide = {
+    link(text) {
+      const m = store.getState().members[store.getState().memberId];
+      const label = text || (m?.plan ? `Covers ${S.coversLabel(S.bandAt())} drinks` : "What each band covers");
+      return html`<button type="button" class="band-hint" data-bands-guide aria-haspopup="dialog" aria-controls="bands-sheet">${label}${icon("info", { size: 14 })}</button>`;
+    },
+  };
+
   const TABS = [
     { id: "home",    label: "Home",    icon: "home" },
     { id: "cafes",   label: "Cafés",   icon: "store" },
@@ -11145,6 +11188,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                   <div class="sheet__body" data-sheet-body></div>
                 </div>
               </div>
+              <div class="sheet" id="bands-sheet" role="dialog" aria-modal="true" aria-labelledby="bands-title" aria-hidden="true"></div>
               <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
                 <div class="sheet__scrim" data-sheet-close></div>
                 <div class="sheet__panel" data-drawer-body></div>
@@ -11330,6 +11374,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <div class="home__lines">
                   <p class="t-body" data-home-line>${homeLine()}</p>
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
+                  ${m.plan ? LCC.bandsGuide.link() : ""}
                 </div>
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
@@ -11367,6 +11412,45 @@ li:last-child > .branch-row { border-bottom: 0; }
       function renewLine() {
         const m = member();
         return m.plan ? `Renews on ${fmt.shortDate(m.renewsAt)}` : "No plan yet";
+      }
+
+      /* What your cup covers ---------------------------------------------
+         One quiet sheet, opened from any [data-bands-guide]: each band with
+         a few typical drinks, the member's own band marked.            */
+      function bandsSheetHtml() {
+        const bands = store.getState().bands;
+        const mine = member().plan ? S.bandAt() : null;
+        const at = bands.findIndex((b) => b.id === mine);
+        return html`
+          <div class="sheet__scrim" data-sheet-close></div>
+          <div class="sheet__panel">
+            <div class="sheet__handle" aria-hidden="true"></div>
+            <div class="sheet__body bands-sheet">
+              <div class="badges-sheet__bar">
+                <h2 class="t-h3" id="bands-title">What your cup covers</h2>
+                <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+              </div>
+              <p class="t-small t-muted">Every drink sits in a band by its menu price.${at >= 0 ? ` Your plan covers ${S.coversLabel(mine)}.` : ""}</p>
+              <ol class="bands" role="list">
+                ${bands.map((b, i) => html`<li class="bands__item${at >= i ? " is-covered" : ""}">
+                  <div class="bands__head">
+                    <span class="bands__name">${b.label}</span>
+                    <span class="t-small t-faint num">up to ${fmt.rs(b.maxPrice)}</span>
+                    ${at >= i ? html`<span class="badge">In your plan</span>` : ""}
+                  </div>
+                  ${b.line ? html`<p class="t-small t-muted">${b.line}</p>` : ""}
+                  ${b.examples?.length ? html`<p class="t-small bands__eg">${b.examples.join(" · ")}</p>` : ""}
+                </li>`)}
+              </ol>
+              <p class="t-micro t-faint">Above your band, use a cup and pay the difference at the counter. Prices vary by café, so the menu in the app shows each drink’s band.</p>
+            </div>
+          </div>`;
+      }
+      function openBands(btn) {
+        const sh = $("#bands-sheet", el);
+        btn?.focus();
+        sh.innerHTML = bandsSheetHtml().s;
+        ui.openSheet(sh);
       }
 
       /* Profile drawer ---------------------------------------------------- */
@@ -11832,6 +11916,8 @@ li:last-child > .branch-row { border-bottom: 0; }
         // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
         const pb = t.closest("[data-open-drawer]");
         if (pb) { pb.focus(); openDrawer(); return; }
+        const bg = t.closest("[data-bands-guide]");
+        if (bg) { openBands(bg); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const look = t.closest('[data-segmented="flavour"] .segmented__option, [data-segmented="mode"] .segmented__option');
@@ -12644,7 +12730,7 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <h2 class="eyebrow" id="menu-h">Drinks</h2>
                 ${ui.segmented({ name: "menutemp", label: "Hot or iced drinks", value: menuTemp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
               </div>
-              <p class="t-small t-muted num">Your cups cover drinks up to ${fmt.rs(cover)}. Above that, you pay the difference at the till.</p>
+              <p class="t-small t-muted num">Your cups cover drinks up to ${fmt.rs(cover)}. Above that, you pay the difference at the till. ${LCC.bandsGuide.link("Bands explained")}</p>
               <div data-menu>${menuHtml()}</div>
               <p class="t-micro t-faint">${b.menuNote}</p>
             </section>
@@ -12796,13 +12882,7 @@ li:last-child > .branch-row { border-bottom: 0; }
             </div>
           </div>`)}
         </fieldset>
-        <p class="t-micro t-faint num">${bandsLine()}</p>`;
-    }
-
-    /** One quiet line on how bands work, from the store's bands. */
-    function bandsLine() {
-      const b = store.getState().bands;
-      return `Every drink has a band by its menu price: ${b.map((x) => `${x.label} up to ${fmt.rs(x.maxPrice)}`).join(", ")}. Above your plan’s band, you pay the difference at the café.`;
+        <p class="plan-bands">${LCC.bandsGuide.link("What’s in Classic, Signature and Reserve")}</p>`;
     }
 
     /* My cafés: cafés added one by one ---------------------------------- */
@@ -14632,6 +14712,29 @@ li:last-child > .branch-row { border-bottom: 0; }
     let beansSheet = null;
     let confirming = null; // reward id waiting for a second tap
     let confirmTimer = null;
+    const open = { invites: false, levels: false }; // folded sections, kept across repaints
+
+    /** A folded section: one quiet row with an arrow, the rest behind it. */
+    function fold(key, label, count, body) {
+      const o = open[key];
+      return html`
+        <button type="button" class="disclosure" data-fold="${key}" aria-expanded="${o}" aria-controls="fold-${key}">
+          <span class="t-small t-muted disclosure__label" id="fold-${key}-h">${label}</span>
+          ${count != null ? html`<span class="disclosure__count t-small t-faint num">${count}</span>` : ""}
+          <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 18 })}</span>
+        </button>
+        <div class="disclosure__panel" id="fold-${key}" role="region" aria-labelledby="fold-${key}-h" data-open="${o}" ${o ? "" : raw("inert")}>
+          <div class="disclosure__inner">${body}</div>
+        </div>`;
+    }
+    function toggleFold(btn) {
+      const key = btn.dataset.fold;
+      open[key] = !open[key];
+      const panel = $(`#fold-${key}`, view);
+      btn.setAttribute("aria-expanded", String(open[key]));
+      panel.dataset.open = String(open[key]);
+      panel.toggleAttribute("inert", !open[key]);
+    }
 
     /* Beans: balance and the way to the next complimentary drink */
     function beansHtml() {
@@ -14726,14 +14829,16 @@ li:last-child > .branch-row { border-bottom: 0; }
     function statusHtml(c) {
       const levels = c.levels;
       const at = levels.findIndex((l) => l.id === c.level.id);
-      return html`
+      const ladder = html`
         <ol class="ladder" role="list" aria-label="Status levels">
           ${levels.map((l, i) => html`<li class="ladder__step${i <= at ? " is-reached" : ""}${i === at ? " is-current" : ""}" ${i === at ? raw('aria-current="step"') : ""}>
             <span class="ladder__dot" aria-hidden="true"></span>
             <span class="ladder__name">${l.name}</span>
             <span class="ladder__line">${l.line}</span>
           </li>`)}
-        </ol>
+        </ol>`;
+      return html`
+        <p class="club-level"><span class="t-h3">${c.level.name}</span>${c.next ? "" : html` <span class="t-small t-muted">The top of the club. Every perk is yours.</span>`}</p>
         ${c.next
           ? html`<div class="club-next">
               <p class="t-small"><strong>${c.next.name}</strong> <span class="t-muted">${c.next.line}</span></p>
@@ -14742,7 +14847,8 @@ li:last-child > .branch-row { border-bottom: 0; }
                 <span class="t-small t-muted num">${n.label}</span>
               </div>`)}
             </div>`
-          : html`<p class="t-small t-muted">The top of the club. Every perk is yours.</p>`}`;
+          : ""}
+        <div class="club-fold">${fold("levels", "All levels", null, ladder)}</div>`;
     }
 
     function badgesRowHtml(c) {
@@ -14904,26 +15010,26 @@ li:last-child > .branch-row { border-bottom: 0; }
       const msg = `I’ve been using Lahore Coffee Club. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
       const invites = S.invitations(c.member.id);
       return html`<div class="card invite">
-        <div class="stack" style="--stack-gap:var(--space-1)">
-          <h3 class="t-h3">Invite a friend</h3>
-          <p class="t-small t-muted num">When a friend joins with your code and buys a plan or pays for an order, you each receive ${n} Beans.</p>
+        <div class="invite__top">
+          <div class="invite__text">
+            <h3 class="t-h3">Invite a friend</h3>
+            <p class="t-small t-muted num">${n} Beans each when they join and buy.</p>
+          </div>
+          <a class="icon-btn invite__share" href="${waLink(msg)}" target="_blank" rel="noopener" aria-label="Share your code on WhatsApp">${icon("share", { size: 20 })}</a>
         </div>
         <div class="invite__code">
           <span class="t-micro t-faint">Your code</span>
           <span class="invite__value num" data-invite-code>${code}</span>
           <button type="button" class="icon-btn" data-copy="${code}" aria-label="Copy your invitation code">${icon("copy", { size: 20 })}</button>
         </div>
-        <a class="btn btn--secondary btn--block" href="${waLink(msg)}" target="_blank" rel="noopener">${icon("share")}Share on WhatsApp</a>
-        ${invites.length ? html`<div>
-          <p class="t-micro t-faint">Your invitations</p>
+        ${invites.length ? fold("invites", "Friends who joined", invites.length, html`
           <ul role="list" class="invite__list">${invites.map((x) => html`<li class="row">
             <span class="row__main">
               <span class="row__title">${[x.member.firstName, x.member.lastName].filter(Boolean).join(" ")}</span>
-              <span class="row__meta num">${x.rewardedAt ? `Rewarded ${fmt.shortDate(x.rewardedAt)} · +${n} Beans each` : `Joined ${fmt.shortDate(x.joinedAt)} · Beans after their first plan or paid order`}</span>
+              <span class="row__meta num">${x.rewardedAt ? `Rewarded ${fmt.shortDate(x.rewardedAt)} · +${n} Beans each` : `Joined ${fmt.shortDate(x.joinedAt)} · Beans after their first buy`}</span>
             </span>
             <span class="badge${x.rewardedAt ? " badge--accent" : ""}">${x.status}</span>
-          </li>`)}</ul>
-        </div>` : ""}
+          </li>`)}</ul>`) : ""}
       </div>`;
     }
 
@@ -14994,6 +15100,8 @@ li:last-child > .branch-row { border-bottom: 0; }
     }
 
     function onClick(e) {
+      const fb = e.target.closest("[data-fold]");
+      if (fb) { toggleFold(fb); return; }
       const ob = e.target.closest("[data-open-badges]");
       if (ob) { openBadges(ob); return; }
       const bb = e.target.closest("[data-open-beans]");

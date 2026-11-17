@@ -562,3 +562,17 @@
     box-shadow: var(--lift-shadow);
   }
 }
+
+/* Folded sections on the Club tab (invitations, all levels) */
+.club .disclosure { min-height: 44px; }
+.club .disclosure__label { flex: 1; }
+.club-level { margin: 0 0 var(--space-1); }
+.club-fold { margin-top: var(--space-3); }
+.club-fold .disclosure__inner > :first-child { margin-top: var(--space-3); }
+.invite { gap: var(--space-3); }
+.invite__top { display: flex; align-items: flex-start; gap: var(--space-3); }
+.invite__text { flex: 1; display: grid; gap: var(--space-1); }
+.invite__share { flex: none; margin: -6px -6px 0 0; }
+.invite__value { font-size: var(--fs-20); }
+.invite > .disclosure { margin-bottom: calc(-1 * var(--space-2)); }
+.invite .disclosure__inner > :first-child { margin-top: 0; }

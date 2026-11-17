@@ -210,7 +210,7 @@
                 <h2 class="eyebrow" id="menu-h">Drinks</h2>
                 ${ui.segmented({ name: "menutemp", label: "Hot or iced drinks", value: menuTemp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
               </div>
-              <p class="t-small t-muted num">Your cups cover drinks up to ${fmt.rs(cover)}. Above that, you pay the difference at the till.</p>
+              <p class="t-small t-muted num">Your cups cover drinks up to ${fmt.rs(cover)}. Above that, you pay the difference at the till. ${LCC.bandsGuide.link("Bands explained")}</p>
               <div data-menu>${menuHtml()}</div>
               <p class="t-micro t-faint">${b.menuNote}</p>
             </section>

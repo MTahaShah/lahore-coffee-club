@@ -28,6 +28,15 @@
   // Screens added by app-cafes.js / app-plan.js: name -> (ctx, arg) => screen
   const REG = (LCC.appScreens = LCC.appScreens || {});
 
+  /** A quiet link that opens "What your cup covers" (the shell handles the tap). */
+  LCC.bandsGuide = {
+    link(text) {
+      const m = store.getState().members[store.getState().memberId];
+      const label = text || (m?.plan ? `Covers ${S.coversLabel(S.bandAt())} drinks` : "What each band covers");
+      return html`<button type="button" class="band-hint" data-bands-guide aria-haspopup="dialog" aria-controls="bands-sheet">${label}${icon("info", { size: 14 })}</button>`;
+    },
+  };
+
   const TABS = [
     { id: "home",    label: "Home",    icon: "home" },
     { id: "cafes",   label: "Cafés",   icon: "store" },
@@ -129,6 +138,7 @@
                   <div class="sheet__body" data-sheet-body></div>
                 </div>
               </div>
+              <div class="sheet" id="bands-sheet" role="dialog" aria-modal="true" aria-labelledby="bands-title" aria-hidden="true"></div>
               <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
                 <div class="sheet__scrim" data-sheet-close></div>
                 <div class="sheet__panel" data-drawer-body></div>
@@ -314,6 +324,7 @@
                 <div class="home__lines">
                   <p class="t-body" data-home-line>${homeLine()}</p>
                   <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
+                  ${m.plan ? LCC.bandsGuide.link() : ""}
                 </div>
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
@@ -351,6 +362,45 @@
       function renewLine() {
         const m = member();
         return m.plan ? `Renews on ${fmt.shortDate(m.renewsAt)}` : "No plan yet";
+      }
+
+      /* What your cup covers ---------------------------------------------
+         One quiet sheet, opened from any [data-bands-guide]: each band with
+         a few typical drinks, the member's own band marked.            */
+      function bandsSheetHtml() {
+        const bands = store.getState().bands;
+        const mine = member().plan ? S.bandAt() : null;
+        const at = bands.findIndex((b) => b.id === mine);
+        return html`
+          <div class="sheet__scrim" data-sheet-close></div>
+          <div class="sheet__panel">
+            <div class="sheet__handle" aria-hidden="true"></div>
+            <div class="sheet__body bands-sheet">
+              <div class="badges-sheet__bar">
+                <h2 class="t-h3" id="bands-title">What your cup covers</h2>
+                <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
+              </div>
+              <p class="t-small t-muted">Every drink sits in a band by its menu price.${at >= 0 ? ` Your plan covers ${S.coversLabel(mine)}.` : ""}</p>
+              <ol class="bands" role="list">
+                ${bands.map((b, i) => html`<li class="bands__item${at >= i ? " is-covered" : ""}">
+                  <div class="bands__head">
+                    <span class="bands__name">${b.label}</span>
+                    <span class="t-small t-faint num">up to ${fmt.rs(b.maxPrice)}</span>
+                    ${at >= i ? html`<span class="badge">In your plan</span>` : ""}
+                  </div>
+                  ${b.line ? html`<p class="t-small t-muted">${b.line}</p>` : ""}
+                  ${b.examples?.length ? html`<p class="t-small bands__eg">${b.examples.join(" · ")}</p>` : ""}
+                </li>`)}
+              </ol>
+              <p class="t-micro t-faint">Above your band, use a cup and pay the difference at the counter. Prices vary by café, so the menu in the app shows each drink’s band.</p>
+            </div>
+          </div>`;
+      }
+      function openBands(btn) {
+        const sh = $("#bands-sheet", el);
+        btn?.focus();
+        sh.innerHTML = bandsSheetHtml().s;
+        ui.openSheet(sh);
       }
 
       /* Profile drawer ---------------------------------------------------- */
@@ -816,6 +866,8 @@
         // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
         const pb = t.closest("[data-open-drawer]");
         if (pb) { pb.focus(); openDrawer(); return; }
+        const bg = t.closest("[data-bands-guide]");
+        if (bg) { openBands(bg); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
         if (cafeBtn) { openCafe(cafeBtn.dataset.openCafe || cafeBtn.dataset.pin); return; }
         const look = t.closest('[data-segmented="flavour"] .segmented__option, [data-segmented="mode"] .segmented__option');
