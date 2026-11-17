@@ -1,0 +1,95 @@
+/* Lahore Coffee Club: quiet pages (privacy, terms, 404). Same night palette as the waitlist. */
+@font-face{font-family:"Glacial Indifference";src:url(/fonts/GlacialIndifference-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Glacial Indifference";src:url(/fonts/GlacialIndifference-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+:root{color-scheme:dark;--bg:#0B0B0B;--surface:#151515;--ink:#FFF7E8;--ink2:#BDB7AD;--ink3:#807B74;--line:#2A2927;--accent:#CFAB71;
+  --ease:cubic-bezier(.22,1,.36,1);--font:"Glacial Indifference","Century Gothic",Futura,system-ui,sans-serif;--pad:20px}
+*{box-sizing:border-box;min-width:0}
+html{background:var(--bg);-webkit-text-size-adjust:100%;scroll-padding-top:96px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.65 var(--font);-webkit-font-smoothing:antialiased;overflow-x:clip}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:2px}
+.skip{position:absolute;left:var(--pad);top:-60px;padding:10px 16px;background:var(--ink);color:var(--bg);border-radius:999px;text-decoration:none;z-index:9}
+.skip:focus{top:12px}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(env(safe-area-inset-top) + 16px) var(--pad) 16px;background:rgba(11,11,11,.92);border-bottom:1px solid transparent;transition:border-color .3s var(--ease)}
+.nav.scrolled{border-bottom-color:var(--line)}
+.mark{display:block;color:var(--ink);line-height:0}
+.mark svg{height:36px;width:auto}
+.mark svg path{fill:currentColor}
+.pill{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border:1px solid rgba(255,247,232,.28);border-radius:999px;
+  color:var(--ink);text-decoration:none;font-size:14px;letter-spacing:.04em;white-space:nowrap;transition:border-color .25s var(--ease),background .25s var(--ease)}
+.pill:hover{border-color:var(--ink);background:rgba(255,247,232,.06)}
+
+/* page */
+.wrap{padding:48px var(--pad) 96px;max-width:1120px;margin:0 auto}
+.eyebrow{margin:0 0 16px;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-weight:400;font-size:clamp(38px,9vw,64px);line-height:1.05;letter-spacing:-.01em;text-wrap:balance;max-width:14ch}
+.meta{margin:20px 0 0;color:var(--ink3);font-size:14px;letter-spacing:.02em}
+.short{margin:40px 0 0;padding:24px;border:1px solid var(--line);border-radius:12px;max-width:62ch}
+.short h2{margin:0 0 12px;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink3);font-weight:400}
+.short ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.short li{position:relative;padding-left:22px;color:var(--ink)}
+.short li::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:12px;margin-top:-4px;border-radius:1.5px;background:var(--accent)}
+
+.cols{display:grid;gap:48px;margin-top:64px}
+.toc{display:none}
+.toc p{margin:0 0 12px;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink3)}
+.toc ol{margin:0;padding:0;list-style:none;display:grid;gap:2px;counter-reset:t}
+.toc a{display:flex;gap:12px;padding:6px 0;color:var(--ink2);text-decoration:none;font-size:14px;line-height:1.4;transition:color .2s var(--ease)}
+.toc a::before{counter-increment:t;content:counter(t,decimal-leading-zero);color:var(--ink3);font-variant-numeric:tabular-nums;min-width:20px}
+.toc a:hover,.toc a[aria-current="true"]{color:var(--ink)}
+.toc a[aria-current="true"]::before{color:var(--accent)}
+
+article{max-width:64ch;counter-reset:s}
+article section{padding-top:8px;margin-bottom:48px}
+article h2{margin:0 0 16px;font-weight:400;font-size:clamp(22px,5vw,28px);line-height:1.2;letter-spacing:-.005em}
+article h2::before{counter-increment:s;content:counter(s,decimal-leading-zero);display:block;margin-bottom:10px;font-size:12px;letter-spacing:.3em;color:var(--ink3);font-variant-numeric:tabular-nums}
+article h3{margin:28px 0 8px;font-weight:700;font-size:16px;letter-spacing:.01em}
+article p,article li{color:var(--ink2)}
+article p{margin:0 0 14px}
+article ul{margin:0 0 14px;padding-left:20px}
+article li{margin-bottom:6px}
+article li::marker{color:var(--ink3)}
+article strong{color:var(--ink);font-weight:700}
+article a{text-decoration:underline;text-decoration-color:rgba(255,247,232,.35);text-underline-offset:3px}
+article a:hover{text-decoration-color:var(--ink)}
+.table{width:100%;margin:8px 0 16px;border-collapse:collapse;font-size:15px}
+.table th,.table td{padding:12px 12px 12px 0;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{color:var(--ink);font-weight:400;width:34%}
+.table td{color:var(--ink2)}
+.contact{display:grid;gap:4px;margin:8px 0 16px;padding:20px 24px;border:1px solid var(--line);border-radius:12px}
+.contact span{color:var(--ink3);font-size:12px;letter-spacing:.3em;text-transform:uppercase}
+
+/* footer */
+.foot{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;padding:24px var(--pad) calc(env(safe-area-inset-bottom) + 32px);
+  border-top:1px solid var(--line);color:var(--ink3);font-size:13px;letter-spacing:.04em;max-width:1120px;margin:0 auto}
+.foot nav{display:flex;gap:20px}
+.foot a{text-decoration:none;transition:color .2s var(--ease)}
+.foot a:hover,.foot a[aria-current="page"]{color:var(--ink)}
+
+/* 404 */
+.lost{min-height:calc(100vh - 180px);min-height:calc(100svh - 180px);display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:48px}
+.lost svg.ring{width:120px;height:auto;margin-bottom:40px}
+.lost p.lede{margin:16px 0 32px;max-width:34ch;color:var(--ink2);font-size:18px}
+.go{display:inline-flex;align-items:center;align-self:flex-start;min-height:52px;padding:0 26px;border-radius:999px;background:var(--ink);color:var(--bg);
+  text-decoration:none;font-weight:700;letter-spacing:.03em;transition:transform .25s var(--ease)}
+.go:hover{transform:translateX(2px)}
+
+@media (min-width:900px){
+  :root{--pad:max(6vw,32px)}
+  body{font-size:17px}
+  .nav{padding-top:24px;padding-bottom:24px}
+  .mark svg{height:40px}
+  .wrap{padding-top:80px}
+  .cols{grid-template-columns:220px minmax(0,1fr);gap:72px}
+  .toc{display:block;position:sticky;top:120px;align-self:start}
+}
+@media print{
+  :root{--bg:#fff;--ink:#000;--ink2:#222;--ink3:#555;--line:#ccc;--accent:#713105}
+  .nav,.toc,.skip,.foot nav{display:none}
+  .cols{display:block;margin-top:24px}
+  a{text-decoration:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
