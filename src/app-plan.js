@@ -139,9 +139,10 @@
         </div>`;
       }
       return html`
-        <p class="t-small t-muted plan-intro">Cups reserved at each café, up to ${rules().maxCupsPerCafe} a month there, and only for that café. Choose the drinks each café’s cups cover.</p>
+        <p class="t-small t-muted plan-intro">Cups reserved at each café, up to ${rules().maxCupsTotal} a month in all, and only for that café. Choose the drinks each café’s cups cover.</p>
         <ul role="list" class="builder-list">${ids.map(builderRowHtml)}</ul>
-        <button type="button" class="btn btn--link builder-add" data-add-cafe>Add a café</button>`;
+        <button type="button" class="btn btn--link builder-add" data-add-cafe>Add a café</button>
+        <p class="t-small t-muted" data-builder-full hidden>That’s ${rules().maxCupsTotal} cups, the most for one month. Take a cup off a café to add another.</p>`;
     }
 
     /* The "Add a café" sheet: search and the list ----------------------- */
@@ -197,6 +198,19 @@
 
     function paintBody() {
       $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
+      if (draft.mode === "mycafes") paintLimit();
+    }
+    /** 30 cups a month is the most: grey out every plus and swap "Add a café" for a note. */
+    function paintLimit() {
+      const full = S.customPrice().atMaximum;
+      const b = store.getState().builder;
+      $$("[data-builder-row]", view).forEach((row) => {
+        const id = row.dataset.builderRow;
+        if (b[id]) ui.setStepper($("[data-stepper]", row), b[id], full);
+      });
+      const add = $(".builder-add", view), note = $("[data-builder-full]", view);
+      if (add) add.hidden = full;
+      if (note) note.hidden = !full;
     }
 
     function paintSummary(animate = true) {
@@ -328,9 +342,9 @@
           $$("[data-builder-row]", view).forEach((row) => {
             const id = row.dataset.builderRow;
             if (!b[id]) return;
-            ui.setStepper($("[data-stepper]", row), b[id]);
             $("[data-row-meta]", row).textContent = rowMeta(id);
           });
+          paintLimit();
           paintSummary();
         },
       },

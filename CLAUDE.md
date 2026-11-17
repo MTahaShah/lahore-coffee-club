@@ -42,7 +42,7 @@ counter screen).
   dividers. One primary action per screen; secondary things go behind a
   `.disclosure` (button with `aria-expanded`, a panel that opens in 250ms,
   none with reduced motion, `inert` while closed) or a "See all" sheet.
-- Hairlines, no shadows. Status colours only for busy status, with text.
+- Hairlines, no shadows (one exception: the card, passport and gift card are lifted with depth in dark mode, club.css). Status colours only for busy status, with text.
 - Matcha mode (member app only): a second flavour, `[data-flavour="matcha"]`
   on `<html>` in `base.css` (colour tokens only, light and dark; coffee
   stays the default). `router.js` owns flavour and Light / Dark / Auto
@@ -192,8 +192,8 @@ next pass until asked.**
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 
 - `data.js` `BANDS` and `PLANS` are the single source (state: `state.bands`,
-  `state.tiers`). Bands by menu price before tax: Classic up to 800 (café
-  rate Rs 500), Signature 801–1,100 (Rs 700), Reserve 1,101–1,500 (Rs 950);
+  `state.tiers`). Bands by menu price before tax: Classic up to 750 (café
+  rate Rs 490), Signature 751–1,000 (Rs 650), Reserve 1,001–1,500 (Rs 890);
   above 1,500 no band.
 - A plan covers up to a band (`select.planBand`: Explorer from the tier's
   `maxBand`, brand plans from theirs, My cafés Classic; `select.bandAt` for
@@ -206,16 +206,16 @@ next pass until asked.**
 
 ## Plan types
 
-- **Explorer** (tiers Starter 8 Rs 4,500, Regular 16 Rs 9,000, Enthusiast
-  30 Rs 16,500, all Classic; Executive 16 Rs 12,000 up to Signature;
-  Reserve 12 Rs 12,500 up to Reserve): one pool of cups for any partner
+- **Explorer** (tiers Starter 8 Rs 4,450, Regular 16 Rs 8,650, Enthusiast
+  30 Rs 16,250, all Classic; Executive 16 Rs 11,500 up to Signature;
+  Reserve 12 Rs 12,200 up to Reserve): one pool of cups for any partner
   café, at most `rules.explorerCapPerCafe` (2) at one café per plan cycle.
   Tier names stay; the type is called Explorer.
 - **My cafés** (formerly Build your own): cups reserved per venue, usable
   only there, each venue with a band (`plan.bands[venueId]`, missing =
   Classic; draft in `state.builderBands`, `actions.setBuilderBand`). Price =
-  sum(cups × the band's `myCafesPrice`: Rs 560 / 760 / 1,040); min 6 total,
-  max 10 per venue. A venue offers only the bands it serves
+  sum(cups × the band's `myCafesPrice`: Rs 550 / 720 / 1,010); min 6 total,
+  max 30 cups a month in total (any split across venues). A venue offers only the bands it serves
   (`select.venueBands`). Savings vs the counter: latte price for Classic
   (`cafe.price`, `cafe.latte` names the drink), else the average of the
   venue's drinks in that band (`select.venueRefPrice`).
@@ -256,7 +256,7 @@ next pass until asked.**
   `iced` prices, null if not served that way), `menuNote` ("Prices from
   Double Shot's public menu, Nov 2026. Demo only."), plans.
 - Bands apply at every branch. Its plans have `maxBand` Classic, so drinks
-  above Rs 800 are "Cup + Rs X" (`topUp`) on them.
+  above Rs 750 are "Cup + Rs X" (`topUp`) on them.
 - Branches are cafés with `brandId`, `branch`, `short`, `label`, `pinName`:
   Gulberg · Falcon Complex, Cantt · C Block, Model Town, DHA · Phase 6,
   DHA · Lalak Jan Chowk, Pine Avenue, DHA · Dolmen Mall. New area: Cantt.
@@ -404,10 +404,10 @@ next pass until asked.**
 - Mumtaz starts on 130 Beans (four cups this month and Fatima's referral):
   20 to her first complimentary drink, so one more cup gets her there.
 - The members' evening (`gather-members-evening`, Noon, `inviteOnly`) is
-  not listed under Gatherings; 600 Beans keeps a seat (synced RSVP).
+  not listed under Gatherings; 1,500 Beans keeps a seat (synced RSVP).
 - Club tab: Beans at the top (number, 2px progress line, the next reward
   in words) opening a sheet: the ladder, Redeem (two taps: Redeem, then
-  "Use 150 Beans"), history. Success states show a quiet "+10 Beans"
+  "Use 500 Beans"), history. Success states show a quiet "+10 Beans"
   (pass after a counter cup, the Collected toast). The bean icon is
   `ui.icon("bean")`, in `--accent-text` (an accent use).
 - Referrals: codes are first name + 3 letters from the member id
@@ -584,7 +584,7 @@ next pass until asked.**
   to Mumtaz's demo" (`actions.beginNewMember` / `restoreDemo`; Mumtaz's
   data is never touched, except a free cup if her invite code is used).
 - Member card (redesign, ref `docs/ref/member-card.png`): `LCC.memberCard`
-  in `app-club.js`, built in code, 7:4, radius 16, no shadow. 22 hairline
+  in `app-club.js`, built in code, 7:4, radius 16, no shadow in light; lifted face and shadow in dark. 22 hairline
   rings centred a little left, lit at top right and bottom left by a
   per-ring gradient; the wordmark (unaltered, it carries "COFFEE CLUB")
   top right; name and "Founding Member" (or the level) bottom left;

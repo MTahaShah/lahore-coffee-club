@@ -5,7 +5,7 @@
   <script>if (!location.hash || location.hash === "#") history.replaceState(null, "", location.pathname + location.search + "#/cafe");</script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#FFF7E8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B0B0B" media="(prefers-color-scheme: dark)">
   <!-- Installable app (PWA): build.sh copies manifest.json and icons/ next to index.html -->
   <link rel="manifest" href="manifest-cafe.json">
@@ -82,20 +82,22 @@
   --mocha: #7F5E35;
   --roast: #4F351C;
 
-  /* Neutrals */
-  --bg: #FFF7E8;
+  /* Neutrals: porcelain, not paper. A neutral near-white with the
+     faintest warmth, white cards, warm-grey hairlines. Cream stays for
+     type on the always-dark card and passport. */
+  --bg: #F6F5F3;
   --surface: #FFFFFF;
-  --surface-2: #F4EFE6;
+  --surface-2: #EFEEEB;
   --ink: #0B0B0B;
-  --ink-2: #4D4A45;
-  --ink-3: #8A857D;
-  --ink-4: #B5AFA5;          /* placeholders and decoration only */
-  --line: #E6E0D6;
-  --line-strong: #D3CCC0;
+  --ink-2: #474644;
+  --ink-3: #75736F;
+  --ink-4: #B3B1AC;          /* placeholders and decoration only */
+  --line: #E4E2DE;
+  --line-strong: #D0CECA;
   --primary: #0B0B0B;        /* buttons, selected states: black on light */
   --primary-hover: #2A2927;
   --on-primary: #FFFFFF;
-  --primary-soft: #F4EFE6;   /* selected chips, earned badges (neutral) */
+  --primary-soft: #EFEEEB;   /* selected chips, earned badges (neutral) */
   --accent-text: #713105;    /* the only coffee colour for text on light */
   --danger: #A33D24;         /* validation text, not a status */
   --status-quiet: #4E7D5B;
@@ -235,27 +237,27 @@
    Status colours are unchanged.
    --------------------------------------------------------------------- */
 :root[data-flavour="matcha"] {
-  --black: #111611;
-  --cream: #F4F2E7;
+  --black: #0C0F0D;
+  --cream: #F1F3EA;
   --accent: #6E8B3D;         /* ceremonial matcha */
   --accent-deep: #3F5A22;
   --espresso: #1E261B;
   --mocha: #5E7236;
   --roast: #2F4220;
 
-  --bg: #F4F2E7;             /* whisked milk */
-  --surface: #FBFAF3;
-  --surface-2: #EAE8DA;
-  --ink: #1E261B;            /* tea leaf */
-  --ink-2: #464F40;
-  --ink-3: #5F6758;
-  --ink-4: #A9AE9E;          /* placeholders and decoration only */
-  --line: #D9DDC9;           /* soft sage */
-  --line-strong: #C3C9AF;
-  --primary: #1E261B;
-  --primary-hover: #333D2E;
-  --on-primary: #FBFAF3;
-  --primary-soft: #EAE8DA;
+  --bg: #F5F6F2;             /* porcelain with a breath of green */
+  --surface: #FFFFFF;
+  --surface-2: #EDEFE8;
+  --ink: #161D17;            /* tea leaf, nearly black */
+  --ink-2: #434A44;
+  --ink-3: #676E68;
+  --ink-4: #A6ABA3;          /* placeholders and decoration only */
+  --line: #E0E3DA;
+  --line-strong: #CBD0C4;
+  --primary: #161D17;
+  --primary-hover: #2B332C;
+  --on-primary: #FFFFFF;
+  --primary-soft: #EDEFE8;
   --accent-text: #4E6A25;
   --bezel: #1E261B;
   --scrim: rgba(17, 22, 17, 0.32);
@@ -263,55 +265,55 @@
   --logo-side: #26361A;
   --logo-top: #6E8B3D;
   /* Member card in Matcha: near-black green, matcha rings, foam type */
-  --card-bg: #0F140E;
-  --card-ring: #93B35A;
-  --card-ink: #E8EDDD;
-  --card-muted: rgba(232, 237, 221, 0.62);
-  --card-edge: rgba(232, 237, 221, 0.10);
+  --card-bg: #0C100D;
+  --card-ring: #A6C46A;
+  --card-ink: #EEF1E6;
+  --card-muted: rgba(238, 241, 230, 0.62);
+  --card-edge: rgba(238, 241, 230, 0.10);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-flavour="matcha"]:not([data-theme="light"]) {
-    --bg: #111611;
-    --surface: #182018;
-    --surface-2: #202A1F;
-    --ink: #E8EDDD;            /* foam */
-    --ink-2: #B7BFAA;
-    --ink-3: #8C957F;
-    --ink-4: #586153;
-    --line: #263025;
-    --line-strong: #354134;
-    --primary: #E8EDDD;
-    --primary-hover: #D9E0CB;
-    --on-primary: #111611;
-    --primary-soft: #202A1F;
-    --accent: #93B35A;         /* brighter matcha on dark */
-    --accent-text: #93B35A;
-    --bezel: #263025;
+    --bg: #0A0C0B;             /* black lacquer, the faintest green */
+    --surface: #121513;
+    --surface-2: #1A1E1B;
+    --ink: #EEF1E6;            /* foam */
+    --ink-2: #B5B9B0;          /* neutral greys: no olive mud */
+    --ink-3: #7E837C;
+    --ink-4: #4F544E;
+    --line: #222724;
+    --line-strong: #303631;
+    --primary: #EEF1E6;
+    --primary-hover: #DDE2D4;
+    --on-primary: #0A0C0B;
+    --primary-soft: #1A1E1B;
+    --accent: #A6C46A;         /* fresh ceremonial matcha, used sparingly */
+    --accent-text: #A6C46A;
+    --bezel: #222724;
     --scrim: rgba(0, 0, 0, 0.6);
-    --logo-face: #93B35A;
+    --logo-face: #A6C46A;
     --logo-side: #6E8B3D;
     --logo-top: #3F5A22;
   }
 }
 :root[data-flavour="matcha"][data-theme="dark"], [data-flavour="matcha"] .theme-dark {
-  --bg: #111611;
-  --surface: #182018;
-  --surface-2: #202A1F;
-  --ink: #E8EDDD;
-  --ink-2: #B7BFAA;
-  --ink-3: #8C957F;
-  --ink-4: #586153;
-  --line: #263025;
-  --line-strong: #354134;
-  --primary: #E8EDDD;
-  --primary-hover: #D9E0CB;
-  --on-primary: #111611;
-  --primary-soft: #202A1F;
-  --accent: #93B35A;
-  --accent-text: #93B35A;
-  --bezel: #263025;
+  --bg: #0A0C0B;
+  --surface: #121513;
+  --surface-2: #1A1E1B;
+  --ink: #EEF1E6;
+  --ink-2: #B5B9B0;
+  --ink-3: #7E837C;
+  --ink-4: #4F544E;
+  --line: #222724;
+  --line-strong: #303631;
+  --primary: #EEF1E6;
+  --primary-hover: #DDE2D4;
+  --on-primary: #0A0C0B;
+  --primary-soft: #1A1E1B;
+  --accent: #A6C46A;
+  --accent-text: #A6C46A;
+  --bezel: #222724;
   --scrim: rgba(0, 0, 0, 0.6);
-  --logo-face: #93B35A;
+  --logo-face: #A6C46A;
   --logo-side: #6E8B3D;
   --logo-top: #3F5A22;
 }
@@ -2990,6 +2992,50 @@ li:last-child > .branch-row { border-bottom: 0; }
 .switch:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
 
+/* Depth in dark mode ------------------------------------------------------
+   The card, the passport and the gift card are dark in every mode. On a
+   light page they stand out by themselves; on a dark page they would sink
+   into it, so there they are lifted: a slightly lighter face with a soft
+   fall of light, a lit top edge, and a long shadow underneath. The one
+   place the app uses shadows. Tokens are set on :root only (not on
+   .theme-dark, which the passport cover carries in every mode). */
+:root[data-theme="dark"] {
+  --lift-bg: linear-gradient(158deg, #2A2927 0%, #181817 46%, #0F0F0F 100%);
+  --lift-shadow:
+    inset 0 1px 0 rgba(255, 247, 232, 0.12),
+    inset 0 0 0 1px rgba(255, 247, 232, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 18px 36px -10px rgba(0, 0, 0, 0.9),
+    0 40px 80px -24px rgba(0, 0, 0, 0.95);
+}
+:root[data-flavour="matcha"][data-theme="dark"] {
+  --lift-bg: linear-gradient(158deg, #222B24 0%, #161C18 46%, #0E120F 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lift-bg: linear-gradient(158deg, #2A2927 0%, #181817 46%, #0F0F0F 100%);
+    --lift-shadow:
+      inset 0 1px 0 rgba(255, 247, 232, 0.12),
+      inset 0 0 0 1px rgba(255, 247, 232, 0.06),
+      0 2px 4px rgba(0, 0, 0, 0.5),
+      0 18px 36px -10px rgba(0, 0, 0, 0.9),
+      0 40px 80px -24px rgba(0, 0, 0, 0.95);
+  }
+  :root[data-flavour="matcha"]:not([data-theme="light"]) {
+    --lift-bg: linear-gradient(158deg, #222B24 0%, #161C18 46%, #0E120F 100%);
+  }
+}
+:root[data-theme="dark"] :is(.mcard__face, .pbook__cover, .gift-card) {
+  background: var(--lift-bg);
+  box-shadow: var(--lift-shadow);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.mcard__face, .pbook__cover, .gift-card) {
+    background: var(--lift-bg);
+    box-shadow: var(--lift-shadow);
+  }
+}
+
 /* ---- src/history.css ---- */
 /* =====================================================================
    Lahore Coffee Club — history.css
@@ -3307,7 +3353,8 @@ li:last-child > .branch-row { border-bottom: 0; }
   /* Pricing rules, shared by the builder and the landing teaser ------- */
   const rules = {
     roundTo: 50,               // round monthly price to nearest Rs 50
-    maxCupsPerCafe: 10,
+    maxCupsPerCafe: 30,
+    maxCupsTotal: 30,          // the most cups a member can have in one month, across all cafés
     minCupsTotal: 6,
     dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
     explorerCapPerCafe: 2,     // Explorer plans: cups at one café per plan cycle (month)
@@ -3332,14 +3379,17 @@ li:last-child > .branch-row { border-bottom: 0; }
      drinks up to its band; above that the member pays the difference at
      the café ("Cup + Rs X", X = price minus the plan's band ceiling).
      The café is paid the rate of the drink's band, capped at the plan's
-     band: a Rs 910 drink on a Classic plan pays the café Rs 500.
+     band: a Rs 910 drink on a Classic plan pays the café Rs 490.
      Drinks above Rs 1,500 are in no band; any plan pays its top rate.
      myCafesPrice: what a My cafés cup costs the member in that band.
      docs/pricing.md has the margins.                                     */
   const BANDS = [
-    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500, myCafesPrice: 560 },
-    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700, myCafesPrice: 760 },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950, myCafesPrice: 1040 },
+    // From the 17 Nov 2026 menu research (13 Lahore cafés): each band's cup is valued
+    // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
+    // The café is paid 70% of that value; a My cafés cup costs the member about 80%.
+    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550 },
+    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720 },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010 },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
@@ -3347,11 +3397,11 @@ li:last-child > .branch-row { border-bottom: 0; }
 
   /* Explorer plans: one pool of cups for any partner café ---------------- */
   const PLANS = [
-    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4500,  line: "Two good coffees a week." },
-    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 9000,  line: "Most weekdays, sorted." },
-    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16500, line: "One a day, and then some." },
-    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 12000, line: "The signature drinks, most weekdays." },
-    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12500, line: "Pour-overs and single origins." },
+    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4450,  line: "Two good coffees a week." },
+    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 8650,  line: "Most weekdays, sorted." },
+    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16250, line: "One a day, and then some." },
+    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 11500, line: "The signature drinks, most weekdays." },
+    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12200, line: "Pour-overs and single origins." },
   ];
   const tiers = PLANS; // internal name: Explorer tiers (member.plan.tierId)
 
@@ -4371,7 +4421,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         line: "Three brew methods, one coffee, and a long argument about which was best.",
       },
       {
-        // By invitation only: 600 Beans (see beans.rewards). Not listed under Gatherings.
+        // By invitation only: 1,500 Beans (see beans.rewards). Not listed under Gatherings.
         id: "gather-members-evening",
         kind: "Members’ evening",
         title: "An evening at Noon",
@@ -4396,9 +4446,9 @@ li:last-child > .branch-row { border-bottom: 0; }
     roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
-      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
-      { id: "guest",   beans: 400, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
-      { id: "evening", beans: 600, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
+      { id: "drink",   beans: 500, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
+      { id: "guest",   beans: 900, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
+      { id: "evening", beans: 1500, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
     ],
   };
 
@@ -5244,6 +5294,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         savings: Math.max(0, counter - price),
         meetsMinimum: cups >= minCupsTotal,
         cupsShort: Math.max(0, minCupsTotal - cups),
+        atMaximum: cups >= state.rules.maxCupsTotal,
       };
     },
     /** Cafés for My cafés, one per venue: single cafés, and each chain as one (Double Shot, any branch). */
@@ -7001,7 +7052,10 @@ li:last-child > .branch-row { border-bottom: 0; }
     /** My cafés draft: cups at one venue (a single café, or a chain as one). 0 removes it. */
     setBuilderCups(cafeId, cups) {
       if (!select.venue(cafeId)) return;
-      const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
+      // Cap per café and for the whole month (rules.maxCupsTotal)
+      const others = Object.entries(state.builder).reduce((t, [id, x]) => t + (id === cafeId ? 0 : x || 0), 0);
+      const room = Math.max(0, state.rules.maxCupsTotal - others);
+      const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, room, Math.round(cups)));
       if (n === 0) { delete state.builder[cafeId]; delete state.builderBands[cafeId]; }
       else state.builder[cafeId] = n;
       emit("builder", { cafeId, cups: n, price: select.customPrice() });
@@ -7018,8 +7072,10 @@ li:last-child > .branch-row { border-bottom: 0; }
       const max = state.rules.maxCupsPerCafe;
       state.builder = {};
       state.builderBands = {};
+      let room = state.rules.maxCupsTotal;
       Object.entries(allocation || {}).forEach(([id, n]) => {
-        const v = Math.max(0, Math.min(max, Math.round(n)));
+        const v = Math.max(0, Math.min(max, room, Math.round(n)));
+        if (select.venue(id)) room -= v;
         if (select.venue(id) && v) { state.builder[id] = v; if (bands[id]) state.builderBands[id] = bands[id]; }
       });
       emit("builder", { price: select.customPrice() });
@@ -7946,11 +8002,11 @@ li:last-child > .branch-row { border-bottom: 0; }
     </div>`;
   }
   /** Sync a rendered stepper with a new value. */
-  function setStepper(el, value) {
+  function setStepper(el, value, full = false) {
     const min = Number(el.dataset.min), max = Number(el.dataset.max);
     el.querySelector(".stepper__value").textContent = value;
     el.querySelector('[data-step="-1"]').disabled = value <= min;
-    el.querySelector('[data-step="1"]').disabled = value >= max;
+    el.querySelector('[data-step="1"]').disabled = full || value >= max;
   }
 
   /* Segmented control --------------------------------------------------- */
@@ -8595,7 +8651,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
-              <p class="t-micro t-faint num">Micro 12 · Rs 9,000 · 11 of 16</p>
+              <p class="t-micro t-faint num">Micro 12 · Rs 8,650 · 11 of 16</p>
             </section>
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
@@ -8710,7 +8766,7 @@ li:last-child > .branch-row { border-bottom: 0; }
           const box = step.closest("[data-stepper]");
           const id = box.dataset.stepper;
           store.actions.setBuilderCups(id, (store.getState().builder[id] || 0) + Number(step.dataset.step));
-          ui.setStepper(box, store.getState().builder[id] || 0);
+          ui.setStepper(box, store.getState().builder[id] || 0, store.select.customPrice().atMaximum);
         }
         const st = e.target.closest("[data-kit-status]");
         if (st) store.actions.setCafeStatus("kiln", st.dataset.kitStatus);
@@ -8743,7 +8799,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const offs = [
         store.on("builder", () => {
           paintPrice(true);
-          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0));
+          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0, store.select.customPrice().atMaximum));
         }),
         store.on("member", () => {
           const a = store.select.member();
@@ -12781,9 +12837,10 @@ li:last-child > .branch-row { border-bottom: 0; }
         </div>`;
       }
       return html`
-        <p class="t-small t-muted plan-intro">Cups reserved at each café, up to ${rules().maxCupsPerCafe} a month there, and only for that café. Choose the drinks each café’s cups cover.</p>
+        <p class="t-small t-muted plan-intro">Cups reserved at each café, up to ${rules().maxCupsTotal} a month in all, and only for that café. Choose the drinks each café’s cups cover.</p>
         <ul role="list" class="builder-list">${ids.map(builderRowHtml)}</ul>
-        <button type="button" class="btn btn--link builder-add" data-add-cafe>Add a café</button>`;
+        <button type="button" class="btn btn--link builder-add" data-add-cafe>Add a café</button>
+        <p class="t-small t-muted" data-builder-full hidden>That’s ${rules().maxCupsTotal} cups, the most for one month. Take a cup off a café to add another.</p>`;
     }
 
     /* The "Add a café" sheet: search and the list ----------------------- */
@@ -12839,6 +12896,19 @@ li:last-child > .branch-row { border-bottom: 0; }
 
     function paintBody() {
       $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
+      if (draft.mode === "mycafes") paintLimit();
+    }
+    /** 30 cups a month is the most: grey out every plus and swap "Add a café" for a note. */
+    function paintLimit() {
+      const full = S.customPrice().atMaximum;
+      const b = store.getState().builder;
+      $$("[data-builder-row]", view).forEach((row) => {
+        const id = row.dataset.builderRow;
+        if (b[id]) ui.setStepper($("[data-stepper]", row), b[id], full);
+      });
+      const add = $(".builder-add", view), note = $("[data-builder-full]", view);
+      if (add) add.hidden = full;
+      if (note) note.hidden = !full;
     }
 
     function paintSummary(animate = true) {
@@ -12970,9 +13040,9 @@ li:last-child > .branch-row { border-bottom: 0; }
           $$("[data-builder-row]", view).forEach((row) => {
             const id = row.dataset.builderRow;
             if (!b[id]) return;
-            ui.setStepper($("[data-stepper]", row), b[id]);
             $("[data-row-meta]", row).textContent = rowMeta(id);
           });
+          paintLimit();
           paintSummary();
         },
       },
@@ -14636,7 +14706,7 @@ li:last-child > .branch-row { border-bottom: 0; }
       const btn = e.target.closest("[data-redeem-beans]");
       if (!btn) return;
       const id = btn.dataset.redeemBeans;
-      // Two taps: Redeem, then "Use 150 Beans"
+      // Two taps: Redeem, then "Use 500 Beans"
       if (confirming !== id) {
         confirming = id;
         clearTimeout(confirmTimer);
@@ -16607,7 +16677,7 @@ li:last-child > .branch-row { border-bottom: 0; }
               ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
               <dl class="lp-types">
                 <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
-                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsPerCafe} at each, and pay less per cup. They’re only for those cafés.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month, and pay less per cup. They’re only for those cafés.</dd></div>
               </dl>
               <div class="lp-plans">
                 ${plansTable()}
@@ -16715,7 +16785,7 @@ li:last-child > .branch-row { border-bottom: 0; }
         $("[data-teaser-note]", el).textContent = p.meetsMinimum
           ? `You save ${fmt.rs(p.savings)} vs paying at the counter.`
           : `Add ${fmt.cups(p.cupsShort)}: plans start at ${store.getState().rules.minCupsTotal} cups a month.`;
-        TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id]); });
+        TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id], p.atMaximum); });
       }
 
       /* ---------------- Estimator ---------------- */

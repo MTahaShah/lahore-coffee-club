@@ -19,7 +19,8 @@
   /* Pricing rules, shared by the builder and the landing teaser ------- */
   const rules = {
     roundTo: 50,               // round monthly price to nearest Rs 50
-    maxCupsPerCafe: 10,
+    maxCupsPerCafe: 30,
+    maxCupsTotal: 30,          // the most cups a member can have in one month, across all cafés
     minCupsTotal: 6,
     dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
     explorerCapPerCafe: 2,     // Explorer plans: cups at one café per plan cycle (month)
@@ -44,14 +45,17 @@
      drinks up to its band; above that the member pays the difference at
      the café ("Cup + Rs X", X = price minus the plan's band ceiling).
      The café is paid the rate of the drink's band, capped at the plan's
-     band: a Rs 910 drink on a Classic plan pays the café Rs 500.
+     band: a Rs 910 drink on a Classic plan pays the café Rs 490.
      Drinks above Rs 1,500 are in no band; any plan pays its top rate.
      myCafesPrice: what a My cafés cup costs the member in that band.
      docs/pricing.md has the margins.                                     */
   const BANDS = [
-    { id: "classic",   label: "Classic",   maxPrice: 800,  cafeRate: 500, myCafesPrice: 560 },
-    { id: "signature", label: "Signature", maxPrice: 1100, cafeRate: 700, myCafesPrice: 760 },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 950, myCafesPrice: 1040 },
+    // From the 17 Nov 2026 menu research (13 Lahore cafés): each band's cup is valued
+    // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
+    // The café is paid 70% of that value; a My cafés cup costs the member about 80%.
+    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550 },
+    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720 },
+    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010 },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
@@ -59,11 +63,11 @@
 
   /* Explorer plans: one pool of cups for any partner café ---------------- */
   const PLANS = [
-    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4500,  line: "Two good coffees a week." },
-    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 9000,  line: "Most weekdays, sorted." },
-    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16500, line: "One a day, and then some." },
-    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 12000, line: "The signature drinks, most weekdays." },
-    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12500, line: "Pour-overs and single origins." },
+    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4450,  line: "Two good coffees a week." },
+    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 8650,  line: "Most weekdays, sorted." },
+    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16250, line: "One a day, and then some." },
+    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 11500, line: "The signature drinks, most weekdays." },
+    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12200, line: "Pour-overs and single origins." },
   ];
   const tiers = PLANS; // internal name: Explorer tiers (member.plan.tierId)
 
@@ -1083,7 +1087,7 @@
         line: "Three brew methods, one coffee, and a long argument about which was best.",
       },
       {
-        // By invitation only: 600 Beans (see beans.rewards). Not listed under Gatherings.
+        // By invitation only: 1,500 Beans (see beans.rewards). Not listed under Gatherings.
         id: "gather-members-evening",
         kind: "Members’ evening",
         title: "An evening at Noon",
@@ -1108,9 +1112,9 @@
     roundAttend: 5,        // Circles: extra for everyone who comes to a round (said yes, and had a drink there)
     groupJoinMinutes: 10,  // friends add their drink within this window
     rewards: [
-      { id: "drink",   beans: 150, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
-      { id: "guest",   beans: 400, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
-      { id: "evening", beans: 600, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
+      { id: "drink",   beans: 500, short: "a complimentary drink", title: "A complimentary drink",        line: "Any Classic drink, added to your cups.", cups: 1 },
+      { id: "guest",   beans: 900, short: "drinks for two",        title: "Drinks for you and a guest",   line: "Two complimentary drinks, added to your cups.", cups: 2 },
+      { id: "evening", beans: 1500, short: "a members’ evening",    title: "A members’ evening",           line: "An invitation to the next members’ evening, with a seat kept for you.", gatheringId: "gather-members-evening" },
     ],
   };
 

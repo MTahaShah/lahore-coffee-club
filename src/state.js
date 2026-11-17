@@ -753,6 +753,7 @@
         savings: Math.max(0, counter - price),
         meetsMinimum: cups >= minCupsTotal,
         cupsShort: Math.max(0, minCupsTotal - cups),
+        atMaximum: cups >= state.rules.maxCupsTotal,
       };
     },
     /** Cafés for My cafés, one per venue: single cafés, and each chain as one (Double Shot, any branch). */
@@ -2510,7 +2511,10 @@
     /** My cafés draft: cups at one venue (a single café, or a chain as one). 0 removes it. */
     setBuilderCups(cafeId, cups) {
       if (!select.venue(cafeId)) return;
-      const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, Math.round(cups)));
+      // Cap per café and for the whole month (rules.maxCupsTotal)
+      const others = Object.entries(state.builder).reduce((t, [id, x]) => t + (id === cafeId ? 0 : x || 0), 0);
+      const room = Math.max(0, state.rules.maxCupsTotal - others);
+      const n = Math.max(0, Math.min(state.rules.maxCupsPerCafe, room, Math.round(cups)));
       if (n === 0) { delete state.builder[cafeId]; delete state.builderBands[cafeId]; }
       else state.builder[cafeId] = n;
       emit("builder", { cafeId, cups: n, price: select.customPrice() });
@@ -2527,8 +2531,10 @@
       const max = state.rules.maxCupsPerCafe;
       state.builder = {};
       state.builderBands = {};
+      let room = state.rules.maxCupsTotal;
       Object.entries(allocation || {}).forEach(([id, n]) => {
-        const v = Math.max(0, Math.min(max, Math.round(n)));
+        const v = Math.max(0, Math.min(max, room, Math.round(n)));
+        if (select.venue(id)) room -= v;
         if (select.venue(id) && v) { state.builder[id] = v; if (bands[id]) state.builderBands[id] = bands[id]; }
       });
       emit("builder", { price: select.customPrice() });

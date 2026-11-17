@@ -21,7 +21,7 @@ Extremely minimal, quietly premium. **Black, white and cream are the main colour
 ## Colour tokens
 Light mode:
 ```
---bg: #FFF7E8   --surface: #FFFFFF   --surface-2: #F4EFE6
+--bg: #F6F5F3 (porcelain, not cream)   --surface: #FFFFFF   --surface-2: #EFEEEB
 --ink: #0B0B0B  --ink-2: #4D4A45     --ink-3: #8A857D     --line: #E6E0D6
 --primary: #0B0B0B   --on-primary: #FFFFFF
 --accent-text: #713105   (the only coffee colour allowed for text on light)
@@ -64,6 +64,6 @@ Status colours only for busy status, always with a text label.
 - Café screen header: small ring next to the café name.
 
 ## Shape, motion, voice
-Radius 12 cards, 999 buttons/pills, 20 sheets. Hairline 1px borders, no shadows. Buttons 56px tall on mobile: black with white text on light, cream with black text on dark.
+Radius 12 cards, 999 buttons/pills, 20 sheets. Hairline 1px borders, no shadows, except the always-dark card, passport and gift card, which get a lifted face and a soft shadow in dark mode only. Buttons 56px tall on mobile: black with white text on light, cream with black text on dark.
 Motion 200 to 300ms, cubic-bezier(0.22, 1, 0.36, 1), transform and opacity only, respect reduced motion.
 Voice: warm, short, specific, a little Lahori. No hype words.

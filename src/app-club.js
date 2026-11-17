@@ -412,7 +412,7 @@
       const btn = e.target.closest("[data-redeem-beans]");
       if (!btn) return;
       const id = btn.dataset.redeemBeans;
-      // Two taps: Redeem, then "Use 150 Beans"
+      // Two taps: Redeem, then "Use 500 Beans"
       if (confirming !== id) {
         confirming = id;
         clearTimeout(confirmTimer);

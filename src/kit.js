@@ -43,7 +43,7 @@
               <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
-              <p class="t-micro t-faint num">Micro 12 · Rs 9,000 · 11 of 16</p>
+              <p class="t-micro t-faint num">Micro 12 · Rs 8,650 · 11 of 16</p>
             </section>
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
@@ -158,7 +158,7 @@
           const box = step.closest("[data-stepper]");
           const id = box.dataset.stepper;
           store.actions.setBuilderCups(id, (store.getState().builder[id] || 0) + Number(step.dataset.step));
-          ui.setStepper(box, store.getState().builder[id] || 0);
+          ui.setStepper(box, store.getState().builder[id] || 0, store.select.customPrice().atMaximum);
         }
         const st = e.target.closest("[data-kit-status]");
         if (st) store.actions.setCafeStatus("kiln", st.dataset.kitStatus);
@@ -191,7 +191,7 @@
       const offs = [
         store.on("builder", () => {
           paintPrice(true);
-          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0));
+          $$("[data-kit-builder] [data-stepper]", el).forEach((box) => ui.setStepper(box, store.getState().builder[box.dataset.stepper] || 0, store.select.customPrice().atMaximum));
         }),
         store.on("member", () => {
           const a = store.select.member();

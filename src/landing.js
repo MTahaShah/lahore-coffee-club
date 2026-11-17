@@ -249,7 +249,7 @@
               ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
               <dl class="lp-types">
                 <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
-                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsPerCafe} at each, and pay less per cup. They’re only for those cafés.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month, and pay less per cup. They’re only for those cafés.</dd></div>
               </dl>
               <div class="lp-plans">
                 ${plansTable()}
@@ -357,7 +357,7 @@
         $("[data-teaser-note]", el).textContent = p.meetsMinimum
           ? `You save ${fmt.rs(p.savings)} vs paying at the counter.`
           : `Add ${fmt.cups(p.cupsShort)}: plans start at ${store.getState().rules.minCupsTotal} cups a month.`;
-        TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id]); });
+        TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id], p.atMaximum); });
       }
 
       /* ---------------- Estimator ---------------- */

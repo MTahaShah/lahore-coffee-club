@@ -343,11 +343,11 @@
     </div>`;
   }
   /** Sync a rendered stepper with a new value. */
-  function setStepper(el, value) {
+  function setStepper(el, value, full = false) {
     const min = Number(el.dataset.min), max = Number(el.dataset.max);
     el.querySelector(".stepper__value").textContent = value;
     el.querySelector('[data-step="-1"]').disabled = value <= min;
-    el.querySelector('[data-step="1"]').disabled = value >= max;
+    el.querySelector('[data-step="1"]').disabled = full || value >= max;
   }
 
   /* Segmented control --------------------------------------------------- */

@@ -255,7 +255,7 @@ Enthusiast 30 cups Rs 11,000.
 6. LOGIC
 =====================================================
 - Build-your-own price = sum over cafés of (cups x café list price x 0.80), 
-  rounded to nearest Rs 50, with a per-café max of 10 cups and a total 
+  rounded to nearest Rs 50, with a total max of 30 cups a month and a total 
   minimum of 6 cups. Show "You save Rs X vs paying at the counter" beneath 
   the total, calculated live.
 - One global store object (state) holds: member, plan, cups remaining, 

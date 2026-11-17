@@ -518,3 +518,47 @@
 .switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .switch:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+
+/* Depth in dark mode ------------------------------------------------------
+   The card, the passport and the gift card are dark in every mode. On a
+   light page they stand out by themselves; on a dark page they would sink
+   into it, so there they are lifted: a slightly lighter face with a soft
+   fall of light, a lit top edge, and a long shadow underneath. The one
+   place the app uses shadows. Tokens are set on :root only (not on
+   .theme-dark, which the passport cover carries in every mode). */
+:root[data-theme="dark"] {
+  --lift-bg: linear-gradient(158deg, #2A2927 0%, #181817 46%, #0F0F0F 100%);
+  --lift-shadow:
+    inset 0 1px 0 rgba(255, 247, 232, 0.12),
+    inset 0 0 0 1px rgba(255, 247, 232, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 18px 36px -10px rgba(0, 0, 0, 0.9),
+    0 40px 80px -24px rgba(0, 0, 0, 0.95);
+}
+:root[data-flavour="matcha"][data-theme="dark"] {
+  --lift-bg: linear-gradient(158deg, #222B24 0%, #161C18 46%, #0E120F 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lift-bg: linear-gradient(158deg, #2A2927 0%, #181817 46%, #0F0F0F 100%);
+    --lift-shadow:
+      inset 0 1px 0 rgba(255, 247, 232, 0.12),
+      inset 0 0 0 1px rgba(255, 247, 232, 0.06),
+      0 2px 4px rgba(0, 0, 0, 0.5),
+      0 18px 36px -10px rgba(0, 0, 0, 0.9),
+      0 40px 80px -24px rgba(0, 0, 0, 0.95);
+  }
+  :root[data-flavour="matcha"]:not([data-theme="light"]) {
+    --lift-bg: linear-gradient(158deg, #222B24 0%, #161C18 46%, #0E120F 100%);
+  }
+}
+:root[data-theme="dark"] :is(.mcard__face, .pbook__cover, .gift-card) {
+  background: var(--lift-bg);
+  box-shadow: var(--lift-shadow);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.mcard__face, .pbook__cover, .gift-card) {
+    background: var(--lift-bg);
+    box-shadow: var(--lift-shadow);
+  }
+}
