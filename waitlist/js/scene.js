@@ -387,39 +387,92 @@ const sixteenth = new THREE.Mesh(brickGeo, [side, side, topM, topM, face16, face
 sixteenth.visible = false; ringSpin.add(sixteenth);
 const fromQ16 = new THREE.Quaternion().setFromEuler(new THREE.Euler(2.2, -1.4, 0.8));
 
-/* ---------- the cups: ceramic and to-go, flying in to become the ring ---------- */
-const CSEG = LOW ? 24 : 40;
+/* ---------- the cups: LCC hot cup and iced cup, flying in to become the ring ---------- */
+const CSEG = LOW ? 28 : 48;
 const V2 = (x, y) => new THREE.Vector2(x, y);
 const lathe = (pts) => new THREE.LatheGeometry(pts.map(([x, y]) => V2(x, y)), CSEG);
-const ceramicM = LOW ? new THREE.MeshStandardMaterial({ color: 0xf2ebdd, roughness: 0.3 })
-  : new THREE.MeshPhysicalMaterial({ color: 0xf2ebdd, roughness: 0.28, clearcoat: 0.7, clearcoatRoughness: 0.15 });
-const coffeeM = new THREE.MeshStandardMaterial({ color: 0x341100, roughness: 0.18 });
-const paperM = new THREE.MeshStandardMaterial({ color: 0xefe6d3, roughness: 0.82 });
-const sleeveM = new THREE.MeshStandardMaterial({ color: 0xcfab71, roughness: 0.75, side: THREE.DoubleSide });
-const lidM = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.38 });
-/* a cup with saucer, about the size of a brick */
-const cupG = lathe([[0, 0.03], [0.14, 0.03], [0.18, 0.08], [0.205, 0.2], [0.215, 0.36], [0.2, 0.36], [0.19, 0.21], [0.165, 0.1], [0, 0.08]]);
-const saucerG = lathe([[0, 0], [0.12, 0], [0.29, 0.028], [0.31, 0.046], [0.295, 0.044], [0.13, 0.024], [0, 0.024]]);
-const coffeeG = new THREE.CircleGeometry(0.196, CSEG); coffeeG.rotateX(-Math.PI / 2); coffeeG.translate(0, 0.31, 0);
-const handleG = new THREE.TorusGeometry(0.07, 0.02, 10, 20, Math.PI); handleG.rotateZ(-Math.PI / 2); handleG.translate(0.2, 0.22, 0);
-/* a to-go cup: paper body, caramel sleeve, black lid */
-const togoG = lathe([[0, 0], [0.125, 0], [0.13, 0.012], [0.172, 0.5], [0, 0.5]]);
-const sleeveG = new THREE.CylinderGeometry(0.167, 0.146, 0.22, CSEG, 1, true); sleeveG.translate(0, 0.26, 0);
-const lidG = lathe([[0, 0.575], [0.11, 0.575], [0.15, 0.56], [0.182, 0.535], [0.186, 0.5], [0.176, 0.49], [0, 0.49]]);
+const [ringWhite, ringDark] = await Promise.all([ringImg("#F4F1EA", "#F4F1EA", "#F4F1EA"), ringImg("#1C1A18", "#1C1A18", "#1C1A18")]);
+/* the monogram: brick ring + LCC, centred at (cx, cy), h px tall */
+function monogram(x, img, col, cx, cy, h) {
+  const w = (h * 371) / 382;
+  if (img) x.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  x.fillStyle = col; x.font = FONT(700, Math.round(h * 0.2)); x.textBaseline = "middle";
+  tracked(x, "LCC", cx, cy + h * 0.01, h * 0.035, "center");
+  x.textBaseline = "alphabetic";
+}
+/* hot cup sleeve: dark ribbed card, white monogram facing front */
+const sleeveTex = (() => {
+  const [c, x] = mk(1280, 256);
+  x.fillStyle = "#2E2C2A"; x.fillRect(0, 0, 1280, 256);
+  for (let i = 0; i < 1280; i += 5) { x.fillStyle = i % 10 ? "rgba(255,255,255,.035)" : "rgba(0,0,0,.18)"; x.fillRect(i, 0, 2, 256); }
+  monogram(x, ringWhite, "#F4F1EA", 640, 128, 170);
+  return tex(c);
+})();
+/* iced cup print: dark monogram on clear plastic */
+const printTex = (() => {
+  const [c, x] = mk(512, 512);
+  monogram(x, ringDark, "#1C1A18", 256, 256, 330);
+  return tex(c);
+})();
+/* the coffee: milky at the top, darker where it settles */
+const milkTex = (() => {
+  const [c, x] = mk(8, 256);
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, "#D8BFA0"); g.addColorStop(0.55, "#C5A27F"); g.addColorStop(0.85, "#8C6443"); g.addColorStop(1, "#5E3F27");
+  x.fillStyle = g; x.fillRect(0, 0, 8, 256);
+  return tex(c);
+})();
+const physM = (o) => (LOW ? new THREE.MeshStandardMaterial(o) : new THREE.MeshPhysicalMaterial(o));
+const paperM = new THREE.MeshStandardMaterial({ color: 0xeeece7, roughness: 0.55 });
+const sleeveM = new THREE.MeshStandardMaterial({ map: sleeveTex, roughness: 0.8, side: THREE.DoubleSide });
+const lidM = physM({ color: 0x141414, roughness: 0.28, ...(LOW ? {} : { clearcoat: 0.8, clearcoatRoughness: 0.2 }) });
+const plasticM = physM({ color: 0xffffff, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false,
+  ...(LOW ? {} : { clearcoat: 1, clearcoatRoughness: 0.03 }) });
+const printM = new THREE.MeshStandardMaterial({ map: printTex, transparent: true, roughness: 0.4, depthWrite: false });
+const milkSideM = new THREE.MeshStandardMaterial({ map: milkTex, roughness: 0.35 });
+const milkTopM = new THREE.MeshStandardMaterial({ color: 0xd6bc9c, roughness: 0.3 });
+const iceM = physM({ color: 0xffffff, roughness: 0.08, transparent: true, opacity: 0.45, depthWrite: false });
+const strawM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.35 });
+
+/* hot cup, 0.6 tall: paper body, ribbed sleeve, black lid with a raised top */
+const hotBodyG = lathe([[0, 0], [0.122, 0], [0.126, 0.01], [0.168, 0.5], [0, 0.5]]);
+const hotSleeveG = new THREE.CylinderGeometry(0.1605, 0.1425, 0.2, CSEG, 1, true, -Math.PI, Math.PI * 2); hotSleeveG.translate(0, 0.24, 0);
+const hotLidG = lathe([[0, 0.6], [0.112, 0.6], [0.128, 0.594], [0.136, 0.578], [0.15, 0.57], [0.176, 0.562], [0.188, 0.548], [0.19, 0.525], [0.182, 0.502], [0.17, 0.494], [0, 0.494]]);
+/* iced cup, 0.66 tall plus straw: clear shell, coffee, ice, dome lid, printed monogram */
+const iceShellG = lathe([[0.118, 0.004], [0.121, 0], [0.166, 0.52], [0.176, 0.526], [0.176, 0.536], [0.164, 0.536]]);
+const iceBaseG = new THREE.CircleGeometry(0.118, CSEG); iceBaseG.rotateX(-Math.PI / 2); iceBaseG.translate(0, 0.004, 0);
+const milkG = new THREE.CylinderGeometry(0.1555, 0.115, 0.4, CSEG); milkG.translate(0, 0.21, 0);
+const printG = new THREE.CylinderGeometry(0.1575, 0.1455, 0.25, CSEG, 1, true, -0.85, 1.7); printG.translate(0, 0.27, 0);
+const domeG = new THREE.SphereGeometry(0.168, CSEG, 14, 0, Math.PI * 2, 0, Math.PI / 2); domeG.scale(1, 0.72, 1); domeG.translate(0, 0.536, 0);
+const strawG = new THREE.CylinderGeometry(0.011, 0.011, 0.8, 12);
+const iceG = new THREE.BoxGeometry(0.075, 0.07, 0.075);
+function hotCup() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(hotBodyG, paperM), new THREE.Mesh(hotSleeveG, sleeveM), new THREE.Mesh(hotLidG, lidM));
+  g.position.y = -0.3; return g;
+}
+function icedCup() {
+  const g = new THREE.Group();
+  const milk = new THREE.Mesh(milkG, [milkSideM, milkTopM, milkSideM]);
+  const straw = new THREE.Mesh(strawG, strawM); straw.position.set(0.035, 0.5, -0.01); straw.rotation.set(0.05, 0, -0.22);
+  g.add(milk, straw);
+  [[0.03, 0.415, 0.02, 0.4], [-0.045, 0.405, -0.03, 1.1], [0.0, 0.43, -0.05, 2.0]].forEach(([x, y, z, r]) => {
+    const ice = new THREE.Mesh(iceG, iceM); ice.position.set(x, y, z); ice.rotation.set(r, r * 0.7, r * 0.3); ice.renderOrder = 2; g.add(ice);
+  });
+  const print = new THREE.Mesh(printG, printM); print.renderOrder = 3;
+  const shell = new THREE.Mesh(iceShellG, plasticM); shell.renderOrder = 4;
+  const base = new THREE.Mesh(iceBaseG, plasticM); base.renderOrder = 4;
+  const dome = new THREE.Mesh(domeG, plasticM); dome.renderOrder = 5;
+  g.add(print, shell, base, dome);
+  g.position.y = -0.33; return g;
+}
 const cupsGroup = new THREE.Group(); cupsGroup.visible = false; ringGroup.add(cupsGroup);
 const cups = [];
 for (let k = 1; k < 16; k++) {
-  const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
-  if (k % 2) {
-    inner.add(new THREE.Mesh(cupG, ceramicM), new THREE.Mesh(saucerG, ceramicM), new THREE.Mesh(coffeeG, coffeeM), new THREE.Mesh(handleG, ceramicM));
-    inner.position.y = -0.2;
-  } else {
-    inner.add(new THREE.Mesh(togoG, paperM), new THREE.Mesh(sleeveG, sleeveM), new THREE.Mesh(lidG, lidM));
-    inner.position.y = -0.29;
-  }
+  const g = new THREE.Group(), inner = k % 2 ? hotCup() : icedCup(); g.add(inner);
+  inner.scale.setScalar(1.3); inner.position.y *= 1.3;
   g.userData = { k, th: (k * TAU) / 16, r0: rnd(6.5, 9.5), z0: rnd(-3, 6), swirl: rnd(2.0, 2.8), yaw: rnd(-0.9, 0.9),
     fromQ: new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3))) };
-  inner.scale.setScalar(1.3); inner.position.y *= 1.3;
   cupsGroup.add(g); cups.push(g);
 }
 const upQ = new THREE.Quaternion(), qTmp = new THREE.Quaternion(), eTmp = new THREE.Euler();
@@ -611,7 +664,7 @@ function frame(now) {
       const m = cupMorph(i, p);                                     // cup -> brick
       const th = u.th + ringSpin.rotation.z + (1 - a) * u.swirl, r = mix(u.r0, R, a);
       c.position.set(r * Math.cos(th), r * Math.sin(th), mix(u.z0, 0, a) + Math.sin(t * 1.3 + i) * 0.04 * a * (1 - m) * RM);
-      eTmp.set(0.38, u.yaw * (1 - m) + Math.sin(t * 0.7 + i * 1.7) * 0.25 * RM, 0); upQ.setFromEuler(eTmp);
+      eTmp.set(0.3, u.yaw * (1 - a) * 0.6 + Math.sin(t * 0.7 + i * 1.7) * 0.18 * RM, 0); upQ.setFromEuler(eTmp);
       qTmp.slerpQuaternions(u.fromQ, upQ, ease(a));
       c.quaternion.copy(qTmp);
       const sc = clamp(a * 2.5) * (1 - m) * (1 + 0.18 * Math.sin(Math.PI * clamp(m * 1.6)));
