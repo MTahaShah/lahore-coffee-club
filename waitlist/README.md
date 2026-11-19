@@ -4,6 +4,8 @@
 index.html            the passport scroll + waitlist form
 js/join.js            scroll story, number, "I'm a…" picker, slide-the-brick, sending to the sheet
 js/scene.js           the WebGL scene (the slider moves the 16th brick toward the gap)
+js/passport.js        the realistic passport (leather, foil, deboss, page block) and its contact shadow
+lab/passport.html     passport lab: the passport alone, with the landing's moves on buttons (noindex)
 vendor/three/         three.js r170, self-hosted (no CDN, so no third party sees visitors)
 privacy/  terms/      legal pages (css/page.css, js/page.js, fonts/)
 404.html              "Not on the map."
