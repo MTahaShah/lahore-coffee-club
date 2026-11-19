@@ -567,6 +567,8 @@ function frame(now) {
   P = lerpPose(P, POSE.book, seg(s, 0.27, 0.34));
   P = lerpPose(P, POSE.card, seg(s, 0.6, 0.68));
   P = lerpPose(P, POSE.final, kF);
+  Sound.riser(seg(s, 0.11, 0.17), s > 0.1 && s < 0.175);                       // sound: a riser while the globe turns to Lahore
+  if (Sound.edge("lahore", P.lah > 0.97)) Sound.ping();                       // sound: the globe lands on Lahore
 
   ptr.sx = damp(ptr.sx, ptr.x, 3, dt); ptr.sy = damp(ptr.sy, ptr.y, 3, dt);
 
@@ -596,9 +598,12 @@ function frame(now) {
   const open = seg(s, 0.28, 0.35) * (1 - kF);
   hinge.rotation.y = -open * Math.PI * 0.985;
   book.position.x = open * P.bx;
+  if (Sound.flip("open", open > 0.5) && passport.visible) Sound.swish();     // sound: the cover swings open or shut
+  if (Sound.flip("step", passVis > 0.5)) Sound.swish();                       // sound: the passport steps out, then back
   const kInk = seg(s, 0.345, 0.37) * (1 - kF);
   /* the riffle */
   for (let i = 0; i < N; i++) bend(leaves[i], Math.PI * seg(s, 0.38 + i * 0.036, 0.46 + i * 0.036) * (1 - kF));
+  for (let i = 0; i < N; i++) if (Sound.flip("leaf" + i, leaves[i].userData.a > Math.PI / 2) && passport.visible) Sound.swish();  // sound: each page turning
   const a0 = leaves[0].userData.a;
   inkMat.opacity = a0 < 0.002 ? kInk * 0.9 : 0;
   ink.scale.setScalar(mix(1.6, 1, kInk));
@@ -645,6 +650,9 @@ function frame(now) {
   }
   const sl = S.slide || 0;                          // the slider walks the last brick toward the gap
   const jq = S.joined ? Math.max(S.slideAt || 0, expo(clamp(jt / 1.5))) : ease(sl) * 0.9;
+  if (Sound.edge("joined", S.joined && jt < 3)) Sound.hush();                    // sound: the heartbeat holds for the beat before the hit
+  if (Sound.edge("set", S.joined && jq > 0.97 && jt < 3)) Sound.brick();         // sound: the last brick set in the gap
+  if (Sound.edge("turn", S.joined && jt > 1.2 && jt < 2)) Sound.sweep(2.6);     // sound: the whole ring turns once (jt 1.2 to 3.8 s)
   ghost.material.opacity = kF * (1 - jq) * (S.valid ? 0.75 : 0.28 + 0.2 * Math.sin(t * 3));
   sixteenth.visible = S.joined || sl > 0.001;
   if (sixteenth.visible) {
@@ -657,6 +665,8 @@ function frame(now) {
   /* the cups */
   const cupsOn = p > 0.745 && p < 0.875;
   cupsGroup.visible = cupsOn;
+  Sound.gather(clamp((p - 0.745) / 0.13), cupsOn);                             // sound: the heartbeat quickens through the gathering
+  for (let i = 0; i < cups.length; i++) if (Sound.edge("cup" + i, cupMorph(i, p) > 0.5)) Sound.tick(i);  // sound: each brick lights, a pluck up the scale
   if (cupsOn) {
     for (let i = 0; i < cups.length; i++) {
       const c = cups[i], u = c.userData;

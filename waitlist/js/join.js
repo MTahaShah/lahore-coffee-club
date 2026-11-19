@@ -127,6 +127,7 @@
     input.value = d;
     err.textContent = d && d[0] !== "3" ? "Pakistani mobile numbers start with 3." : "";
     input.toggleAttribute("aria-invalid", !!err.textContent);
+    if (d.length !== S.digits) Sound.key(d.length < S.digits);                 // sound: a digit typed (or deleted)
     render();
   });
   input.addEventListener("focus", () => { dial.classList.add("focus"); if (S.target < 0.86) toEnd(); setTimeout(kb, 350); });
