@@ -11,6 +11,10 @@
 #                      as base64 wherever a stylesheet says url("fonts/…")
 #   <!-- @logos -->    the logo SVGs below as hidden <template>s (ui.logo)
 #   <!-- @scripts -->  the JS files below, in order
+#   <!-- @modules -->  ES modules carried as inert text (<script type="text/plain"
+#                      id="mod-NAME">), turned into modules only when needed
+#                      (passport3d.js): three.js and the waitlist's passport,
+#                      so both sites share one passport
 # Add new files to these lists.
 #
 # PWA files can't be inlined (the phone fetches them as real files), so
@@ -76,11 +80,19 @@ JS_FILES=(
   app-brand.js
   app-plan.js
   app-order.js
+  passport3d.js
   app-club.js
   app-history.js
   app-circles.js
   app-welcome.js
   landing.js
+)
+
+# Inert module text: id -> file (paths from the repo root)
+MODULES=(
+  "three:waitlist/vendor/three/three.module.min.js"
+  "room:waitlist/vendor/three/RoomEnvironment.js"
+  "passport:waitlist/js/passport.js"
 )
 
 b64() { base64 < "$1" | tr -d '\n'; }
@@ -104,6 +116,11 @@ build() {
   [[ -f "$FAVICON" ]] || { echo "build: missing $FAVICON" >&2; return 1; }
   for f in "${PWA_FILES[@]}"; do [[ -f "$SRC/$f" ]] || { echo "build: missing $SRC/$f" >&2; return 1; }; done
   for f in "${ICON_FILES[@]}"; do [[ -f "$SRC/logos/$f" ]] || { echo "build: missing $SRC/logos/$f" >&2; return 1; }; done
+  local m
+  for m in "${MODULES[@]}"; do
+    [[ -f "${m#*:}" ]] || { echo "build: missing ${m#*:}" >&2; return 1; }
+    if grep -q -i -e '</script' -e '<!--' "${m#*:}"; then echo "build: ${m#*:} contains '</script' or '<!--'" >&2; return 1; fi
+  done
 
   # A literal </script> or </style> inside a source file would end the tag early
   if grep -l -i '</script' "${JS_FILES[@]/#/$SRC/}" >/dev/null 2>&1; then
@@ -137,6 +154,11 @@ build() {
           echo "<template id=\"logo-${f%.svg}\">"; cat "$SRC/logos/$f"; echo; echo "</template>"
         done
         echo "</div>"
+        ;;
+      *"<!-- @modules -->"*)
+        for m in "${MODULES[@]}"; do
+          echo "<script type=\"text/plain\" id=\"mod-${m%%:*}\">"; cat "${m#*:}"; echo; echo "</script>"
+        done
         ;;
       *"<!-- @scripts -->"*)
         for f in "${JS_FILES[@]}"; do

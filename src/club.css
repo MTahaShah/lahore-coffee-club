@@ -246,6 +246,24 @@
 .pstamp.is-empty .pstamp__ink { border: 1.5px dotted var(--line-strong); border-radius: 50%; color: var(--ink-4); }
 .pstamp.is-empty .pstamp__name { font-weight: 500; }
 
+/* The 3D passport (passport3d.js): the same object as the waitlist's.
+   The canvas overhangs the book's box (tilt, open cover, the one contact
+   shadow, see CLAUDE.md); the DOM pages stay as the text screen readers
+   read, the cover stays the real button. Without WebGL none of this
+   applies and the CSS book above shows. */
+.pbook__glslot { display: none; }
+.pbook.is-3d { perspective: none; touch-action: pan-y; }
+.pbook.is-3d .pbook__glslot { display: block; position: absolute; inset: -6% -14% -26% -14%; z-index: 0; pointer-events: none; }
+.pbook__gl { display: block; width: 100%; height: 100%; }
+:root .pbook.is-3d .pbook__cover { background: transparent; box-shadow: none; border: 0; border-radius: 10px; }   /* :root beats the dark-mode lift below */
+.pbook.is-3d .pbook__cover > *, .pbook.is-3d .pbook__cover::before { visibility: hidden; }
+.pbook.is-3d .pbook__page {
+  position: absolute; inset: auto; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); border: 0; white-space: nowrap;
+}
+.pbook.is-3d:has(.pbook__page:focus-visible) { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 10px; }
+.pbook-stage:has(.is-3d) { overflow: visible; padding-bottom: var(--space-7, 48px); }
+
 /* Under the book */
 .pbook__controls { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-2); text-align: center; }
 .pbook__controls[hidden] { display: none; }

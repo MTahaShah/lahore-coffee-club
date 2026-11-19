@@ -172,6 +172,40 @@
       </ul>`;
   }
 
+  /* The same pages for the 3D passport (passport3d.js): drawn from the same club data */
+  const up = (v) => String(v || "").toUpperCase();
+  const mrzName = (v) => up(v).normalize("NFD").replace(/[^A-Z]/g, "");
+  function passportContent(c) {
+    const m = c.member, plan = S.memberPlan(m), total = c.passport.total;
+    const no = String(c.memberNo ?? 0).padStart(4, "0");
+    const id = {
+      kind: "id", n: 1, gutter: "left", initials: m.initials || (m.firstName || "?")[0], number: no,
+      fields: [["Name", fullName(m)], ["Member since", fmt.monthYear(c.since)], ["Plan", plan.type === "explorer" ? `Explorer · ${plan.name}` : plan.name]],
+      mrz: [`P<LHR<${mrzName(m.lastName)}<<${mrzName(m.firstName)}`.padEnd(33, "<").slice(0, 33), `LCC${no}<<<<<<MEMBER<<SINCE<<${new Date(c.since).getFullYear()}`.padEnd(33, "<").slice(0, 33)],
+    };
+    const stampPages = bookPages(c).map((st, i) => ({
+      kind: "stamps", n: i + 2, gutter: "left", label: `STAMPS · ${st[0].n + 1}–${st[st.length - 1].n + 1} OF ${total}`,
+      items: [0, 1, 2, 3].map((j) => {
+        const s = st[j];
+        if (!s) return null;
+        return s.visited
+          ? { name: up(shortName(s.cafe)), top: up(S.area(s.cafe.area).name), bottom: stampDate(s.firstAt), shape: s.n % 3 === 1 ? "rect" : "round", tilt: TILT[s.n % TILT.length] }
+          : { empty: true, name: up(shortName(s.cafe)) };
+      }),
+    }));
+    return {
+      inside: { kind: "endpaper" },
+      leaves: [id, ...stampPages].map((front) => ({ front, back: { kind: "blank", gutter: "right" } })),
+      top: { kind: "blank", gutter: "left" },
+    };
+  }
+  /** Put the 3D passport into this render of the book (keeps the DOM book if it can't). */
+  function place3d(root, c) {
+    const p3 = window.LCC.passport3d;
+    if (!p3 || !p3.available()) return;
+    p3.place($(".pbook__glslot", root), passportContent(c), book, () => { const b = $("[data-pbook]", root); if (b) b.classList.add("is-3d"); });
+  }
+
   function passportBookHtml(c) {
     const p = c.passport;
     const pages = [idPageHtml(c), ...bookPages(c).map((st, i) => stampPageHtml(st, i + 2, p.total))];
@@ -181,7 +215,8 @@
       : `Every partner café, visited. Both complimentary cups are yours.`;
     return html`
       <div class="pbook-stage">
-        <div class="pbook${book.open ? " is-open" : ""}" data-pbook data-pages-total="${pages.length}">
+        <div class="pbook${book.open ? " is-open" : ""}${window.LCC.passport3d && window.LCC.passport3d.ready() ? " is-3d" : ""}" data-pbook data-pages-total="${pages.length}">
+          <div class="pbook__glslot" aria-hidden="true"></div>
           ${pages.map((pg, i) => html`<section class="pbook__page${i === book.page ? " is-current" : ""}" data-page="${i}" tabindex="-1"
               aria-label="Passport page ${i + 1} of ${pages.length}" ${!book.open || i !== book.page ? raw("hidden") : ""}>${pg}</section>`)}
           <button type="button" class="pbook__cover theme-dark" data-pbook-open aria-label="Open your coffee passport" ${book.open ? raw("hidden") : ""}>
@@ -230,18 +265,27 @@
       $('[data-pbook-turn="1"]', root).setAttribute("aria-disabled", String(book.page === n - 1));
     }
 
+    // The 3D passport, when it's showing; else the CSS book below
+    const gl = () => $book().classList.contains("is-3d") && window.LCC.passport3d.ready();
+
     async function open() {
       if (busy || book.open) return;
       busy = true;
       const cover = $("[data-pbook-open]", root);
       const first = pageEl(book.page);
-      first.hidden = false;
-      cover.classList.add(still() ? "is-fading" : "is-flipping");
-      await frame();
-      cover.classList.add("is-away");
-      await after(cover);
-      cover.hidden = true;
-      cover.classList.remove("is-fading", "is-flipping", "is-away");
+      if (gl()) {
+        await window.LCC.passport3d.open(book.page);
+        first.hidden = false;
+        cover.hidden = true;
+      } else {
+        first.hidden = false;
+        cover.classList.add(still() ? "is-fading" : "is-flipping");
+        await frame();
+        cover.classList.add("is-away");
+        await after(cover);
+        cover.hidden = true;
+        cover.classList.remove("is-fading", "is-flipping", "is-away");
+      }
       book.open = true;
       $book().classList.add("is-open");
       $("[data-pbook-controls]", root).hidden = false;
@@ -255,12 +299,17 @@
       if (busy || !book.open) return;
       busy = true;
       const cover = $("[data-pbook-open]", root);
-      cover.classList.add(still() ? "is-fading" : "is-flipping", "is-away");
-      cover.hidden = false;
-      await frame();
-      cover.classList.remove("is-away");
-      await after(cover);
-      cover.classList.remove("is-fading", "is-flipping");
+      if (gl()) {
+        await window.LCC.passport3d.close();
+        cover.hidden = false;
+      } else {
+        cover.classList.add(still() ? "is-fading" : "is-flipping", "is-away");
+        cover.hidden = false;
+        await frame();
+        cover.classList.remove("is-away");
+        await after(cover);
+        cover.classList.remove("is-fading", "is-flipping");
+      }
       pageEl(book.page).hidden = true;
       book.open = false;
       $book().classList.remove("is-open");
@@ -278,6 +327,15 @@
       if (to < 0 || to >= total()) return;
       busy = true;
       const a = pageEl(from), b = pageEl(to);
+      if (gl()) {
+        await window.LCC.passport3d.turn(from, to);
+        b.hidden = false; a.hidden = true;
+        a.classList.remove("is-current"); b.classList.add("is-current");
+        book.page = to;
+        paintControls();
+        busy = false;
+        return;
+      }
       const moving = dir > 0 && !still() ? a : b;
       b.hidden = false;
       moving.classList.add("is-top", still() ? "is-fading" : "is-flipping");
@@ -706,6 +764,7 @@
       const set = (key, markup) => { const n = $(`[data-club="${key}"]`, view); if (n) n.innerHTML = markup.s; };
       set("status", statusHtml(c));
       set("passport", passportBookHtml(c));
+      place3d($('[data-club="passport"]', view), c);
       set("badges", badgesRowHtml(c));
       if (badgeSheet && badgeSheet.dataset.open === "true") {
         const body = $(".sheet__body", badgeSheet), top = body.scrollTop;
@@ -746,6 +805,7 @@
       mount() {
         // The passport container stays put across repaints, so its listeners do too
         bindBook($('[data-club="passport"]', view));
+        place3d($('[data-club="passport"]', view), S.club());
         const unbindPerks = bindPerks($('[data-club="perks"]', view));
         badgeSheet = document.createElement("div");
         badgeSheet.className = "sheet";

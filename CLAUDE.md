@@ -42,7 +42,7 @@ counter screen).
   dividers. One primary action per screen; secondary things go behind a
   `.disclosure` (button with `aria-expanded`, a panel that opens in 250ms,
   none with reduced motion, `inert` while closed) or a "See all" sheet.
-- Hairlines, no shadows (one exception: the card, passport and gift card are lifted with depth in dark mode, club.css). Status colours only for busy status, with text.
+- Hairlines, no shadows (exceptions: the card, passport and gift card are lifted with depth in dark mode, club.css; and the 3D passport's one soft contact shadow on the ground, `createContactShadow` in `waitlist/js/passport.js`: in the Club tab and the waitlist lab `/lab/passport`). Status colours only for busy status, with text.
 - Matcha mode (member app only): a second flavour, `[data-flavour="matcha"]`
   on `<html>` in `base.css` (colour tokens only, light and dark; coffee
   stays the default). `router.js` owns flavour and Light / Dark / Auto
@@ -136,6 +136,14 @@ favicon are inlined). Edit `src/`, never `index.html`.
   confirmation's styles (`#/app/order/done/:id`, in app-order.js)
 - `admin.js`, `admin.css` — the LCC admin panel (`#/admin`, desktop-first,
   any 4 digits): Cafés, Members, Ledger, Payouts. Uses partner.css's shell
+- `passport3d.js` — the Club tab's passport as the real 3D object
+  (`LCC.passport3d`: `place`, `open`, `close`, `turn`, `ready`). It runs
+  the waitlist's `waitlist/js/passport.js` (one passport for both sites)
+  on three.js r170, which `build.sh` carries as inert text
+  (`<!-- @modules -->`, `<script type="text/plain" id="mod-…">`, blob URLs
+  on first use; works on file://). Pages come from the same club data as
+  the DOM book (`passportContent` in app-club.js). The DOM book stays
+  under it as the accessible text and as the fallback without WebGL
 - `app-club.js` — Club tab (`#/app/club`, personal only: Beans at the top
   with their sheet, passport, member card, status, perks, badges, invite
   with statuses, Send a gift) and gifting (`#/app/gift`)
@@ -524,6 +532,9 @@ next pass until asked.**
   cdnjs), pinned with SRI.
 - QR library: qrcode-generator 1.4.4 from cdnjs; falls back to the 6-digit
   code offline.
+- three.js r170 (approved exception, for the 3D passport): self-hosted in
+  `waitlist/vendor/three/`, inlined into index.html by build.sh as inert
+  text, so no CDN. Only the Club tab's passport uses it.
 - Approved exception to "all state is in memory": the Coffee / Matcha choice
   is remembered on the device in localStorage `"lcc-flavour"` (try/catch;
   if storage fails it defaults to Coffee). Light / Dark / Auto stays in
@@ -560,9 +571,11 @@ next pass until asked.**
 - Member numbers: first 500 are Founding; new members get
   `club.membersIssued + 1` (No. 0487 in the demo). Invite code = first name
   + three letters (MUMTAZ-JB9; see Pass 9).
-- Club tab: the passport is a book at the top (black cover, cream foil
-  type, the ring logo; opens with a 360ms rotateY flip, crossfade with
-  reduced motion). Page 1 is an ID page, then 4 stamps a page from
+- Club tab: the passport is the 3D passport (passport3d.js, realistic
+  pass): black leather, caramel foil wordmark and ring, beige deboss,
+  opens in 900ms, pages turn in 700ms, leans toward the mouse; reduced
+  motion jumps. Without WebGL, the CSS book (black cover, cream foil
+  type, the ring logo; 360ms rotateY flip, crossfade with reduced motion). Page 1 is an ID page, then 4 stamps a page from
   `select.club().passport`. Stamps are ink in `--accent-text` (an accent
   use added on request). Badges are one "Badges · X of Y" row that opens a
   sheet (Earned with dates, Still to earn with progress). Earned dates are
