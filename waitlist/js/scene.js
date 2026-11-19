@@ -1,6 +1,7 @@
 /* Lahore Coffee Club waitlist: the WebGL passport scene (three.js r170, self-hosted in /vendor). */
 import * as THREE from "../vendor/three/three.module.min.js";
 import { RoomEnvironment } from "../vendor/three/RoomEnvironment.js";
+import { createPassport } from "./passport.js";
 
 const S = window.LCC;
 const canvas = document.getElementById("gl");
@@ -74,152 +75,17 @@ await Promise.race([
   Promise.all([document.fonts.load(FONT(400, 40)), document.fonts.load(FONT(700, 40))]),
   new Promise((r) => setTimeout(r, 1500)),
 ]);
-const [ringFoil, ringPbr, ringFaint, wordImg] = await Promise.all([
-  ringImg("#F4E6C8", "#B39770", "#DCC69C"),
-  ringImg("rgb(0,60,255)", "rgb(0,60,255)", "rgb(0,60,255)"),
-  ringImg("#DCD1BE", "#CFC3AE", "#E3D9C8"),
-  svgImg(WORDMARK, 1048, 474),
-]);
+const wordImg = await svgImg(WORDMARK, 1048, 474);
 
-/* ---------- passport textures (88:125, like the app's booklet) ---------- */
-const TW = 1024, TH = 1455, CX = TW / 2 + 12, PK = 0.75;
-function foilGrad(x) { const g = x.createLinearGradient(0, 0, TW, TH * 0.4); g.addColorStop(0, "#FFF4DD"); g.addColorStop(0.45, "#C9B48E"); g.addColorStop(0.7, "#FFF1D6"); g.addColorStop(1, "#D8C29A"); return g; }
-function drawCover(pbr) {
-  const [c, x] = mk(TW, TH);
-  x.fillStyle = pbr ? "rgb(0,178,0)" : "#0E0D0C"; x.fillRect(0, 0, TW, TH);
-  noise(x, pbr ? 26 : 7, pbr);
-  if (!pbr) {
-    x.strokeStyle = "rgba(255,247,232,.15)"; x.lineWidth = 3;
-    x.beginPath(); x.roundRect(56, 36, TW - 92, TH - 72, [12, 34, 34, 12]); x.stroke();
-    x.fillStyle = "rgba(255,247,232,.10)"; x.fillRect(28, 0, 3, TH);
-  }
-  x.fillStyle = pbr ? "rgb(0,60,255)" : foilGrad(x);
-  x.font = FONT(700, 36); tracked(x, "LAHORE COFFEE CLUB", CX, 196, 12, "center");
-  const img = pbr ? ringPbr : ringFoil;
-  if (img) { const w = 560, h = (w * 382) / 371; x.drawImage(img, CX - w / 2, 650 - h / 2, w, h); }
-  x.font = FONT(700, 54); tracked(x, "COFFEE PASSPORT", CX, 1090, 17, "center");
-  x.font = FONT(400, 36); x.fillStyle = pbr ? "rgb(0,150,0)" : "rgba(255,247,232,.5)";
-  tracked(x, "Issued in Lahore", CX, 1300, 4, "center");
-  return c;
-}
-function drawBack(pbr) {
-  const [c, x] = mk(TW, TH);
-  x.fillStyle = pbr ? "rgb(0,178,0)" : "#0E0D0C"; x.fillRect(0, 0, TW, TH);
-  noise(x, pbr ? 26 : 7, pbr);
-  if (!pbr) { x.strokeStyle = "rgba(255,247,232,.12)"; x.lineWidth = 3; x.beginPath(); x.roundRect(36, 36, TW - 92, TH - 72, [34, 12, 12, 34]); x.stroke(); }
-  const img = pbr ? ringPbr : ringFoil;
-  x.fillStyle = pbr ? "rgb(0,60,255)" : foilGrad(x);
-  if (img) { const w = 200, h = (w * 382) / 371; x.drawImage(img, TW / 2 - 12 - w / 2, 1080 - h / 2, w, h); }
-  x.font = FONT(700, 26); tracked(x, "ONE CITY. ONE PASS.", TW / 2 - 12, 1270, 9, "center");
-  return c;
-}
-function paper(x, gutter) {
-  x.fillStyle = "#FBF4E6"; x.fillRect(0, 0, TW, TH);
-  x.strokeStyle = "rgba(205,193,172,.45)"; x.lineWidth = 2;
-  for (let r = 48; r < 2400; r += 48) { x.beginPath(); x.arc(TW / 2, TH * 1.2, r, 0, TAU); x.stroke(); }
-  noise(x, 6);
-  const g = gutter === "left" ? x.createLinearGradient(0, 0, 110, 0) : x.createLinearGradient(TW, 0, TW - 110, 0);
-  g.addColorStop(0, "rgba(60,40,20,.16)"); g.addColorStop(1, "rgba(60,40,20,0)");
-  x.fillStyle = g; x.fillRect(0, 0, TW, TH);
-}
-const page = (gutter, k = PK) => { const [c, x] = mk(Math.round(TW * k), Math.round(TH * k)); x.scale(k, k); paper(x, gutter); return [c, x]; };
-const LBL = "#6F6A62", INK = "#1A1816", PAD = 64;
-function head(x, label, n, gutter) {
-  x.fillStyle = LBL; x.font = FONT(400, 32);
-  if (gutter === "left") { tracked(x, label, PAD + 20, 112, 10); tracked(x, String(n), TW - PAD, 112, 0, "right"); }
-  else { tracked(x, String(n), PAD, 112, 0); tracked(x, label, TW - PAD - 20, 112, 10, "right"); }
-}
-function drawId() {
-  const [c, x] = page("right", 1);
-  x.fillStyle = LBL; x.font = FONT(400, 32);
-  tracked(x, "COFFEE PASSPORT", PAD, 112, 10); tracked(x, "1", TW - PAD, 112, 0, "right");
-  x.fillStyle = "#F1E8D7"; x.strokeStyle = "#E0D7C6"; x.lineWidth = 3;
-  x.beginPath(); x.roundRect(PAD, 196, 262, 328, 14); x.fill(); x.stroke();
-  if (ringFaint) { const w = 170, h = (w * 382) / 371; x.drawImage(ringFaint, PAD + 131 - w / 2, 360 - h / 2, w, h); }
-  const fx = PAD + 262 + 56;
-  [["NAME", "To be issued"], ["MEMBER SINCE", "Day one"], ["PLAN", "By invitation"]].forEach(([k, v], i) => {
-    const y = 236 + i * 148;
-    x.fillStyle = LBL; x.font = FONT(400, 30); tracked(x, k, fx, y, 9);
-    x.fillStyle = INK; x.font = FONT(400, 52); x.fillText(v, fx, y + 64);
-  });
-  x.fillStyle = LBL; x.font = FONT(400, 30); tracked(x, "MEMBER NO.", PAD, 770, 9);
-  x.fillStyle = INK; x.font = FONT(400, 100); tracked(x, "LCC", PAD, 900, 26);
-  for (let i = 0; i < 4; i++) x.fillRect(PAD + 300 + i * 120, 896, 88, 5);
-  x.fillStyle = "#CFC6B6"; x.fillRect(PAD, 1076, (TW - PAD * 2) * 0.7, 3);
-  x.fillStyle = LBL; x.font = FONT(400, 28); tracked(x, "HOLDER'S SIGNATURE", PAD, 1130, 8);
-  x.fillStyle = "#4D4A45"; x.font = FONT(400, 44);
-  fitTracked(x, "P<LHR<COFFEE<<CLUB<<<<<<<<<<<<<<<", PAD, 1300, TW - PAD * 2);
-  fitTracked(x, "LCC0000<<<<<<MEMBERS<<FIRST<<<<<<", PAD, 1372, TW - PAD * 2);
-  return c;
-}
-/* stamps: ink on paper, a touch uneven */
-const SLOTS = [[286, 560], [738, 560], [286, 1110], [738, 1110]];
-const INKS = ["#713105", "#713105", "#341100", "#7F5E35"];
-function inkStamp(name, shape, tilt, col, top = "LAHORE", bottom = "COFFEE CLUB") {
-  const [c, x] = mk(440, 440);
-  x.translate(220, 220); x.rotate(tilt * D2R);
-  x.strokeStyle = x.fillStyle = col;
-  if (shape === "round") {
-    x.lineWidth = 10; x.beginPath(); x.arc(0, 0, 196, 0, TAU); x.stroke();
-    x.lineWidth = 3.5; x.beginPath(); x.arc(0, 0, 176, 0, TAU); x.stroke();
-  } else {
-    x.lineWidth = 10; x.beginPath(); x.roundRect(-200, -138, 400, 276, 18); x.stroke();
-    x.lineWidth = 3.5; x.beginPath(); x.roundRect(-182, -120, 364, 240, 10); x.stroke();
-  }
-  x.font = FONT(700, 26); tracked(x, top, 0, -70, 9, "center");
-  let fs = 56; x.font = FONT(700, fs);
-  while (x.measureText(name).width + name.length * 3 > 300 && fs > 30) { fs -= 2; x.font = FONT(700, fs); }
-  tracked(x, name, 0, 18, 3, "center");
-  x.fillRect(-90, 44, 180, 3.5);
-  x.font = FONT(400, 24); tracked(x, bottom, 0, 92, 7, "center");
-  x.setTransform(1, 0, 0, 1, 0, 0);
-  x.globalCompositeOperation = "destination-out";
-  for (let i = 0; i < 1500; i++) { x.globalAlpha = Math.random() * 0.75; x.fillRect(Math.random() * 440, Math.random() * 440, 1 + Math.random() * 3, 1 + Math.random() * 3); }
-  return c;
-}
-function emptyStamp(x, u, v, name) {
-  x.save(); x.strokeStyle = "#C2B8A6"; x.lineWidth = 5; x.lineCap = "round"; x.setLineDash([2, 13]);
-  x.beginPath(); x.arc(u, v, 182, 0, TAU); x.stroke(); x.restore();
-  x.fillStyle = "#A39C90"; x.font = FONT(700, 32); tracked(x, name, u, v - 4, 5, "center");
-  x.font = FONT(400, 30); tracked(x, "Not yet", u, v + 46, 1, "center");
-}
-function stampPage(n, gutter, items) {
-  const [c, x] = page(gutter);
-  head(x, "STAMPS", n, gutter);
-  items.forEach((it, i) => {
-    if (!it) return;
-    const [u, v] = SLOTS[i];
-    if (it.empty) emptyStamp(x, u, v, it.name);
-    else { x.globalAlpha = 0.86; x.drawImage(inkStamp(it.name, it.shape, it.tilt, it.col), u - 220, v - 220); x.globalAlpha = 1; }
-  });
-  return c;
-}
-const AREAS = ["DHA", "JOHAR TOWN", "LIBERTY", "CANTT", "GARDEN TOWN", "SHADMAN", "FAISAL TOWN", "ANARKALI", "FORTRESS", "TOWNSHIP",
-  "IQBAL TOWN", "MALL ROAD", "WAPDA TOWN", "VALENCIA", "BAHRIA TOWN", "LAKE CITY", "PHASE 6", "RAVI ROAD", "SAMANABAD", "GULBERG III",
-  "MODEL TOWN", "WALLED CITY", "UPPER MALL", "ALLAMA IQBAL", "THOKAR", "SABZAZAR", "EDEN", "PCSIR", "AIRPORT RD", "BURKI"];
-const TILTS = [-7, 5, -3, 8, -5, 3, -8, 6];
-let ai = 0;
-const fill4 = (n, empties = []) => [0, 1, 2, 3].map((i) => {
-  const name = AREAS[ai++ % AREAS.length];
-  return empties.includes(i) ? { empty: true, name } : { name, shape: (n + i) % 3 === 1 ? "rect" : "round", tilt: TILTS[(n + i) % 8], col: INKS[(n * 3 + i) % 4] };
-});
-function cardPage() {
-  const [c, x] = page("left");
-  head(x, "MEMBER CARD", 12, "left");
-  x.save(); x.strokeStyle = "#BFB5A3"; x.lineWidth = 4; x.setLineDash([3, 12]); x.lineCap = "round";
-  x.beginPath(); x.roundRect(CARD_U - CARD_PX / 2, CARD_V - CARD_PX * 2 / 7, CARD_PX, CARD_PX * 4 / 7, 40); x.stroke(); x.restore();
-  x.fillStyle = "#A39C90"; x.font = FONT(400, 30);
-  tracked(x, "Issued in person", TW / 2, CARD_V + CARD_PX * 2 / 7 + 80, 2, "center");
-  x.fillStyle = "#4D4A45"; x.font = FONT(400, 44);
-  fitTracked(x, "LCC<<<<<<FOUNDING<<MEMBER<<<<<<<", PAD, 1372, TW - PAD * 2);
-  return c;
-}
-function edgeTex(vertical) {
-  const [c, x] = mk(256, 256);
-  x.fillStyle = "#EFE6D3"; x.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 256; i += 3) { x.fillStyle = `rgba(150,130,100,${0.12 + Math.random() * 0.18})`; vertical ? x.fillRect(i, 0, 1, 256) : x.fillRect(0, i, 256, 1); }
-  return c;
-}
+/* ---------- the passport: the real object (leather, foil, deboss, page block), shared with the member app ---------- */
+const PP = await createPassport(THREE, { renderer, ringSvg: RING, wordmarkSvg: document.querySelector(".mark svg").outerHTML, size: 1024, pageScale: 0.75 });
+ALL_TEX.push(...PP.textures);
+const passport = PP.group; world.add(passport);
+const { book, leaves } = PP;
+const { W, N, PZ, PW, PH, CARD_W, CARD_Y } = PP.dims;
+const CARD_H = (CARD_W * 4) / 7;
+const ANG = new Array(N).fill(0);                       // the leaves' angles, set by the riffle each frame
+
 /* the member card, front only: black, 22 hairline rings lit on the diagonal, wordmark, name, number */
 function drawCard() {
   const CW = 1024, CH = 585, k = CH / 200;
@@ -247,79 +113,6 @@ function drawCard() {
   x.fillStyle = "#FFF7E8"; x.font = FONT(400, 66); tracked(x, "LCC-····", CW * 0.94, CH * 0.9 - 58, 3, "right");
   return c;
 }
-
-/* ---------- materials ---------- */
-const PW = 1.71, PH = 2.44;                            // page size
-const CARD_W = 1.42, CARD_H = (CARD_W * 4) / 7, CARD_Y = 0.12;
-const CARD_PX = (CARD_W / PW) * TW, CARD_U = TW / 2, CARD_V = TH * (0.5 - CARD_Y / PH);
-const coverPbr = tex(drawCover(true), false), backPbr = tex(drawBack(true), false);
-const black = new THREE.MeshStandardMaterial({ color: 0x0d0d0c, roughness: 0.6 });
-const coverMat = new THREE.MeshStandardMaterial({ map: tex(drawCover(false)), roughnessMap: coverPbr, metalnessMap: coverPbr, roughness: 1, metalness: 1 });
-const backMat = new THREE.MeshStandardMaterial({ map: tex(drawBack(false)), roughnessMap: backPbr, metalnessMap: backPbr, roughness: 1, metalness: 1 });
-const idMat = new THREE.MeshStandardMaterial({ map: tex(drawId()), roughness: 0.92 });
-const plainPaper = new THREE.MeshStandardMaterial({ color: 0xf6eedf, roughness: 0.95 });
-const edgeV = new THREE.MeshStandardMaterial({ map: tex(edgeTex(true)), roughness: 0.95 });
-const edgeH = new THREE.MeshStandardMaterial({ map: tex(edgeTex(false)), roughness: 0.95 });
-const cardPageMat = new THREE.MeshStandardMaterial({ map: tex(cardPage()), roughness: 0.92 });
-/* a leaf: one bending sheet, a page on each side */
-function leafMat(front, back) {
-  const m = new THREE.MeshStandardMaterial({ map: front, side: THREE.DoubleSide, roughness: 0.92 });
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.mapB = { value: back };
-    m.userData.sh = sh;
-    sh.fragmentShader = "uniform sampler2D mapB;\n" + sh.fragmentShader.replace("#include <map_fragment>",
-      "vec4 sampledDiffuseColor = gl_FrontFacing ? texture2D( map, vMapUv ) : texture2D( mapB, vec2( 1.0 - vMapUv.x, vMapUv.y ) );\n diffuseColor *= sampledDiffuseColor;");
-  };
-  m.customProgramCacheKey = () => "leaf";
-  return m;
-}
-
-/* ---------- passport ---------- */
-const W = 1.76, H = 2.5, CT = 0.026, PT = 0.13, N = 5;
-const passport = new THREE.Group(); world.add(passport);
-const book = new THREE.Group(); passport.add(book);
-const back = new THREE.Mesh(new THREE.BoxGeometry(W, H, CT), [black, black, black, black, black, backMat]);
-back.position.z = -(PT / 2 + CT / 2); book.add(back);
-const PZ = PT / 2 - 0.03;                               // top of the page block
-const pages = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, PT - 0.03), [edgeV, edgeV, edgeH, edgeH, cardPageMat, plainPaper]);
-pages.position.set(0.018, 0, -0.015); book.add(pages);
-const spine = new THREE.Mesh(new THREE.BoxGeometry(0.03, H, PT + CT * 2), black);
-spine.position.x = -W / 2 + 0.006; book.add(spine);
-const hinge = new THREE.Group(); hinge.position.set(-W / 2, 0, PT / 2 + CT / 2); book.add(hinge);
-const cover = new THREE.Mesh(new THREE.BoxGeometry(W, H, CT), [black, black, black, black, coverMat, idMat]);
-cover.position.x = W / 2; hinge.add(cover);
-
-const HX = 0.018 - PW / 2;                              // where the leaves are sewn in
-const SEGS = 32;
-const plain2 = tex(stampPage(2, "left", [null, { empty: true, name: "GULBERG" }, { empty: true, name: "MODEL TOWN" }, { empty: true, name: "WALLED CITY" }]));
-const inked2 = tex(stampPage(2, "left", [{ name: "MEMBERS FIRST", shape: "round", tilt: -7, col: "#713105" }, { empty: true, name: "GULBERG" }, { empty: true, name: "MODEL TOWN" }, { empty: true, name: "WALLED CITY" }]));
-const leaves = [];
-for (let i = 0; i < N; i++) {
-  const front = i === 0 ? plain2 : tex(stampPage(2 + 2 * i, "left", fill4(2 + 2 * i, i === 1 ? [2] : i === 3 ? [1] : [])));
-  const backT = tex(stampPage(3 + 2 * i, "right", fill4(3 + 2 * i, i === 2 ? [3] : [])));
-  const g = new THREE.PlaneGeometry(PW, PH, SEGS, 1);
-  const m = new THREE.Mesh(g, leafMat(front, backT));
-  m.frustumCulled = false;
-  m.userData = { zR: PZ + 0.003 + (N - 1 - i) * 0.0035, zL: PT / 2 + CT + 0.003 + i * 0.0035, a: -1 };
-  book.add(m); leaves.push(m);
-}
-function bend(m, a) {
-  if (Math.abs(m.userData.a - a) < 1e-5) return;
-  m.userData.a = a;
-  const pos = m.geometry.attributes.position, du = PW / SEGS, c = 0.9 * Math.sin(a);
-  const zh = mix(m.userData.zR, m.userData.zL, a / Math.PI) + Math.sin(a) * 0.03;
-  let x = 0, z = 0;
-  for (let ix = 0; ix <= SEGS; ix++) {
-    if (ix > 0) { const th = a - c * ((ix - 0.5) / SEGS); x += Math.cos(th) * du; z += Math.sin(th) * du; }
-    for (let iy = 0; iy < 2; iy++) { const idx = iy * (SEGS + 1) + ix; pos.setXYZ(idx, HX + x, iy === 0 ? PH / 2 : -PH / 2, zh + z); }
-  }
-  pos.needsUpdate = true; m.geometry.computeVertexNormals();
-}
-leaves.forEach((m) => bend(m, 0));
-const inkMat = new THREE.MeshStandardMaterial({ map: tex(inkStamp("MEMBERS FIRST", "round", -7, "#713105")), transparent: true, roughness: 1, depthWrite: false, opacity: 0 });
-const ink = new THREE.Mesh(new THREE.PlaneGeometry((440 / TW) * PW, (440 / TW) * PW), inkMat);
-ink.position.set(HX + (SLOTS[0][0] / TW) * PW, (0.5 - SLOTS[0][1] / TH) * PH, leaves[0].userData.zR + 0.003);
-book.add(ink);
 
 /* the card, as a hologram rising out of page 12 */
 const cardMat = new THREE.ShaderMaterial({
@@ -596,18 +389,14 @@ function frame(now) {
   passport.position.set(P.px, mix(-5.5, 0, rise) + P.py + Math.sin(t * 0.8) * 0.05 * RM * (1 - P.face), P.pz);
   passport.rotation.set(P.prx + ptr.sy * 0.1 * P.face, spinP + ptr.sx * 0.25 * P.face + Math.sin(t * 0.5) * 0.25 * kF * RM, P.prz);
   const open = seg(s, 0.28, 0.35) * (1 - kF);
-  hinge.rotation.y = -open * Math.PI * 0.985;
   book.position.x = open * P.bx;
   if (Sound.flip("open", open > 0.5) && passport.visible) Sound.swish();     // sound: the cover swings open or shut
   if (Sound.flip("step", passVis > 0.5)) Sound.swish();                       // sound: the passport steps out, then back
   const kInk = seg(s, 0.345, 0.37) * (1 - kF);
   /* the riffle */
-  for (let i = 0; i < N; i++) bend(leaves[i], Math.PI * seg(s, 0.38 + i * 0.036, 0.46 + i * 0.036) * (1 - kF));
+  for (let i = 0; i < N; i++) ANG[i] = Math.PI * seg(s, 0.38 + i * 0.036, 0.46 + i * 0.036) * (1 - kF);
+  PP.pose(open, kInk, ANG);                              // cover, riffle and the MEMBERS FIRST stamp inking in
   for (let i = 0; i < N; i++) if (Sound.flip("leaf" + i, leaves[i].userData.a > Math.PI / 2) && passport.visible) Sound.swish();  // sound: each page turning
-  const a0 = leaves[0].userData.a;
-  inkMat.opacity = a0 < 0.002 ? kInk * 0.9 : 0;
-  ink.scale.setScalar(mix(1.6, 1, kInk));
-  leaves[0].material.map = kInk > 0.99 || a0 > 0.002 ? inked2 : plain2;
 
   /* the card: revealed bottom-up on page 12, then it lifts off and stands up */
   const reveal = clamp((s - 0.64) / 0.07) * (1 - kF), lift = seg(s, 0.69, 0.8) * (1 - kF);
