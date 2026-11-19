@@ -574,7 +574,9 @@ next pass until asked.**
 - Club tab: the passport is the 3D passport (passport3d.js, realistic
   pass): black leather, caramel foil wordmark and ring, beige deboss,
   opens in 900ms, pages turn in 700ms, leans toward the mouse; reduced
-  motion jumps. Without WebGL, the CSS book (black cover, cream foil
+  motion jumps. In Matcha it uses `MATCHA` from passport.js (the member
+  card's colours: matcha foil and ring, foam deboss, matcha-green stamp
+  ink, a green cast in the leather) and rebuilds on `lcc:flavour`. Without WebGL, the CSS book (black cover, cream foil
   type, the ring logo; 360ms rotateY flip, crossfade with reduced motion). Page 1 is an ID page, then 4 stamps a page from
   `select.club().passport`. Stamps are ink in `--accent-text` (an accent
   use added on request). Badges are one "Badges · X of Y" row that opens a

@@ -35,7 +35,7 @@
     const url = (s) => URL.createObjectURL(new Blob([s], { type: "text/javascript" }));
     const tu = url(three);
     mods = Promise.all([import(tu), import(url(room.replace(/from\s*['"][^'"]*three[^'"]*['"]/, `from "${tu}"`))), import(url(pass))])
-      .then(([THREE, R, P]) => ({ THREE, RoomEnvironment: R.RoomEnvironment, createPassport: P.createPassport, createContactShadow: P.createContactShadow }));
+      .then(([THREE, R, P]) => ({ THREE, RoomEnvironment: R.RoomEnvironment, createPassport: P.createPassport, createContactShadow: P.createContactShadow, MATCHA: P.MATCHA }));
     return mods;
   }
   const svgOf = (name) => { const t = document.getElementById(`logo-${name}`); return t ? t.innerHTML.trim() : ""; };
@@ -73,7 +73,7 @@
     const g = await ensure();
     const key = JSON.stringify(content);
     if (g.key === key && g.pass) return g;
-    const p = await g.M.createPassport(g.M.THREE, { renderer: g.renderer, ringSvg: svgOf("ring"), wordmarkSvg: svgOf("wordmark"), size: 1024, pageScale: 0.75, content });
+    const p = await g.M.createPassport(g.M.THREE, { renderer: g.renderer, ringSvg: svgOf("ring"), wordmarkSvg: svgOf("wordmark"), size: 1024, pageScale: 0.75, content, palette: content.palette ? g.M[content.palette] : null });
     if (G !== g) { p.dispose(); return null; }                 // torn down while building
     if (g.pass) { g.scene.remove(g.pass.group); g.pass.dispose(); }
     g.pass = p; g.key = key; g.scene.add(p.group);

@@ -255,6 +255,11 @@
 .pbook.is-3d { perspective: none; touch-action: pan-y; }
 .pbook.is-3d .pbook__glslot { display: block; position: absolute; inset: -6% -14% -26% -14%; z-index: 0; pointer-events: none; }
 .pbook__gl { display: block; width: 100%; height: 100%; }
+/* soft sides, so the open book's left page fades out instead of ending on a hard edge (the closed book sits inside the fade) */
+.pbook.is-3d .pbook__glslot {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
+}
 :root .pbook.is-3d .pbook__cover { background: transparent; box-shadow: none; border: 0; border-radius: 10px; }   /* :root beats the dark-mode lift below */
 .pbook.is-3d .pbook__cover > *, .pbook.is-3d .pbook__cover::before { visibility: hidden; }
 .pbook.is-3d .pbook__page {

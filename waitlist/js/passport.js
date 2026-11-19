@@ -134,6 +134,9 @@ function guilloche(w, h) {
 
 /* the leather is the slow part (about a second): made once per texture size, reused by every passport after */
 const LEATHER = new Map();
+/* colours: coffee by default; the member app passes MATCHA in Matcha mode (the member card's tokens) */
+export const COFFEE = { ring: ["#CFAB71", "#A8875A", "#E3C793"], word: "#D4B27A", deboss: [205, 189, 160], ink: "#713105", leather: [1, 0.985, 0.96] };
+export const MATCHA = { ring: ["#A6C46A", "#7E9A48", "#C4DB92"], word: "#B2CB7A", deboss: [207, 214, 192], ink: "#3F5A22", leather: [0.94, 1, 0.95] };
 
 /* ---------- the passport ----------
    content (optional; the waitlist's passport when left out):
@@ -143,7 +146,8 @@ const LEATHER = new Map();
      { kind: "stamps", n, gutter, label, items: [null | { name, top, bottom, shape, tilt } | { empty: true, name, note }] × 4 }
      { kind: "card", n, gutter }   { kind: "blank", n, gutter, label }   { kind: "endpaper" }
    ink: the stamp that inks itself into leaf 0's front (pose's ink argument), at items[slot]. */
-export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, size = 1024, pageScale = 0.75, content = null }) {
+export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, size = 1024, pageScale = 0.75, content = null, palette = null }) {
+  const PAL = { ...COFFEE, ...(palette || {}) };
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
   const textures = [];
   const tex = (c, srgb = true) => {
@@ -156,9 +160,9 @@ export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, si
   const TW = size, TH = Math.round((size * 125) / 88), k = TW / 1024;
   const ringH = (w) => (w * 382) / 371, wordH = (w) => (w * 237) / 524;
   const [ringFoil, ringWhite, wordFoil, wordWhite, ringFaint] = await Promise.all([
-    svgImg(tint(ringSvg, "#CFAB71", "#A8875A", "#E3C793"), 742, 764),
+    svgImg(tint(ringSvg, ...PAL.ring), 742, 764),
     svgImg(tint(ringSvg, "#fff"), 742, 764),
-    svgImg(tint(wordmarkSvg, "#D4B27A"), 1048, 474),
+    svgImg(tint(wordmarkSvg, PAL.word), 1048, 474),
     svgImg(tint(wordmarkSvg, "#fff"), 1048, 474),
     svgImg(tint(ringSvg, "#DCD1BE", "#CFC3AE", "#E3D9C8"), 742, 764),
   ]);
@@ -197,7 +201,7 @@ export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, si
       const f = foilA[i], g = grain[i];
       let v = 11 + (g - 0.55) * 5 + (slow[i] - 0.5) * 5 - deb[i] * 2.5;
       v = v * (1 - 0.35 * edge) + top * 9;
-      const ta = tintA[i] * 0.94, vr = mix(v, BEIGE[0], ta), vg = mix(v * 0.985, BEIGE[1], ta), vb = mix(v * 0.96, BEIGE[2], ta);
+      const ta = tintA[i] * 0.94, vr = mix(v * LT[0], BEIGE[0], ta), vg = mix(v * LT[1], BEIGE[1], ta), vb = mix(v * LT[2], BEIGE[2], ta);
       cd.data[p] = mix(vr, fcol[p], f); cd.data[p + 1] = mix(vg, fcol[p + 1], f); cd.data[p + 2] = mix(vb, fcol[p + 2], f); cd.data[p + 3] = 255;
       /* roughness (green) and metalness (blue): leather 0.72, pebble tops a little glossier, pressed areas smoother, foil 0.25 */
       const rough = mix(mix(mix(0.74 - (g - 0.5) * 0.12, 0.56, deb[i]) - top * 0.12, 0.62, tintA[i]), 0.24 + (fine[i] - 0.5) * 0.08, f);
@@ -206,10 +210,11 @@ export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, si
     cx.putImageData(cd, 0, 0); nx.putImageData(nd, 0, 0); ox.putImageData(od, 0, 0);
     return { cc, nc, oc };
   }
-  const BEIGE = [205, 189, 160];                              // #CDBDA0: the pressed words, a light beige that reads on the leather
+  const BEIGE = PAL.deboss, LT = PAL.leather;                 // the pressed words: a light beige (coffee) or foam (matcha) that reads on the leather
   const both = (a, b, fn) => { fn(a); fn(b); };
   const border = (x, r1, r2) => { x.strokeStyle = "#fff"; x.lineWidth = 3.2 * k; x.beginPath(); x.roundRect(56 * k, 56 * k, TW - 112 * k, TH - 112 * k, [r1 * k, r2 * k, r2 * k, r1 * k]); x.stroke(); };
-  const cached = LEATHER.get(TW) || {};
+  const LKEY = [TW, PAL.ring, PAL.word, PAL.deboss, PAL.leather].join("|");
+  const cached = LEATHER.get(LKEY) || {};
   const frontC = cached.front || leather((fx, wx) => {
     const ww = 500 * k, wh = wordH(ww), rw = 430 * k, rh = ringH(rw);
     [[fx, wordFoil, ringFoil], [wx, wordWhite, ringWhite]].forEach(([x, wi, ri]) => {
@@ -234,7 +239,7 @@ export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, si
     border(dx, 30, 12);
     both(dx, tx, (x) => { x.fillStyle = "#fff"; x.font = FONT(700, 26 * k); tracked(x, "ONE CITY. ONE PASS.", TW / 2, TH * 0.86, 9 * k, "center"); });
   }, 11);
-  LEATHER.set(TW, { front: frontC, back: backC });
+  LEATHER.set(LKEY, { front: frontC, back: backC });
   const asMaps = (L) => ({ map: tex(L.cc), normalMap: tex(L.nc, false), orm: tex(L.oc, false) });
   const front = asMaps(frontC), backF = asMaps(backC);
 
@@ -255,7 +260,7 @@ export async function createPassport(THREE, { renderer, ringSvg, wordmarkSvg, si
     x.restore();
   }
   const page = (gutter, s = PK) => { const [c, x] = mk(Math.round(TW * s), Math.round(TH * s)); x.scale(s, s); paper(x, gutter); return [c, x]; };
-  const LBL = "#6F6A62", INK = "#1A1816", PAD = 64 * k, CINNAMON = "#713105";
+  const LBL = "#6F6A62", INK = "#1A1816", PAD = 64 * k, CINNAMON = PAL.ink;   // stamp ink
   function head(x, label, n, gutter) {
     x.fillStyle = LBL; x.font = FONT(400, 32 * k);
     if (gutter === "left") { tracked(x, label, PAD + 20 * k, 112 * k, 10 * k); tracked(x, String(n), TW - PAD, 112 * k, 0, "right"); }

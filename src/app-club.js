@@ -194,6 +194,7 @@
       }),
     }));
     return {
+      palette: window.LCC.theme && window.LCC.theme.flavour() === "matcha" ? "MATCHA" : null,   // Matcha: the member card's colours
       inside: { kind: "endpaper" },
       leaves: [id, ...stampPages].map((front) => ({ front, back: { kind: "blank", gutter: "right" } })),
       top: { kind: "blank", gutter: "left" },
@@ -806,6 +807,8 @@
         // The passport container stays put across repaints, so its listeners do too
         bindBook($('[data-club="passport"]', view));
         place3d($('[data-club="passport"]', view), S.club());
+        const onFlavour = () => place3d($('[data-club="passport"]', view), S.club());   // Matcha / Coffee: rebuild in the new colours
+        document.addEventListener("lcc:flavour", onFlavour);
         const unbindPerks = bindPerks($('[data-club="perks"]', view));
         badgeSheet = document.createElement("div");
         badgeSheet.className = "sheet";
@@ -827,6 +830,7 @@
         view.addEventListener("click", onClick);
         return () => {
           clearTimeout(confirmTimer);
+          document.removeEventListener("lcc:flavour", onFlavour);
           unbindPerks();
           ui.closeSheet(badgeSheet);
           badgeSheet.remove();
