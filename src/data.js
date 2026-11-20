@@ -23,7 +23,7 @@
     maxCupsTotal: 30,          // the most cups a member can have in one month, across all cafés
     minCupsTotal: 6,
     dailyLimitPerCafe: 2,      // cups a member can redeem at one café per day
-    explorerCapPerCafe: 2,     // Explorer plans: cups at one café per plan cycle (month)
+    explorerCapPerCafe: 2,     // retired with the Plans pass: cup packs have no per-café limit (kept for old readers)
     reservedPayoutShare: 0,    // share of unused reserved cups paid to cafés. PENDING business decision; not shown in the UI
     passRotateSeconds: 30,
     giftExpiryDays: 60,
@@ -52,6 +52,7 @@
   const PLAN_CONFIG = {
     pass: { id: "pass", name: "LCC Pass", price: 350, discount: 0.20, dailyLimit: 1 },
     packDays: 45,         // a pack's cups last this many days from purchase
+    packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
     bandLimits: { classic: 750, signature: 1000, reserve: 1500 },
   };
@@ -83,8 +84,8 @@
 
   /* Cup packs ("At selected cafés"): one pool of cups for a band, valid
      PLAN_CONFIG.packDays days, no auto-renew. The Trial is once per person.
-     Internally a pack is plan.type "explorer" with tierId = the pack id, so
-     the counter's pool rules (and its 2-a-cycle cap per café) are unchanged.
+     Internally a pack is plan.type "explorer" with tierId = the pack id: one
+     pool, all of it usable at one café, PLAN_CONFIG.packDailyLimit a day.
      The old Starter / Regular / Enthusiast / Executive / Reserve tiers are
      retired; seeded holders were moved to the pack with the same cups and
      price (Starter = Classic 8, Regular = Classic 16, Executive = Signature 16). */
@@ -535,7 +536,7 @@
      Mumtaz is the demo member (LCC Pass); Alina (below) is on a Classic 8
      pack. The others exist so the café view (Kiln &
      Bean) can show a realistic month and every rule:
-       Bilal  — Explorer, already 2 cups at Kiln & Bean this month (cap)
+       Bilal  — Classic 16 pack, cups at several cafés this month
        Sana   — My cafés: Kiln & Bean 6, Maple Roastery 4 (3 + 3 left)
        Omar   — Explorer Starter, first visit to Kiln & Bean today
        Zara   — My cafés, 2 cups at Kiln & Bean today (daily limit)
@@ -821,8 +822,8 @@
   }
 
   /* Regulars’ month so far, generated under the real rules: balance,
-     2 a day per café, Explorer 2 a cycle per café, My cafés only where
-     reserved.                                                         */
+     2 a day per café, cup packs one a day at any café, My cafés only
+     where reserved.                                                         */
   (function generateMonth() {
     const left = {};      // memberId -> pool left (explorer) or { cafeId: left } (mycafes)
     const usedHere = {};  // memberId -> { cafeId: cups this cycle }
@@ -833,7 +834,9 @@
     const canUse = (m, cafeId, credits, today) => {
       if ((today[m.id]?.[cafeId] || 0) + credits > rules.dailyLimitPerCafe) return false;
       if (m.plan.type === "mycafes") return (left[m.id][cafeId] || 0) >= credits;
-      return left[m.id] >= credits && (usedHere[m.id][cafeId] || 0) + credits <= rules.explorerCapPerCafe;
+      // Cup packs: no per-café limit, one pack cup a day at any café
+      const todayAll = Object.values(today[m.id] || {}).reduce((n, x) => n + x, 0);
+      return left[m.id] >= credits && todayAll + credits <= PLAN_CONFIG.packDailyLimit;
     };
     const use = (m, cafeId, credits, today) => {
       if (m.plan.type === "mycafes") left[m.id][cafeId] -= credits; else left[m.id] -= credits;

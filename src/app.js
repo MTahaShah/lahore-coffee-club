@@ -732,24 +732,23 @@
           </div>`;
         }
 
-        /** Explorer: cafés used this month ("Kiln & Bean 2 of 2"), a chain counted once.
+        /** Cup packs: cups used at each café on this pack ("Kiln & Bean 2"), a chain counted once.
             My cafés: each café's balance ("Kiln & Bean 3 of 6"). Brand plans: nothing,
             the plan line already says it. Empty string when there's nothing to show. */
         function passCafes() {
           const b = S.balance();
-          const cap = store.getState().rules.explorerCapPerCafe;
           if (!b.type || b.type === "brand" || b.type === "pass") return "";
           if (b.type === "mycafes") {
             const rows = Object.entries(b.perCafe).filter(([, x]) => x.reserved);
             return rows.length ? html`<ul role="list">${rows.map(([id, x]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${x.left} of ${x.reserved} left</span></li>`)}</ul>` : "";
           }
-          // Cup packs: the same pool rule as before, per pack
+          // Cup packs: no per-café limit; one cup a day at any café
           const used = {};
           Object.entries(b.usedAt).forEach(([id, n]) => { const v = S.venueOf(id); used[v] = (used[v] || 0) + n; });
           const rows = Object.entries(used);
-          return html`<p class="t-small t-muted">Up to ${cap} at each café per pack.</p>
+          return html`<p class="t-small t-muted">Any partner café, ${fmt.cups(S.planConfig().packDailyLimit)} a day.</p>
             ${rows.length
-              ? html`<ul role="list">${rows.map(([id, n]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
+              ? html`<ul role="list">${rows.map(([id, n]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${n} used</span></li>`)}</ul>`
               : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
         }
 
@@ -831,6 +830,7 @@
             : here.type === "brand" ? `Your cups work at every ${cafe.name} branch`
             : here.type === "mycafes"
             ? `${here.left} of ${here.reserved} left at ${cafe.name}`
+            : here.type === "explorer" ? `${here.pool} left on your pack · the next one tomorrow`
             : here.left > 0 ? `${here.left} more at ${cafe.name} this month` : `That’s your ${here.cap} at ${cafe.name} this month`;
           card.innerHTML = html`
             <div class="pass-success" role="status">

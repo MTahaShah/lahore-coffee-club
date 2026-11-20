@@ -94,7 +94,7 @@
             <li class="t-muted">A second coffee the same day is full price</li>
           </ul>
         </div>
-        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. It renews each month; cancel any time.</p>`;
+        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. Renew from the app each month. Cancel any time.</p>`;
     }
 
     /* Cup packs: one list, two quiet groups --------------------------------- */
@@ -102,7 +102,7 @@
       const cur = S.member().plan;
       const groups = [...new Set(packs().map((t) => t.maxBand))].map((band) => ({ band: S.band(band), list: packs().filter((t) => t.maxBand === band) }));
       return html`
-        <p class="t-small t-muted plan-intro">Prepaid cups at selected cafés. They last ${cfg().packDays} days and don’t renew; up to ${rules().explorerCapPerCafe} at each café per pack.</p>
+        <p class="t-small t-muted plan-intro">Prepaid cups at selected cafés. They last ${cfg().packDays} days and don’t renew. Use them at any partner café, all at one if you like. One cup a day.</p>
         <fieldset class="plan-groups">
           <legend class="sr-only">Cup packs</legend>
           ${groups.map((g) => html`<div class="plan-group">

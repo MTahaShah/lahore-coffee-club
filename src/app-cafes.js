@@ -332,11 +332,11 @@
           : html`<strong>Not in your plan.</strong> Your cups are for your cafés.`}</p>`;
       }
       if (!here.type) return html`<p class="t-small t-muted" data-here-line><strong>No plan yet.</strong></p>`;
-      const line = here.left > 0
-        ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here</strong> on your ${S.planName(m.plan)}.`
-        : here.used >= here.cap
-          ? html`<strong>You’ve had your ${here.cap} here on this pack.</strong> Every other partner café is still open to you.`
-          : html`<strong>No cups left.</strong> ${S.planDateLine(m)}.`;
+      const line = here.left <= 0
+        ? html`<strong>No cups left.</strong> ${S.planDateLine(m)}.`
+        : here.today >= here.dailyLimit
+          ? html`<strong>Today’s cup from your pack is used.</strong> The next one is tomorrow.`
+          : html`<strong>${fmt.cups(here.left)} left on your ${S.planName(m.plan)}</strong>, all usable here. One a day.`;
       return html`<p class="t-small t-muted num" data-here-line>${line}</p>`;
     }
 

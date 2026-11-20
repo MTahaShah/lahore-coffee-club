@@ -36,7 +36,7 @@
 
    Cups live in one append-only ledger (state.ledger). Balances are always
    derived from it by the selectors below, never stored. Plan types:
-     explorer  one pool, any café, at most rules.explorerCapPerCafe a cycle
+     explorer  a cup pack: one pool, any café (no per-café limit), one a day
      mycafes   cups reserved per café, usable only there
      brand     one pool for one brand (Double Shot), any of its branches;
                a redemption records the branch, the drink, its price and
@@ -717,10 +717,12 @@
         if (!reserved) return { type: "mycafes", reserved: 0, left: 0, of: 0, label: "Not in their plan" };
         return { type: "mycafes", reserved: b.reserved, left: b.left, of: b.reserved, label: `${b.left} of ${b.reserved} reserved here` };
       }
+      // Cup packs: the whole pool works at any café (no per-café limit), one cup a day
       const used = select.usedAtBrandThisCycle(memberId, cafeId, m.cycle);
-      const pool = select.poolBalance(memberId);
-      const left = Math.max(0, Math.min(cap - used, pool));
-      return { type: "explorer", used, cap, left, of: cap, pool, label: `${Math.max(0, cap - used)} of ${cap} left here this month` };
+      const pool = Math.max(0, select.poolBalance(memberId));
+      const today = select.packCupsToday(memberId, m.cycle);
+      const dailyLimit = state.planConfig.packDailyLimit;
+      return { type: "explorer", used, cap: pool, left: pool, of: pool, pool, today, dailyLimit, label: today >= dailyLimit ? "Today’s pack cup is used" : `${pool} left on the pack · any café` };
     },
 
     /** Can this member redeem `credits` cups at this café now? Never mutates.
@@ -742,7 +744,7 @@
       if (m.plan.type === "brand" && !here.here) return no("not-brand");
       if (here.type === "mycafes" && !here.reserved && !here.bonus) return no("not-reserved");
       if (here.type === "mycafes" && here.left <= 0) return no("reserved-used");
-      if (here.type === "explorer" && here.used >= here.cap) return no("explorer-cap");
+      if (here.type === "explorer" && here.today + credits > here.dailyLimit) return no("pack-daily");
       if (usedToday >= limit) return no("daily-limit");
       // The café's own cap on member cups a day
       if (select.cafeCupsToday(cafeId) + credits > R.branchCupsPerDay) return no("cafe-cap");
@@ -867,6 +869,13 @@
       const packCost = pm.entries.reduce((n, e) => n + pack.price / pack.cups + Math.max(0, e.listPrice - cover), 0);
       const more = roundTo(pm.paid + pm.price - packCost, 10);
       return more > 0 ? { pack, more, coffees: pm.coffees } : null;
+    },
+    /** Pack cups used today, at any café: redeemed in that pack's cycle, plus cups held by open pickups. */
+    packCupsToday(memberId, cycle, at = Date.now()) {
+      const since = startOfDay(at);
+      const redeemed = (byMember.get(memberId) || []).filter((e) => isRedeem(e) && e.cycle === cycle && e.at >= since && !e.bonus).reduce((n, e) => n + e.credits, 0);
+      const held = openCupLines().reduce((n, l) => (l.memberId === memberId && l.cycle === cycle && l.at >= since ? n + l.credits : n), 0);
+      return redeemed + held;
     },
     /** The Trial pack is once per person: true once any trial purchase exists. */
     trialUsed: (memberId = state.memberId) => (byMember.get(memberId) || []).some((e) => e.type === "purchase" && e.packId === "trial"),
@@ -1260,7 +1269,10 @@
         } else if (p.plan.type === "explorer") {
           const used = mine.filter((e) => isRedeem(e) && e.cycle === p.cycle && ids.includes(e.cafeId)).reduce((n, e) => n + e.credits, 0)
             + ids.reduce((n, id) => n + select.heldCups(memberId, id, { cycle: p.cycle }), 0);
-          options.push({ ...p, rank: 1, used, cap, here: Math.max(0, Math.min(p.left, cap - used)), why: !p.left ? "empty" : used >= cap ? "cap" : null });
+          // Cup packs: all of the pool here (cap = what's left, for the counter's line), one cup a day
+          const today = select.packCupsToday(memberId, p.cycle, at);
+          const daily = today >= state.planConfig.packDailyLimit;
+          options.push({ ...p, rank: 1, used, cap: p.left, here: daily ? 0 : p.left, why: !p.left ? "empty" : daily ? "pack-daily" : null });
         } else if (p.plan.type === "mycafes") {
           const es = mine.filter((e) => e.cycle === p.cycle);
           const here = (e) => e.cafeId && venueOf(e.cafeId) === venueOf(branchId); // a chain's cups work at any branch
@@ -1294,7 +1306,7 @@
       }
       if (!usable.length) {
         if (options.some((o) => o.plan.paused && o.left > 0)) return no("plan-paused", "Plan paused", `${name} paused their plan. They can resume it in the app.`);
-        if (options.some((o) => o.why === "cap")) return no("explorer-cap", "Explorer limit reached here", `${name} has had ${cap} Explorer cups at ${b.name} this month. Any other partner café will welcome them.`);
+        if (options.some((o) => o.why === "pack-daily")) return no("daily-limit", "Today’s pack cup is used", `${name} has had ${fmt.cups(state.planConfig.packDailyLimit)} from their pack today. It resets tomorrow; they can pay as usual.`);
         return no("no-cups", "No cups left", `${name} has no cups left this month. They can top up in the app.`);
       }
       if (usedToday >= R.perMemberPerDay) return no("daily-limit", "Daily limit reached at this branch", `${name} has had ${fmt.cups(R.perMemberPerDay)} here today. It resets tomorrow.`);
@@ -1872,6 +1884,7 @@
       return `${m.firstName} has used the ${fmt.cups(here.reserved)} reserved here this month.${others.length ? ` There are still cups for ${m.pronoun || "them"} at ${listNames(others)}.` : ""}`;
     },
     "explorer-cap": (m, { here }) => `${m.firstName} has had ${here.cap} cups here this month. Any other partner café will welcome ${m.pronoun || "them"}.`,
+    "pack-daily": (m) => `${m.firstName} has had today’s pack cup. It resets tomorrow.`,
     "daily-limit": (m, { limit }) => `${m.firstName} has had ${fmt.cups(limit)} here today, the most a member can have in a day. It resets tomorrow.`,
     "not-enough": (m, { credits, here }) => `That drink uses ${credits} cups and ${m.firstName} can have ${fmt.cups(here.left)} here. Try a one-cup drink.`,
   };
@@ -1887,6 +1900,7 @@
     "not-reserved": (m, { cafeId }) => `${venueName(cafeId)} isn’t in your plan.`,
     "reserved-used": (m, { cafeId }) => `You’ve used the cups reserved at ${venueName(cafeId)} this month.`,
     "explorer-cap": (m, { here, cafeId }) => `You’ve had your ${here.cap} at ${state.cafes[cafeId].name} this month.`,
+    "pack-daily": () => "You’ve had today’s cup from your pack. The next one is tomorrow.",
     "daily-limit": (m, { limit }) => `You’ve had ${fmt.cups(limit)} here today, the most in a day.`,
     "not-enough": (m, { credits, here }) => `This drink uses ${credits} cups and you have ${fmt.cups(here.left)} here.`,
   };

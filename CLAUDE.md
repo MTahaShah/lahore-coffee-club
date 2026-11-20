@@ -222,13 +222,17 @@ next pass until asked.**
   unless they hold complimentary cups.
 - Cup packs ("At selected cafés", `data.js` `PLANS`): Trial 2 Rs 1,150
   (once per person, `select.trialUsed`), Classic 4 / 8 / 16, Signature 8 /
-  16. Internally `plan.type: "explorer"` with `tierId` = pack id, so the
-  counter's pool rules and the 2-per-café cap per pack are unchanged;
+  16. Internally `plan.type: "explorer"` with `tierId` = pack id. No
+  per-café limit (all of a pack can go at one café); one pack cup a day at
+  any café (`PLAN_CONFIG.packDailyLimit` 1, `select.packCupsToday`, refusal
+  "Today's pack cup is used"; `rules.explorerCapPerCafe` no longer read);
   purchase entries carry `packId`; `renewsAt` = start + 45 days (read as
   "Use by"). Starter / Regular / Enthusiast / Executive / Reserve are gone;
   seeded holders moved to Classic 8 / Classic 16 / Signature 16.
 - My cafés is no longer sold (not in the picker, no "Add to my plan"
   links); legacy holders (Sana, Zara, regulars) keep working.
+- Shared `.screen-bar` (back arrow): 64px, and the screen under it starts
+  `--space-5` lower, so the first heading never sits under the arrow.
 - Plan picker: LCC Pass (default) | Cup packs. Home for Pass members: a
   20-brick ring filling with savings toward Rs 350, "Today's member
   coffee: available / used, back tomorrow", "You've saved Rs X this

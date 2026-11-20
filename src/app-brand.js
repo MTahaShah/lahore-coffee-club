@@ -64,10 +64,10 @@
       }
       const type = opt.plan.type;
       const line = type === "brand" ? S.brandBalanceLine()
-        : type === "explorer" ? `${here === 1 ? "1 more cup" : `${here} more cups`} here on this pack · any branch`
+        : type === "explorer" ? (opt.why === "pack-daily" ? "Today’s pack cup is used" : `${fmt.cups(here)} left on your pack · any branch`)
         : `${here} of ${opt.reserved || here} reserved here · any branch`;
       const sub = here > 0 ? "Pick a drink below, or just show your pass at the counter."
-        : opt.why === "cap" ? `You’ve had your ${opt.cap} here on this pack. Every other partner café is still open to you.`
+        : opt.why === "pack-daily" ? "One cup a day from a pack. The next one is tomorrow."
         : `No cups left here. ${S.planDateLine(m)}.`;
       return html`<p class="brand-cups__line num">${line}</p>
         <p class="t-small t-muted num">${S.planLabel(m)} · ${sub}</p>`;
