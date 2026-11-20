@@ -118,8 +118,8 @@ favicon are inlined). Edit `src/`, never `index.html`.
   `ui.brickRing`), Pass, Home, the busy map (`ctx.busyMap`, drawn in the
   Cafés tab), café sheet, club milestone toasts. Old links redirect:
   `#/app/map` → Cafés with Map, `#/app/circle/…` → `#/app/circles/…`
-- `app-cafes.js` — Cafés tab (search, filters, a List | Map switch; search
-  and filters apply to both) and café detail (`#/app/cafes/:id`)
+- `app-cafes.js` — Cafés tab (one map + list screen, see "Cafés search
+  pass") and café detail (`#/app/cafes/:id`)
 - `app-brand.js` — a brand's page (`#/app/cafes/doubleshot`, also from any
   branch row or pin): your cups, menu with Hot / Iced, ordering ("Use a
   cup"), branches, "Add to my plan" (no plans section: Double Shot plans
@@ -316,6 +316,46 @@ next pass until asked.**
   ring (a button, `aria-pressed`) spins the bricks once (700ms) and flips
   the centre (600ms) to "Rs" over the amount and "saved so far". Reduced
   motion: no spin, a crossfade. The line under the ring is the plan name.
+
+## Cafés search pass (the Cafés tab)
+
+- One screen: the Lahore schematic (`LCC.memberMap.svg`) fills the tab and
+  pans (drag), zooms (pinch, wheel, double-click; arrows and +/− when the
+  map has focus) by a CSS transform; it is always as wide as the screen and
+  can be pulled up to half the visible area past its edges. Floating search
+  bar ("Café, area or drink") and a scrolling row of toggle chips (Open now,
+  Quiet now, Near me, Work-friendly, Pickup, Under Rs 750, Filters · N).
+- Bottom sheet with three heights: peek (196px: handle, "N cafés in view",
+  the top of the first card), half (default), full (list only; a "Map"
+  pill drops back to half). Drag the grip, tap the handle (up a step; full
+  goes to half) or use arrow keys on it. Reduced motion: no transitions.
+- Pins: a pill with the member price (`select.memberPrice`) of the latte,
+  or of the drink searched for, and a busy dot; selected = primary
+  background, accent border, 1.15×. Tap a pin: sheet to peek, its card
+  first. Tap a card: its pin highlights and the map centres; tapping the
+  selected card again (or its chevron) opens the café detail.
+- The list is the cafés of the search and filters that are in the visible
+  map (under the chips, above the sheet; recomputed 300ms after the map
+  stops), sorted Nearest (default), Quietest or Lowest member price. Cards:
+  name, area · distance, busy word + dot + "updated", hours in context
+  ("Open · closes 11pm", "Closes in 40 min", "Opens 8am tomorrow"), "Latte
+  Rs 560 · Rs 700 at the counter" (member price in `--accent-text`), up to
+  2 tags, a save toggle (in memory). Busy words: Quiet now / Busy / Packed.
+- Search (full screen dialog): Recent (last 3, in memory) and Try (areas,
+  drinks, moods "Quiet to work" = Quiet + Work-friendly, "Open late" = Late
+  night) before typing; then Cafés, Areas, Drinks with the matched letters
+  marked. Area: the map flies there. Drink: filters to cafés serving it and
+  prices pins and cards by it. Enter with no pick searches the text.
+- Filter sheet: Area (multi), Open now, Busy (Quiet / Any), Tags
+  (Work-friendly, Outdoor, Pickup, Late night), Price (Classic up to Rs
+  750, Signature up to Rs 1,000; on the reference drink's counter price),
+  "Clear all", and "Show N cafés" live. "Pickup" means taking pickup
+  orders now (`select.pickupAvailable`), not a stored tag. Tags added in
+  data.js: Outdoor (Ember, Quiet Hours, Noon); "Late hours" became "Late
+  night". "Near me" recentres on a fake member location in Gulberg.
+- State (search, filters, sort, sheet height, camera, recent, saved) is
+  module-level in memory, so it survives a trip into a café and back.
+  `#/app/map` opens the tab with the sheet at peek.
 
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 
