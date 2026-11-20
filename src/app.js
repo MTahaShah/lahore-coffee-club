@@ -315,13 +315,7 @@
               <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
               <div class="home__center">
-                <div class="ring ring--home" data-ring role="img" aria-label="${ringSpec().label}">
-                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: ringSpec().total, filled: ringSpec().filled, size: 248, radius: 104, length: 26, stagger: true })}</div>
-                  <div class="ring__center" aria-hidden="true">
-                    <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="ring__cap t-small t-muted" data-ring-cap>${ringSpec().cap}</span>
-                  </div>
-                </div>
+                ${ringHtml()}
                 <div class="home__lines" data-home-lines>${homeLinesHtml()}</div>
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
@@ -334,6 +328,10 @@
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
+            // LCC Pass: tap the ring to turn it over (cups on us <-> money saved)
+            const onFlip = (e) => { const r = e.target.closest("[data-ring-flip]"); if (r) flipRing(r); };
+            view.addEventListener("click", onFlip);
+            return () => view.removeEventListener("click", onFlip);
           },
           on: {
             pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
@@ -353,24 +351,59 @@
       }
 
       /** Under the ring: "Double Shot · 11 cups left · any branch" on a brand plan. */
-      const homeLine = () => S.brandBalanceLine() || (member().plan?.type === "explorer" ? "cups left on your pack" : "cups left this month");
+      const homeLine = () => S.brandBalanceLine() || (member().plan ? S.planLabel(member()) : "No plan yet");
 
       /** "Renews on 2 Dec" (Pass), "Use by 4 Jan" (packs). */
       const renewLine = () => S.planDateLine(member());
 
-      /** The ring: cups left (one brick per cup), or on the LCC Pass the
-          month's savings toward its price (20 bricks, one per twentieth of it). */
-      const PASS_BRICKS = 20;
+      /** The Home ring: the logo's own bricks (ui.logoRing, 15 of them).
+          Cup packs: a gold brick per cup left (up to 15), the rest empty
+          outlines; the number is cups left. LCC Pass: the bricks fill with
+          the month's savings toward the Pass's price; the front says how
+          many cups' worth the savings come to ("cups on us"), and a tap turns
+          the ring over to the money saved.                                  */
       function ringSpec() {
+        const N = ui.logoRingSize();
         if (S.isPass()) {
           const pm = S.passMonth();
+          const avg = pm.coffees ? pm.listTotal / pm.coffees : 0;
+          const onUs = avg ? pm.saved / avg : 0;
           return {
-            total: PASS_BRICKS, filled: Math.min(PASS_BRICKS, Math.floor(pm.progress * PASS_BRICKS + 1e-9)), num: pm.saved, cap: "saved",
-            label: `${fmt.rs(pm.saved)} saved this month, toward the ${fmt.rs(pm.price)} pass`,
+            kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
+            cap: onUs >= 0.95 && onUs < 1.05 ? "cup on us so far" : "cups on us so far",
+            label: `${fmtOnUs(onUs)} cups on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
           };
         }
         const b = S.balance();
-        return { total: b.total, filled: Math.max(0, b.left), num: b.left, cap: "", label: `${b.left} of ${b.total} cups left this month` };
+        const left = Math.max(0, b.left);
+        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${b.total} cups left` };
+      }
+      /** 1.2 under ten, whole numbers after. */
+      const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));
+      function ringHtml() {
+        const r = ringSpec();
+        const bricks = html`<div class="ring__bricks" data-bricks data-key="${r.filled}">${ui.logoRing({ filled: r.filled, stagger: true })}</div>`;
+        if (r.kind === "pass") {
+          return html`<button type="button" class="ring ring--home ring--flip" data-ring data-ring-flip data-kind="pass" aria-pressed="false" aria-label="${r.label}">
+            ${bricks}
+            <span class="ring__center" aria-hidden="true"><span class="ring__faces" data-faces>
+              <span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span>
+              <span class="ring__face ring__face--back"><span class="ring__unit">Rs</span><span class="ring__num ring__num--money" data-ring-money data-value="0">0</span><span class="ring__cap">saved so far</span></span>
+            </span></span>
+          </button>`;
+        }
+        return html`<div class="ring ring--home" data-ring data-kind="cups" role="img" aria-label="${r.label}">
+          ${bricks}
+          <div class="ring__center" aria-hidden="true"><span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span></div>
+        </div>`;
+      }
+      /** Turn the Pass ring over: the bricks spin once, the centre flips. */
+      function flipRing(ring) {
+        const on = ring.getAttribute("aria-pressed") !== "true";
+        ring.setAttribute("aria-pressed", String(on));
+        ring.classList.toggle("is-flipped", on);
+        const svg = $(".logo-ring", ring);
+        if (svg && !ui.reducedMotion()) { svg.classList.remove("is-spinning"); void svg.getBoundingClientRect(); svg.classList.add("is-spinning"); }
       }
 
       /** Lines under the ring. Pass: today's member coffee, the savings
@@ -601,19 +634,17 @@
       }
 
       function paintRing() {
-        const ring = $("[data-ring]", view);
+        let ring = $("[data-ring]", view);
         if (!ring) return;
-        // Total cups across the plan, either type; read from the ledger
-        // One brick per cup; used cups outlined (the brick ring, BRAND.md)
-        // On the Pass: savings toward its price (PASS_BRICKS bricks)
         const r = ringSpec();
-        const key = `${r.total}:${r.filled}`;
+        // A plan change (Pass <-> pack) swaps the whole ring
+        if (ring.dataset.kind !== r.kind) { ring.outerHTML = ringHtml().s; ring = $("[data-ring]", view); }
         const bricks = $("[data-bricks]", ring);
-        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: r.total, filled: r.filled, size: 248, radius: 104, length: 26 }).s;
-        bricks.dataset.key = key;
-        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700 });
+        if (bricks.dataset.key !== String(r.filled)) { bricks.innerHTML = ui.logoRing({ filled: r.filled }).s; bricks.dataset.key = String(r.filled); }
+        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: r.kind === "pass" ? fmtOnUs : fmt.num });
+        const money = $("[data-ring-money]", ring);
+        if (money) ui.animateNumber(money, r.money, { duration: 700, format: fmt.num });
         const cap = $("[data-ring-cap]", ring); if (cap) cap.textContent = r.cap;
-        ring.classList.toggle("ring--savings", !!r.cap);
         ring.setAttribute("aria-label", r.label);
       }
 

@@ -192,7 +192,44 @@
 .drawer__appearance .segmented + .segmented { margin-top: var(--space-1); }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__cap:empty { display: none; }
-.ring--savings .ring__num::before { content: "Rs "; font-size: 0.3em; letter-spacing: 0; vertical-align: 0.9em; }
+/* Home ring: the logo's bricks (ui.logoRing). Gold in the logo's three
+   tones for what's there (an accent use: the cups-left bricks); empty
+   places are a golden-beige outline of the brick. Matcha: its own tones. */
+.ring--home {
+  --rb-face: #CFAB71; --rb-side: #7F5E35; --rb-top: #4F351C; --rb-line: rgba(207, 171, 113, 0.55);
+}
+[data-flavour="matcha"] .ring--home { --rb-face: #A6C46A; --rb-side: #6E8B3D; --rb-top: #3F5A22; --rb-line: rgba(166, 196, 106, 0.55); }
+.logo-ring { overflow: visible; }
+.logo-ring .lr-face { fill: var(--rb-face); }
+.logo-ring .lr-side { fill: var(--rb-side); }
+.logo-ring .lr-top { fill: var(--rb-top); }
+.logo-ring .lr-outline { fill: none; stroke: var(--rb-line); stroke-width: 1.25px; vector-effect: non-scaling-stroke; }
+.ring__bricks .lr-brick.is-full { animation: brick-in var(--dur-3) var(--ease) both; animation-delay: calc(var(--i, 0) * 35ms); }
+.logo-ring.is-spinning { animation: ring-spin 700ms var(--ease); transform-origin: 50% 50%; transform-box: fill-box; }
+@keyframes ring-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* The number in the middle: big, with a small line under it (and "Rs" over money) */
+.ring__face { display: grid; justify-items: center; gap: 6px; }
+.ring__cap { font-size: var(--fs-14); color: var(--ink-2, var(--ink-3)); letter-spacing: 0.01em; }
+.ring__unit { font-size: var(--fs-16); color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: -4px; }
+
+/* LCC Pass: the ring is a button; tapping turns the centre over */
+.ring--flip { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
+.ring--flip:focus-visible { outline: 2px solid var(--primary); outline-offset: 6px; }
+.ring--flip .ring__center { perspective: 700px; }
+.ring__faces { position: relative; display: grid; transform-style: preserve-3d; transition: transform 600ms var(--ease); }
+.ring__faces > .ring__face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; align-self: center; }
+.ring__face--back { transform: rotateY(180deg); }
+.ring--flip.is-flipped .ring__faces { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .ring__bricks .lr-brick.is-full, .logo-ring.is-spinning { animation: none; }
+  .ring__faces { transform: none !important; transition: none; }
+  .ring__faces > .ring__face { backface-visibility: visible; transform: none; transition: opacity 200ms linear; }
+  .ring--flip .ring__face--back, .ring--flip.is-flipped .ring__face--front { opacity: 0; }
+  .ring--flip.is-flipped .ring__face--back { opacity: 1; }
+}
+.home.has-pickup .ring--home .ring__cap { font-size: var(--fs-12); }
+.home.has-pickup .ring--home .ring__unit { font-size: var(--fs-12); }
 .home__saved { color: var(--accent-text); }   /* accent: the savings line (LCC Pass) */
 .drink-row__member { color: var(--ink); }
 .ring__num { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }

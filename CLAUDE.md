@@ -302,6 +302,21 @@ next pass until asked.**
   this month one earlier coffee there, so "New customers this month" is
   about 15–25% per branch.
 
+## Home ring (after the Payout pass)
+
+- The Home ring is the logo's own brick ring (`ui.logoRing`): the 15 bricks
+  of `src/logos/ring.svg` (face, side and top layers matched per brick),
+  clockwise from the gap at 3 o'clock. Filled bricks are gold in the logo's
+  three tones (`--rb-face/side/top` on `.ring--home`; Matcha has its own),
+  the rest a golden-beige outline of the brick face.
+- Cup packs: one gold brick per cup left (up to 15); big number, "cups
+  left" under it. LCC Pass: bricks fill with the month's savings toward
+  Rs 350; the front shows "cups on us so far" (savings ÷ the average list
+  price of the month's pass coffees, one decimal under ten); tapping the
+  ring (a button, `aria-pressed`) spins the bricks once (700ms) and flips
+  the centre (600ms) to "Rs" over the amount and "saved so far". Reduced
+  motion: no spin, a crossfade. The line under the ring is the plan name.
+
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 
 - `data.js` `BANDS` and `PLANS` are the single source (state: `state.bands`,

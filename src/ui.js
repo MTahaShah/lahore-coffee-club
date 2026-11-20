@@ -125,6 +125,54 @@
     return raw(`<svg class="brick-ring ${cls}" viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false">${out}</svg>`);
   }
 
+  /* The logo ring as a meter ---------------------------------------------
+     The brick ring from the LCC logo (src/logos/ring.svg), brick for brick:
+     its three layers (face, side, top) split into the 15 bricks, ordered
+     clockwise from the gap at 3 o'clock. Filled bricks are gold in the
+     logo's own three tones; the rest are empty placeholders, a beige
+     outline of the brick's face. Used by the Home ring.               */
+  let logoBricks = null;
+  function readLogoBricks() {
+    if (logoBricks) return logoBricks;
+    const tpl = document.getElementById("logo-ring");
+    const svg = tpl && (tpl.content || tpl).querySelector("svg");
+    if (!svg) return (logoBricks = { bricks: [], viewBox: "0 0 100 100" });
+    const layers = [...svg.querySelectorAll("path")].map((p) => (p.getAttribute("d") || "").split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
+    const centre = (d) => {
+      const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+      let x = 0, y = 0, k = 0;
+      for (let i = 0; i + 1 < n.length; i += 2) { x += n[i]; y += n[i + 1]; k++; }
+      return { x: x / (k || 1), y: y / (k || 1) };
+    };
+    const [face = [], ...rest] = layers;
+    const faces = face.map((d) => ({ d, c: centre(d) }));
+    // Match each layer's sub-path to the nearest face (one brick = face + side + top)
+    const parts = rest.map((list) => list.map((d) => ({ d, c: centre(d) })));
+    const vb = (svg.getAttribute("viewBox") || "0 0 100 100").split(/\s+/).map(Number);
+    const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    const bricks = faces.map((f) => {
+      const near = (list) => list.reduce((best, p) => (Math.hypot(p.c.x - f.c.x, p.c.y - f.c.y) < Math.hypot(best.c.x - f.c.x, best.c.y - f.c.y) ? p : best), list[0])?.d || "";
+      const angle = (Math.atan2(f.c.y - cy, f.c.x - cx) * 180) / Math.PI;
+      return { face: f.d, side: parts[0] ? near(parts[0]) : "", top: parts[1] ? near(parts[1]) : "", angle: (angle + 360) % 360 };
+    });
+    // Clockwise from 3 o'clock, starting just past the gap (the widest space between neighbours)
+    bricks.sort((a, b) => a.angle - b.angle);
+    let gapAfter = bricks.length - 1, widest = -1;
+    bricks.forEach((b, i) => { const next = bricks[(i + 1) % bricks.length]; const w = (next.angle - b.angle + 360) % 360; if (w > widest) { widest = w; gapAfter = i; } });
+    const ordered = [...bricks.slice(gapAfter + 1), ...bricks.slice(0, gapAfter + 1)];
+    return (logoBricks = { bricks: ordered, viewBox: vb.join(" ") });
+  }
+  /** filled: bricks in gold (the rest outlined). Returns markup; total is the logo's brick count. */
+  function logoRing({ filled = 0, cls = "", stagger = false } = {}) {
+    const { bricks, viewBox } = readLogoBricks();
+    const n = Math.max(0, Math.min(bricks.length, Math.round(filled)));
+    const body = bricks.map((b, i) => (i < n
+      ? `<g class="lr-brick is-full"${stagger ? ` style="--i:${i}"` : ""}><path class="lr-face" d="${b.face}"/><path class="lr-side" d="${b.side}"/><path class="lr-top" d="${b.top}"/></g>`
+      : `<g class="lr-brick is-empty"><path class="lr-outline" d="${b.face}"/></g>`)).join("");
+    return raw(`<svg class="logo-ring ${cls}" viewBox="${viewBox}" aria-hidden="true" focusable="false">${body}</svg>`);
+  }
+  const logoRingSize = () => readLogoBricks().bricks.length;
+
   /* Status pill --------------------------------------------------------- */
   /** Renders a pill bound to a café; it updates itself on store changes. */
   function statusPill(cafeId, { bare = false, time = true } = {}) {
@@ -387,7 +435,9 @@
   }
 
   LCC.ui = {
-    html, raw, esc, $, $$, icon, logo, brickRing, avatar,
+    html, raw, esc, $, $$, icon, logo, brickRing,
+    logoRing,
+    logoRingSize, avatar,
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,

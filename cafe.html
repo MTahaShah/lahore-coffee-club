@@ -2076,7 +2076,44 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .drawer__appearance .segmented + .segmented { margin-top: var(--space-1); }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__cap:empty { display: none; }
-.ring--savings .ring__num::before { content: "Rs "; font-size: 0.3em; letter-spacing: 0; vertical-align: 0.9em; }
+/* Home ring: the logo's bricks (ui.logoRing). Gold in the logo's three
+   tones for what's there (an accent use: the cups-left bricks); empty
+   places are a golden-beige outline of the brick. Matcha: its own tones. */
+.ring--home {
+  --rb-face: #CFAB71; --rb-side: #7F5E35; --rb-top: #4F351C; --rb-line: rgba(207, 171, 113, 0.55);
+}
+[data-flavour="matcha"] .ring--home { --rb-face: #A6C46A; --rb-side: #6E8B3D; --rb-top: #3F5A22; --rb-line: rgba(166, 196, 106, 0.55); }
+.logo-ring { overflow: visible; }
+.logo-ring .lr-face { fill: var(--rb-face); }
+.logo-ring .lr-side { fill: var(--rb-side); }
+.logo-ring .lr-top { fill: var(--rb-top); }
+.logo-ring .lr-outline { fill: none; stroke: var(--rb-line); stroke-width: 1.25px; vector-effect: non-scaling-stroke; }
+.ring__bricks .lr-brick.is-full { animation: brick-in var(--dur-3) var(--ease) both; animation-delay: calc(var(--i, 0) * 35ms); }
+.logo-ring.is-spinning { animation: ring-spin 700ms var(--ease); transform-origin: 50% 50%; transform-box: fill-box; }
+@keyframes ring-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* The number in the middle: big, with a small line under it (and "Rs" over money) */
+.ring__face { display: grid; justify-items: center; gap: 6px; }
+.ring__cap { font-size: var(--fs-14); color: var(--ink-2, var(--ink-3)); letter-spacing: 0.01em; }
+.ring__unit { font-size: var(--fs-16); color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: -4px; }
+
+/* LCC Pass: the ring is a button; tapping turns the centre over */
+.ring--flip { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
+.ring--flip:focus-visible { outline: 2px solid var(--primary); outline-offset: 6px; }
+.ring--flip .ring__center { perspective: 700px; }
+.ring__faces { position: relative; display: grid; transform-style: preserve-3d; transition: transform 600ms var(--ease); }
+.ring__faces > .ring__face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; align-self: center; }
+.ring__face--back { transform: rotateY(180deg); }
+.ring--flip.is-flipped .ring__faces { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .ring__bricks .lr-brick.is-full, .logo-ring.is-spinning { animation: none; }
+  .ring__faces { transform: none !important; transition: none; }
+  .ring__faces > .ring__face { backface-visibility: visible; transform: none; transition: opacity 200ms linear; }
+  .ring--flip .ring__face--back, .ring--flip.is-flipped .ring__face--front { opacity: 0; }
+  .ring--flip.is-flipped .ring__face--back { opacity: 1; }
+}
+.home.has-pickup .ring--home .ring__cap { font-size: var(--fs-12); }
+.home.has-pickup .ring--home .ring__unit { font-size: var(--fs-12); }
 .home__saved { color: var(--accent-text); }   /* accent: the savings line (LCC Pass) */
 .drink-row__member { color: var(--ink); }
 .ring__num { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
@@ -9053,6 +9090,54 @@ export function createContactShadow(THREE, groundY) {
     return raw(`<svg class="brick-ring ${cls}" viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false">${out}</svg>`);
   }
 
+  /* The logo ring as a meter ---------------------------------------------
+     The brick ring from the LCC logo (src/logos/ring.svg), brick for brick:
+     its three layers (face, side, top) split into the 15 bricks, ordered
+     clockwise from the gap at 3 o'clock. Filled bricks are gold in the
+     logo's own three tones; the rest are empty placeholders, a beige
+     outline of the brick's face. Used by the Home ring.               */
+  let logoBricks = null;
+  function readLogoBricks() {
+    if (logoBricks) return logoBricks;
+    const tpl = document.getElementById("logo-ring");
+    const svg = tpl && (tpl.content || tpl).querySelector("svg");
+    if (!svg) return (logoBricks = { bricks: [], viewBox: "0 0 100 100" });
+    const layers = [...svg.querySelectorAll("path")].map((p) => (p.getAttribute("d") || "").split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
+    const centre = (d) => {
+      const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+      let x = 0, y = 0, k = 0;
+      for (let i = 0; i + 1 < n.length; i += 2) { x += n[i]; y += n[i + 1]; k++; }
+      return { x: x / (k || 1), y: y / (k || 1) };
+    };
+    const [face = [], ...rest] = layers;
+    const faces = face.map((d) => ({ d, c: centre(d) }));
+    // Match each layer's sub-path to the nearest face (one brick = face + side + top)
+    const parts = rest.map((list) => list.map((d) => ({ d, c: centre(d) })));
+    const vb = (svg.getAttribute("viewBox") || "0 0 100 100").split(/\s+/).map(Number);
+    const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    const bricks = faces.map((f) => {
+      const near = (list) => list.reduce((best, p) => (Math.hypot(p.c.x - f.c.x, p.c.y - f.c.y) < Math.hypot(best.c.x - f.c.x, best.c.y - f.c.y) ? p : best), list[0])?.d || "";
+      const angle = (Math.atan2(f.c.y - cy, f.c.x - cx) * 180) / Math.PI;
+      return { face: f.d, side: parts[0] ? near(parts[0]) : "", top: parts[1] ? near(parts[1]) : "", angle: (angle + 360) % 360 };
+    });
+    // Clockwise from 3 o'clock, starting just past the gap (the widest space between neighbours)
+    bricks.sort((a, b) => a.angle - b.angle);
+    let gapAfter = bricks.length - 1, widest = -1;
+    bricks.forEach((b, i) => { const next = bricks[(i + 1) % bricks.length]; const w = (next.angle - b.angle + 360) % 360; if (w > widest) { widest = w; gapAfter = i; } });
+    const ordered = [...bricks.slice(gapAfter + 1), ...bricks.slice(0, gapAfter + 1)];
+    return (logoBricks = { bricks: ordered, viewBox: vb.join(" ") });
+  }
+  /** filled: bricks in gold (the rest outlined). Returns markup; total is the logo's brick count. */
+  function logoRing({ filled = 0, cls = "", stagger = false } = {}) {
+    const { bricks, viewBox } = readLogoBricks();
+    const n = Math.max(0, Math.min(bricks.length, Math.round(filled)));
+    const body = bricks.map((b, i) => (i < n
+      ? `<g class="lr-brick is-full"${stagger ? ` style="--i:${i}"` : ""}><path class="lr-face" d="${b.face}"/><path class="lr-side" d="${b.side}"/><path class="lr-top" d="${b.top}"/></g>`
+      : `<g class="lr-brick is-empty"><path class="lr-outline" d="${b.face}"/></g>`)).join("");
+    return raw(`<svg class="logo-ring ${cls}" viewBox="${viewBox}" aria-hidden="true" focusable="false">${body}</svg>`);
+  }
+  const logoRingSize = () => readLogoBricks().bricks.length;
+
   /* Status pill --------------------------------------------------------- */
   /** Renders a pill bound to a café; it updates itself on store changes. */
   function statusPill(cafeId, { bare = false, time = true } = {}) {
@@ -9315,7 +9400,9 @@ export function createContactShadow(THREE, groundY) {
   }
 
   LCC.ui = {
-    html, raw, esc, $, $$, icon, logo, brickRing, avatar,
+    html, raw, esc, $, $$, icon, logo, brickRing,
+    logoRing,
+    logoRingSize, avatar,
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,
@@ -12767,13 +12854,7 @@ export function createContactShadow(THREE, groundY) {
               <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
               <div class="home__center">
-                <div class="ring ring--home" data-ring role="img" aria-label="${ringSpec().label}">
-                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: ringSpec().total, filled: ringSpec().filled, size: 248, radius: 104, length: 26, stagger: true })}</div>
-                  <div class="ring__center" aria-hidden="true">
-                    <span class="ring__num" data-ring-num data-value="0">0</span>
-                    <span class="ring__cap t-small t-muted" data-ring-cap>${ringSpec().cap}</span>
-                  </div>
-                </div>
+                ${ringHtml()}
                 <div class="home__lines" data-home-lines>${homeLinesHtml()}</div>
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
@@ -12786,6 +12867,10 @@ export function createContactShadow(THREE, groundY) {
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
+            // LCC Pass: tap the ring to turn it over (cups on us <-> money saved)
+            const onFlip = (e) => { const r = e.target.closest("[data-ring-flip]"); if (r) flipRing(r); };
+            view.addEventListener("click", onFlip);
+            return () => view.removeEventListener("click", onFlip);
           },
           on: {
             pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
@@ -12805,24 +12890,59 @@ export function createContactShadow(THREE, groundY) {
       }
 
       /** Under the ring: "Double Shot · 11 cups left · any branch" on a brand plan. */
-      const homeLine = () => S.brandBalanceLine() || (member().plan?.type === "explorer" ? "cups left on your pack" : "cups left this month");
+      const homeLine = () => S.brandBalanceLine() || (member().plan ? S.planLabel(member()) : "No plan yet");
 
       /** "Renews on 2 Dec" (Pass), "Use by 4 Jan" (packs). */
       const renewLine = () => S.planDateLine(member());
 
-      /** The ring: cups left (one brick per cup), or on the LCC Pass the
-          month's savings toward its price (20 bricks, one per twentieth of it). */
-      const PASS_BRICKS = 20;
+      /** The Home ring: the logo's own bricks (ui.logoRing, 15 of them).
+          Cup packs: a gold brick per cup left (up to 15), the rest empty
+          outlines; the number is cups left. LCC Pass: the bricks fill with
+          the month's savings toward the Pass's price; the front says how
+          many cups' worth the savings come to ("cups on us"), and a tap turns
+          the ring over to the money saved.                                  */
       function ringSpec() {
+        const N = ui.logoRingSize();
         if (S.isPass()) {
           const pm = S.passMonth();
+          const avg = pm.coffees ? pm.listTotal / pm.coffees : 0;
+          const onUs = avg ? pm.saved / avg : 0;
           return {
-            total: PASS_BRICKS, filled: Math.min(PASS_BRICKS, Math.floor(pm.progress * PASS_BRICKS + 1e-9)), num: pm.saved, cap: "saved",
-            label: `${fmt.rs(pm.saved)} saved this month, toward the ${fmt.rs(pm.price)} pass`,
+            kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
+            cap: onUs >= 0.95 && onUs < 1.05 ? "cup on us so far" : "cups on us so far",
+            label: `${fmtOnUs(onUs)} cups on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
           };
         }
         const b = S.balance();
-        return { total: b.total, filled: Math.max(0, b.left), num: b.left, cap: "", label: `${b.left} of ${b.total} cups left this month` };
+        const left = Math.max(0, b.left);
+        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${b.total} cups left` };
+      }
+      /** 1.2 under ten, whole numbers after. */
+      const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));
+      function ringHtml() {
+        const r = ringSpec();
+        const bricks = html`<div class="ring__bricks" data-bricks data-key="${r.filled}">${ui.logoRing({ filled: r.filled, stagger: true })}</div>`;
+        if (r.kind === "pass") {
+          return html`<button type="button" class="ring ring--home ring--flip" data-ring data-ring-flip data-kind="pass" aria-pressed="false" aria-label="${r.label}">
+            ${bricks}
+            <span class="ring__center" aria-hidden="true"><span class="ring__faces" data-faces>
+              <span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span>
+              <span class="ring__face ring__face--back"><span class="ring__unit">Rs</span><span class="ring__num ring__num--money" data-ring-money data-value="0">0</span><span class="ring__cap">saved so far</span></span>
+            </span></span>
+          </button>`;
+        }
+        return html`<div class="ring ring--home" data-ring data-kind="cups" role="img" aria-label="${r.label}">
+          ${bricks}
+          <div class="ring__center" aria-hidden="true"><span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span></div>
+        </div>`;
+      }
+      /** Turn the Pass ring over: the bricks spin once, the centre flips. */
+      function flipRing(ring) {
+        const on = ring.getAttribute("aria-pressed") !== "true";
+        ring.setAttribute("aria-pressed", String(on));
+        ring.classList.toggle("is-flipped", on);
+        const svg = $(".logo-ring", ring);
+        if (svg && !ui.reducedMotion()) { svg.classList.remove("is-spinning"); void svg.getBoundingClientRect(); svg.classList.add("is-spinning"); }
       }
 
       /** Lines under the ring. Pass: today's member coffee, the savings
@@ -13053,19 +13173,17 @@ export function createContactShadow(THREE, groundY) {
       }
 
       function paintRing() {
-        const ring = $("[data-ring]", view);
+        let ring = $("[data-ring]", view);
         if (!ring) return;
-        // Total cups across the plan, either type; read from the ledger
-        // One brick per cup; used cups outlined (the brick ring, BRAND.md)
-        // On the Pass: savings toward its price (PASS_BRICKS bricks)
         const r = ringSpec();
-        const key = `${r.total}:${r.filled}`;
+        // A plan change (Pass <-> pack) swaps the whole ring
+        if (ring.dataset.kind !== r.kind) { ring.outerHTML = ringHtml().s; ring = $("[data-ring]", view); }
         const bricks = $("[data-bricks]", ring);
-        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: r.total, filled: r.filled, size: 248, radius: 104, length: 26 }).s;
-        bricks.dataset.key = key;
-        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700 });
+        if (bricks.dataset.key !== String(r.filled)) { bricks.innerHTML = ui.logoRing({ filled: r.filled }).s; bricks.dataset.key = String(r.filled); }
+        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: r.kind === "pass" ? fmtOnUs : fmt.num });
+        const money = $("[data-ring-money]", ring);
+        if (money) ui.animateNumber(money, r.money, { duration: 700, format: fmt.num });
         const cap = $("[data-ring-cap]", ring); if (cap) cap.textContent = r.cap;
-        ring.classList.toggle("ring--savings", !!r.cap);
         ring.setAttribute("aria-label", r.label);
       }
 
