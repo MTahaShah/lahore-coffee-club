@@ -315,17 +315,14 @@
               <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
               <div class="home__center">
-                <div class="ring ring--home" data-ring role="img" aria-label="${S.balance().left} of ${S.balance().total} cups left this month">
-                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: S.balance().total, filled: S.balance().left, size: 248, radius: 104, length: 26, stagger: true })}</div>
+                <div class="ring ring--home" data-ring role="img" aria-label="${ringSpec().label}">
+                  <div class="ring__bricks" data-bricks>${ui.brickRing({ total: ringSpec().total, filled: ringSpec().filled, size: 248, radius: 104, length: 26, stagger: true })}</div>
                   <div class="ring__center" aria-hidden="true">
                     <span class="ring__num" data-ring-num data-value="0">0</span>
+                    <span class="ring__cap t-small t-muted" data-ring-cap>${ringSpec().cap}</span>
                   </div>
                 </div>
-                <div class="home__lines">
-                  <p class="t-body" data-home-line>${homeLine()}</p>
-                  <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
-                  ${m.plan ? LCC.bandsGuide.link() : ""}
-                </div>
+                <div class="home__lines" data-home-lines>${homeLinesHtml()}</div>
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
                   <div class="home__more">
@@ -345,23 +342,60 @@
             ledger: ({ entries }) => {
               if (!entries.some((e) => e.memberId === member().id)) return;
               paintRing();
-              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
+              paintHomeLines();
             },
             member: () => {
               paintRing();
-              const l = $("[data-renew-line]", view); if (l) l.textContent = renewLine();
-              const h = $("[data-home-line]", view); if (h) h.textContent = homeLine();
+              paintHomeLines();
             },
           },
         };
       }
 
       /** Under the ring: "Double Shot · 11 cups left · any branch" on a brand plan. */
-      const homeLine = () => S.brandBalanceLine() || "cups left this month";
+      const homeLine = () => S.brandBalanceLine() || (member().plan?.type === "explorer" ? "cups left on your pack" : "cups left this month");
 
-      function renewLine() {
+      /** "Renews on 2 Dec" (Pass), "Use by 4 Jan" (packs). */
+      const renewLine = () => S.planDateLine(member());
+
+      /** The ring: cups left (one brick per cup), or on the LCC Pass the
+          month's savings toward its price (20 bricks, one per twentieth of it). */
+      const PASS_BRICKS = 20;
+      function ringSpec() {
+        if (S.isPass()) {
+          const pm = S.passMonth();
+          return {
+            total: PASS_BRICKS, filled: Math.min(PASS_BRICKS, Math.floor(pm.progress * PASS_BRICKS + 1e-9)), num: pm.saved, cap: "saved",
+            label: `${fmt.rs(pm.saved)} saved this month, toward the ${fmt.rs(pm.price)} pass`,
+          };
+        }
+        const b = S.balance();
+        return { total: b.total, filled: Math.max(0, b.left), num: b.left, cap: "", label: `${b.left} of ${b.total} cups left this month` };
+      }
+
+      /** Lines under the ring. Pass: today's member coffee, the savings
+          (accent), paid for itself, the renewal, and after 10 coffees one
+          quiet line on what a Classic 16 would have saved. */
+      function homeLinesHtml() {
         const m = member();
-        return m.plan ? `Renews on ${fmt.shortDate(m.renewsAt)}` : "No plan yet";
+        if (S.isPass()) {
+          const t = S.passToday();
+          const pm = S.passMonth();
+          const vs = S.passVsPack();
+          return html`
+            <p class="t-body" data-home-line>Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}</p>
+            <p class="t-small home__saved num">You’ve saved ${fmt.rs(pm.saved)} this month</p>
+            <p class="t-small t-muted num">${pm.paidOff ? "Your pass has paid for itself." : `${fmt.rs(pm.price - pm.saved)} more and it has paid for itself.`} ${renewLine()}.</p>
+            ${vs ? html`<p class="t-small t-faint num">A ${vs.pack.name} would have saved you ${fmt.rs(vs.more)} more.</p>` : ""}`;
+        }
+        return html`
+          <p class="t-body" data-home-line>${homeLine()}</p>
+          <p class="t-small t-muted" data-renew-line>${renewLine()}</p>
+          ${m.plan ? LCC.bandsGuide.link() : ""}`;
+      }
+      function paintHomeLines() {
+        const box = $("[data-home-lines]", view);
+        if (box) box.innerHTML = homeLinesHtml().s;
       }
 
       /* What your cup covers ---------------------------------------------
@@ -440,8 +474,8 @@
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
-                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : `, ${fmt.cups(plan.cups)} this month`}</p>
-                    <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)} a month · ` : ""}renews on ${fmt.shortDate(m.renewsAt)}</p>
+                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
+                    <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)}${plan.type === "explorer" ? "" : " a month"} · ` : ""}${S.planDateLine(m).replace(/^./, (c) => c.toLowerCase())}</p>
                     ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
                 : html`<p class="t-body">No plan yet</p>`}
               <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
@@ -460,7 +494,7 @@
 
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
-              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. Unused cups end with the month.</p>
+              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
@@ -532,10 +566,19 @@
 
       const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend", beans: "from your Beans" };
       function recentRows(newId) {
-        const rows = S.activity().slice(0, 3);
+        const rows = S.activity(undefined, ["redeem", "pass-sale", "gift", "reward"]).slice(0, 3);
         if (!rows.length) return html`<li class="row"><div class="row__main row__meta">No cups used yet. Your first one is waiting.</div></li>`;
         return html`${rows.map((r) => {
           const c = S.cafe(r.cafeId);
+          if (r.type === "pass-sale") {
+            return html`<li class="row${r.id === newId ? " enter" : ""}">
+              <div class="row__main">
+                <div class="row__title">${S.entryDrinkName(r)}</div>
+                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)}, saved ${fmt.rs(r.listPrice - r.memberPrice)} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+              </div>
+              <span class="badge">Pass</span>
+            </li>`;
+          }
           if (r.type !== "redeem") {
             const title = r.type === "gift" ? `Gift to ${r.toName || "a friend"}` : `Complimentary cup: ${REWARD_LINES[r.reason] || "from the club"}`;
             const where = r.type === "gift" ? (c ? `For ${c.name}` : "For any partner café") : "Any partner café";
@@ -562,13 +605,16 @@
         if (!ring) return;
         // Total cups across the plan, either type; read from the ledger
         // One brick per cup; used cups outlined (the brick ring, BRAND.md)
-        const b = S.balance();
-        const key = `${b.total}:${b.left}`;
+        // On the Pass: savings toward its price (PASS_BRICKS bricks)
+        const r = ringSpec();
+        const key = `${r.total}:${r.filled}`;
         const bricks = $("[data-bricks]", ring);
-        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: b.total, filled: Math.max(0, b.left), size: 248, radius: 104, length: 26 }).s;
+        if (bricks.dataset.key && bricks.dataset.key !== key) bricks.innerHTML = ui.brickRing({ total: r.total, filled: r.filled, size: 248, radius: 104, length: 26 }).s;
         bricks.dataset.key = key;
-        ui.animateNumber($("[data-ring-num]", ring), b.left, { duration: 700 });
-        ring.setAttribute("aria-label", `${b.left} of ${b.total} cups left this month`);
+        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700 });
+        const cap = $("[data-ring-cap]", ring); if (cap) cap.textContent = r.cap;
+        ring.classList.toggle("ring--savings", !!r.cap);
+        ring.setAttribute("aria-label", r.label);
       }
 
       /* Pass ------------------------------------------------------------ */
@@ -602,6 +648,7 @@
           on: {
             pass: () => rotate(),
             redeem: ({ entry, member: who }) => { if (who.id === member().id && !entry.orderId) showSuccess(entry); },
+            passSale: ({ entry, member: who }) => { if (who.id === member().id) showPassSale(entry); },
             undo: ({ member: who }) => { if (who.id === member().id) { clearTimeout(backTimer); paintQrCard(); } },
             profile: ({ memberId }) => { if (memberId === member().id) { const w = $("[data-pass-who]", view); if (w) w.innerHTML = passWho().s; } },
             member: () => paintMeta(),
@@ -615,10 +662,16 @@
           const m2 = member();
           return html`${m2.photo ? ui.avatar(m2, { size: 32 }) : ""}<span class="pass-who__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
         }
-        /** "Explorer · Regular · 11 of 16 cups left" */
+        /** "LCC Pass · 20% off · 1 today", "Cup pack · Classic 8 · 5 of 8 cups left" */
         function planLine() {
           const m2 = member();
           if (!m2.plan) return "No plan yet";
+          if (m2.plan.type === "pass") {
+            const P = S.planConfig().pass;
+            // The allowance, as on the card ("1 today"); Home says whether it's used
+            const extra = Math.max(0, S.balance().left);
+            return `${P.name} · ${Math.round(P.discount * 100)}% off · ${P.dailyLimit} today${extra ? ` · ${fmt.cups(extra)} complimentary` : ""}`;
+          }
           const b = S.balance();
           return `${S.planLabel(m2)} · ${Math.max(0, b.left)} of ${b.total} cups left`;
         }
@@ -673,7 +726,7 @@
             <a class="pass-order__text" href="#/app/cafes/${o.brandId}" aria-label="Your order: ${S.drinkLabel(item, o.temp)} at ${S.brand(o.brandId).name}. Change it">
               <span class="t-small t-muted">${S.brand(o.brandId).name}</span>
               <span class="pass-order__drink">${S.drinkLabel(item, o.temp)}</span>
-              <span class="t-small t-muted num">${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}</span>
+              <span class="t-small t-muted num">${S.isPass() ? `${fmt.rs(p.price)} · ${fmt.rs(S.memberPrice(p.price))} member price` : `${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}`}</span>
             </a>
             <button type="button" class="icon-btn pass-order__clear" data-clear-order aria-label="Order at the counter instead">${icon("close", { size: 18 })}</button>
           </div>`;
@@ -685,15 +738,16 @@
         function passCafes() {
           const b = S.balance();
           const cap = store.getState().rules.explorerCapPerCafe;
-          if (!b.type || b.type === "brand") return "";
+          if (!b.type || b.type === "brand" || b.type === "pass") return "";
           if (b.type === "mycafes") {
             const rows = Object.entries(b.perCafe).filter(([, x]) => x.reserved);
             return rows.length ? html`<ul role="list">${rows.map(([id, x]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${x.left} of ${x.reserved} left</span></li>`)}</ul>` : "";
           }
+          // Cup packs: the same pool rule as before, per pack
           const used = {};
           Object.entries(b.usedAt).forEach(([id, n]) => { const v = S.venueOf(id); used[v] = (used[v] || 0) + n; });
           const rows = Object.entries(used);
-          return html`<p class="t-small t-muted">Up to ${cap} at each café a month.</p>
+          return html`<p class="t-small t-muted">Up to ${cap} at each café per pack.</p>
             ${rows.length
               ? html`<ul role="list">${rows.map(([id, n]) => html`<li><span>${S.venueName(id)}</span> <span class="num">${n} of ${cap}</span></li>`)}</ul>`
               : html`<p class="t-small t-muted">No cups used yet. Your first one is waiting.</p>`}`;
@@ -742,6 +796,25 @@
           if (p.code !== lastCode) rotate(); // safety net if the rotation event was missed
           text.textContent = `Refreshes in ${fmt.countdown(p.secondsLeft)}`;
           $("[data-cd-bar]", view).setAttribute("stroke-dashoffset", (CD_C * (1 - p.secondsLeft / p.period)).toFixed(2));
+        }
+
+        /** After a pass sale at the counter: what was paid and saved. */
+        function showPassSale(entry) {
+          const card = $("[data-pass-card]", view);
+          if (!card) return;
+          const pm = S.passMonth();
+          card.innerHTML = html`
+            <div class="pass-success" role="status">
+              <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+              <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(entry.cafeId)}.</p>
+              <p class="t-body num">${S.entryDrinkName(entry)} · ${fmt.rs(entry.memberPrice)} at the till</p>
+              <p class="t-small home__saved num">Saved ${fmt.rs(entry.listPrice - entry.memberPrice)} · ${fmt.rs(pm.saved)} this month</p>
+              <p class="t-small t-faint">Today’s member coffee is used. Back tomorrow.</p>
+              <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
+              <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
+            </div>`.s;
+          clearTimeout(backTimer);
+          backTimer = setTimeout(paintQrCard, 8000);
         }
 
         function showSuccess(entry) {

@@ -141,7 +141,7 @@
         <dl class="pid__fields">
           <div><dt>Name</dt><dd>${fullName(m)}</dd></div>
           <div><dt>Member since</dt><dd>${fmt.monthYear(c.since)}</dd></div>
-          <div><dt>Plan</dt><dd>${plan.type === "explorer" ? `Explorer · ${plan.name}` : plan.name}</dd></div>
+          <div><dt>Plan</dt><dd>${S.planLabel(m)}</dd></div>
         </dl>
       </div>
       <div class="pid__no"><span class="pid__label">Member no.</span><span class="pid__digits num">${String(c.memberNo ?? 0).padStart(4, "0")}</span></div>
@@ -180,7 +180,7 @@
     const no = String(c.memberNo ?? 0).padStart(4, "0");
     const id = {
       kind: "id", n: 1, gutter: "left", initials: m.initials || (m.firstName || "?")[0], number: no,
-      fields: [["Name", fullName(m)], ["Member since", fmt.monthYear(c.since)], ["Plan", plan.type === "explorer" ? `Explorer · ${plan.name}` : plan.name]],
+      fields: [["Name", fullName(m)], ["Member since", fmt.monthYear(c.since)], ["Plan", S.planLabel(m)]],
       mrz: [`P<LHR<${mrzName(m.lastName)}<<${mrzName(m.firstName)}`.padEnd(33, "<").slice(0, 33), `LCC${no}<<<<<<MEMBER<<SINCE<<${new Date(c.since).getFullYear()}`.padEnd(33, "<").slice(0, 33)],
     };
     const stampPages = bookPages(c).map((st, i) => ({
@@ -862,7 +862,8 @@
   function sources() {
     const m = S.member();
     if (!m.plan) return [];
-    if (m.plan.type === "explorer") return [{ id: null, label: "Your Explorer pool", left: S.poolBalance(), line: "They can use it at any partner café." }];
+    if (m.plan.type === "pass") return []; // the Pass has no cups to give
+    if (m.plan.type === "explorer") return [{ id: null, label: `Your ${S.planName(m.plan)} pack`, left: S.poolBalance(), line: "They can use it at any partner café." }];
     if (m.plan.type === "brand") { const b = S.brand(m.plan.brandId); return [{ id: null, label: `Your ${b.name} cups`, left: S.poolBalance(), line: `They can use them at any ${b.name} branch.` }]; }
     const b = S.balance();
     return Object.entries(b.perCafe).filter(([, x]) => x.reserved).map(([id, x]) => ({ id, label: S.cafe(id).name, left: x.left, line: `Reserved cups stay at ${S.cafe(id).name}. They can only use them there.` }));
@@ -928,7 +929,7 @@
         return html`<div class="pay-state">
           <span class="pay-state__mark" aria-hidden="true">${icon("gift", { size: 28 })}</span>
           <h2 class="t-h3">No cups to give right now.</h2>
-          <p class="t-small t-muted">${m.plan ? `Gifts come out of this month’s cups. Yours renew on ${fmt.longDate(m.renewsAt)}.` : "Choose a plan first, then you can share it."}</p>
+          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.planConfig().pass.name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
           <a class="btn btn--secondary btn--block" href="#/app">Back to home</a>
         </div>`;
       }

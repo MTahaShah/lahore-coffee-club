@@ -157,7 +157,8 @@
           <button type="button" class="proto-bar__theme" data-menu-toggle="proto-demo-menu" aria-expanded="false" aria-controls="proto-demo-menu">Demo</button>
           <div class="proto-demo__menu" id="proto-demo-menu" role="menu" aria-label="Presenter" hidden>
             <button type="button" role="menuitem" data-demo="new">Start as a new member</button>
-            <button type="button" role="menuitem" data-demo="mumtaz">Back to Mumtaz’s demo</button>
+            <button type="button" role="menuitem" data-demo="mumtaz">Mumtaz: LCC Pass</button>
+            <button type="button" role="menuitem" data-demo="pack">Alina: Classic 8 pack</button>
           </div>
         </div>
         <button type="button" class="proto-bar__theme" data-theme-toggle aria-label="Colour theme: ${theme}. Change theme">
@@ -185,6 +186,12 @@
       location.hash = withRoom("#/app/welcome");
       // Already on the first step's screen: no hashchange, so redraw from the top
       if (already) surfaces.app.update(["welcome"], { force: true });
+    } else if (which === "pack") {
+      // The second demo member, on a cup pack; "Mumtaz" goes back
+      LCC.onboarding?.reset();
+      store.actions.restoreDemo();
+      store.actions.viewAsMember(LCC.data.demoPackMemberId);
+      location.hash = withRoom("#/app");
     } else {
       LCC.onboarding?.reset();
       store.actions.restoreDemo();

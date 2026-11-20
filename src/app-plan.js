@@ -1,9 +1,9 @@
 /* =====================================================================
    Lahore Coffee Club — app-plan.js
    Member app: plan picker (#/app/plan) and simulated payment
-   (#/app/plan/pay). Prices always come from store.select.quote(), which
-   uses select.customPrice() for My cafés: one source of truth for
-   this screen, the landing teaser and #/kit.
+   (#/app/plan/pay): the LCC Pass (default) and cup packs ("At selected
+   cafés"). Prices come from store.select.quote(), which reads data.js
+   PLAN_CONFIG and PLANS: one source of truth for this screen and #/kit.
    ===================================================================== */
 (function () {
   "use strict";
@@ -16,13 +16,13 @@
   const rules = () => store.getState().rules;
 
   /* -------------------------------------------------------------------
-     Draft: what the member is about to buy. The custom allocation is the
-     store's builder, so the kit's builder shows the same numbers.
+     Draft: what the member is about to buy.
+     mode: "pass" (LCC Pass, the default) or "packs" (cup packs, at
+     selected cafés). Packs are plan.type "explorer" with tierId = the
+     pack id. My cafés and the old Explorer tiers are no longer sold;
+     legacy Double Shot plans aren't either.
      ------------------------------------------------------------------- */
-  // mode: "explorer" (Explorer tiers, one pool) or "mycafes" (cups reserved per café,
-  // each café with its band). Legacy Double Shot plans are not for sale.
-  const draft = { started: false, mode: "explorer", tierId: "regular", highlight: null };
-  const DEFAULT_ADD = 2; // cups added for a café chosen from the sheet or its page
+  const draft = { started: false, mode: "pass", tierId: "classic8", highlight: null };
 
   const pay = {
     method: "jazzcash",
@@ -33,22 +33,18 @@
     forMember: null, // whose number pre-fills the wallet field
   };
   const onboarding = () => !!LCC.onboarding?.active();
+  const cfg = () => S.planConfig();
+  const packs = () => store.getState().tiers;
+  const canBuy = (t) => !(t.oncePerPerson && S.trialUsed());
 
-  /** mode: open on "explorer" or "mycafes". addCafe: a café (or chain branch) to
-      add to My cafés. keepBuilder: keep the builder as it is (the landing teaser
-      hands over its cups) instead of loading the current plan. */
-  function start({ addCafe = null, mode = null, keepBuilder = false } = {}) {
-    const st = store.getState();
+  /** mode: open on "pass" or "packs" (anything else: the member's own kind,
+      else the Pass). addCafe is accepted from older links and ignored. */
+  function start({ mode = null } = {}) {
     const cur = S.member().plan;
-    const venue = addCafe ? S.venueOf(addCafe) : null;
-    // A second "Add to my plan" in this session adds to the draft instead of starting over
-    const keep = keepBuilder || (venue && draft.started && draft.mode === "mycafes");
     draft.started = true;
-    draft.mode = mode || (venue ? "mycafes" : cur?.type === "mycafes" ? "mycafes" : "explorer");
-    draft.tierId = cur?.type === "explorer" ? cur.tierId : "regular";
-    draft.highlight = venue;
-    if (!keep) A.setBuilder(cur?.type === "mycafes" ? cur.allocation : {}, cur?.type === "mycafes" ? cur.bands : {});
-    if (venue && !st.builder[venue]) A.setBuilderCups(venue, DEFAULT_ADD);
+    draft.mode = mode === "pass" || mode === "packs" ? mode : cur?.type === "explorer" ? "packs" : "pass";
+    const own = cur?.type === "explorer" && packs().find((t) => t.id === cur.tierId);
+    draft.tierId = own && canBuy(own) ? own.id : "classic8";
     pay.phase = "form";
     if (pay.forMember !== S.member().id) {
       pay.forMember = S.member().id;
@@ -57,180 +53,96 @@
   }
   LCC.appPlan = { start, draft };
 
-  const draftPlan = () =>
-    draft.mode === "explorer"
-      ? { type: "explorer", tierId: draft.tierId }
-      : { type: "mycafes", allocation: { ...store.getState().builder }, bands: { ...store.getState().builderBands } };
+  const draftPlan = () => (draft.mode === "pass" ? { type: "pass" } : { type: "explorer", tierId: draft.tierId });
 
-  const isCurrent = () => S.isCurrentPlan(draftPlan());
-  const whyMinimum = () =>
-    `Plans start at ${rules().minCupsTotal} cups a month, so every café can count on you as a regular.`;
+  /** Coffees until the Pass pays for itself, at the average Classic latte across partner cafés. */
+  function paysBackIn() {
+    const prices = S.clubCafes().map((c) => c.price).filter(Boolean);
+    const avg = prices.reduce((n, x) => n + x, 0) / (prices.length || 1);
+    return Math.max(1, Math.ceil(cfg().pass.price / (avg * cfg().pass.discount)));
+  }
+
+  /** Why Continue is off, or null: already on the Pass; a pack with cups still left. */
+  function blocked() {
+    const m = S.member();
+    const plan = draftPlan();
+    if (!S.isCurrentPlan(plan)) return null;
+    if (plan.type === "pass") return `You’re on the ${cfg().pass.name}. ${S.planDateLine(m)}.`;
+    const left = Math.max(0, S.balance().left);
+    return left > 0 ? `You have ${fmt.cups(left)} left on this pack. ${S.planDateLine(m)}.` : null;
+  }
 
   /* -------------------------------------------------------------------
      Plan picker
      ------------------------------------------------------------------- */
   REG.plan = (ctx) => {
-    const { view, el } = ctx;
+    const { view } = ctx;
     const m = ctx.member();
-    let sheet = null;     // the "Add a café" sheet
-    let sheetQuery = "";
 
-    /* Explorer: one list, two quiet groups ------------------------------ */
-    function tiersHtml() {
-      const cur = S.member().plan;
-      const classic = store.getState().bands[0].id;
-      const groups = [
-        { label: "Classic", tiers: store.getState().tiers.filter((t) => t.maxBand === classic) },
-        { label: "More of the menu", tiers: store.getState().tiers.filter((t) => t.maxBand !== classic) },
-      ];
+    /* LCC Pass: one offer, said plainly ------------------------------------ */
+    function passHtml() {
+      const P = cfg().pass;
+      const pct = Math.round(P.discount * 100);
       return html`
-        <p class="t-small t-muted plan-intro">One pool of cups for any partner café, up to ${rules().explorerCapPerCafe} a month at each. Good for trying new places.</p>
+        <div class="card pass-offer">
+          <p class="eyebrow">${P.name}</p>
+          <p class="pass-offer__price"><span class="t-h1 num">${fmt.rs(P.price)}</span> <span class="t-small t-muted">a month</span></p>
+          <ul role="list" class="pass-offer__list">
+            <li>${pct}% off one coffee a day</li>
+            <li>Any drink, at any partner café</li>
+            <li>Pay the café the member price at the counter</li>
+            <li class="t-muted">A second coffee the same day is full price</li>
+          </ul>
+        </div>
+        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. It renews each month; cancel any time.</p>`;
+    }
+
+    /* Cup packs: one list, two quiet groups --------------------------------- */
+    function packsHtml() {
+      const cur = S.member().plan;
+      const groups = [...new Set(packs().map((t) => t.maxBand))].map((band) => ({ band: S.band(band), list: packs().filter((t) => t.maxBand === band) }));
+      return html`
+        <p class="t-small t-muted plan-intro">Prepaid cups at selected cafés. They last ${cfg().packDays} days and don’t renew; up to ${rules().explorerCapPerCafe} at each café per pack.</p>
         <fieldset class="plan-groups">
-          <legend class="sr-only">Explorer plans</legend>
+          <legend class="sr-only">Cup packs</legend>
           ${groups.map((g) => html`<div class="plan-group">
-            <p class="eyebrow plan-group__label">${g.label}</p>
+            <p class="eyebrow plan-group__label">${g.band.label} <span class="t-faint num">· drinks up to ${fmt.rs(g.band.maxPrice)}</span></p>
             <div class="plan-rows">
-              ${g.tiers.map((t) => html`<label class="plan-row">
-                <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""}>
-                <span class="plan-row__text"><span class="plan-row__name">${t.name}</span>${cur?.type === "explorer" && cur.tierId === t.id ? html`<span class="sr-only">, your plan</span>` : ""}
-                  <span class="t-small t-muted num">${fmt.cups(t.cups)} · ${fmt.rs(t.price / t.cups)} a cup · ${S.coversLabel(t.maxBand)}</span></span>
-                <span class="plan-row__price num">${fmt.rs(t.price)}</span>
-              </label>`)}
+              ${g.list.map((t) => {
+                const off = !canBuy(t);
+                return html`<label class="plan-row${off ? " is-off" : ""}">
+                  <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""} ${off ? raw("disabled") : ""}>
+                  <span class="plan-row__text"><span class="plan-row__name">${t.name}</span>${cur?.type === "explorer" && cur.tierId === t.id ? html`<span class="sr-only">, your pack</span>` : ""}
+                    <span class="t-small t-muted num">${off ? "Once per person, already used" : `${fmt.cups(t.cups)} · ${fmt.rs(Math.round(t.price / t.cups))} a cup${t.oncePerPerson ? " · once per person" : ""}`}</span></span>
+                  <span class="plan-row__price num">${fmt.rs(t.price)}</span>
+                </label>`;
+              })}
             </div>
           </div>`)}
         </fieldset>
-        <p class="plan-bands">${LCC.bandsGuide.link("What’s in Classic, Signature and Reserve")}</p>`;
-    }
-
-    /* My cafés: cafés added one by one ---------------------------------- */
-    const bandFor = (id) => S.band(store.getState().builderBands[id]).id;
-    function rowMeta(id) {
-      const b = S.band(bandFor(id));
-      return `${fmt.rs(b.myCafesPrice)} a cup · ${b.label} drinks up to ${fmt.rs(b.maxPrice)}`;
-    }
-    function builderRowHtml(id) {
-      const n = store.getState().builder[id] || 0;
-      const v = S.venue(id);
-      const bands = S.venueBands(id);
-      return html`<li class="builder-row${draft.highlight === id ? " is-new" : ""}" data-builder-row="${id}">
-        <div class="builder-row__head">
-          <span class="row__title">${v.name}</span>
-          <button type="button" class="btn btn--link builder-row__remove" data-remove-cafe="${id}" aria-label="Remove ${v.name}">Remove</button>
-        </div>
-        <div class="builder-row__controls">
-          <p class="t-small t-muted num" data-row-meta>${rowMeta(id)}</p>
-          ${ui.stepper({ id, value: n, min: 1, max: rules().maxCupsPerCafe, label: `Cups a month at ${v.name}` })}
-        </div>
-        ${ui.segmented({ name: `band-${id}`, label: `Band at ${v.name}`, value: bandFor(id), options: bands.map((b) => ({ value: b.id, label: b.label })) })}
-      </li>`;
-    }
-    function builderHtml() {
-      const ids = Object.keys(store.getState().builder);
-      if (!ids.length) {
-        return html`<div class="builder-empty">
-          <p class="t-body">Pick the cafés you love. Choose cups for each.</p>
-          <button type="button" class="btn btn--secondary" data-add-cafe>Add a café</button>
-        </div>`;
-      }
-      return html`
-        <p class="t-small t-muted plan-intro">Cups reserved at each café, up to ${rules().maxCupsTotal} a month in all, and only for that café. Choose the drinks each café’s cups cover.</p>
-        <ul role="list" class="builder-list">${ids.map(builderRowHtml)}</ul>
-        <button type="button" class="btn btn--link builder-add" data-add-cafe>Add a café</button>
-        <p class="t-small t-muted" data-builder-full hidden>That’s ${rules().maxCupsTotal} cups, the most for one month. Take a cup off a café to add another.</p>`;
-    }
-
-    /* The "Add a café" sheet: search and the list ----------------------- */
-    function sheetListHtml() {
-      const added = store.getState().builder;
-      const q = sheetQuery.trim().toLowerCase();
-      const list = S.venues().filter((v) => !added[v.id] && (!q || `${v.name} ${S.area(v.area)?.name || ""}`.toLowerCase().includes(q)));
-      return list.length
-        ? html`${list.map((v) => html`<li><button type="button" class="row add-cafe-row" data-pick-cafe="${v.id}">
-            <span class="row__main"><span class="row__title">${v.name}</span><span class="row__meta">${S.brand(v.brandId)?.plans?.length ? `${S.branches(v.brandId).length} branches, any of them` : S.area(v.area)?.name || ""}</span></span>
-          </button></li>`)}`
-        : html`<li class="t-small t-muted">${q ? `No café matches “${sheetQuery}”.` : "Every café is in your plan."}</li>`;
-    }
-    function sheetHtml() {
-      return html`
-        <div class="sheet__scrim" data-sheet-close></div>
-        <div class="sheet__panel">
-          <div class="sheet__handle" aria-hidden="true"></div>
-          <div class="sheet__body add-cafe-sheet">
-            <div class="badges-sheet__bar">
-              <h2 class="t-h3" id="add-cafe-title">Add a café</h2>
-              <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-            </div>
-            <label class="sr-only" for="add-cafe-q">Search cafés</label>
-            <input class="input" id="add-cafe-q" type="search" placeholder="Search cafés" value="${sheetQuery}" autocomplete="off" data-add-cafe-q>
-            <ul role="list" class="add-cafe-list" data-add-cafe-list>${sheetListHtml()}</ul>
-          </div>
-        </div>`;
-    }
-    function openAddSheet(btn) {
-      btn.focus(); // closing returns here (Safari doesn't focus on tap)
-      sheetQuery = "";
-      sheet.innerHTML = sheetHtml().s;
-      ui.openSheet(sheet);
-    }
-    function onSheetClick(e) {
-      const pick = e.target.closest("[data-pick-cafe]");
-      if (!pick) return;
-      const id = pick.dataset.pickCafe;
-      A.setBuilderCups(id, DEFAULT_ADD);
-      draft.highlight = id;
-      ui.closeSheet(sheet);
-      paintBody();
-      paintSummary();
-      $(`[data-builder-row="${id}"] [data-step="1"]`, view)?.focus({ preventScroll: true });
-      $(`[data-builder-row="${id}"]`, view)?.scrollIntoView({ block: "center", behavior: ui.reducedMotion() ? "auto" : "smooth" });
-    }
-    function onSheetInput(e) {
-      if (!e.target.matches("[data-add-cafe-q]")) return;
-      sheetQuery = e.target.value;
-      $("[data-add-cafe-list]", sheet).innerHTML = sheetListHtml().s;
+        <p class="plan-bands">${LCC.bandsGuide.link("What’s in Classic and Signature")}</p>`;
     }
 
     function paintBody() {
-      $("[data-plan-body]", view).innerHTML = (draft.mode === "explorer" ? tiersHtml() : builderHtml()).s;
-      if (draft.mode === "mycafes") paintLimit();
-    }
-    /** 30 cups a month is the most: grey out every plus and swap "Add a café" for a note. */
-    function paintLimit() {
-      const full = S.customPrice().atMaximum;
-      const b = store.getState().builder;
-      $$("[data-builder-row]", view).forEach((row) => {
-        const id = row.dataset.builderRow;
-        if (b[id]) ui.setStepper($("[data-stepper]", row), b[id], full);
-      });
-      const add = $(".builder-add", view), note = $("[data-builder-full]", view);
-      if (add) add.hidden = full;
-      if (note) note.hidden = !full;
+      $("[data-plan-body]", view).innerHTML = (draft.mode === "pass" ? passHtml() : packsHtml()).s;
     }
 
     function paintSummary(animate = true) {
       const q = S.quote(draftPlan());
       const planEl = $("[data-sum-plan]", view);
       const priceEl = $("[data-sum-price]", view);
-      planEl.textContent = draft.mode === "explorer" ? `Explorer · ${q.name} · ${fmt.cups(q.cups)}` : `My cafés · ${fmt.cups(q.cups)}`;
+      planEl.textContent = draft.mode === "pass" ? `${q.name} · a month` : `Cup pack · ${q.name} · ${fmt.cups(q.cups)}`;
       if (animate) ui.animateNumber(priceEl, q.price, { format: fmt.rs });
       else { priceEl.textContent = fmt.rs(q.price); priceEl.dataset.value = q.price; }
-
       const note = $("[data-sum-note]", view);
       const btn = $("[data-continue]", view);
-      let text, warn = false, ok = true;
-      if (!q.meetsMinimum) {
-        text = q.cups ? `Add ${fmt.cups(q.cupsShort)} to continue. ${whyMinimum()}` : "Add a café to start.";
-        warn = !!q.cups; ok = false;
-      } else if (isCurrent()) {
-        text = `You’re on this plan. It renews on ${fmt.shortDate(m.renewsAt)}.`;
-        ok = false;
-      } else {
-        text = `You save ${draft.mode === "explorer" ? "about " : ""}${fmt.rs(q.savings)} vs the counter`;
-      }
+      const why = blocked();
+      const text = why
+        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} coffees` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
       note.textContent = text;
-      note.classList.toggle("is-warn", warn);
-      note.classList.toggle("is-save", ok);
-      btn.disabled = !ok;
+      note.classList.remove("is-warn");
+      note.classList.toggle("is-save", !why);
+      btn.disabled = !!why;
     }
 
     function onClick(e) {
@@ -244,27 +156,6 @@
         paintSummary();
         return;
       }
-      if (group?.dataset.segmented.startsWith("band-")) {
-        ui.selectSegment(group, seg.dataset.value);
-        A.setBuilderBand(group.dataset.segmented.slice(5), seg.dataset.value);
-        return;
-      }
-      const step = e.target.closest("[data-step]");
-      if (step) {
-        const id = step.closest("[data-stepper]").dataset.stepper;
-        A.setBuilderCups(id, Math.max(1, (store.getState().builder[id] || 0) + Number(step.dataset.step)));
-        return;
-      }
-      const rm = e.target.closest("[data-remove-cafe]");
-      if (rm) {
-        A.setBuilderCups(rm.dataset.removeCafe, 0);
-        paintBody();
-        paintSummary();
-        $("[data-add-cafe]", view)?.focus({ preventScroll: true });
-        return;
-      }
-      const add = e.target.closest("[data-add-cafe]");
-      if (add) { openAddSheet(add); return; }
       if (e.target.closest("[data-continue]")) {
         pay.phase = "form";
         ctx.go("#/app/plan/pay");
@@ -288,10 +179,10 @@
             <div class="stack" style="--stack-gap:var(--space-2)">
               <h1 class="t-h2">Choose your plan</h1>
               ${m.plan
-                ? html`<p class="t-small t-muted num">A new plan starts fresh today; unused cups don’t carry over.</p>`
-                : html`<p class="t-small t-muted">Two ways to drink well. Your month starts the day you pay, and you can change plans whenever you like.</p>`}
+                ? html`<p class="t-small t-muted num">A new plan starts today; cups left on a pack don’t carry over.</p>`
+                : html`<p class="t-small t-muted">A monthly pass for money off, or prepaid cups. You can change whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "explorer", label: "Explorer" }, { value: "mycafes", label: "My cafés" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: cfg().pass.name }, { value: "packs", label: "Cup packs" }] })}
             <div class="plan-body" data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -304,43 +195,15 @@
           </div>
         </div>`.s,
       mount() {
+        if (!draft.started) start();
         paintBody();
         paintSummary(false);
-        if (draft.highlight && draft.mode === "mycafes") {
-          const row = $(`[data-builder-row="${draft.highlight}"]`, view);
-          requestAnimationFrame(() => row?.scrollIntoView({ block: "center", behavior: ui.reducedMotion() ? "auto" : "smooth" }));
-        }
-        sheet = document.createElement("div");
-        sheet.className = "sheet";
-        sheet.id = "add-cafe-sheet";
-        sheet.setAttribute("role", "dialog");
-        sheet.setAttribute("aria-modal", "true");
-        sheet.setAttribute("aria-labelledby", "add-cafe-title");
-        sheet.setAttribute("aria-hidden", "true");
-        $(".phone__screen", el).appendChild(sheet);
-        sheet.addEventListener("click", onSheetClick);
-        sheet.addEventListener("input", onSheetInput);
         view.addEventListener("click", onClick);
         view.addEventListener("change", onChange);
         return () => {
           view.removeEventListener("click", onClick);
           view.removeEventListener("change", onChange);
-          ui.closeSheet(sheet);
-          sheet.remove();
         };
-      },
-      on: {
-        builder: () => {
-          if (draft.mode !== "mycafes") return;
-          const b = store.getState().builder;
-          $$("[data-builder-row]", view).forEach((row) => {
-            const id = row.dataset.builderRow;
-            if (!b[id]) return;
-            $("[data-row-meta]", row).textContent = rowMeta(id);
-          });
-          paintLimit();
-          paintSummary();
-        },
       },
     };
   };
@@ -387,9 +250,12 @@
     if (!draft.started) return { redirect: "#/app/plan" };
     const plan = draftPlan();
     const q = S.quote(plan);
-    if (!q.meetsMinimum) return { redirect: "#/app/plan" };
+    if (!q.meetsMinimum || blocked()) return { redirect: "#/app/plan" };
     let alive = true;
-    const renewal = store.addMonths(Date.now(), 1);
+    const isPass = plan.type === "pass";
+    // The Pass renews monthly; a pack ends after packDays
+    const renewal = isPass ? store.addMonths(Date.now(), 1) : Date.now() + cfg().packDays * 24 * 60 * 60 * 1000;
+    const planTitle = isPass ? q.name : `Cup pack · ${q.name}`;
     const longDate = (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
     function field({ id, label, value, placeholder, inputmode = "numeric", autocomplete, hint }) {
@@ -450,11 +316,14 @@
       }
       if (pay.phase === "success") {
         const mem = ctx.member();
-        const title = plan.type === "brand" ? `You’re on ${q.typeName}, ${q.name}.` : plan.type === "explorer" ? `You’re on Explorer ${q.name}.` : "Your cafés are set.";
+        const title = isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready.`;
+        const line = isPass
+          ? `${Math.round(cfg().pass.discount * 100)}% off one coffee a day, from today. Renews on ${longDate(mem.renewsAt)}.`
+          : `${fmt.cups(S.balance(mem.id).total)}, fresh from today. Use by ${longDate(mem.renewsAt)}.`;
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <h2 class="t-h2">${title}</h2>
-          <p class="t-body t-muted num">${fmt.cups(S.balance(mem.id).total)}, fresh from today. Renews on ${longDate(mem.renewsAt)}.</p>
+          <p class="t-body t-muted num">${line}</p>
           <div class="pay-state__actions">
             <button type="button" class="btn btn--primary btn--block" data-done="#/app/pass">Show my pass</button>
             <button type="button" class="btn btn--secondary btn--block" data-done="#/app">Back to home</button>
@@ -537,7 +406,7 @@
         // A new member's first plan: their card is issued next
         if (res.ok && alive && onboarding()) { pay.phase = "form"; ctx.go("#/app/welcome/card", { replace: true }); return; }
         if (alive) paint();
-        else if (res.ok) ctx.toast(`You’re on ${q.name}. ${fmt.cups(q.cups)} to enjoy.`);
+        else if (res.ok) ctx.toast(isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready. ${fmt.cups(q.cups)} to enjoy.`);
       });
     }
 
@@ -563,12 +432,14 @@
             <h1 class="t-h2">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
-                <span class="t-h3">${plan.type === "brand" ? `${q.typeName} · ${q.name}` : plan.type === "explorer" ? `Explorer ${q.name}` : "My cafés"}</span>
+                <span class="t-h3">${planTitle}</span>
                 <span class="t-h3 num">${fmt.rs(q.price)}</span>
               </div>
-              <p class="t-small t-muted num">${fmt.cups(q.cups)} a month, starting today. Renews on ${longDate(renewal)}.</p>
-              ${plan.type === "explorer" ? html`<p class="t-micro t-faint num">Any partner café · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>` : ""}
-              ${plan.type === "mycafes" ? html`<p class="t-micro t-faint">${Object.entries(plan.allocation).map(([id, n]) => `${S.venueName(id)} ${n} ${S.band(plan.bands?.[id]).label}`).join(" · ")}</p>` : ""}
+              ${isPass
+                ? html`<p class="t-small t-muted num">A month, starting today. Renews on ${longDate(renewal)}.</p>
+                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off one coffee a day · any drink, any partner café</p>`
+                : html`<p class="t-small t-muted num">${fmt.cups(q.cups)}, starting today. Use by ${longDate(renewal)}; doesn’t renew.</p>
+                    <p class="t-micro t-faint num">Selected partner cafés · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>`}
             </div>
             <div data-pay-body></div>
           </div>

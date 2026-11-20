@@ -40,7 +40,8 @@
     es.forEach((e) => {
       const base = { at: e.at, cafe: place(e.cafeId), cups: e.cups, channel: e.channel === "pickup" || e.orderId ? "Pickup" : e.type === "redeem" || e.type === "undo" ? "Counter" : "", drink: "", mods: "", note: "" };
       switch (e.type) {
-        case "purchase": out.push({ ...base, what: "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
+        case "purchase": out.push({ ...base, what: e.pass ? `${S.planConfig().pass.name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
+        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.planConfig().pass.name} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
         case "redeem": {
           const top = e.topUp ? ` · top-up ${fmt.rs(e.topUp)} ${e.topUpOnline ? "paid online" : "paid at the counter"}` : "";
           out.push({ ...base, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });
@@ -61,7 +62,7 @@
         }
         case "reward": out.push({ ...base, what: "Complimentary cup", cafe: "Lahore Coffee Club", note: e.reason === "beans" ? "From your Beans" : e.reason?.startsWith("passport") ? "Passport" : "" }); break;
         case "gift": out.push({ ...base, what: `Gift to ${e.toName || "a friend"}`, note: e.giftCode ? `Code ${e.giftCode}` : "" }); break;
-        case "expire": out.push({ ...base, what: "Unused cups ended with the month" }); break;
+        case "expire": out.push({ ...base, what: "Unused cups ended" }); break;
         case "adjust": out.push({ ...base, what: e.cups > 0 ? "Added by LCC" : "Taken off by LCC", cafe: "Lahore Coffee Club", note: e.reason }); break;
         case "beans": out.push({ ...base, what: "Beans used", cafe: "Lahore Coffee Club", note: e.title || "" }); break;
         default: break;

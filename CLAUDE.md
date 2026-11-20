@@ -190,12 +190,54 @@ This order overrides any order implied by the spec.
 10. [x] Club: Circles with rounds, activity and the brick-ring mark
 11. [x] Café side: redeem by member number or scan, branch-ready counters,
     Your members, owner dashboard
+12. [x] Plans pass: LCC Pass, cup packs, pass-sale ledger entry, old tiers
+    retired (member app and ledger only; counter, dashboard and admin next)
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
+
+## Plans pass (launch model; overrides "Plan types" below where they differ)
+
+- `data.js` `PLAN_CONFIG` (state: `state.planConfig`, `select.planConfig()`):
+  `pass` { name "LCC Pass", price 350, discount 0.20, dailyLimit 1 },
+  `packDays` 45, `packAutoRenew` false, `bandLimits` (classic 750,
+  signature 1000, reserve 1500; BANDS read their `maxPrice` from it).
+  // BACKEND: one admin-editable settings row.
+- LCC Pass (`plan.type: "pass"`): 20% off one coffee a day, any drink, any
+  partner café; the member pays the café the member price
+  (`select.memberPrice`); no cups, no LCC payout. Its purchase entry has
+  0 cups (`pass: true`, `price`). Each member coffee is a `pass-sale`
+  ledger entry (cups 0; `drinkId`, `temp`, `listPrice`, `memberPrice`,
+  `discount`, `staffId`, `method`), written by `actions.recordPassSale` /
+  `LCC.ledger.passSale` (not wired to the counter yet). Pass sales count
+  for the club, Beans (+10), Circles and visits like a cup
+  (`isMemberCoffee`). Selectors: `passToday`, `passMonth` (savings in the
+  pass month, from `cycleStartedAt`), `passVsPack` (after 10 coffees: a
+  Classic 16 per cup plus top-ups vs member prices plus the Pass),
+  `planDateLine` ("Renews on" / "Use by"). `counterCheck` refuses Pass
+  members with "LCC Pass · 20% off one coffee today" (or "used today"),
+  unless they hold complimentary cups.
+- Cup packs ("At selected cafés", `data.js` `PLANS`): Trial 2 Rs 1,150
+  (once per person, `select.trialUsed`), Classic 4 / 8 / 16, Signature 8 /
+  16. Internally `plan.type: "explorer"` with `tierId` = pack id, so the
+  counter's pool rules and the 2-per-café cap per pack are unchanged;
+  purchase entries carry `packId`; `renewsAt` = start + 45 days (read as
+  "Use by"). Starter / Regular / Enthusiast / Executive / Reserve are gone;
+  seeded holders moved to Classic 8 / Classic 16 / Signature 16.
+- My cafés is no longer sold (not in the picker, no "Add to my plan"
+  links); legacy holders (Sana, Zara, regulars) keep working.
+- Plan picker: LCC Pass (default) | Cup packs. Home for Pass members: a
+  20-brick ring filling with savings toward Rs 350, "Today's member
+  coffee: available / used, back tomorrow", "You've saved Rs X this
+  month", "Your pass has paid for itself."; café and brand menus show
+  list and member price; the Pass tab reads "LCC Pass · 20% off · 1 today".
+- Demo: Mumtaz LCC 42 is on the Pass (6 pass sales this cycle, one this
+  morning at Kiln & Bean; Rs 797 saved; Beans 160). Alina Mirza LCC 88
+  (code 390514) is on Classic 8, 5 of 8 left; Demo menu → "Alina: Classic
+  8 pack" (`actions.viewAsMember`), "Mumtaz: LCC Pass" goes back.
 
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 

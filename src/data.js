@@ -40,6 +40,22 @@
     counterResetSeconds: 5,    // the Done screen goes back to the keypad after this
   };
 
+  /* Plans config: the launch model in one place -----------------------
+     LCC Pass: a monthly membership. The member pays the café the member
+     price (list price less the discount) for one coffee a day, any drink,
+     at any partner café; LCC pays the café nothing for it. A second coffee
+     the same day is full price.
+     Cup packs: prepaid cups for a band, valid for packDays, never renewed.
+     Band limits (menu price before tax) are read by BANDS below.
+     // BACKEND: an admin-editable settings row (plan_config); the app reads
+     // it at start, the counter applies it to each pass sale.            */
+  const PLAN_CONFIG = {
+    pass: { id: "pass", name: "LCC Pass", price: 350, discount: 0.20, dailyLimit: 1 },
+    packDays: 45,         // a pack's cups last this many days from purchase
+    packAutoRenew: false, // packs are bought again by hand
+    bandLimits: { classic: 750, signature: 1000, reserve: 1500 },
+  };
+
   /* Bands and plans: the one source of truth for pricing ----------------
      Every drink falls in a band by its menu price before tax. A plan covers
      drinks up to its band; above that the member pays the difference at
@@ -54,26 +70,34 @@
     // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
     // The café is paid 70% of that value; a My cafés cup costs the member about 80%.
     // line, examples: the member app's "What your cup covers" sheet (typical drinks, from the menus above)
-    { id: "classic",   label: "Classic",   maxPrice: 750,  cafeRate: 490, myCafesPrice: 550,
+    { id: "classic",   label: "Classic",   maxPrice: PLAN_CONFIG.bandLimits.classic,   cafeRate: 490, myCafesPrice: 550,
       line: "The everyday cup.", examples: ["Espresso", "Americano", "Cortado", "Flat white", "Latte", "Cappuccino", "Chai", "Iced teas"] },
-    { id: "signature", label: "Signature", maxPrice: 1000, cafeRate: 650, myCafesPrice: 720,
+    { id: "signature", label: "Signature", maxPrice: PLAN_CONFIG.bandLimits.signature, cafeRate: 650, myCafesPrice: 720,
       line: "Flavoured and a little indulgent.", examples: ["Spanish latte", "Caramel and hazelnut lattes", "Mocha", "Matcha", "Frappes", "Hot chocolate"] },
-    { id: "reserve",   label: "Reserve",   maxPrice: 1500, cafeRate: 890, myCafesPrice: 1010,
+    { id: "reserve",   label: "Reserve",   maxPrice: PLAN_CONFIG.bandLimits.reserve,   cafeRate: 890, myCafesPrice: 1010,
       line: "Slow brews and showpieces.", examples: ["V60 pour-over", "Single origins", "Flavoured matcha", "Kunafa and Java chip", "Ube drinks"] },
   ];
   // The band a price falls in, or null above the top band
   const bandOf = (price) => BANDS.find((b) => price <= b.maxPrice) || null;
   const band = (id) => BANDS.find((b) => b.id === id);
 
-  /* Explorer plans: one pool of cups for any partner café ---------------- */
+  /* Cup packs ("At selected cafés"): one pool of cups for a band, valid
+     PLAN_CONFIG.packDays days, no auto-renew. The Trial is once per person.
+     Internally a pack is plan.type "explorer" with tierId = the pack id, so
+     the counter's pool rules (and its 2-a-cycle cap per café) are unchanged.
+     The old Starter / Regular / Enthusiast / Executive / Reserve tiers are
+     retired; seeded holders were moved to the pack with the same cups and
+     price (Starter = Classic 8, Regular = Classic 16, Executive = Signature 16). */
   const PLANS = [
-    { id: "starter",    name: "Starter",    cups: 8,  maxBand: "classic",   price: 4450,  line: "Two good coffees a week." },
-    { id: "regular",    name: "Regular",    cups: 16, maxBand: "classic",   price: 8650,  line: "Most weekdays, sorted." },
-    { id: "enthusiast", name: "Enthusiast", cups: 30, maxBand: "classic",   price: 16250, line: "One a day, and then some." },
-    { id: "executive",  name: "Executive",  cups: 16, maxBand: "signature", price: 11500, line: "The signature drinks, most weekdays." },
-    { id: "reserve",    name: "Reserve",    cups: 12, maxBand: "reserve",   price: 12200, line: "Pour-overs and single origins." },
+    { id: "trial",       name: "Trial",        cups: 2,  maxBand: "classic",   price: 1150,  oncePerPerson: true, line: "Two cups to try the club. Once per person." },
+    { id: "classic4",    name: "Classic 4",    cups: 4,  maxBand: "classic",   price: 2300,  line: "A coffee a week, or so." },
+    { id: "classic8",    name: "Classic 8",    cups: 8,  maxBand: "classic",   price: 4450,  line: "Two good coffees a week." },
+    { id: "classic16",   name: "Classic 16",   cups: 16, maxBand: "classic",   price: 8650,  line: "Most weekdays, sorted." },
+    { id: "signature8",  name: "Signature 8",  cups: 8,  maxBand: "signature", price: 5900,  line: "Spanish lattes, mochas and matcha." },
+    { id: "signature16", name: "Signature 16", cups: 16, maxBand: "signature", price: 11500, line: "The signature drinks, most weekdays." },
   ];
-  const tiers = PLANS; // internal name: Explorer tiers (member.plan.tierId)
+
+  const tiers = PLANS; // internal name: tiers (member.plan.tierId = a pack id)
 
   /* Map areas (SVG coordinates in a 1000 x 800 viewBox) ----------------- */
   const areas = [
@@ -500,12 +524,16 @@
   const isChain = (c) => brands.find((b) => b.id === c.brandId).plans.length > 0;
 
   /* Members --------------------------------------------------------------
-     Two plan types:
-       explorer  one pool of cups for any café, at most 2 a cycle at each
-       mycafes   cups reserved per café, usable only there
+     Plan types:
+       pass      the LCC Pass: no cups; pass-sale entries at the member price
+       explorer  a cup pack (tierId = pack id): one pool, at most 2 a cycle
+                 per café, 45 days, no auto-renew
+       mycafes   legacy, not sold any more: cups reserved per café
+       brand     legacy Double Shot plans
      Nobody stores a cups-left number: balances come from the ledger below.
 
-     Mumtaz is the demo member. The others exist so the café view (Kiln &
+     Mumtaz is the demo member (LCC Pass); Alina (below) is on a Classic 8
+     pack. The others exist so the café view (Kiln &
      Bean) can show a realistic month and every rule:
        Bilal  — Explorer, already 2 cups at Kiln & Bean this month (cap)
        Sana   — My cafés: Kiln & Bean 6, Maple Roastery 4 (3 + 3 left)
@@ -523,7 +551,7 @@
     pronoun: "her",
     phone: "+92 300 1234567",
     area: "gulberg",
-    plan: { type: "explorer", tierId: "regular" },   // Explorer Regular: 16 cups, 11 left
+    plan: { type: "pass" },   // LCC Pass: 20% off one coffee a day (6 pass sales this month, one today)
     cycle: cycleOf("m_ayesha"),
     cycleStartedAt: daysAgo(18),
     renewsAt: daysAgo(-12),
@@ -542,11 +570,11 @@
     cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY, memberSince: daysAgo(40 + (memberNo % 60)),
   });
   const demoMembers = [
-    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "regular" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }, 117, "+92 321 4410117"),
+    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "classic16" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }, 117, "+92 321 4410117"),
     demo("m_sana",  "Sana",  "Tariq",   "her", { type: "mycafes", allocation: { kiln: 6, maple: 4 } }, "207341", { kiln: 5, maple: 2 }, 203, "+92 333 8120203"),
-    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "starter" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356, "+92 300 5520356"),
+    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "classic8" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356, "+92 300 5520356"),
     demo("m_zara",  "Zara",  "Hussain", "her", { type: "mycafes", allocation: { kiln: 6, ember: 4 } }, "482913", { kiln: 4, ember: 2 }, 418, "+92 345 2210418"),
-    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "starter" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 129, "+92 301 7730129"),
+    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "classic8" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 129, "+92 301 7730129"),
     // Double Shot demo members (counter codes): Rabia 5 of 8 left, Kamran at the
     // daily limit at Gulberg (2 today), Nida no cups left.
     demo("m_rabia",  "Rabia",  "Anwar",  "her", { type: "brand", brandId: "doubleshot", planId: "ds8" },  "341862", {}, 233, "+92 322 4100233"),
@@ -584,7 +612,7 @@
     let plan;
     if (rand() < 0.55) {
       const u = rand();
-      plan = { type: "explorer", tierId: u < 0.3 ? "starter" : u < 0.8 ? "regular" : "enthusiast" };
+      plan = { type: "explorer", tierId: u < 0.3 ? "classic8" : u < 0.8 ? "classic16" : "signature16" };
     } else {
       const allocation = {};
       const n = 1 + Math.floor(rand() * 3);
@@ -619,7 +647,8 @@
   function purchase(m) {
     const at = m.cycleStartedAt;
     if (m.plan.type === "brand") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, brandId: m.plan.brandId, cups: brandPlanCups(m.plan), at, cycle: m.cycle });
-    else if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), at, cycle: m.cycle });
+    else if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), packId: m.plan.tierId, at, cycle: m.cycle });
+    else if (m.plan.type === "pass") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at, cycle: m.cycle });
     else Object.entries(m.plan.allocation).forEach(([cafeId, n]) => ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId, cups: n, at, cycle: m.cycle }));
   }
   members.forEach(purchase);
@@ -701,7 +730,6 @@
   // Earlier today at h:m, or `backoff` minutes ago if that hasn't happened yet (never before midnight)
   const todayAt = (h, m, backoff) => Math.max(startOfToday + MIN, Math.min(clockAgo(0, h, m), now - backoff * MIN));
   const DS_HISTORY = {
-    m_ayesha: [["ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40), true]],
     m_rabia:  [["ds-cantt", "ds-latte", "iced"], ["ds-cantt", "ds-americano", "hot"], ["ds-gulberg", "ds-matcha", "iced"]],
     m_kamran: [["ds-dha6", "ds-v60", "hot"], ["ds-lalakjan", "ds-cortado", "hot"], ["ds-dolmen", "ds-java-chip", "iced"], ["ds-gulberg", "ds-flat-white", "hot"], ["ds-gulberg", "ds-americano", "iced", todayAt(9, 5, 70)], ["ds-gulberg", "ds-spanish", "iced", todayAt(9, 50, 25)]],
     m_nida:   [["ds-modeltown", "ds-latte", "hot"], ["ds-modeltown", "ds-caramel", "iced"], ["ds-pine", "ds-chai", "hot"], ["ds-pine", "ds-latte", "iced"], ["ds-gulberg", "ds-mocha-101", "iced"], ["ds-gulberg", "ds-spanish", "iced"], ["ds-dha6", "ds-matcha", "iced"], ["ds-dha6", "ds-kunafa", "iced"]],
@@ -713,14 +741,46 @@
       seen.add(cafeId);
     });
   });
+  seq += 1; // Mumtaz's Double Shot row is a pass sale now (below); later seeded ids stay as they were
   seq += 3; // Mumtaz's three earlier Double Shot rows moved to Explorer; later seeded ids stay as they were
 
-  /* Mumtaz’s Explorer Regular, this cycle: 16 cups, 5 used, 11 left.
-     Slow Pour, Kiln & Bean (before 9 am), Noon Café twice, and Double
-     Shot Phase 6 above: all cafés she already knew, at most 2 at each. */
-  [["s_mx_1", "slowpour", "sp-gibraltar", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", clockAgo(14, 8, 20)],
-    ["s_mx_2", "noon", "noon-latte", clockAgo(13, 12, 15)], ["s_mx_4", "noon", "noon-capp", clockAgo(6, 11, 10)]].forEach(([id, cafeId, drinkId, at]) =>
-    ledger.push({ id, type: "redeem", memberId: mumtaz.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit: false, at, cycle: mumtaz.cycle, ...served(cafeId, id) }));
+  /* Mumtaz’s LCC Pass, this month: six member coffees, one a day at
+     most, one of them this morning. Each is a pass-sale entry: no cups,
+     the list price and the member price she paid the café (no LCC payout).
+     All cafés she already knew, plus Double Shot Phase 6 (her usual, an
+     Iced Spanish Latte).                                               */
+  const menuOf = (cafeId) => brands.find((b) => b.id === cafeById[cafeId].brandId).menu;
+  function passSale(m, id, cafeId, drinkId, temp, at) {
+    const d = menuOf(cafeId).find((x) => x.id === drinkId);
+    const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
+    const listPrice = d[t];
+    const memberPrice = Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount));
+    const c = cafeById[cafeId];
+    ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: c.brandId, cups: 0, drinkId, temp: t, listPrice, memberPrice,
+      discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
+  }
+  [["s_mx_1", "slowpour", "sp-gibraltar", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", "hot", clockAgo(14, 8, 20)],
+    ["s_mx_2", "noon", "noon-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
+    ["s_mx_4", "noon", "noon-capp", "hot", clockAgo(6, 11, 10)], ["s_mx_6", "kiln", "kiln-cort", "hot", todayAt(8, 40, 90)]]
+    .forEach(([id, cafeId, drinkId, temp, at]) => passSale(mumtaz, id, cafeId, drinkId, temp, at));
+
+  /* Alina: the second demo member, on a Classic 8 cup pack (bought 12
+     days ago, good for 45 days, no auto-renew): 3 used, 5 left. Switch to
+     her from the presenter's Demo menu; counter code 390514.          */
+  const alina = {
+    id: "m_alina", firstName: "Alina", lastName: "Mirza", initials: "AM", pronoun: "her",
+    phone: "+92 333 4880088", area: "dha", memberNo: 88, staticCode: "390514",
+    plan: { type: "explorer", tierId: "classic8" },
+    cycle: cycleOf("m_alina"), cycleStartedAt: daysAgo(12), renewsAt: daysAgo(12 - PLAN_CONFIG.packDays),
+    payment: { method: "Easypaisa", last4: "0088" }, memberSince: daysAgo(12), visits: {},
+  };
+  members.push(alina);
+  ledger.push({ id: "s_al_0", type: "purchase", memberId: alina.id, cafeId: null, cups: 8, packId: "classic8", at: alina.cycleStartedAt, cycle: alina.cycle });
+  [["s_al_1", "kiln", "kiln-flat", clockAgo(9, 9, 15), true], ["s_al_2", "maple", "maple-latte", clockAgo(5, 16, 30), true], ["s_al_3", "ember", "ember-latte", clockAgo(2, 11, 45), true]]
+    .forEach(([id, cafeId, drinkId, at, firstVisit]) => {
+      ledger.push({ id, type: "redeem", memberId: alina.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit, at, cycle: alina.cycle, ...served(cafeId, id) });
+      alina.visits[cafeId] = (alina.visits[cafeId] || 0) + 1;
+    });
 
   /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
      Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
@@ -945,8 +1005,8 @@
     return m;
   };
   const hira    = circleMember("m_c_hira",    "Hira",    "Khalid", { type: "brand", brandId: DS.id, planId: "ds15" }, 58, 7);
-  const usman   = circleMember("m_c_usman",   "Usman",   "Aslam",  { type: "explorer", tierId: "regular" }, 144, 6);
-  const mahnoor = circleMember("m_c_mahnoor", "Mahnoor", "Sheikh", { type: "explorer", tierId: "regular" }, 238, 5);
+  const usman   = circleMember("m_c_usman",   "Usman",   "Aslam",  { type: "explorer", tierId: "classic16" }, 144, 6);
+  const mahnoor = circleMember("m_c_mahnoor", "Mahnoor", "Sheikh", { type: "explorer", tierId: "classic16" }, 238, 5);
   const faraz   = circleMember("m_c_faraz",   "Faraz",   "Malik",  { type: "brand", brandId: DS.id, planId: "ds8" }, 312, 4);
   faraz.privacy = { share: true, hideBranch: true };
   mumtaz.privacy = { share: true, hideBranch: false };
@@ -1029,7 +1089,7 @@
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
   mumtaz.visits = {};
-  ledger.filter((e) => e.memberId === mumtaz.id && e.type === "redeem").forEach((e) => { mumtaz.visits[e.cafeId] = (mumtaz.visits[e.cafeId] || 0) + 1; });
+  ledger.filter((e) => e.memberId === mumtaz.id && (e.type === "redeem" || e.type === "pass-sale")).forEach((e) => { mumtaz.visits[e.cafeId] = (mumtaz.visits[e.cafeId] || 0) + 1; });
   mumtaz.cafesTried = Object.keys(mumtaz.visits);
 
   /* The club ---------------------------------------------------------------
@@ -1182,6 +1242,7 @@
     seededAt: now,
     rules,
     BANDS,
+    PLAN_CONFIG,
     PLANS,
     tiers,
     areas,
@@ -1189,6 +1250,7 @@
     cafes,
     members,
     memberId: mumtaz.id,
+    demoPackMemberId: "m_alina", // the second demo member (Classic 8), from the Demo menu
     partnerCafeId: "ds-gulberg", // the café shown in the partner view: Double Shot Gulberg
     ledger,
     orders,

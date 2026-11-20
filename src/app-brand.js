@@ -2,7 +2,7 @@
    Lahore Coffee Club — app-brand.js
    Member app: a brand partner's page (#/app/cafes/doubleshot, also
    reached from any branch's row or pin). Your cups, the drinks menu with
-   a Hot / Iced toggle, ordering ("Use a cup"), branches, and "Add to my plan" (My cafés, any branch).
+   a Hot / Iced toggle (list price and member price), ordering ("Use a cup"), branches.
 
    Cups belong to the brand, not a branch: they work at every branch.
    "Use a cup at the counter" only tells the counter what you'd like; the
@@ -39,29 +39,38 @@
     const canUse = () => cups().here > 0;
     const priceTag = (item, temp) => {
       const p = S.drinkPrice(b.id, item, temp, band());
+      if (S.isPass()) return html`<span class="badge">${p.band ? p.band.label : "Above Reserve"}</span>`; // the Pass takes any drink
       return p.included ? html`<span class="badge">${p.band.label}</span>` : html`<span class="badge badge--top num">Cup + ${fmt.rs(p.topUp)}</span>`;
     };
+
+    /** What this drink costs the member: the Pass's member price, or what a cup covers. */
+    const coverLine = (p) => (S.isPass()
+      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.planConfig().pass.name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
     function cupsHtml() {
       const m = ctx.member();
       const { opt, here } = cups();
-      const add = html`<button type="button" class="btn btn--link" data-start-plan="${b.id}">Add to my plan</button>`;
+      if (S.isPass()) {
+        const t = S.passToday();
+        const pct = Math.round(S.planConfig().pass.discount * 100);
+        return html`<p class="brand-cups__line">${t.used ? "Today’s member coffee is used" : "Today’s member coffee: available"}</p>
+          <p class="t-small t-muted">${S.planLabel(m)} · ${t.used ? "Back tomorrow; another one today is full price." : `${pct}% off any drink, at any of the ${S.branches(b.id).length} branches.`}</p>`;
+      }
       if (!opt) {
-        return html`<p class="brand-cups__line">One plan, all ${S.branches(b.id).length} branches.</p>
-          <p class="t-small t-muted">${m.plan ? `Your ${S.planLabel(m)} plan doesn’t include ${b.name} yet.` : "No plan yet."} Add it to My cafés, and its cups work at any branch.</p>
-          ${add}`;
+        return html`<p class="brand-cups__line">${m.plan ? `No cups for ${b.name} on your plan.` : "No plan yet."}</p>
+          <p class="t-small t-muted">${m.plan ? `Your ${S.planLabel(m)} doesn’t cover ${b.name}.` : "Choose a plan to have your coffee here."}</p>`;
       }
       const type = opt.plan.type;
       const line = type === "brand" ? S.brandBalanceLine()
-        : type === "explorer" ? `${here === 1 ? "1 more cup" : `${here} more cups`} here this month · any branch`
+        : type === "explorer" ? `${here === 1 ? "1 more cup" : `${here} more cups`} here on this pack · any branch`
         : `${here} of ${opt.reserved || here} reserved here · any branch`;
       const sub = here > 0 ? "Pick a drink below, or just show your pass at the counter."
-        : opt.why === "cap" ? `You’ve had your ${opt.cap} on Explorer here this month. Every other partner café is still open to you.`
-        : `No cups left here this month. Your plan renews on ${fmt.shortDate(m.renewsAt)}.`;
+        : opt.why === "cap" ? `You’ve had your ${opt.cap} here on this pack. Every other partner café is still open to you.`
+        : `No cups left here. ${S.planDateLine(m)}.`;
       return html`<p class="brand-cups__line num">${line}</p>
-        <p class="t-small t-muted num">${S.planLabel(m)} · ${sub}</p>
-        ${type === "brand" ? "" : add}`;
+        <p class="t-small t-muted num">${S.planLabel(m)} · ${sub}</p>`;
     }
 
     /* ---------------- Menu ---------------- */
@@ -80,7 +89,7 @@
               <button type="button" class="menu-row" data-drink="${d.id}" aria-haspopup="dialog" aria-controls="order-sheet">
                 <span class="menu-row__main">
                   <span class="row__title">${S.drinkLabel(d, menuTemp)}</span>
-                  <span class="row__meta num">${fmt.rs(d[menuTemp])}${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
+                  <span class="row__meta num">${fmt.rs(d[menuTemp])} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d[menuTemp]))} member price</span>${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
                 </span>
                 ${priceTag(d, menuTemp)}
               </button>
@@ -127,11 +136,14 @@
             ${both
               ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
               : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
-            <p class="order-sheet__cover num" data-order-cover>${p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`}</p>
+            <p class="order-sheet__cover num" data-order-cover>${coverLine(p)}</p>
             <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
             ${use
               ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
                   <p class="t-micro t-faint">Order ahead and collect, or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
+              : S.isPass()
+              ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Have it at the counter</button>
+                  <p class="t-micro t-faint">Show your pass: the counter sees this drink and takes the member price.</p>`
               : html`<p class="t-small t-muted">No cups to use here right now. You can still order and pay for it.</p>`}
             <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
           </div>
@@ -150,7 +162,7 @@
       const p = S.drinkPrice(b.id, item, temp, band());
       $("[data-order-name]", sheet).textContent = S.drinkLabel(item, temp);
       $("[data-order-price]", sheet).textContent = `${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}`;
-      $("[data-order-cover]", sheet).textContent = p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`;
+      $("[data-order-cover]", sheet).textContent = coverLine(p);
     }
 
     function onSheetClick(e) {

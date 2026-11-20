@@ -13,6 +13,9 @@
      LCC.ledger.ledgerFor({ cafeId: "ds-gulberg" }) / ({ all: true })
      LCC.ledger.payoutFor("ds-gulberg", "2026-11")
      LCC.ledger.adjust({ memberNo, cups, reason, admin })
+     LCC.ledger.passUsedToday(42)                  -> true
+     LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
+     LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
 
    Entry types (cups signed: + gives cups, − takes them):
      purchase  + a plan's cups at the start of a cycle
@@ -28,6 +31,10 @@
      reward    + a complimentary cup (passport, Beans)
      gift, expire  − cups given away, or left at a plan's end
      beans     0  Beans spent (see select.beans)
+     pass-sale 0  an LCC Pass coffee: the member paid the café the member
+                 price (listPrice, memberPrice, discount, drinkId, temp,
+                 staffId, at). No cups and no LCC payout; it counts for
+                 the club (passport, Beans, Circles) like a cup
    Paid pickups don't touch cups; they are state.orders with pay "paid"
    (or "group"), and count in payoutFor as paid orders.
 
@@ -42,7 +49,7 @@
   const S = store.select;
   const A = store.actions;
 
-  const TYPES = ["purchase", "redeem", "hold", "release", "cancel", "undo", "adjust", "reward", "gift", "expire", "beans"];
+  const TYPES = ["purchase", "redeem", "pass-sale", "hold", "release", "cancel", "undo", "adjust", "reward", "gift", "expire", "beans"];
 
   /** The member, from a number in any shape (42, "LCC 42", "LCC-0042"), or a member object. */
   function memberOf(no) {
@@ -73,7 +80,7 @@
     return Object.freeze({
       ...e,
       memberNo: m?.memberNo ?? null,
-      channel: e.channel || (e.orderId ? "pickup" : e.type === "redeem" || e.type === "undo" ? "counter" : null),
+      channel: e.channel || (e.orderId ? "pickup" : e.type === "redeem" || e.type === "undo" || e.type === "pass-sale" ? "counter" : null),
       staffName: staff?.name || null,
       drink,
       ref: e.ref || e.undoes || e.cancels || e.releases || null,
@@ -152,6 +159,42 @@
         total: p.earned,
         paidAt: rec?.paidAt || null, // a payout record exists (seeded history, or marked paid in admin)
       };
+    },
+
+    /* ---------------- LCC Pass ---------------- */
+
+    /** Has this Pass member had today's member coffee (planConfig.pass.dailyLimit)? */
+    passUsedToday(memberNo, at = Date.now()) {
+      // BACKEND: SELECT count(*) FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND at >= today
+      const m = memberOf(memberNo);
+      return m ? S.passToday(m.id, at).used : false;
+    },
+
+    /** Rs saved on pass sales this month (list price less member price).
+        For a Pass member "this month" is the pass month, from the day it
+        started or last renewed; otherwise the calendar month. */
+    savingsThisMonth(memberNo, at = Date.now()) {
+      // BACKEND: SELECT sum(list_price - member_price) FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND at >= :since
+      const m = memberOf(memberNo);
+      return m ? S.passMonth(m.id, at).saved : 0;
+    },
+
+    /** Member coffees at a café (a branch id, or a brand id for all its
+        branches) this calendar month: cups redeemed plus pass sales. */
+    memberCupsThisMonth(cafeId, month = Date.now()) {
+      // BACKEND: SELECT type, count(*) FROM ledger WHERE cafe_id = ANY(:branches) AND type IN ('redeem','pass-sale') AND month = :m
+      const { from, to } = monthRange(month);
+      const rows = ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone);
+      const cups = rows.filter((e) => e.type === "redeem").reduce((n, e) => n + (e.credits || 1), 0);
+      const pass = rows.filter((e) => e.type === "pass-sale").length;
+      return { cafeId, cups, pass, total: cups + pass };
+    },
+
+    /** Record a Pass sale (the counter, from the café pass on). See actions.recordPassSale. */
+    passSale({ memberNo, branchId, drinkId, temp, staffId, method, at }) {
+      const m = memberOf(memberNo);
+      if (!m) return { ok: false, reason: "no-member", message: "No member with that number." };
+      return A.recordPassSale({ memberId: m.id, branchId, drinkId, temp, staffId, method, at });
     },
 
     /** LCC admin only: add (+) or take (−) cups, with a reason. */

@@ -31,7 +31,7 @@
   const bandLabel = (c, d) => S.itemBand(S.menuItem(c.brandId, d.id) || { hot: d.price })?.label || "Above Reserve";
   const topUpFor = (c, d) => {
     const item = S.menuItem(c.brandId, d.id);
-    if (!item || !S.member().plan) return "";
+    if (!item || !S.member().plan || S.isPass()) return ""; // the Pass takes any drink
     const p = S.drinkPrice(c.brandId, item, "hot", S.bandAt(undefined, c.brandId));
     return p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)} on your plan`;
   };
@@ -314,23 +314,30 @@
       </div>`;
     }
 
-    /** What the member can use here, from the ledger, and the next step. */
+    /** What the member can use here, from the ledger. My cafés and the old
+        tiers aren't sold any more, so there's no "Add to my plan" here. */
     function actionHtml() {
-      const here = S.cafeBalance(ctx.member().id, c.id);
-      if (here.type === "mycafes") {
-        return here.reserved
-          ? html`<p class="t-small t-muted num" data-here-line><strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.</p>
-              <button type="button" class="btn btn--link" data-start-plan="${c.id}">Change my cups</button>`
-          : html`<p class="t-small t-muted" data-here-line><strong>Not in your plan.</strong> Add it?</p>
-              <button type="button" class="btn btn--link" data-start-plan="${c.id}">Add to my plan</button>`;
+      const m = ctx.member();
+      const here = S.cafeBalance(m.id, c.id);
+      if (here.type === "pass") {
+        const t = S.passToday();
+        const pct = Math.round(S.planConfig().pass.discount * 100);
+        return html`<p class="t-small t-muted num" data-here-line>${t.used
+          ? html`<strong>Today’s member coffee is used.</strong> Back tomorrow; this one is full price.`
+          : html`<strong>Today’s member coffee: available.</strong> ${pct}% off any drink here.`}</p>`;
       }
+      if (here.type === "mycafes") {
+        return html`<p class="t-small t-muted num" data-here-line>${here.reserved
+          ? html`<strong>${fmt.cups(here.left)} reserved here</strong>, of ${here.reserved} this month.`
+          : html`<strong>Not in your plan.</strong> Your cups are for your cafés.`}</p>`;
+      }
+      if (!here.type) return html`<p class="t-small t-muted" data-here-line><strong>No plan yet.</strong></p>`;
       const line = here.left > 0
-        ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here this month</strong> on your Explorer plan.`
+        ? html`<strong>You can have ${here.left === 1 ? "1 more" : `${here.left} more`} here</strong> on your ${S.planName(m.plan)}.`
         : here.used >= here.cap
-          ? html`<strong>You’ve had your ${here.cap} here this month.</strong> Every other partner café is still open to you.`
-          : html`<strong>No cups left this month.</strong> Your plan renews on ${fmt.shortDate(ctx.member().renewsAt)}.`;
-      return html`<p class="t-small t-muted num" data-here-line>${line}</p>
-        <button type="button" class="btn btn--link" data-start-plan="${c.id}">Add to my plan</button>`;
+          ? html`<strong>You’ve had your ${here.cap} here on this pack.</strong> Every other partner café is still open to you.`
+          : html`<strong>No cups left.</strong> ${S.planDateLine(m)}.`;
+      return html`<p class="t-small t-muted num" data-here-line>${line}</p>`;
     }
 
     function paintOpen() {
@@ -362,10 +369,11 @@
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
+              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.planConfig().pass.name}, one coffee a day.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
-                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">
-                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} at the counter${topUpFor(c, d)}</span></span>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, member price ${fmt.rs(S.memberPrice(d.price))}, ${bandLabel(c, d)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d.price))} member price</span>${topUpFor(c, d)}</span></span>
                     <span class="badge">${bandLabel(c, d)}</span>
                   </button>
                 </li>`)}

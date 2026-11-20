@@ -174,7 +174,7 @@
         else ob.memberId = A.beginNewMember(profile).id;
         // Joined with a code: the inviter sees "Joined" now, "Rewarded" after the first plan or paid order
         if (ob.invite && !ob.inviteClaimed) ob.inviteClaimed = A.claimInvite(ob.invite).ok;
-        LCC.appPlan.start({ mode: "explorer" });
+        LCC.appPlan.start({ mode: "pass" });
         ctx.go("#/app/plan");
       }
     }
@@ -262,7 +262,7 @@
             <p class="t-body t-muted">${c.founding
               ? `That makes you one of our Founding Members, the first ${store.getState().club.foundingLimit}. It stays on your card for good.`
               : "Your number is yours for as long as you’re a member."}</p>
-            <p class="t-small t-muted num">${p.type === "explorer" ? `Explorer ${p.name}` : p.type === "brand" ? S.planLabel(m) : "My cafés"} · ${fmt.cups(S.balance(m.id).total)} this month.</p>
+            <p class="t-small t-muted num">${p.type === "pass" ? `${S.planLabel(m)} · ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : `${S.planLabel(m)} · ${fmt.cups(S.balance(m.id).total)} · ${S.planDateLine(m)}`}.</p>
             ${inviter && m.invitedBy ? html`<p class="t-small num beans-plus">${icon("bean", { size: 16 })}+${S.beans().rules.referral} Beans, from ${inviter.firstName}’s invitation</p>` : ""}
           </div>
           <div class="issued__actions">

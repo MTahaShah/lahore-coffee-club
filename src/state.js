@@ -102,7 +102,8 @@
   const state = {
     rules: clone(seed.rules),
     bands: clone(seed.BANDS),
-    tiers: clone(seed.PLANS), // Explorer plans (member.plan.tierId)
+    tiers: clone(seed.PLANS), // cup packs (member.plan.tierId = a pack id; plan.type "explorer")
+    planConfig: clone(seed.PLAN_CONFIG), // LCC Pass price, discount, daily limit; pack days; band limits
     areas: clone(seed.areas),
     brands: byId(clone(seed.brands || [])),
     cafeOrder: seed.cafes.map((c) => c.id),
@@ -417,6 +418,11 @@
           if (!catchUp) undone.push({ entry: orig, undo: e, member: m });
         }
       }
+      if (e.type === "pass-sale" && !catchUp) {
+        const m = state.members[e.memberId];
+        m.visits = m.visits || {};
+        m.visits[e.cafeId] = (m.visits[e.cafeId] || 0) + 1;
+      }
       if (isRedeem(e)) {
         const m = state.members[e.memberId];
         m.visits = m.visits || {};
@@ -432,6 +438,7 @@
     if (!added.length) return added;
     emit("ledger", { entries: added, catchUp, plans: remote ? [] : added.filter((e) => e.type === "purchase").map((e) => e.memberId).filter((id, i, a) => a.indexOf(id) === i).map((id) => planMeta(state.members[id])) }, { remote });
     if (!catchUp) added.filter((e) => isRedeem(e)).forEach((entry) => emit("redeem", { entry, member: state.members[entry.memberId] }, { remote }));
+    if (!catchUp) added.filter((e) => e.type === "pass-sale").forEach((entry) => emit("passSale", { entry, member: state.members[entry.memberId] }, { remote }));
     undone.forEach((u) => emit("undo", u, { remote }));
     return added;
   }
@@ -444,6 +451,11 @@
   const sumCups = (list) => list.reduce((n, e) => n + e.cups, 0);
   /** A redemption that still counts: not undone at the counter. */
   function isRedeem(e) { return e.type === "redeem" && !e.undone; }
+  /** A member coffee the club counts (passport, status, badges, Beans, Circles):
+      a cup redeemed, or an LCC Pass sale. Pass sales carry no cups, so they
+      read as one drink (credits 1). */
+  function isMemberCoffee(e) { return isRedeem(e) || (e.type === "pass-sale" && !e.undone); }
+  const asDrink = (e) => (e.credits ? e : { ...e, credits: 1 });
   const listNames = (ids) => {
     const names = ids.map((id) => venueName(id));
     return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
@@ -512,7 +524,7 @@
       if (plan?.type === "mycafes") return select.band(plan.bands?.[venueOf(cafeId)]).id;
       if (plan?.type === "explorer") return select.band(select.tier(plan.tierId)?.maxBand).id;
       if (plan?.type === "brand") return select.band(state.brands[plan.brandId]?.plans.find((x) => x.id === plan.planId)?.maxBand).id;
-      return state.bands[0].id;
+      return state.bands[0].id; // LCC Pass (any drink at the member price) and no plan: complimentary cups are Classic
     },
     /** The band a member's cups cover at a brand: its own brand plan, else Explorer, else Classic. */
     bandAt(memberId = state.memberId, brandId) {
@@ -684,6 +696,11 @@
       const m = state.members[memberId];
       const cap = state.rules.explorerCapPerCafe;
       if (!m.plan) return { type: null, reserved: 0, left: 0, of: 0, used: 0, cap, label: "No plan yet" };
+      if (m.plan.type === "pass") {
+        // No cups on the Pass; only complimentary ones (Beans, passport) spend here
+        const left = Math.max(0, select.balance(memberId).left);
+        return { type: "pass", left, of: left, used: 0, cap, bonus: left > 0, label: left ? `${fmt.cups(left)} complimentary` : "LCC Pass · member price" };
+      }
       if (m.plan.type === "brand") {
         const b = state.brands[m.plan.brandId];
         const bal = select.balance(memberId);
@@ -807,6 +824,59 @@
       };
     },
 
+    /* ---------------- LCC Pass and cup packs ----------------
+       The Pass: one coffee a day at the member price (list price less
+       planConfig.pass.discount), paid to the café; a pass-sale entry, no
+       cups, no LCC payout. Packs: cups for a band, planConfig.packDays
+       days, no auto-renew. "This month" for a Pass member is the pass
+       month (cycleStartedAt to renewsAt).                               */
+    planConfig: () => state.planConfig,
+    isPass: (memberId = state.memberId) => state.members[memberId]?.plan?.type === "pass",
+    isPack: (plan) => plan?.type === "explorer",
+    /** What a Pass member pays the café for a drink at this list price. */
+    memberPrice: (listPrice) => Math.round(listPrice * (1 - state.planConfig.pass.discount)),
+    /** A member's pass sales (not undone), oldest first, from `since`. */
+    passSales(memberId = state.memberId, since = 0, until = Infinity) {
+      return (byMember.get(memberId) || []).filter((e) => e.type === "pass-sale" && !e.undone && e.at >= since && e.at < until).sort((a, b) => a.at - b.at);
+    },
+    /** Today's member coffee: { used, entry, limit, left }. */
+    passToday(memberId = state.memberId, at = Date.now()) {
+      const list = select.passSales(memberId, startOfDay(at), startOfDay(at) + 24 * 60 * MIN);
+      const limit = state.planConfig.pass.dailyLimit;
+      return { used: list.length >= limit, entry: list[list.length - 1] || null, limit, left: Math.max(0, limit - list.length) };
+    },
+    /** Savings in the member's pass month: { saved, coffees, listTotal, paid, price, paidOff, progress }. */
+    passMonth(memberId = state.memberId, at = Date.now()) {
+      const m = state.members[memberId];
+      const P = state.planConfig.pass;
+      const since = m?.plan?.type === "pass" ? m.cycleStartedAt : monthStartOf(at);
+      const list = select.passSales(memberId, since, at + 1);
+      const listTotal = list.reduce((n, e) => n + e.listPrice, 0);
+      const paid = list.reduce((n, e) => n + e.memberPrice, 0);
+      const saved = listTotal - paid;
+      return { since, coffees: list.length, entries: list, listTotal, paid, saved, price: P.price, paidOff: saved >= P.price, progress: Math.min(1, saved / P.price) };
+    },
+    /** After `after` member coffees in a month: what a pack would have saved,
+        per cup at the pack's price (plus top-ups above its band), against what
+        the member paid (member prices plus the Pass). null when it wouldn't. */
+    passVsPack(memberId = state.memberId, packId = "classic16", after = 10, at = Date.now()) {
+      const pm = select.passMonth(memberId, at);
+      const pack = select.tier(packId);
+      if (!pack || pm.coffees < after) return null;
+      const cover = select.band(pack.maxBand).maxPrice;
+      const packCost = pm.entries.reduce((n, e) => n + pack.price / pack.cups + Math.max(0, e.listPrice - cover), 0);
+      const more = roundTo(pm.paid + pm.price - packCost, 10);
+      return more > 0 ? { pack, more, coffees: pm.coffees } : null;
+    },
+    /** The Trial pack is once per person: true once any trial purchase exists. */
+    trialUsed: (memberId = state.memberId) => (byMember.get(memberId) || []).some((e) => e.type === "purchase" && e.packId === "trial"),
+    /** "Renews on 2 Dec" (Pass, brand and older plans) or "Use by 4 Jan" (packs, no auto-renew). */
+    planDateLine(member = select.member(), { long = false } = {}) {
+      if (!member?.plan) return "No plan yet";
+      const d = long ? fmt.longDate(member.renewsAt) : fmt.shortDate(member.renewsAt);
+      return member.plan.type === "explorer" && !state.planConfig.packAutoRenew ? `Use by ${d}` : `Renews on ${d}`;
+    },
+
     /** Plan name and size for any member. */
     memberPlan(member) {
       const cups = select.balance(member.id).total;
@@ -817,14 +887,16 @@
         const bp = b.plans.find((x) => x.id === member.plan.planId);
         return { type: "brand", brandId: b.id, typeName: b.name, name: `${bp.cups} cups`, cups, planCups: bp.cups };
       }
-      return { type: "explorer", typeName: "Explorer", name: select.tier(member.plan.tierId).name, cups };
+      if (member.plan.type === "pass") return { type: "pass", typeName: state.planConfig.pass.name, name: state.planConfig.pass.name, cups };
+      return { type: "explorer", typeName: "Cup pack", name: select.tier(member.plan.tierId)?.name || "Cup pack", cups };
     },
 
     /** One line for a member's plan: "Explorer · Regular", "My cafés", "Double Shot · 15 cups". */
     planLabel(member) {
       const p = select.memberPlan(member);
       if (!p.type) return "No plan yet";
-      if (p.type === "explorer") return `Explorer · ${p.name}`;
+      if (p.type === "explorer") return `Cup pack · ${p.name}`;
+      if (p.type === "pass") return p.name;
       if (p.type === "brand") return `${p.typeName} · ${p.planCups} cups`;
       return "My cafés";
     },
@@ -886,9 +958,13 @@
         const bp = b.plans.find((x) => x.id === plan.planId);
         return { name: `${bp.cups} cups`, typeName: b.name, brandId: b.id, cups: bp.cups, price: bp.price, perCup: bp.price / bp.cups, savings: 0, meetsMinimum: true, cupsShort: 0 };
       }
+      if (plan.type === "pass") {
+        const P = state.planConfig.pass;
+        return { name: P.name, typeName: P.name, cups: 0, price: P.price, savings: 0, meetsMinimum: true, cupsShort: 0, pass: true };
+      }
       if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
-        return { name: t.name, typeName: "Explorer", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0 };
+        return { name: t.name, typeName: "Cup pack", cups: t.cups, price: t.price, savings: select.tierSavings(t.id), meetsMinimum: true, cupsShort: 0, days: state.planConfig.packDays };
       }
       return { name: "My cafés", typeName: "My cafés", ...select.customPrice(plan.allocation || state.builder, plan.allocation ? plan.bands || {} : state.builderBands) };
     },
@@ -897,6 +973,7 @@
     isCurrentPlan(plan, memberId = state.memberId) {
       const cur = state.members[memberId].plan;
       if (!cur || plan.type !== cur.type) return false;
+      if (plan.type === "pass") return true;
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
       if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
@@ -913,7 +990,7 @@
       // BACKEND: a view over the ledger (lifetime redeems per member), plus members.member_no
       const m = state.members[memberId];
       const C = state.club;
-      const redeems = (byMember.get(memberId) || []).filter((e) => isRedeem(e));
+      const redeems = (byMember.get(memberId) || []).filter(isMemberCoffee).map(asDrink); // cups and pass sales
       const firstAt = {};
       let cups = 0, morning = 0;
       const byArea = {};
@@ -1157,7 +1234,8 @@
     planName(plan) {
       if (!plan) return "No plan";
       if (plan.type === "brand") return `${state.brands[plan.brandId]?.name || "Brand"} plan`;
-      return plan.type === "explorer" ? "Explorer" : "My cafés";
+      if (plan.type === "pass") return state.planConfig.pass.name;
+      return plan.type === "explorer" ? select.tier(plan.tierId)?.name || "Cup pack" : "My cafés";
     },
 
     /** Can this member have a cup at this branch now, and from which plan?
@@ -1190,6 +1268,8 @@
           const leftHere = sumCups(es.filter((e) => here(e) && !e.bonus));
           const bonus = Math.max(0, sumCups(es.filter((e) => !e.cafeId || e.bonus)));
           if (reserved || bonus) options.push({ ...p, rank: 2, reserved, here: leftHere > 0 ? leftHere : bonus, bonus: leftHere <= 0 && bonus > 0, why: leftHere > 0 || bonus > 0 ? null : "empty" });
+        } else if (p.plan.type === "pass" && p.left > 0) {
+          options.push({ ...p, rank: 3, here: p.left, bonus: true, why: null }); // complimentary cups (Beans, passport)
         }
       });
       options.sort((x, y) => x.rank - y.rank);
@@ -1200,6 +1280,14 @@
       const name = m.firstName;
       if (select.isPaused(branchId, at)) return no("paused", `Member cups paused until ${fmt.time(cafe.pausedUntil)}`, `${name} can pay as usual, or come back after.`);
       if (!plans.length) return no("no-plan", "No plan yet", `${name} hasn’t bought a plan yet. They can pay as usual.`);
+      if (!options.length && plans.every((p) => p.plan.type === "pass")) {
+        // BACKEND: the counter records this as a pass sale (actions.recordPassSale), not a cup
+        const P = state.planConfig.pass;
+        const t = select.passToday(memberId, at);
+        return t.used
+          ? no("pass-used", `${P.name} · used today`, `${name} has had today’s member coffee. Another one is full price; the next is tomorrow.`)
+          : no("pass", `${P.name} · ${Math.round(P.discount * 100)}% off one coffee today`, `${name} pays the member price for one drink. No cup is used.`);
+      }
       if (!options.length) {
         const where = [...new Set(plans.map((p) => (p.plan.type === "brand" ? state.brands[p.plan.brandId].name : p.plan.type === "mycafes" ? "the cafés in their plan" : "partner cafés")))];
         return no("not-here", `Not on a plan here`, `${name}’s cups are for ${where.join(" and ")}. They can pay as usual.`);
@@ -1218,7 +1306,7 @@
     usualDrink(memberId, brandId) {
       const counts = {};
       (byMember.get(memberId) || []).forEach((e) => {
-        if (!isRedeem(e) || state.cafes[e.cafeId]?.brandId !== brandId) return;
+        if (!isMemberCoffee(e) || state.cafes[e.cafeId]?.brandId !== brandId) return;
         const item = select.menuItem(brandId, e.drinkId);
         if (!item) return;
         const t = select.servedTemp(item, e.temp);
@@ -1612,6 +1700,7 @@
       const add = (at, beans, title, meta) => { if (at >= B.launchedAt) rows.push({ at, beans, title, meta }); };
       (byMember.get(memberId) || []).forEach((e) => {
         if (isRedeem(e) && !e.orderId) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · at the counter`);
+        if (e.type === "pass-sale" && !e.undone) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · ${state.planConfig.pass.name}`);
         if (e.type === "beans") rows.push({ at: e.at, beans: e.beans, title: e.title, meta: e.meta, spend: e.beans < 0 });
       });
       Object.values(state.orders).forEach((o) => {
@@ -1674,7 +1763,7 @@
       // BACKEND: a view over the ledger and orders; only the café and the time, never a location
       const out = [];
       (byMember.get(memberId) || []).forEach((e) => {
-        if (isRedeem(e) && e.at >= since) out.push({ key: `e:${e.id}`, memberId, cafeId: e.cafeId, at: e.at, drink: select.entryDrinkName(e) });
+        if (isMemberCoffee(e) && e.at >= since) out.push({ key: `e:${e.id}`, memberId, cafeId: e.cafeId, at: e.at, drink: select.entryDrinkName(e) });
       });
       Object.values(state.orders).forEach((o) => {
         if (o.status !== "collected") return;
@@ -1740,7 +1829,7 @@
       const count = (since) => {
         const n = {};
         ids.forEach((id) => (byMember.get(id) || []).forEach((e) => {
-          if (!isRedeem(e) || e.at < since || e.at > at) return;
+          if (!isMemberCoffee(e) || e.at < since || e.at > at) return;
           const a = state.cafes[e.cafeId]?.area;
           if (a) n[a] = (n[a] || 0) + 1;
         }));
@@ -1791,7 +1880,7 @@
   const MEMBER_MESSAGES = {
     "paused": (m, { cafeId }) => `${select.pickupPlace(cafeId)} has paused member cups until ${fmt.time(state.cafes[cafeId].pausedUntil)}.`,
     "cafe-cap": (m, { cafeId }) => `Today’s member cups at ${select.pickupPlace(cafeId)} are used up.`,
-    "no-cups": (m) => (m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
+    "no-cups": (m) => (m.plan?.type === "pass" ? `The ${state.planConfig.pass.name} has no cups. Pay the price here, or get a cup pack.` : m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
     "plan-paused": () => "Your plan is paused. Resume it to use a cup.",
     "not-brand": (m) => `Your cups are for ${state.brands[m.plan.brandId].name}.`,
     "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups.`,
@@ -2461,7 +2550,9 @@
       }
       // New cycle
       const cycle = uid("c");
-      member.plan = plan.type === "brand"
+      member.plan = plan.type === "pass"
+        ? { type: "pass" }
+        : plan.type === "brand"
         ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
         : plan.type === "explorer"
         ? { type: "explorer", tierId: select.tier(plan.tierId).id }
@@ -2473,13 +2564,17 @@
         })();
       member.cycle = cycle;
       member.cycleStartedAt = now;
-      member.renewsAt = addMonths(now, 1);
+      // A pack lasts packDays and doesn't renew; the Pass and older plans run a month
+      member.renewsAt = member.plan.type === "explorer" ? now + state.planConfig.packDays * 24 * 60 * MIN : addMonths(now, 1);
       member.planChangedAt = now;
       if (payment) member.payment = payment;
       if (member.plan.type === "brand") {
         entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, brandId: plan.brandId, cups: select.quote(member.plan).cups, at: now, cycle, live: true });
       } else if (member.plan.type === "explorer") {
-        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, at: now, cycle, live: true });
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, packId: member.plan.tierId, at: now, cycle, live: true });
+      } else if (member.plan.type === "pass") {
+        // BACKEND: a monthly subscription; each renewal is one 0-cup purchase row
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: 0, pass: true, price: state.planConfig.pass.price, at: now, cycle, live: true });
       } else {
         Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
       }
@@ -2493,6 +2588,7 @@
     checkout({ plan, method, account = "" }) {
       const q = select.quote(plan);
       if (!q.meetsMinimum) return Promise.resolve({ ok: false, reason: "minimum", message: `Plans start at ${state.rules.minCupsTotal} cups.` });
+      if (plan.type === "explorer" && select.tier(plan.tierId)?.oncePerPerson && select.trialUsed()) return Promise.resolve({ ok: false, reason: "trial-used", message: "The Trial is once per person." });
       const digits = String(account).replace(/\D/g, "");
       // BACKEND: POST /payments { method, account, amount: q.price } -> wallet or card provider
       return new Promise((resolve) => {
@@ -2844,6 +2940,42 @@
     /** Simulated payment for a covered table, then it's sent. */
     checkoutGroupSend(groupId, { method, account = "" }) {
       return simulatePayment({ method, account, amount: actions.groupCoverDue(groupId) }).then((res) => (res.ok ? actions.sendGroup(groupId, { payment: res.payment }) : res));
+    },
+
+    /** An LCC Pass sale at a counter: the member pays the café the member
+        price for one drink; no cups, no LCC payout. Refused when the member
+        isn't on the Pass or has had today's member coffee (a second one is
+        full price, not recorded). `at` is for the presenter and seeds.
+        Not wired to the counter yet (café pass).                        */
+    recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", at = Date.now() }) {
+      // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
+      const m = state.members[memberId];
+      const P = state.planConfig.pass;
+      if (!m || m.plan?.type !== "pass") return { ok: false, reason: "not-pass", message: "Not on the LCC Pass." };
+      if (m.plan.paused) return { ok: false, reason: "plan-paused", message: "The Pass is paused." };
+      if (select.passToday(memberId, at).used) return { ok: false, reason: "pass-used", message: "Today’s member coffee is used. This one is full price." };
+      const cafe = state.cafes[branchId];
+      const b = select.brandFor(branchId);
+      if (!cafe || !b) return { ok: false, reason: "no-cafe" };
+      const item = select.menuItem(b.id, drinkId) || b.menu[0];
+      const t = select.servedTemp(item, temp);
+      const listPrice = item[t];
+      const entry = {
+        id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: t,
+        listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, staffId, method, channel: "counter",
+        at, cycle: m.cycle, live: true,
+      };
+      appendEntries([entry]);
+      return { ok: true, entry, saved: entry.listPrice - entry.memberPrice };
+    },
+
+    /** Presenter: show another seeded member in the app (the cup pack demo), keeping Mumtaz as she is. */
+    viewAsMember(memberId) {
+      if (!state.members[memberId]) return;
+      if (!state.session.saved) state.session.saved = { memberId: state.memberId, builder: clone(state.builder) };
+      state.memberId = memberId;
+      emit("session", { memberId });
+      emit("member", { member: state.members[memberId] });
     },
 
     /** Presenter: back to Mumtaz, exactly as she was. */
