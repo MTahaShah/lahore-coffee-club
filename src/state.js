@@ -614,8 +614,15 @@
     counterToday(branchId, at = Date.now()) {
       // BACKEND: GET /branches/:id/today (no amounts for the counter role)
       const since = startOfDay(at);
-      const cups = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === branchId && e.at >= since && !e.orderId)
-        .map((e) => ({ kind: "cup", at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
+      // Cups and Pass sales; label: "Pass" (pass sale), "Pack" (a cup pack), "Plan" (older plans)
+      const label = (e) => {
+        if (e.type === "pass-sale") return "Pass";
+        const m = state.members[e.memberId];
+        const t = e.planType || (m?.cycle === e.cycle ? m.plan?.type : null) || (m?.extraPlans || []).find((x) => x.cycle === e.cycle)?.plan.type;
+        return t === "explorer" ? "Pack" : t === "pass" ? "Pass" : "Plan";
+      };
+      const cups = state.ledger.filter((e) => (e.type === "redeem" || e.type === "pass-sale") && e.cafeId === branchId && e.at >= since && !e.orderId)
+        .map((e) => ({ kind: "cup", label: label(e), at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
       const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
         .map((o) => ({ kind: "pickup", at: o.updatedAt, member: state.members[o.memberId], name: o.memberName, drink: select.pickupDrinkName(o), status: o.status, staff: o.collectedBy ? select.staffMember(o.collectedBy)?.name || null : null, order: o }));
       return { cups: cups.sort((x, y) => y.at - x.at), pickups: pickups.sort((x, y) => y.at - x.at), served: cups.filter((x) => !x.undone).length };
@@ -1378,10 +1385,11 @@
     /** Redemptions made at this branch in the last few minutes that can still be undone, newest first. */
     /** Cups this cashier served here that they can still undo. */
     undoable(branchId, at = Date.now(), staffId = state.counter.staffId) {
-      return state.ledger.filter((e) => isRedeem(e) && e.cafeId === branchId && (e.staffId || null) === (staffId || null) && select.undoSecondsLeft(e, at) > 0).sort((x, y) => y.at - x.at);
+      return state.ledger.filter((e) => (isRedeem(e) || (e.type === "pass-sale" && !e.undone)) && e.cafeId === branchId && (e.staffId || null) === (staffId || null) && select.undoSecondsLeft(e, at) > 0).sort((x, y) => y.at - x.at);
     },
     undoSecondsLeft(e, at = Date.now()) {
-      if (!isRedeem(e) || e.orderId) return 0;
+      // Cups and pass sales at the counter: the same undo window
+      if (!(isRedeem(e) || (e.type === "pass-sale" && !e.undone)) || e.orderId) return 0;
       return Math.max(0, Math.ceil((e.at + state.rules.undoMinutes * MIN - at) / 1000));
     },
     /** A redeem entry by id (undone ones included). */
@@ -1440,7 +1448,7 @@
       const out = [];
       state.ledger.forEach((e) => {
         if (e.at < since || !ids.includes(e.cafeId)) return;
-        if (e.type === "redeem") out.push({ kind: "redeem", at: e.at, entry: e, branchId: e.cafeId });
+        if (e.type === "redeem" || e.type === "pass-sale") out.push({ kind: "redeem", at: e.at, entry: e, branchId: e.cafeId });
         if (e.type === "undo") out.push({ kind: "undo", at: e.at, entry: select.entry(e.undoes) || e, branchId: e.cafeId });
       });
       Object.values(state.orders).forEach((o) => { if (ids.includes(o.cafeId) && (o.updatedAt || o.placedAt) >= since) out.push({ kind: "pickup", at: o.updatedAt || o.placedAt, order: o, branchId: o.cafeId }); });
@@ -2283,7 +2291,7 @@
         return { ok: false, reason: "not-yours", message: who ? `Only ${who.name}, who served this cup, can undo it.` : "Only the cashier who served this cup can undo it." };
       }
       appendEntries([{ id: `ud_${e.id}`, type: "undo", undoes: e.id, memberId: e.memberId, cafeId: e.cafeId, branchId: e.cafeId, brandId: e.brandId || null,
-        staffId: e.staffId || null, channel: "counter", cups: e.credits, credits: e.credits, at: Date.now(), cycle: e.cycle, live: true }]);
+        staffId: e.staffId || null, channel: "counter", cups: e.credits || 0, credits: e.credits || 0, ...(e.type === "pass-sale" ? { passSale: true } : {}), at: Date.now(), cycle: e.cycle, live: true }]);
       return { ok: true, entry: e };
     },
     /** LCC admin only: add or take cups, with a reason. One `adjust` entry in
@@ -2961,7 +2969,7 @@
         isn't on the Pass or has had today's member coffee (a second one is
         full price, not recorded). `at` is for the presenter and seeds.
         Not wired to the counter yet (café pass).                        */
-    recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", at = Date.now() }) {
+    recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", mods = null, extras = [], at = Date.now() }) {
       // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
       const m = state.members[memberId];
       const P = state.planConfig.pass;
@@ -2972,13 +2980,16 @@
       const b = select.brandFor(branchId);
       if (!cafe || !b) return { ok: false, reason: "no-cafe" };
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
-      const t = select.servedTemp(item, temp);
-      const listPrice = item[t];
+      if (!select.isAvailable(branchId, item.id, at)) return { ok: false, reason: "unavailable", message: "Not available today." };
+      const p = select.drinkPrice(b.id, item, temp); // today's menu price, price changes included
+      const listPrice = p.price;
       const entry = {
-        id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: t,
+        id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: p.temp,
         listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, staffId, method, channel: "counter",
-        at, cycle: m.cycle, live: true,
+        firstVisit: !(m.visits && m.visits[branchId] > 0), at, cycle: m.cycle, live: true,
+        ...select.drinkChoices(b.id, p.temp, mods, extras), // extras are paid at full price, never discounted
       };
+      entry.ref = select.redemptionRef(entry);
       appendEntries([entry]);
       return { ok: true, entry, saved: entry.listPrice - entry.memberPrice };
     },

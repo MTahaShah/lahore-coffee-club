@@ -55,6 +55,14 @@
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
     bandLimits: { classic: 750, signature: 1000, reserve: 1500 },
+    // Café rate steps: the share of a cup's price LCC pays a café for pack
+    // cups, by member cups at that café this calendar month (pass sales and
+    // pack cups both count). The rate in force applies to the month's cups.
+    rateSteps: [
+      { from: 0,   rate: 0.70 },
+      { from: 200, rate: 0.65 },
+      { from: 500, rate: 0.60 },
+    ],
   };
 
   /* Bands and plans: the one source of truth for pricing ----------------
@@ -1087,6 +1095,70 @@
     "b:m_c_mahnoor:explorer": { [faraz.id]: minsAgo(190), [hira.id]: minsAgo(185) },
     "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
   };
+
+  /* LCC Pass regulars (Café pass 2): 60 background members on the Pass,
+     with pass sales this calendar month, one a day at most. Kiln & Bean is
+     topped up to about 143 member cups this month (under the 200 step) and
+     Double Shot Gulberg to about 236 (past it); every other branch gets a
+     few. About half had a pass coffee 35 to 70 days ago at their home café,
+     so "New customers this month" reads true. A separate PRNG keeps the
+     rest of the seed as it was.                                        */
+  (function passRegulars() {
+    const prng = mulberry32(today.getFullYear() * 1000 + today.getMonth() * 31 + 7);
+    const monthStart = (() => { const d = new Date(startOfToday); d.setDate(1); return d.getTime(); })();
+    const passMembers = Array.from({ length: 60 }, (_, i) => {
+      const firstName = REGULAR_NAMES[(i * 7 + 3) % REGULAR_NAMES.length];
+      const id = `m_ps${i}_${firstName.toLowerCase()}`;
+      const home = cafes[Math.floor(prng() * cafes.length)].id;
+      const m = { id, firstName, lastName: SURNAMES[(i * 5 + 2) % SURNAMES.length], pronoun: "them", plan: { type: "pass" }, background: true, visits: {}, home,
+        cycle: cycleOf(id), cycleStartedAt: monthStart, renewsAt: monthStart + 30 * DAY };
+      members.push(m);
+      ledger.push({ id: `sp_${i}_buy`, type: "purchase", memberId: id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: monthStart + 9 * 60 * MIN, cycle: m.cycle });
+      if (prng() < 0.5) {
+        const d = menuOf(home)[0];
+        const at = startOfToday - (35 + Math.floor(prng() * 35)) * DAY + 13 * 60 * MIN;
+        const lp = d.hot ?? d.iced;
+        ledger.push({ id: `sp_${i}_prev`, type: "pass-sale", memberId: id, cafeId: home, brandId: cafeById[home].brandId, cups: 0, drinkId: d.id, temp: d.hot != null ? "hot" : "iced",
+          listPrice: lp, memberPrice: Math.round(lp * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: `${m.cycle}_prev`, ...served(home, `sp_${i}_prev`) });
+      }
+      return m;
+    });
+    // Danish: a named Pass member for the counter demo (code 552310, LCC 150),
+    // three pass coffees this month, none today, so "available" can be shown
+    const danish = { id: "m_danish", firstName: "Danish", lastName: "Hashmi", initials: "DH", pronoun: "him", phone: "+92 321 5550150", area: "gulberg",
+      memberNo: 150, staticCode: "552310", plan: { type: "pass" }, visits: {}, cycle: cycleOf("m_danish"), cycleStartedAt: daysAgo(11), renewsAt: daysAgo(11 - 30), memberSince: daysAgo(11) };
+    members.push(danish);
+    ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
+    [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
+      .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
+    const busy = new Set(); // "memberId|day": one pass coffee a day
+    [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
+    const days = [];
+    for (let t = startOfDay(monthStart); t <= startOfToday; t += DAY) days.push(startOfDay(t + 2 * 60 * MIN));
+    const thisMonth = (cafeId) => ledger.filter((e) => e.cafeId === cafeId && e.at >= monthStart && (e.type === "redeem" || e.type === "pass-sale") && !e.undone).reduce((k, e) => k + (e.credits || 1), 0);
+    let n = 0;
+    function addSales(cafeId, count) {
+      const menu = menuOf(cafeId);
+      for (let k = 0; k < count; k++) {
+        const day = days[Math.floor(prng() * days.length)];
+        let at = day + Math.round((9 + prng() * 11) * 60) * MIN;
+        if (at > now - 5 * MIN) at = Math.max(day + 8 * 60 * MIN, now - (6 + Math.floor(prng() * 120)) * MIN);
+        if (at > now - 5 * MIN) continue;
+        const start = Math.floor(prng() * passMembers.length);
+        const m = [...Array(passMembers.length).keys()].map((j) => passMembers[(start + j) % passMembers.length]).find((x) => !busy.has(`${x.id}|${startOfDay(at)}`));
+        if (!m) continue;
+        busy.add(`${m.id}|${startOfDay(at)}`);
+        const d = menu[Math.floor(prng() * menu.length)];
+        const temp = d.hot != null && (d.iced == null || prng() < 0.6) ? "hot" : "iced";
+        const id = `sp_s${n++}`;
+        const listPrice = d[temp];
+        ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: cafeById[cafeId].brandId, cups: 0, drinkId: d.id, temp, listPrice,
+          memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
+      }
+    }
+    const TARGETS = { kiln: 143, "ds-gulberg": 236 };
+    cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
+  })();
 
   ledger.sort((a, b) => a.at - b.at);
 

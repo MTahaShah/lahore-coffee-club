@@ -8,8 +8,11 @@
               branch until a manager changes it with their PIN.
      Shift    tap your name, then your own 4-digit PIN. The header says
               "At counter: Bilal" with Switch staff. No PIN per cup.
-     Money    none at the counter: no Rs amounts, rates, payouts or totals.
-              Top-ups and extras are "pay at counter" (the till has prices).
+     Money    none at the counter: no rates, payouts or totals. Top-ups
+              and extras on cups are "pay at counter" (the till has prices).
+              One exception (Café pass 2): an LCC Pass member pays the
+              cashier directly, so their card shows the list price, the
+              member price and "Charge Rs X".
      Counter  a keypad and a "Member number" field; results from the first
               digit (also name, or the last 4 digits of a phone). "Scan
               pass" (camera, BarcodeDetector) where supported, and a small
@@ -18,12 +21,15 @@
               preselected, any pickup they have waiting at the top. Free
               mods (sugar, milk, ice) and paid extras ("Pay at counter").
               Drinks the café keeps out of LCC plans are greyed, "Not in
-              plan". "Redeem 1 cup", then Done with the reference and
+              plan". Pass members: "Apply member price" (a pass-sale
+              entry), or "Full price today" once it's used. Packs and
+              plans: "Redeem 1 cup", then Done with the reference and
               what to ring up; back to the keypad after 5 s. Undo for 2 min
               (the cashier who served it).
      Orders   pickup queue for this branch, oldest first:
               placed → preparing → ready → collected
-     Today    cups served and pickups today: time, member, drink, staff
+     Today    cups and Pass sales today ("Pass" / "Pack" / "Plan") and
+              pickups: time, member, drink, staff
      Executive  a small link in the header: a branch or brand-owner PIN
               (6 digits) opens #/partner on this device for that scope
      Members  manager or owner (PIN): Your members
@@ -264,7 +270,7 @@
         else if (view === "done" && done) panel.innerHTML = doneHtml().s;
         else panel.innerHTML = resultsHtml().s;
         if (focus) {
-          const target = view === "member" ? $("[data-redeem]:not([disabled])", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
+          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
           target?.focus({ preventScroll: false });
         }
       }
@@ -288,7 +294,7 @@
                   <span class="ct-result__name">${S.fullName(m)}</span>
                   <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
-                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.title}</span>
+                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.reason === "pass" ? "Pass · 20% off" : chk.reason === "pass-used" ? "Pass · used today" : chk.title}</span>
               </button></li>`;
             })}
           </ul>
@@ -337,6 +343,66 @@
         return [...mods, ...(e.extras || []).map((x) => x.label)].join(" · ");
       };
 
+      /* LCC Pass at the counter ------------------------------------------
+         The member pays the cashier the member price for one drink a day;
+         LCC pays nothing for it. counterCheck says "pass" (available) or
+         "pass-used". This is the one place the counter shows prices.     */
+      const passState = (chk) => (!chk.ok && (chk.reason === "pass" || chk.reason === "pass-used") ? chk.reason : null);
+      const passCfg = () => S.planConfig().pass;
+      /** List price, member price, and what to charge (member price plus any extras at full price). */
+      function passQuote() {
+        const b = brand();
+        const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
+        if (!item) return null;
+        const p = S.drinkPrice(b.id, item, drink.temp);
+        const extras = S.drinkChoices(b.id, p.temp, null, choices.extras).extrasPaid || 0;
+        const member = S.memberPrice(p.price);
+        return { list: p.price, member, extras, charge: member + extras };
+      }
+      const pricesText = (q) => `List ${fmt.rs(q.list)} · Member price ${fmt.rs(q.member)}`;
+      const chargeHtml = (q) => html`Charge <strong>${fmt.rs(q.charge)}</strong>${q.extras ? html` <span class="t-small t-muted">(${fmt.rs(q.member)} + extras ${fmt.rs(q.extras)})</span>` : ""}`;
+      function paintCharge() {
+        const q = passQuote();
+        if (!q) return;
+        const pr = $("[data-pass-prices]", el); if (pr) pr.textContent = pricesText(q);
+        const ch = $("[data-charge]", el); if (ch) ch.innerHTML = chargeHtml(q).s;
+      }
+      function passCardHtml(m, used) {
+        const P = passCfg();
+        const b = brand();
+        const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
+        const q = passQuote();
+        return html`
+          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · Today’s member coffee: <strong>${used ? "used today, full price" : "available"}</strong></p>
+          ${used
+            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">Full price today</p><p class="t-small t-muted">${m.firstName} has had today’s member coffee. Ring this one up at the menu price; the next member price is tomorrow.</p></div></div>`
+            : item ? html`
+              <div class="ct-drink">
+                <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
+                <p class="ct-drink__name"><span data-drink-name>${S.drinkLabel(item, drink.temp)}</span></p>
+                <p class="t-small t-muted num" data-pass-prices>${pricesText(q)}</p>
+                <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
+              </div>
+              <div class="ct-mods" data-mods>${modsHtml()}</div>
+              <p class="ct-charge num" data-charge aria-live="polite">${chargeHtml(q)}</p>
+              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">Apply member price</button>
+              <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}`;
+      }
+      function applyPassNow() {
+        if (!picked || !drink) return;
+        const res = A.recordPassSale({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
+        if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.message || "That didn’t go through.", { iconName: "info" }); }
+        const q = { member: res.entry.memberPrice, extras: res.entry.extrasPaid || 0 };
+        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras };
+        picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
+        paintField();
+        setView("done");
+        paintPanel({ focus: true });
+        paintRecent();
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+      }
+
       function memberHtml() {
         const m = member();
         const b = brand();
@@ -350,6 +416,7 @@
         const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
         const waiting = waitingFor(m.id);
+        const pass = passState(chk);
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
           ${waiting.map((o) => html`<section class="ct-pickup" aria-label="Pickup waiting">
             <div class="cv-ticket__top"><p class="eyebrow">Pickup waiting</p><span class="badge">${o.items ? `Table · ${o.items.length}` : o.pay === "cup" ? "Cup" : "Paid"}</span></div>
@@ -366,9 +433,9 @@
               <p class="t-micro t-faint num">${clubLine}</p>
             </div>
           </div>
-          ${chk.ok
+          ${pass ? passCardHtml(m, pass === "pass-used") : chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
-                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
+                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Cup pack: ${chk.plan.left} left, any café` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.plan.plan.type === "explorer" ? `${S.packCupsToday(m.id, chk.plan.cycle)} of ${S.planConfig().packDailyLimit}` : `${chk.usedToday} of ${chk.limit}`} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
           ${others.length && chk.ok ? html`<p class="t-small t-faint num">Also: ${others.map((p) => `${p.name}, ${p.left} left`).join(" · ")}</p>` : ""}
           ${perks.length ? html`<p class="t-small ct-card__perk">Perk to offer: ${perks.map((p) => p.text).join("; ")}</p>` : ""}
@@ -410,7 +477,8 @@
         const temp = drink?.temp || "hot";
         const usual = S.usualDrink(member().id, b.id);
         const norm = (s) => s.toLowerCase();
-        const list = S.counterMenu(branch().id, temp, planBand())
+        const pass = passState(S.counterCheck(member().id, branch().id));
+        const list = S.counterMenu(branch().id, temp, pass ? undefined : planBand())
           .filter((d) => (temp === "iced" ? d.item.iced != null : d.item.hot != null))
           .filter((d) => !pickerQuery || norm(d.item.name).includes(norm(pickerQuery)));
         const usualRow = usual && list.find((d) => d.id === usual.drinkId);
@@ -422,7 +490,12 @@
             ${ui.segmented({ name: "cttemp", label: "Hot or iced", value: temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
           </div>
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
-            ${rows.length ? rows.map((d) => d.item.inPlan === false
+            ${rows.length ? rows.map((d) => pass
+              ? html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
+                <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${fmt.rs(d.price)}</span> · ${fmt.rs(S.memberPrice(d.price))}</span>
+              </button>`
+              : d.item.inPlan === false
               ? html`<button type="button" role="radio" class="ct-menu__row is-off" aria-checked="false" aria-disabled="true" disabled>
                   <span class="ct-menu__name">${d.name}</span>
                   <span class="ct-menu__price">Not in plan</span>
@@ -438,6 +511,12 @@
         if (box) box.innerHTML = pickerHtml().s;
       }
       function paintDrinkLine() {
+        if (passState(S.counterCheck(member().id, branch().id))) {
+          const item = S.menuItem(brand().id, drink.drinkId);
+          const n = $("[data-drink-name]", el); if (n) n.textContent = S.drinkLabel(item, drink.temp);
+          const lb = $(".ct-drink__label", el); if (lb) lb.textContent = drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink";
+          return paintCharge();
+        }
         const b = brand();
         const item = S.menuItem(b.id, drink.drinkId);
         const p = S.drinkPrice(b.id, item, drink.temp, planBand());
@@ -467,6 +546,22 @@
       function doneHtml() {
         const { entry, member: m, left, plan } = done;
         const secs = RULES().counterResetSeconds;
+        if (done.pass) {
+          return html`<div class="ct-done" role="status">
+            <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+            <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
+            <p class="ct-charge num">Charge <strong>${fmt.rs(done.charge)}</strong>${entry.extrasPaid ? html` <span class="t-small t-muted">(${fmt.rs(entry.memberPrice)} + extras ${fmt.rs(entry.extrasPaid)})</span>` : ""}</p>
+            <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
+            ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
+            <p class="cv-till">Ring it up on your till as: <strong>${passCfg().name}, ${Math.round(entry.discount * 100)}% off</strong></p>
+            <p class="t-small t-faint num">${fmt.time(entry.at)} · served by ${S.staffMember(entry.staffId)?.name || "the counter"} · list ${fmt.rs(entry.listPrice)}</p>
+            <div class="ct-done__acts">
+              <button type="button" class="btn btn--secondary" data-undo="${entry.id}">Undo</button>
+              <button type="button" class="btn btn--primary" data-next>Next member</button>
+            </div>
+            <span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>
+          </div>`;
+        }
         return html`<div class="ct-done" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
@@ -496,9 +591,9 @@
         const list = S.undoable(branch().id);
         clearInterval(undoTimer);
         if (!list.length) { box.innerHTML = ""; return; }
-        box.innerHTML = html`<h2 class="t-micro t-faint" id="ct-recent-h">Just redeemed · undo within ${RULES().undoMinutes} minutes</h2>
+        box.innerHTML = html`<h2 class="t-micro t-faint" id="ct-recent-h">Just served · undo within ${RULES().undoMinutes} minutes</h2>
           <ul role="list">${list.slice(0, 3).map((e) => html`<li class="ct-recent__row">
-            <span>${S.member(e.memberId)?.firstName || "Member"} · ${S.entryDrinkName(e)} <span class="t-faint num">· ${fmt.time(e.at)}</span></span>
+            <span>${S.member(e.memberId)?.firstName || "Member"} · ${S.entryDrinkName(e)} <span class="t-faint num">· ${e.type === "pass-sale" ? "Pass · " : ""}${fmt.time(e.at)}</span></span>
             <button type="button" class="btn btn--secondary btn--compact" data-undo="${e.id}">Undo <span class="num" data-undo-left="${e.id}">${fmt.countdown(S.undoSecondsLeft(e))}</span></button>
           </li>`)}</ul>`.s;
         undoTimer = setInterval(() => {
@@ -515,7 +610,9 @@
         const res = A.undoRedemption(id);
         if (!res.ok) return ui.toast(res.message, { iconName: "info" });
         const m = S.member(res.entry.memberId);
-        ui.toast(`Undone. ${m.firstName}’s cup is back, and ${m.firstName} has been told.`, { duration: 4200 });
+        ui.toast(res.entry.type === "pass-sale"
+          ? `Undone. ${m.firstName}’s member price is cancelled, and today’s member coffee is available again.`
+          : `Undone. ${m.firstName}’s cup is back, and ${m.firstName} has been told.`, { duration: 4200 });
         if (view === "done" && done?.entry.id === id) backToKeypad();
         paintRecent();
       }
@@ -707,13 +804,14 @@
         return html`<div class="cv-section">
           <div class="cv-section__head">
             <h2 class="ct-title">Today</h2>
-            <p class="t-small t-muted num">${t.served} ${t.served === 1 ? "cup" : "cups"} served at ${heading()} today, and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
+            <p class="t-small t-muted num">${t.served} member ${t.served === 1 ? "coffee" : "coffees"} at ${heading()} today (Pass and cups), and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
           </div>
           <section aria-labelledby="td-cups-h">
-            <h3 class="eyebrow" id="td-cups-h">Cups served</h3>
+            <h3 class="eyebrow" id="td-cups-h">Member coffees</h3>
             <ol class="cv-list" role="list">
               ${t.cups.length ? t.cups.map((x) => html`<li class="cv-row">
                 <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="badge cv-row__kind">${x.label}</span>
                 <span class="cv-row__main">${shortName(x.member)} <span class="t-faint">· ${x.drink}${modLine(x.entry) ? ` (${modLine(x.entry)})` : ""} · ${x.staff || "Counter"}${x.undone ? " · undone" : ""}</span></span>
               </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No cups yet today.</span></li>`}
             </ol>
@@ -874,7 +972,8 @@
         if (ex) {
           const id = ex.dataset.extra;
           choices.extras = choices.extras.includes(id) ? choices.extras.filter((x) => x !== id) : [...choices.extras, id];
-          return ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+          ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+          return paintCharge(); // Pass members: extras change what to charge
         }
         const mseg = t.closest('[data-segmented^="ctmod-"] .segmented__option');
         if (mseg) {
@@ -903,6 +1002,7 @@
         const pk = t.closest("[data-pick]");
         if (pk) return pickMember(pk.dataset.pick, mode === "name" ? "number" : "number");
         if (t.closest("[data-redeem]")) return redeemNow();
+        if (t.closest("[data-apply-pass]")) return applyPassNow();
         if (t.closest("[data-back]") || t.closest("[data-next]")) return backToKeypad();
         const ud = t.closest("[data-undo]");
         if (ud) return undo(ud.dataset.undo);
@@ -918,8 +1018,8 @@
           const item = S.menuItem(brand().id, dr.dataset.drink);
           drink = { drinkId: item.id, temp: S.servedTemp(item, drink?.temp || "hot"), source: S.usualDrink(member().id, brand().id)?.drinkId === item.id ? "usual" : "pick" };
           $$("[data-drink]", el).forEach((b) => b.setAttribute("aria-checked", String(b === dr)));
-          paintDrinkLine(); paintMods();
-          return $("[data-redeem]", el)?.focus();
+          paintDrinkLine(); paintMods(); paintCharge();
+          return $("[data-redeem], [data-apply-pass]", el)?.focus();
         }
         const tseg = t.closest('[data-segmented="cttemp"] .segmented__option');
         if (tseg) {
@@ -1010,6 +1110,12 @@
           if (view === "find" && query && tab === "counter") paintPanel();
         }),
         store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) { paintRecent(); paintToday(); } refreshMember(entry.memberId); }),
+        // A Pass sale (this counter or another device): today's list, and the member's card if open
+        store.on("passSale", ({ entry }) => {
+          if (!branch()) return;
+          if (here(entry.cafeId)) { paintRecent(); paintToday(); }
+          refreshMember(entry.memberId);
+        }),
         store.on("pickup", ({ order, prev, quiet }) => {
           if (!branch() || !here(order.cafeId)) return;
           paintOrdersCount();

@@ -9,8 +9,12 @@
    idle or on Lock, and goes back to that counter. A left rail on laptops and tablets, tabs on phones,
    and a branch filter everywhere: "All branches" or one.
 
-     Live      redemptions, pickup orders, undos and "Not you" reports as
-               they happen, with today's totals
+     Live      on top (Café pass 2): member cups this month against the
+               next rate step (planConfig.rateSteps; pass sales and pack
+               cups both count), Pass cups and Pack cups this month, and
+               new customers this month. Then redemptions, Pass sales,
+               pickup orders, undos and "Not you" reports as they happen,
+               with today's totals
      Menu      prices (changes apply from tomorrow) and an "Available
                today" switch per drink and branch (synced to counters)
      Rules     what a cup covers and the café's share, limits, pause member
@@ -249,12 +253,59 @@
       /* Live -------------------------------------------------------------- */
       const METHOD = { number: "said their number", scan: "scanned", code: "6-digit code" };
       const PICKUP_WORD = { placed: "Placed", preparing: "Being made", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
+      /* This month: rate step, Pass / pack split, new customers ----------
+         Steps are per café (branch). With "All branches", each branch gets
+         its own bar; the split and new customers cover the whole brand.  */
+      const pct = (r) => `${Math.round(r * 100)}%`;
+      function stepHtml(c, { name = false } = {}) {
+        const r = LCC.ledger.rateStep(c.id);
+        const goal = r.next ? r.next.at : r.step.from;
+        const line = r.next ? `Next rate step at ${fmt.num(r.next.at)} cups: ${pct(r.next.rate)}` : `Top rate step: ${pct(r.rate)} from ${fmt.num(r.step.from)} cups`;
+        return html`<div class="pd-step">
+          ${name ? html`<p class="t-small">${branchShort(c)}</p>` : ""}
+          <p class="pd-step__count"><span class="pd-stat__value num">${fmt.num(r.cups)}</span> <span class="t-body">${r.next ? `of ${fmt.num(goal)} ` : ""}member cups this month</span></p>
+          <div class="pd-progress" role="progressbar" aria-label="${branchShort(c)}: member cups toward the next rate step" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${Math.min(r.cups, goal)}"><span class="pd-progress__fill" style="--v:${r.progress.toFixed(3)}"></span></div>
+          <p class="t-small t-muted num">Now at ${pct(r.rate)} · ${line}</p>
+        </div>`;
+      }
+      function monthCardHtml() {
+        // BACKEND: GET /brands/:id/month-summary?branch=… (rate step, pass/pack split, new customers)
+        const ids = scopeIds();
+        const target = scope() || session.brandId;
+        const split = LCC.ledger.passPackSplit(target);
+        const fresh = LCC.ledger.newCustomers(target);
+        return html`<div class="pd-month">
+          <div class="pd-card pd-steps">
+            <h3 class="eyebrow">This month</h3>
+            ${ids.length === 1 ? stepHtml(S.branch(ids[0])) : ids.map((id) => stepHtml(S.branch(id), { name: true }))}
+            <p class="t-micro t-faint">Pass and pack cups both count. Steps: ${S.planConfig().rateSteps.map((x, i, a) => `${pct(x.rate)} (${fmt.num(x.from)}${a[i + 1] ? `–${fmt.num(a[i + 1].from)}` : "+"})`).join(" · ")}</p>
+          </div>
+          <div class="pd-grid2">
+            <div class="pd-card">
+              <h3 class="eyebrow">LCC Pass</h3>
+              <p class="t-body num">Pass cups: ${fmt.num(split.pass.cups)} · Discount given ${fmt.rs(split.pass.discount)} · Paid by members ${fmt.rs(split.pass.paid)}</p>
+              <p class="t-small t-faint">Members paid you at the counter. No LCC payout for these.</p>
+            </div>
+            <div class="pd-card">
+              <h3 class="eyebrow">Cup packs</h3>
+              <p class="t-body num">Pack cups: ${fmt.num(split.pack.cups)} · Payout owed ${fmt.rs(split.pack.owed)} (at current rate)</p>
+              <p class="t-small t-faint">The rate in force times each drink’s price, up to the plan’s band.</p>
+            </div>
+          </div>
+          <div class="pd-stats">
+            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${fmt.num(fresh.of)} members who came`)}
+          </div>
+        </div>`;
+      }
+
       function liveHtml() {
         const t = S.brandToday(session.brandId, scope());
         const feed = S.liveFeed(session.brandId, scope()).slice(0, 40);
         const multi = !scope() && branches().length > 1;
         return html`<section class="pd-section">
-          ${head("Live", `${scopeLabel()} · today, as it happens.`)}
+          ${head("Live", `${scopeLabel()} · this month, and today as it happens.`)}
+          ${monthCardHtml()}
+          <h3 class="eyebrow">Today</h3>
           <div class="pd-stats">
             ${stat("Cups today", fmt.num(t.cups), `${t.members} ${t.members === 1 ? "member" : "members"}`)}
             <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">each cup at its band rate, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
@@ -280,8 +331,8 @@
           const staff = e.staffId ? S.staffMember(e.staffId)?.name : null;
           return html`<li class="pd-feed__row${e.live ? " enter" : ""}">
             <span class="pd-feed__time num">${fmt.time(e.at)}</span>
-            <span class="badge">${e.orderId ? "Pickup cup" : "Cup"}</span>
-            <span class="pd-feed__main"><span>${shortName(S.member(e.memberId))} · ${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· top-up ${fmt.rs(e.topUp)}</span>` : ""}</span>
+            <span class="badge">${e.type === "pass-sale" ? "Pass" : e.orderId ? "Pickup cup" : "Cup"}</span>
+            <span class="pd-feed__main"><span>${shortName(S.member(e.memberId))} · ${S.entryDrinkName(e)}${e.type === "pass-sale" ? html` <span class="t-faint num">· member price ${fmt.rs(e.memberPrice)}</span>` : e.topUp ? html` <span class="t-faint num">· top-up ${fmt.rs(e.topUp)}</span>` : ""}</span>
               <span class="pd-feed__meta t-small t-faint">${[staff, e.method ? METHOD[e.method] : null, `Ref ${e.ref || S.redemptionRef(e)}`].filter(Boolean).join(" · ")}${where}${e.undone ? " · undone" : ""}${e.reported ? " · reported" : ""}</span></span>
           </li>`;
         }
@@ -615,6 +666,7 @@
       const offs = [
         store.on("redeem", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "money", "insights", "members"])),
         store.on("undo", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "money", "insights", "members"])),
+        store.on("passSale", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "insights"])),
         store.on("report", ({ report }) => {
           if (!mineBranch(report.branchId)) return;
           repaintIf(true, ["live"]);

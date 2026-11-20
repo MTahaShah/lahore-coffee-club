@@ -16,6 +16,9 @@
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
      LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
+     LCC.ledger.rateStep("kiln")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
+     LCC.ledger.passPackSplit("kiln")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
+     LCC.ledger.newCustomers("kiln")               -> { count, memberIds, of }
 
    Entry types (cups signed: + gives cups, − takes them):
      purchase  + a plan's cups at the start of a cycle
@@ -188,6 +191,55 @@
       const cups = rows.filter((e) => e.type === "redeem").reduce((n, e) => n + (e.credits || 1), 0);
       const pass = rows.filter((e) => e.type === "pass-sale").length;
       return { cafeId, cups, pass, total: cups + pass };
+    },
+
+    /** The café's rate step this month (planConfig.rateSteps), from its
+        member cups (pass sales and cups redeemed). cafeId is one branch:
+        steps are per café. -> { cups, rate, step, next: { at, rate } | null, progress } */
+    rateStep(cafeId, month = Date.now()) {
+      // BACKEND: GET /cafes/:id/rate-step?month=YYYY-MM (steps from plan_config)
+      const steps = S.planConfig().rateSteps;
+      const cups = ledger.memberCupsThisMonth(cafeId, month).total;
+      let i = 0;
+      steps.forEach((x, k) => { if (cups >= x.from) i = k; });
+      const next = steps[i + 1] || null;
+      return { cafeId, cups, rate: steps[i].rate, step: steps[i], next: next ? { at: next.from, rate: next.rate } : null,
+        progress: next ? Math.min(1, cups / next.from) : 1 };
+    },
+
+    /** This month at a café (a branch, or a brand id for all its branches):
+        Pass cups with the discount given and what members paid, and pack
+        cups (every cup redeemed from a prepaid plan) with the payout owed at
+        each branch's current rate step: rate × the drink's price, capped at
+        the plan's band. */
+    passPackSplit(cafeId, month = Date.now()) {
+      // BACKEND: a monthly statement view per branch (pass_sales, redemptions, rate step)
+      const { from, to } = monthRange(month);
+      const rows = ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone);
+      const pass = rows.filter((e) => e.type === "pass-sale");
+      const packs = rows.filter((e) => e.type === "redeem");
+      const rates = {};
+      const rateAt = (id) => (rates[id] ??= ledger.rateStep(id, month).rate);
+      const owed = packs.reduce((n, e) => n + Math.min(S.entryPrice(e), S.band(e.band).maxPrice) * (e.credits || 1) * rateAt(e.cafeId), 0);
+      return {
+        pass: { cups: pass.length, discount: pass.reduce((n, e) => n + e.listPrice - e.memberPrice, 0), paid: pass.reduce((n, e) => n + e.memberPrice, 0) },
+        pack: { cups: packs.reduce((n, e) => n + (e.credits || 1), 0), owed: Math.round(owed) },
+      };
+    },
+
+    /** Members whose first member coffee (cup or pass sale) at this café
+        (a branch, or a brand id for any of its branches) was this month. */
+    newCustomers(cafeId, month = Date.now()) {
+      // BACKEND: SELECT member_id, min(at) FROM ledger WHERE cafe_id = ANY(:branches) AND type IN ('redeem','pass-sale') GROUP BY member_id
+      const { from, to } = monthRange(month);
+      const first = {};
+      ledger.ledgerFor({ cafeId, types: ["redeem", "pass-sale"] }).forEach((e) => {
+        if (e.undone) return;
+        if (first[e.memberId] == null || e.at < first[e.memberId]) first[e.memberId] = e.at;
+      });
+      const ids = Object.keys(first).filter((id) => first[id] >= from && first[id] < to);
+      const seen = new Set(ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone).map((e) => e.memberId));
+      return { count: ids.length, memberIds: ids, of: seen.size }; // of: members with a coffee here this month
     },
 
     /** Record a Pass sale (the counter, from the café pass on). See actions.recordPassSale. */

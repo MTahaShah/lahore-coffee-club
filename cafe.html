@@ -1746,6 +1746,12 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-scan__frame { aspect-ratio: 1; width: min(360px, 100%); margin-inline: auto; overflow: hidden; border-radius: var(--radius-card); background: var(--black); }
 .ct-scan__video { width: 100%; height: 100%; object-fit: cover; }
 
+/* Café pass 2: LCC Pass at the counter (the one place with a price) --- */
+.ct-pass { margin: 0; font-size: var(--fs-16); }
+.ct-charge { margin: 0; font-size: var(--fs-28); }
+.ct-charge strong { font-weight: 700; }
+.cv-row__kind { flex: none; }
+
 /* ---- src/partner.css ---- */
 /* =====================================================================
    Lahore Coffee Club — partner.css
@@ -1865,6 +1871,15 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .pd-addstaff, .pd-addbranch { display: grid; gap: var(--space-3); }
 @media (min-width: 640px) { .pd-addstaff { grid-template-columns: 1.4fr 1fr 1fr; align-items: end; } .pd-addstaff .cv-error, .pd-addstaff > .pd-inline { grid-column: 1 / -1; } }
 .pd-addbranch { max-width: 520px; }
+
+/* Café pass 2: this month's rate step, Pass / pack split ------------- */
+.pd-month { display: grid; gap: var(--space-4); }
+.pd-steps { gap: var(--space-4); }
+.pd-step { display: grid; gap: var(--space-2); }
+.pd-step + .pd-step { padding-top: var(--space-4); border-top: var(--hairline); }
+.pd-step__count { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
+.pd-progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.pd-progress__fill { display: block; height: 100%; width: calc(var(--v, 0) * 100%); background: var(--accent); border-radius: inherit; } /* accent: the one highlight */
 
 /* ---- src/app.css ---- */
 /* =====================================================================
@@ -4192,6 +4207,14 @@ export function createContactShadow(THREE, groundY) {
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
     bandLimits: { classic: 750, signature: 1000, reserve: 1500 },
+    // Café rate steps: the share of a cup's price LCC pays a café for pack
+    // cups, by member cups at that café this calendar month (pass sales and
+    // pack cups both count). The rate in force applies to the month's cups.
+    rateSteps: [
+      { from: 0,   rate: 0.70 },
+      { from: 200, rate: 0.65 },
+      { from: 500, rate: 0.60 },
+    ],
   };
 
   /* Bands and plans: the one source of truth for pricing ----------------
@@ -5225,6 +5248,70 @@ export function createContactShadow(THREE, groundY) {
     "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
   };
 
+  /* LCC Pass regulars (Café pass 2): 60 background members on the Pass,
+     with pass sales this calendar month, one a day at most. Kiln & Bean is
+     topped up to about 143 member cups this month (under the 200 step) and
+     Double Shot Gulberg to about 236 (past it); every other branch gets a
+     few. About half had a pass coffee 35 to 70 days ago at their home café,
+     so "New customers this month" reads true. A separate PRNG keeps the
+     rest of the seed as it was.                                        */
+  (function passRegulars() {
+    const prng = mulberry32(today.getFullYear() * 1000 + today.getMonth() * 31 + 7);
+    const monthStart = (() => { const d = new Date(startOfToday); d.setDate(1); return d.getTime(); })();
+    const passMembers = Array.from({ length: 60 }, (_, i) => {
+      const firstName = REGULAR_NAMES[(i * 7 + 3) % REGULAR_NAMES.length];
+      const id = `m_ps${i}_${firstName.toLowerCase()}`;
+      const home = cafes[Math.floor(prng() * cafes.length)].id;
+      const m = { id, firstName, lastName: SURNAMES[(i * 5 + 2) % SURNAMES.length], pronoun: "them", plan: { type: "pass" }, background: true, visits: {}, home,
+        cycle: cycleOf(id), cycleStartedAt: monthStart, renewsAt: monthStart + 30 * DAY };
+      members.push(m);
+      ledger.push({ id: `sp_${i}_buy`, type: "purchase", memberId: id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: monthStart + 9 * 60 * MIN, cycle: m.cycle });
+      if (prng() < 0.5) {
+        const d = menuOf(home)[0];
+        const at = startOfToday - (35 + Math.floor(prng() * 35)) * DAY + 13 * 60 * MIN;
+        const lp = d.hot ?? d.iced;
+        ledger.push({ id: `sp_${i}_prev`, type: "pass-sale", memberId: id, cafeId: home, brandId: cafeById[home].brandId, cups: 0, drinkId: d.id, temp: d.hot != null ? "hot" : "iced",
+          listPrice: lp, memberPrice: Math.round(lp * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: `${m.cycle}_prev`, ...served(home, `sp_${i}_prev`) });
+      }
+      return m;
+    });
+    // Danish: a named Pass member for the counter demo (code 552310, LCC 150),
+    // three pass coffees this month, none today, so "available" can be shown
+    const danish = { id: "m_danish", firstName: "Danish", lastName: "Hashmi", initials: "DH", pronoun: "him", phone: "+92 321 5550150", area: "gulberg",
+      memberNo: 150, staticCode: "552310", plan: { type: "pass" }, visits: {}, cycle: cycleOf("m_danish"), cycleStartedAt: daysAgo(11), renewsAt: daysAgo(11 - 30), memberSince: daysAgo(11) };
+    members.push(danish);
+    ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
+    [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
+      .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
+    const busy = new Set(); // "memberId|day": one pass coffee a day
+    [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
+    const days = [];
+    for (let t = startOfDay(monthStart); t <= startOfToday; t += DAY) days.push(startOfDay(t + 2 * 60 * MIN));
+    const thisMonth = (cafeId) => ledger.filter((e) => e.cafeId === cafeId && e.at >= monthStart && (e.type === "redeem" || e.type === "pass-sale") && !e.undone).reduce((k, e) => k + (e.credits || 1), 0);
+    let n = 0;
+    function addSales(cafeId, count) {
+      const menu = menuOf(cafeId);
+      for (let k = 0; k < count; k++) {
+        const day = days[Math.floor(prng() * days.length)];
+        let at = day + Math.round((9 + prng() * 11) * 60) * MIN;
+        if (at > now - 5 * MIN) at = Math.max(day + 8 * 60 * MIN, now - (6 + Math.floor(prng() * 120)) * MIN);
+        if (at > now - 5 * MIN) continue;
+        const start = Math.floor(prng() * passMembers.length);
+        const m = [...Array(passMembers.length).keys()].map((j) => passMembers[(start + j) % passMembers.length]).find((x) => !busy.has(`${x.id}|${startOfDay(at)}`));
+        if (!m) continue;
+        busy.add(`${m.id}|${startOfDay(at)}`);
+        const d = menu[Math.floor(prng() * menu.length)];
+        const temp = d.hot != null && (d.iced == null || prng() < 0.6) ? "hot" : "iced";
+        const id = `sp_s${n++}`;
+        const listPrice = d[temp];
+        ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: cafeById[cafeId].brandId, cups: 0, drinkId: d.id, temp, listPrice,
+          memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
+      }
+    }
+    const TARGETS = { kiln: 143, "ds-gulberg": 236 };
+    cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
+  })();
+
   ledger.sort((a, b) => a.at - b.at);
 
   // Mumtaz’s lifetime visits per café (café-detail loyalty), straight from her ledger
@@ -6027,8 +6114,15 @@ export function createContactShadow(THREE, groundY) {
     counterToday(branchId, at = Date.now()) {
       // BACKEND: GET /branches/:id/today (no amounts for the counter role)
       const since = startOfDay(at);
-      const cups = state.ledger.filter((e) => e.type === "redeem" && e.cafeId === branchId && e.at >= since && !e.orderId)
-        .map((e) => ({ kind: "cup", at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
+      // Cups and Pass sales; label: "Pass" (pass sale), "Pack" (a cup pack), "Plan" (older plans)
+      const label = (e) => {
+        if (e.type === "pass-sale") return "Pass";
+        const m = state.members[e.memberId];
+        const t = e.planType || (m?.cycle === e.cycle ? m.plan?.type : null) || (m?.extraPlans || []).find((x) => x.cycle === e.cycle)?.plan.type;
+        return t === "explorer" ? "Pack" : t === "pass" ? "Pass" : "Plan";
+      };
+      const cups = state.ledger.filter((e) => (e.type === "redeem" || e.type === "pass-sale") && e.cafeId === branchId && e.at >= since && !e.orderId)
+        .map((e) => ({ kind: "cup", label: label(e), at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
       const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
         .map((o) => ({ kind: "pickup", at: o.updatedAt, member: state.members[o.memberId], name: o.memberName, drink: select.pickupDrinkName(o), status: o.status, staff: o.collectedBy ? select.staffMember(o.collectedBy)?.name || null : null, order: o }));
       return { cups: cups.sort((x, y) => y.at - x.at), pickups: pickups.sort((x, y) => y.at - x.at), served: cups.filter((x) => !x.undone).length };
@@ -6791,10 +6885,11 @@ export function createContactShadow(THREE, groundY) {
     /** Redemptions made at this branch in the last few minutes that can still be undone, newest first. */
     /** Cups this cashier served here that they can still undo. */
     undoable(branchId, at = Date.now(), staffId = state.counter.staffId) {
-      return state.ledger.filter((e) => isRedeem(e) && e.cafeId === branchId && (e.staffId || null) === (staffId || null) && select.undoSecondsLeft(e, at) > 0).sort((x, y) => y.at - x.at);
+      return state.ledger.filter((e) => (isRedeem(e) || (e.type === "pass-sale" && !e.undone)) && e.cafeId === branchId && (e.staffId || null) === (staffId || null) && select.undoSecondsLeft(e, at) > 0).sort((x, y) => y.at - x.at);
     },
     undoSecondsLeft(e, at = Date.now()) {
-      if (!isRedeem(e) || e.orderId) return 0;
+      // Cups and pass sales at the counter: the same undo window
+      if (!(isRedeem(e) || (e.type === "pass-sale" && !e.undone)) || e.orderId) return 0;
       return Math.max(0, Math.ceil((e.at + state.rules.undoMinutes * MIN - at) / 1000));
     },
     /** A redeem entry by id (undone ones included). */
@@ -6853,7 +6948,7 @@ export function createContactShadow(THREE, groundY) {
       const out = [];
       state.ledger.forEach((e) => {
         if (e.at < since || !ids.includes(e.cafeId)) return;
-        if (e.type === "redeem") out.push({ kind: "redeem", at: e.at, entry: e, branchId: e.cafeId });
+        if (e.type === "redeem" || e.type === "pass-sale") out.push({ kind: "redeem", at: e.at, entry: e, branchId: e.cafeId });
         if (e.type === "undo") out.push({ kind: "undo", at: e.at, entry: select.entry(e.undoes) || e, branchId: e.cafeId });
       });
       Object.values(state.orders).forEach((o) => { if (ids.includes(o.cafeId) && (o.updatedAt || o.placedAt) >= since) out.push({ kind: "pickup", at: o.updatedAt || o.placedAt, order: o, branchId: o.cafeId }); });
@@ -7696,7 +7791,7 @@ export function createContactShadow(THREE, groundY) {
         return { ok: false, reason: "not-yours", message: who ? `Only ${who.name}, who served this cup, can undo it.` : "Only the cashier who served this cup can undo it." };
       }
       appendEntries([{ id: `ud_${e.id}`, type: "undo", undoes: e.id, memberId: e.memberId, cafeId: e.cafeId, branchId: e.cafeId, brandId: e.brandId || null,
-        staffId: e.staffId || null, channel: "counter", cups: e.credits, credits: e.credits, at: Date.now(), cycle: e.cycle, live: true }]);
+        staffId: e.staffId || null, channel: "counter", cups: e.credits || 0, credits: e.credits || 0, ...(e.type === "pass-sale" ? { passSale: true } : {}), at: Date.now(), cycle: e.cycle, live: true }]);
       return { ok: true, entry: e };
     },
     /** LCC admin only: add or take cups, with a reason. One `adjust` entry in
@@ -8374,7 +8469,7 @@ export function createContactShadow(THREE, groundY) {
         isn't on the Pass or has had today's member coffee (a second one is
         full price, not recorded). `at` is for the presenter and seeds.
         Not wired to the counter yet (café pass).                        */
-    recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", at = Date.now() }) {
+    recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", mods = null, extras = [], at = Date.now() }) {
       // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
       const m = state.members[memberId];
       const P = state.planConfig.pass;
@@ -8385,13 +8480,16 @@ export function createContactShadow(THREE, groundY) {
       const b = select.brandFor(branchId);
       if (!cafe || !b) return { ok: false, reason: "no-cafe" };
       const item = select.menuItem(b.id, drinkId) || b.menu[0];
-      const t = select.servedTemp(item, temp);
-      const listPrice = item[t];
+      if (!select.isAvailable(branchId, item.id, at)) return { ok: false, reason: "unavailable", message: "Not available today." };
+      const p = select.drinkPrice(b.id, item, temp); // today's menu price, price changes included
+      const listPrice = p.price;
       const entry = {
-        id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: t,
+        id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: p.temp,
         listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, staffId, method, channel: "counter",
-        at, cycle: m.cycle, live: true,
+        firstVisit: !(m.visits && m.visits[branchId] > 0), at, cycle: m.cycle, live: true,
+        ...select.drinkChoices(b.id, p.temp, mods, extras), // extras are paid at full price, never discounted
       };
+      entry.ref = select.redemptionRef(entry);
       appendEntries([entry]);
       return { ok: true, entry, saved: entry.listPrice - entry.memberPrice };
     },
@@ -8523,6 +8621,9 @@ export function createContactShadow(THREE, groundY) {
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
      LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
+     LCC.ledger.rateStep("kiln")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
+     LCC.ledger.passPackSplit("kiln")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
+     LCC.ledger.newCustomers("kiln")               -> { count, memberIds, of }
 
    Entry types (cups signed: + gives cups, − takes them):
      purchase  + a plan's cups at the start of a cycle
@@ -8695,6 +8796,55 @@ export function createContactShadow(THREE, groundY) {
       const cups = rows.filter((e) => e.type === "redeem").reduce((n, e) => n + (e.credits || 1), 0);
       const pass = rows.filter((e) => e.type === "pass-sale").length;
       return { cafeId, cups, pass, total: cups + pass };
+    },
+
+    /** The café's rate step this month (planConfig.rateSteps), from its
+        member cups (pass sales and cups redeemed). cafeId is one branch:
+        steps are per café. -> { cups, rate, step, next: { at, rate } | null, progress } */
+    rateStep(cafeId, month = Date.now()) {
+      // BACKEND: GET /cafes/:id/rate-step?month=YYYY-MM (steps from plan_config)
+      const steps = S.planConfig().rateSteps;
+      const cups = ledger.memberCupsThisMonth(cafeId, month).total;
+      let i = 0;
+      steps.forEach((x, k) => { if (cups >= x.from) i = k; });
+      const next = steps[i + 1] || null;
+      return { cafeId, cups, rate: steps[i].rate, step: steps[i], next: next ? { at: next.from, rate: next.rate } : null,
+        progress: next ? Math.min(1, cups / next.from) : 1 };
+    },
+
+    /** This month at a café (a branch, or a brand id for all its branches):
+        Pass cups with the discount given and what members paid, and pack
+        cups (every cup redeemed from a prepaid plan) with the payout owed at
+        each branch's current rate step: rate × the drink's price, capped at
+        the plan's band. */
+    passPackSplit(cafeId, month = Date.now()) {
+      // BACKEND: a monthly statement view per branch (pass_sales, redemptions, rate step)
+      const { from, to } = monthRange(month);
+      const rows = ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone);
+      const pass = rows.filter((e) => e.type === "pass-sale");
+      const packs = rows.filter((e) => e.type === "redeem");
+      const rates = {};
+      const rateAt = (id) => (rates[id] ??= ledger.rateStep(id, month).rate);
+      const owed = packs.reduce((n, e) => n + Math.min(S.entryPrice(e), S.band(e.band).maxPrice) * (e.credits || 1) * rateAt(e.cafeId), 0);
+      return {
+        pass: { cups: pass.length, discount: pass.reduce((n, e) => n + e.listPrice - e.memberPrice, 0), paid: pass.reduce((n, e) => n + e.memberPrice, 0) },
+        pack: { cups: packs.reduce((n, e) => n + (e.credits || 1), 0), owed: Math.round(owed) },
+      };
+    },
+
+    /** Members whose first member coffee (cup or pass sale) at this café
+        (a branch, or a brand id for any of its branches) was this month. */
+    newCustomers(cafeId, month = Date.now()) {
+      // BACKEND: SELECT member_id, min(at) FROM ledger WHERE cafe_id = ANY(:branches) AND type IN ('redeem','pass-sale') GROUP BY member_id
+      const { from, to } = monthRange(month);
+      const first = {};
+      ledger.ledgerFor({ cafeId, types: ["redeem", "pass-sale"] }).forEach((e) => {
+        if (e.undone) return;
+        if (first[e.memberId] == null || e.at < first[e.memberId]) first[e.memberId] = e.at;
+      });
+      const ids = Object.keys(first).filter((id) => first[id] >= from && first[id] < to);
+      const seen = new Set(ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone).map((e) => e.memberId));
+      return { count: ids.length, memberIds: ids, of: seen.size }; // of: members with a coffee here this month
     },
 
     /** Record a Pass sale (the counter, from the café pass on). See actions.recordPassSale. */
@@ -9901,8 +10051,11 @@ export function createContactShadow(THREE, groundY) {
               branch until a manager changes it with their PIN.
      Shift    tap your name, then your own 4-digit PIN. The header says
               "At counter: Bilal" with Switch staff. No PIN per cup.
-     Money    none at the counter: no Rs amounts, rates, payouts or totals.
-              Top-ups and extras are "pay at counter" (the till has prices).
+     Money    none at the counter: no rates, payouts or totals. Top-ups
+              and extras on cups are "pay at counter" (the till has prices).
+              One exception (Café pass 2): an LCC Pass member pays the
+              cashier directly, so their card shows the list price, the
+              member price and "Charge Rs X".
      Counter  a keypad and a "Member number" field; results from the first
               digit (also name, or the last 4 digits of a phone). "Scan
               pass" (camera, BarcodeDetector) where supported, and a small
@@ -9911,12 +10064,15 @@ export function createContactShadow(THREE, groundY) {
               preselected, any pickup they have waiting at the top. Free
               mods (sugar, milk, ice) and paid extras ("Pay at counter").
               Drinks the café keeps out of LCC plans are greyed, "Not in
-              plan". "Redeem 1 cup", then Done with the reference and
+              plan". Pass members: "Apply member price" (a pass-sale
+              entry), or "Full price today" once it's used. Packs and
+              plans: "Redeem 1 cup", then Done with the reference and
               what to ring up; back to the keypad after 5 s. Undo for 2 min
               (the cashier who served it).
      Orders   pickup queue for this branch, oldest first:
               placed → preparing → ready → collected
-     Today    cups served and pickups today: time, member, drink, staff
+     Today    cups and Pass sales today ("Pass" / "Pack" / "Plan") and
+              pickups: time, member, drink, staff
      Executive  a small link in the header: a branch or brand-owner PIN
               (6 digits) opens #/partner on this device for that scope
      Members  manager or owner (PIN): Your members
@@ -10157,7 +10313,7 @@ export function createContactShadow(THREE, groundY) {
         else if (view === "done" && done) panel.innerHTML = doneHtml().s;
         else panel.innerHTML = resultsHtml().s;
         if (focus) {
-          const target = view === "member" ? $("[data-redeem]:not([disabled])", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
+          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
           target?.focus({ preventScroll: false });
         }
       }
@@ -10181,7 +10337,7 @@ export function createContactShadow(THREE, groundY) {
                   <span class="ct-result__name">${S.fullName(m)}</span>
                   <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
-                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.title}</span>
+                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.reason === "pass" ? "Pass · 20% off" : chk.reason === "pass-used" ? "Pass · used today" : chk.title}</span>
               </button></li>`;
             })}
           </ul>
@@ -10230,6 +10386,66 @@ export function createContactShadow(THREE, groundY) {
         return [...mods, ...(e.extras || []).map((x) => x.label)].join(" · ");
       };
 
+      /* LCC Pass at the counter ------------------------------------------
+         The member pays the cashier the member price for one drink a day;
+         LCC pays nothing for it. counterCheck says "pass" (available) or
+         "pass-used". This is the one place the counter shows prices.     */
+      const passState = (chk) => (!chk.ok && (chk.reason === "pass" || chk.reason === "pass-used") ? chk.reason : null);
+      const passCfg = () => S.planConfig().pass;
+      /** List price, member price, and what to charge (member price plus any extras at full price). */
+      function passQuote() {
+        const b = brand();
+        const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
+        if (!item) return null;
+        const p = S.drinkPrice(b.id, item, drink.temp);
+        const extras = S.drinkChoices(b.id, p.temp, null, choices.extras).extrasPaid || 0;
+        const member = S.memberPrice(p.price);
+        return { list: p.price, member, extras, charge: member + extras };
+      }
+      const pricesText = (q) => `List ${fmt.rs(q.list)} · Member price ${fmt.rs(q.member)}`;
+      const chargeHtml = (q) => html`Charge <strong>${fmt.rs(q.charge)}</strong>${q.extras ? html` <span class="t-small t-muted">(${fmt.rs(q.member)} + extras ${fmt.rs(q.extras)})</span>` : ""}`;
+      function paintCharge() {
+        const q = passQuote();
+        if (!q) return;
+        const pr = $("[data-pass-prices]", el); if (pr) pr.textContent = pricesText(q);
+        const ch = $("[data-charge]", el); if (ch) ch.innerHTML = chargeHtml(q).s;
+      }
+      function passCardHtml(m, used) {
+        const P = passCfg();
+        const b = brand();
+        const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
+        const q = passQuote();
+        return html`
+          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · Today’s member coffee: <strong>${used ? "used today, full price" : "available"}</strong></p>
+          ${used
+            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">Full price today</p><p class="t-small t-muted">${m.firstName} has had today’s member coffee. Ring this one up at the menu price; the next member price is tomorrow.</p></div></div>`
+            : item ? html`
+              <div class="ct-drink">
+                <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
+                <p class="ct-drink__name"><span data-drink-name>${S.drinkLabel(item, drink.temp)}</span></p>
+                <p class="t-small t-muted num" data-pass-prices>${pricesText(q)}</p>
+                <button type="button" class="btn btn--link" data-picker aria-expanded="${pickerOpen}" aria-controls="ct-picker">${pickerOpen ? "Hide the menu" : "Change drink"}</button>
+              </div>
+              <div class="ct-mods" data-mods>${modsHtml()}</div>
+              <p class="ct-charge num" data-charge aria-live="polite">${chargeHtml(q)}</p>
+              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">Apply member price</button>
+              <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}`;
+      }
+      function applyPassNow() {
+        if (!picked || !drink) return;
+        const res = A.recordPassSale({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
+        if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.message || "That didn’t go through.", { iconName: "info" }); }
+        const q = { member: res.entry.memberPrice, extras: res.entry.extrasPaid || 0 };
+        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras };
+        picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
+        paintField();
+        setView("done");
+        paintPanel({ focus: true });
+        paintRecent();
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+      }
+
       function memberHtml() {
         const m = member();
         const b = brand();
@@ -10243,6 +10459,7 @@ export function createContactShadow(THREE, groundY) {
         const price = item ? S.drinkPrice(b.id, item, drink.temp, band) : null;
         const label = item ? S.drinkLabel(item, drink.temp) : "";
         const waiting = waitingFor(m.id);
+        const pass = passState(chk);
         return html`<article class="ct-card enter" aria-labelledby="ct-who">
           ${waiting.map((o) => html`<section class="ct-pickup" aria-label="Pickup waiting">
             <div class="cv-ticket__top"><p class="eyebrow">Pickup waiting</p><span class="badge">${o.items ? `Table · ${o.items.length}` : o.pay === "cup" ? "Cup" : "Paid"}</span></div>
@@ -10259,9 +10476,9 @@ export function createContactShadow(THREE, groundY) {
               <p class="t-micro t-faint num">${clubLine}</p>
             </div>
           </div>
-          ${chk.ok
+          ${pass ? passCardHtml(m, pass === "pass-used") : chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
-                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Explorer: up to ${chk.plan.cap} a month here, ${chk.plan.left} left in total` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.usedToday} of ${chk.limit} today</span></p>`
+                <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Cup pack: ${chk.plan.left} left, any café` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.plan.plan.type === "explorer" ? `${S.packCupsToday(m.id, chk.plan.cycle)} of ${S.planConfig().packDailyLimit}` : `${chk.usedToday} of ${chk.limit}`} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
           ${others.length && chk.ok ? html`<p class="t-small t-faint num">Also: ${others.map((p) => `${p.name}, ${p.left} left`).join(" · ")}</p>` : ""}
           ${perks.length ? html`<p class="t-small ct-card__perk">Perk to offer: ${perks.map((p) => p.text).join("; ")}</p>` : ""}
@@ -10303,7 +10520,8 @@ export function createContactShadow(THREE, groundY) {
         const temp = drink?.temp || "hot";
         const usual = S.usualDrink(member().id, b.id);
         const norm = (s) => s.toLowerCase();
-        const list = S.counterMenu(branch().id, temp, planBand())
+        const pass = passState(S.counterCheck(member().id, branch().id));
+        const list = S.counterMenu(branch().id, temp, pass ? undefined : planBand())
           .filter((d) => (temp === "iced" ? d.item.iced != null : d.item.hot != null))
           .filter((d) => !pickerQuery || norm(d.item.name).includes(norm(pickerQuery)));
         const usualRow = usual && list.find((d) => d.id === usual.drinkId);
@@ -10315,7 +10533,12 @@ export function createContactShadow(THREE, groundY) {
             ${ui.segmented({ name: "cttemp", label: "Hot or iced", value: temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })}
           </div>
           <div class="ct-menu" role="radiogroup" aria-label="Drinks available today">
-            ${rows.length ? rows.map((d) => d.item.inPlan === false
+            ${rows.length ? rows.map((d) => pass
+              ? html`<button type="button" role="radio" class="ct-menu__row" data-drink="${d.id}" aria-checked="${drink && d.id === drink.drinkId}">
+                <span class="ct-menu__name">${d.name}${usualRow && d === usualRow ? html` <span class="badge">Usual</span>` : ""}</span>
+                <span class="ct-menu__price num"><span class="t-faint">${fmt.rs(d.price)}</span> · ${fmt.rs(S.memberPrice(d.price))}</span>
+              </button>`
+              : d.item.inPlan === false
               ? html`<button type="button" role="radio" class="ct-menu__row is-off" aria-checked="false" aria-disabled="true" disabled>
                   <span class="ct-menu__name">${d.name}</span>
                   <span class="ct-menu__price">Not in plan</span>
@@ -10331,6 +10554,12 @@ export function createContactShadow(THREE, groundY) {
         if (box) box.innerHTML = pickerHtml().s;
       }
       function paintDrinkLine() {
+        if (passState(S.counterCheck(member().id, branch().id))) {
+          const item = S.menuItem(brand().id, drink.drinkId);
+          const n = $("[data-drink-name]", el); if (n) n.textContent = S.drinkLabel(item, drink.temp);
+          const lb = $(".ct-drink__label", el); if (lb) lb.textContent = drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink";
+          return paintCharge();
+        }
         const b = brand();
         const item = S.menuItem(b.id, drink.drinkId);
         const p = S.drinkPrice(b.id, item, drink.temp, planBand());
@@ -10360,6 +10589,22 @@ export function createContactShadow(THREE, groundY) {
       function doneHtml() {
         const { entry, member: m, left, plan } = done;
         const secs = RULES().counterResetSeconds;
+        if (done.pass) {
+          return html`<div class="ct-done" role="status">
+            <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
+            <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
+            <p class="ct-charge num">Charge <strong>${fmt.rs(done.charge)}</strong>${entry.extrasPaid ? html` <span class="t-small t-muted">(${fmt.rs(entry.memberPrice)} + extras ${fmt.rs(entry.extrasPaid)})</span>` : ""}</p>
+            <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
+            ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
+            <p class="cv-till">Ring it up on your till as: <strong>${passCfg().name}, ${Math.round(entry.discount * 100)}% off</strong></p>
+            <p class="t-small t-faint num">${fmt.time(entry.at)} · served by ${S.staffMember(entry.staffId)?.name || "the counter"} · list ${fmt.rs(entry.listPrice)}</p>
+            <div class="ct-done__acts">
+              <button type="button" class="btn btn--secondary" data-undo="${entry.id}">Undo</button>
+              <button type="button" class="btn btn--primary" data-next>Next member</button>
+            </div>
+            <span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>
+          </div>`;
+        }
         return html`<div class="ct-done" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
           <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
@@ -10389,9 +10634,9 @@ export function createContactShadow(THREE, groundY) {
         const list = S.undoable(branch().id);
         clearInterval(undoTimer);
         if (!list.length) { box.innerHTML = ""; return; }
-        box.innerHTML = html`<h2 class="t-micro t-faint" id="ct-recent-h">Just redeemed · undo within ${RULES().undoMinutes} minutes</h2>
+        box.innerHTML = html`<h2 class="t-micro t-faint" id="ct-recent-h">Just served · undo within ${RULES().undoMinutes} minutes</h2>
           <ul role="list">${list.slice(0, 3).map((e) => html`<li class="ct-recent__row">
-            <span>${S.member(e.memberId)?.firstName || "Member"} · ${S.entryDrinkName(e)} <span class="t-faint num">· ${fmt.time(e.at)}</span></span>
+            <span>${S.member(e.memberId)?.firstName || "Member"} · ${S.entryDrinkName(e)} <span class="t-faint num">· ${e.type === "pass-sale" ? "Pass · " : ""}${fmt.time(e.at)}</span></span>
             <button type="button" class="btn btn--secondary btn--compact" data-undo="${e.id}">Undo <span class="num" data-undo-left="${e.id}">${fmt.countdown(S.undoSecondsLeft(e))}</span></button>
           </li>`)}</ul>`.s;
         undoTimer = setInterval(() => {
@@ -10408,7 +10653,9 @@ export function createContactShadow(THREE, groundY) {
         const res = A.undoRedemption(id);
         if (!res.ok) return ui.toast(res.message, { iconName: "info" });
         const m = S.member(res.entry.memberId);
-        ui.toast(`Undone. ${m.firstName}’s cup is back, and ${m.firstName} has been told.`, { duration: 4200 });
+        ui.toast(res.entry.type === "pass-sale"
+          ? `Undone. ${m.firstName}’s member price is cancelled, and today’s member coffee is available again.`
+          : `Undone. ${m.firstName}’s cup is back, and ${m.firstName} has been told.`, { duration: 4200 });
         if (view === "done" && done?.entry.id === id) backToKeypad();
         paintRecent();
       }
@@ -10600,13 +10847,14 @@ export function createContactShadow(THREE, groundY) {
         return html`<div class="cv-section">
           <div class="cv-section__head">
             <h2 class="ct-title">Today</h2>
-            <p class="t-small t-muted num">${t.served} ${t.served === 1 ? "cup" : "cups"} served at ${heading()} today, and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
+            <p class="t-small t-muted num">${t.served} member ${t.served === 1 ? "coffee" : "coffees"} at ${heading()} today (Pass and cups), and ${t.pickups.length} ${t.pickups.length === 1 ? "pickup" : "pickups"}.</p>
           </div>
           <section aria-labelledby="td-cups-h">
-            <h3 class="eyebrow" id="td-cups-h">Cups served</h3>
+            <h3 class="eyebrow" id="td-cups-h">Member coffees</h3>
             <ol class="cv-list" role="list">
               ${t.cups.length ? t.cups.map((x) => html`<li class="cv-row">
                 <span class="cv-row__time num">${fmt.time(x.at)}</span>
+                <span class="badge cv-row__kind">${x.label}</span>
                 <span class="cv-row__main">${shortName(x.member)} <span class="t-faint">· ${x.drink}${modLine(x.entry) ? ` (${modLine(x.entry)})` : ""} · ${x.staff || "Counter"}${x.undone ? " · undone" : ""}</span></span>
               </li>`) : html`<li class="cv-row"><span class="cv-row__main t-muted">No cups yet today.</span></li>`}
             </ol>
@@ -10767,7 +11015,8 @@ export function createContactShadow(THREE, groundY) {
         if (ex) {
           const id = ex.dataset.extra;
           choices.extras = choices.extras.includes(id) ? choices.extras.filter((x) => x !== id) : [...choices.extras, id];
-          return ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+          ex.setAttribute("aria-pressed", String(choices.extras.includes(id)));
+          return paintCharge(); // Pass members: extras change what to charge
         }
         const mseg = t.closest('[data-segmented^="ctmod-"] .segmented__option');
         if (mseg) {
@@ -10796,6 +11045,7 @@ export function createContactShadow(THREE, groundY) {
         const pk = t.closest("[data-pick]");
         if (pk) return pickMember(pk.dataset.pick, mode === "name" ? "number" : "number");
         if (t.closest("[data-redeem]")) return redeemNow();
+        if (t.closest("[data-apply-pass]")) return applyPassNow();
         if (t.closest("[data-back]") || t.closest("[data-next]")) return backToKeypad();
         const ud = t.closest("[data-undo]");
         if (ud) return undo(ud.dataset.undo);
@@ -10811,8 +11061,8 @@ export function createContactShadow(THREE, groundY) {
           const item = S.menuItem(brand().id, dr.dataset.drink);
           drink = { drinkId: item.id, temp: S.servedTemp(item, drink?.temp || "hot"), source: S.usualDrink(member().id, brand().id)?.drinkId === item.id ? "usual" : "pick" };
           $$("[data-drink]", el).forEach((b) => b.setAttribute("aria-checked", String(b === dr)));
-          paintDrinkLine(); paintMods();
-          return $("[data-redeem]", el)?.focus();
+          paintDrinkLine(); paintMods(); paintCharge();
+          return $("[data-redeem], [data-apply-pass]", el)?.focus();
         }
         const tseg = t.closest('[data-segmented="cttemp"] .segmented__option');
         if (tseg) {
@@ -10903,6 +11153,12 @@ export function createContactShadow(THREE, groundY) {
           if (view === "find" && query && tab === "counter") paintPanel();
         }),
         store.on("undo", ({ entry }) => { if (!branch()) return; if (here(entry.cafeId)) { paintRecent(); paintToday(); } refreshMember(entry.memberId); }),
+        // A Pass sale (this counter or another device): today's list, and the member's card if open
+        store.on("passSale", ({ entry }) => {
+          if (!branch()) return;
+          if (here(entry.cafeId)) { paintRecent(); paintToday(); }
+          refreshMember(entry.memberId);
+        }),
         store.on("pickup", ({ order, prev, quiet }) => {
           if (!branch() || !here(order.cafeId)) return;
           paintOrdersCount();
@@ -10987,8 +11243,12 @@ export function createContactShadow(THREE, groundY) {
    idle or on Lock, and goes back to that counter. A left rail on laptops and tablets, tabs on phones,
    and a branch filter everywhere: "All branches" or one.
 
-     Live      redemptions, pickup orders, undos and "Not you" reports as
-               they happen, with today's totals
+     Live      on top (Café pass 2): member cups this month against the
+               next rate step (planConfig.rateSteps; pass sales and pack
+               cups both count), Pass cups and Pack cups this month, and
+               new customers this month. Then redemptions, Pass sales,
+               pickup orders, undos and "Not you" reports as they happen,
+               with today's totals
      Menu      prices (changes apply from tomorrow) and an "Available
                today" switch per drink and branch (synced to counters)
      Rules     what a cup covers and the café's share, limits, pause member
@@ -11227,12 +11487,59 @@ export function createContactShadow(THREE, groundY) {
       /* Live -------------------------------------------------------------- */
       const METHOD = { number: "said their number", scan: "scanned", code: "6-digit code" };
       const PICKUP_WORD = { placed: "Placed", preparing: "Being made", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
+      /* This month: rate step, Pass / pack split, new customers ----------
+         Steps are per café (branch). With "All branches", each branch gets
+         its own bar; the split and new customers cover the whole brand.  */
+      const pct = (r) => `${Math.round(r * 100)}%`;
+      function stepHtml(c, { name = false } = {}) {
+        const r = LCC.ledger.rateStep(c.id);
+        const goal = r.next ? r.next.at : r.step.from;
+        const line = r.next ? `Next rate step at ${fmt.num(r.next.at)} cups: ${pct(r.next.rate)}` : `Top rate step: ${pct(r.rate)} from ${fmt.num(r.step.from)} cups`;
+        return html`<div class="pd-step">
+          ${name ? html`<p class="t-small">${branchShort(c)}</p>` : ""}
+          <p class="pd-step__count"><span class="pd-stat__value num">${fmt.num(r.cups)}</span> <span class="t-body">${r.next ? `of ${fmt.num(goal)} ` : ""}member cups this month</span></p>
+          <div class="pd-progress" role="progressbar" aria-label="${branchShort(c)}: member cups toward the next rate step" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${Math.min(r.cups, goal)}"><span class="pd-progress__fill" style="--v:${r.progress.toFixed(3)}"></span></div>
+          <p class="t-small t-muted num">Now at ${pct(r.rate)} · ${line}</p>
+        </div>`;
+      }
+      function monthCardHtml() {
+        // BACKEND: GET /brands/:id/month-summary?branch=… (rate step, pass/pack split, new customers)
+        const ids = scopeIds();
+        const target = scope() || session.brandId;
+        const split = LCC.ledger.passPackSplit(target);
+        const fresh = LCC.ledger.newCustomers(target);
+        return html`<div class="pd-month">
+          <div class="pd-card pd-steps">
+            <h3 class="eyebrow">This month</h3>
+            ${ids.length === 1 ? stepHtml(S.branch(ids[0])) : ids.map((id) => stepHtml(S.branch(id), { name: true }))}
+            <p class="t-micro t-faint">Pass and pack cups both count. Steps: ${S.planConfig().rateSteps.map((x, i, a) => `${pct(x.rate)} (${fmt.num(x.from)}${a[i + 1] ? `–${fmt.num(a[i + 1].from)}` : "+"})`).join(" · ")}</p>
+          </div>
+          <div class="pd-grid2">
+            <div class="pd-card">
+              <h3 class="eyebrow">LCC Pass</h3>
+              <p class="t-body num">Pass cups: ${fmt.num(split.pass.cups)} · Discount given ${fmt.rs(split.pass.discount)} · Paid by members ${fmt.rs(split.pass.paid)}</p>
+              <p class="t-small t-faint">Members paid you at the counter. No LCC payout for these.</p>
+            </div>
+            <div class="pd-card">
+              <h3 class="eyebrow">Cup packs</h3>
+              <p class="t-body num">Pack cups: ${fmt.num(split.pack.cups)} · Payout owed ${fmt.rs(split.pack.owed)} (at current rate)</p>
+              <p class="t-small t-faint">The rate in force times each drink’s price, up to the plan’s band.</p>
+            </div>
+          </div>
+          <div class="pd-stats">
+            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${fmt.num(fresh.of)} members who came`)}
+          </div>
+        </div>`;
+      }
+
       function liveHtml() {
         const t = S.brandToday(session.brandId, scope());
         const feed = S.liveFeed(session.brandId, scope()).slice(0, 40);
         const multi = !scope() && branches().length > 1;
         return html`<section class="pd-section">
-          ${head("Live", `${scopeLabel()} · today, as it happens.`)}
+          ${head("Live", `${scopeLabel()} · this month, and today as it happens.`)}
+          ${monthCardHtml()}
+          <h3 class="eyebrow">Today</h3>
           <div class="pd-stats">
             ${stat("Cups today", fmt.num(t.cups), `${t.members} ${t.members === 1 ? "member" : "members"}`)}
             <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">each cup at its band rate, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
@@ -11258,8 +11565,8 @@ export function createContactShadow(THREE, groundY) {
           const staff = e.staffId ? S.staffMember(e.staffId)?.name : null;
           return html`<li class="pd-feed__row${e.live ? " enter" : ""}">
             <span class="pd-feed__time num">${fmt.time(e.at)}</span>
-            <span class="badge">${e.orderId ? "Pickup cup" : "Cup"}</span>
-            <span class="pd-feed__main"><span>${shortName(S.member(e.memberId))} · ${S.entryDrinkName(e)}${e.topUp ? html` <span class="t-faint num">· top-up ${fmt.rs(e.topUp)}</span>` : ""}</span>
+            <span class="badge">${e.type === "pass-sale" ? "Pass" : e.orderId ? "Pickup cup" : "Cup"}</span>
+            <span class="pd-feed__main"><span>${shortName(S.member(e.memberId))} · ${S.entryDrinkName(e)}${e.type === "pass-sale" ? html` <span class="t-faint num">· member price ${fmt.rs(e.memberPrice)}</span>` : e.topUp ? html` <span class="t-faint num">· top-up ${fmt.rs(e.topUp)}</span>` : ""}</span>
               <span class="pd-feed__meta t-small t-faint">${[staff, e.method ? METHOD[e.method] : null, `Ref ${e.ref || S.redemptionRef(e)}`].filter(Boolean).join(" · ")}${where}${e.undone ? " · undone" : ""}${e.reported ? " · reported" : ""}</span></span>
           </li>`;
         }
@@ -11593,6 +11900,7 @@ export function createContactShadow(THREE, groundY) {
       const offs = [
         store.on("redeem", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "money", "insights", "members"])),
         store.on("undo", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "money", "insights", "members"])),
+        store.on("passSale", ({ entry }) => repaintIf(mineBranch(entry.cafeId), ["live", "insights"])),
         store.on("report", ({ report }) => {
           if (!mineBranch(report.branchId)) return;
           repaintIf(true, ["live"]);

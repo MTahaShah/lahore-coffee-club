@@ -116,3 +116,12 @@
 .pd-addstaff, .pd-addbranch { display: grid; gap: var(--space-3); }
 @media (min-width: 640px) { .pd-addstaff { grid-template-columns: 1.4fr 1fr 1fr; align-items: end; } .pd-addstaff .cv-error, .pd-addstaff > .pd-inline { grid-column: 1 / -1; } }
 .pd-addbranch { max-width: 520px; }
+
+/* Café pass 2: this month's rate step, Pass / pack split ------------- */
+.pd-month { display: grid; gap: var(--space-4); }
+.pd-steps { gap: var(--space-4); }
+.pd-step { display: grid; gap: var(--space-2); }
+.pd-step + .pd-step { padding-top: var(--space-4); border-top: var(--hairline); }
+.pd-step__count { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
+.pd-progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.pd-progress__fill { display: block; height: 100%; width: calc(var(--v, 0) * 100%); background: var(--accent); border-radius: inherit; } /* accent: the one highlight */

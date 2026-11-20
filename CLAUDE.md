@@ -192,6 +192,8 @@ This order overrides any order implied by the spec.
     Your members, owner dashboard
 12. [x] Plans pass: LCC Pass, cup packs, pass-sale ledger entry, old tiers
     retired (member app and ledger only; counter, dashboard and admin next)
+13. [x] Café pass 2: Pass members at the counter, rate steps and the
+    Pass / pack split on the dashboard (admin not yet)
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -242,6 +244,35 @@ next pass until asked.**
   morning at Kiln & Bean; Rs 797 saved; Beans 160). Alina Mirza LCC 88
   (code 390514) is on Classic 8, 5 of 8 left; Demo menu → "Alina: Classic
   8 pack" (`actions.viewAsMember`), "Mumtaz: LCC Pass" goes back.
+
+## Café pass 2 (counter and dashboard for the LCC Pass)
+
+- Counter: a Pass member's card says "LCC Pass · 20% off · Today's member
+  coffee: available" (or "used today, full price"). The cashier picks the
+  drink (mods, extras as for cups; every drink, in plan or not) and sees
+  the list price, member price and "Charge Rs X" (member price plus extras
+  at full price). This is the one exception to "no money at the counter":
+  no rates, payouts or totals. "Apply member price" writes the pass-sale
+  (`actions.recordPassSale` with staff, method, mods, extras, `ref`);
+  undo as for cups (2 minutes, same cashier; the undo entry has 0 cups and
+  `passSale: true`). Used today: "Full price today", no button. Packs keep
+  "Redeem 1 cup" (line: "Cup pack: N left, any café · X of 1 today"). Today
+  tab labels rows Pass / Pack / Plan (`counterToday` rows have `label`).
+- Dashboard (#/partner, Live, on top): "143 of 200 member cups this month"
+  with a bar and "Next rate step at 200 cups: 65%", per branch (all
+  branches: one bar each). `PLAN_CONFIG.rateSteps` (70% from 0, 65% from
+  200, 60% from 500); pass sales and pack cups both count
+  (`LCC.ledger.rateStep`). Then "Pass cups · Discount given · Paid by
+  members" and "Pack cups · Payout owed (at current rate)" (rate × drink
+  price capped at the plan's band; every cup redeemed counts as a pack cup,
+  legacy plans included; `LCC.ledger.passPackSplit`), and "New customers
+  this month" (`LCC.ledger.newCustomers`). Pass sales show in the live feed.
+  The Money tab and "Payout today" still pay band rates (not yet moved to
+  the steps).
+- Seed: 60 background Pass members (`m_ps…`, separate PRNG) top Kiln &
+  Bean up to 143 member cups this month and Double Shot Gulberg to 236;
+  other branches get a few. Danish Hashmi LCC 150 (code 552310), on the
+  Pass with today's coffee available, for the counter demo.
 
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 
@@ -704,7 +735,7 @@ next pass until asked.**
   (`LCC.partnerSession.openFromCounter`). It locks after 5 minutes idle, on
   Lock, or when leaving #/partner, and goes back to `#/cafe/<branch>`.
 - No money at the counter: no Rs amounts, rates, payouts or totals
-  anywhere in `#/cafe`. Top-ups say "Cup + top-up · pay at counter"; the
+  anywhere in `#/cafe`, except a Pass member's prices (Café pass 2). Top-ups say "Cup + top-up · pay at counter"; the
   Done screen says what to collect ("the top-up, extra shot") without
   amounts. Tabs: Counter · Orders · Today (`select.counterToday`: cups
   served and pickups, time, member, drink, staff; a collected pickup
