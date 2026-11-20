@@ -88,6 +88,7 @@
   const OPEN = ["placed", "preparing", "ready"];        // pickup orders still in the café's queue
   // A status only moves forward; the finished ones never change again (so sync can't undo them)
   const PICKUP_RANK = { placed: 0, preparing: 1, ready: 2, collected: 3, cancelled: 3, rejected: 3 };
+  const stepCache = { len: -1, map: new Map() }; // rate steps per branch and month, cleared when the ledger grows
   const liveAcks = new Map(); // "key|member" -> latest change in this session (for join snapshots)
   const ackAt = {};           // "key|member" -> time of the latest change seen (newest wins, undo included)
   const NUM_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -554,12 +555,42 @@
       const item = b && select.menuItem(b.id, e.drinkId);
       return item ? item[select.servedTemp(item, e.temp)] : state.cafes[e.cafeId]?.price || 0;
     },
-    /** What a redemption pays the café: the rate of the drink's band, capped at the plan's band. */
-    entryPayout(e) {
-      const plan = select.band(e.band);
-      const drink = select.bandOf(select.entryPrice(e)) || plan;
-      const rate = (drink.maxPrice < plan.maxPrice ? drink : plan).cafeRate;
-      return e.credits * rate;
+    /* ---------------- Payouts: rate steps, the only payout model ----------------
+       A pack cup pays the café the branch's rate step for that calendar
+       month (PLAN_CONFIG.rateSteps, by member cups there: pass sales and
+       cups both count) times the drink's price, capped at the pack's band.
+       The rate in force applies to every cup of the month. Pass sales never
+       pay out (the member paid the café). Paid pickup orders are separate
+       (amount less the LCC fee).                                         */
+    /** The branch's rate step for the month containing `at`: { cups, rate, step, next, progress, from }. */
+    rateStepAt(branchId, at = Date.now()) {
+      if (stepCache.len !== state.ledger.length) { stepCache.map.clear(); stepCache.len = state.ledger.length; }
+      const from = monthStartOf(at);
+      const key = `${branchId}|${from}`;
+      if (stepCache.map.has(key)) return stepCache.map.get(key);
+      const d = new Date(from); d.setMonth(d.getMonth() + 1);
+      const to = d.getTime();
+      const cups = state.ledger.reduce((n, e) => (e.cafeId === branchId && e.at >= from && e.at < to && isMemberCoffee(e) ? n + (e.credits || 1) : n), 0);
+      const steps = state.planConfig.rateSteps;
+      let i = 0;
+      steps.forEach((x, k) => { if (cups >= x.from) i = k; });
+      const next = steps[i + 1] || null;
+      const r = { branchId, from, cups, rate: steps[i].rate, step: steps[i], next: next ? { at: next.from, rate: next.rate } : null, progress: next ? Math.min(1, cups / next.from) : 1 };
+      stepCache.map.set(key, r);
+      return r;
+    },
+    /** The band a cup's plan covered: on the entry, else the plan of that cycle, else Classic. */
+    entryBand(e) {
+      if (e.band) return select.band(e.band).id;
+      const m = state.members[e.memberId];
+      const plan = m?.cycle === e.cycle ? m.plan : (m?.extraPlans || []).find((x) => x.cycle === e.cycle)?.plan;
+      return select.planBand(plan, e.cafeId);
+    },
+    /** What a cup pays the café, in whole rupees: rate step × price, capped at the pack's band. Pass sales: 0. */
+    entryPayout(e, rate = null) {
+      if (e.type !== "redeem" || e.undone) return 0;
+      const r = rate ?? select.rateStepAt(e.cafeId, e.at).rate;
+      return Math.round(Math.min(select.entryPrice(e), select.band(select.entryBand(e)).maxPrice) * (e.credits || 1) * r);
     },
     /** A redemption's drink, as served. */
     entryDrinkName(e) {
@@ -614,13 +645,8 @@
     counterToday(branchId, at = Date.now()) {
       // BACKEND: GET /branches/:id/today (no amounts for the counter role)
       const since = startOfDay(at);
-      // Cups and Pass sales; label: "Pass" (pass sale), "Pack" (a cup pack), "Plan" (older plans)
-      const label = (e) => {
-        if (e.type === "pass-sale") return "Pass";
-        const m = state.members[e.memberId];
-        const t = e.planType || (m?.cycle === e.cycle ? m.plan?.type : null) || (m?.extraPlans || []).find((x) => x.cycle === e.cycle)?.plan.type;
-        return t === "explorer" ? "Pack" : t === "pass" ? "Pass" : "Plan";
-      };
+      // Cups and Pass sales; label: "Pass" (a pass sale) or "Pack" (a cup)
+      const label = (e) => (e.type === "pass-sale" ? "Pass" : "Pack");
       const cups = state.ledger.filter((e) => (e.type === "redeem" || e.type === "pass-sale") && e.cafeId === branchId && e.at >= since && !e.orderId)
         .map((e) => ({ kind: "cup", label: label(e), at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
       const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
@@ -1473,8 +1499,8 @@
         topUps: cups.reduce((n, e) => n + (e.topUpOnline ? 0 : e.topUp || 0), 0),
       };
     },
-    /** What LCC owes a branch for one month: each cup at its band rate (capped
-        at the plan's band) plus paid orders less the fee. The same sums as
+    /** What LCC owes a branch for one month: each cup at the month's rate
+        step (price capped at the pack's band) plus paid orders less the fee. The same sums as
         brandMoney, for any month. from: the month's first day. */
     monthPayout(branchId, from) {
       const d = new Date(from); d.setMonth(d.getMonth() + 1);
@@ -1510,7 +1536,7 @@
       const hist = {};
       branches.forEach((c) => (state.partner[c.id]?.payouts || []).forEach((p) => {
         const h = (hist[p.month] = hist[p.month] || { month: p.month, cups: 0, amount: 0, paidAt: p.paidAt });
-        h.cups += p.cups; h.amount += p.amount ?? p.cups * state.bands[0].cafeRate;
+        h.cups += p.cups; h.amount += p.amount ?? 0;
       }));
       return {
         brand: b, rows, monthStart: month, nextAt: next.getTime(), account: b.account,
@@ -1518,6 +1544,7 @@
         // Marked paid by LCC (admin): every branch shown has this month's record
         paidThisMonth: rows.length && rows.every((r) => r.record) ? Math.max(...rows.map((r) => r.record.paidAt)) : 0,
         bands: state.bands, feePct: Math.round(state.rules.orderFeeShare * 100),
+        rates: rows.map((r) => ({ cafe: r.cafe, ...select.rateStepAt(r.cafe.id, at) })),
         history: Object.values(hist).sort((x, y) => y.month - x.month),
       };
     },

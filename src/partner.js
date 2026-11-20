@@ -308,7 +308,7 @@
           <h3 class="eyebrow">Today</h3>
           <div class="pd-stats">
             ${stat("Cups today", fmt.num(t.cups), `${t.members} ${t.members === 1 ? "member" : "members"}`)}
-            <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">each cup at its band rate, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
+            <div class="pd-stat"><p class="t-micro t-faint">Payout today</p><p class="pd-stat__value num">${fmt.rs(t.payout)}</p><p class="t-small t-faint">pack cups at this month’s rate step, plus paid orders</p><p class="t-small t-faint num">This month: ${fmt.rs(S.brandMoney(session.brandId, scope()).earned)}</p></div>
             ${stat("Pickup orders", fmt.num(t.pickups), t.pickupsOpen ? `${t.pickupsOpen} still open` : "none open")}
             ${stat("Undos", fmt.num(t.undos), "cups given back")}
             ${stat("“Not you” reports", fmt.num(t.reports), t.reports ? "for you to check" : "none today")}
@@ -395,11 +395,11 @@
           <div class="pd-grid2">
             <div class="pd-card">
               <h3 class="eyebrow">Rate per cup</h3>
-              <div class="pd-table pd-table--bands" role="table" aria-label="Bands">
-                <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Band</span><span role="columnheader">Drink price</span><span role="columnheader">You’re paid</span></div>
-                ${S.state().bands.map((x, i, all) => html`<div class="pd-table__row" role="row"><span role="cell">${x.label}</span><span role="cell" class="num">${i ? `${fmt.rs(all[i - 1].maxPrice + 1)} to ${fmt.rs(x.maxPrice)}` : `Up to ${fmt.rs(x.maxPrice)}`}</span><span role="cell" class="num">${fmt.rs(x.cafeRate)}</span></div>`)}
+              <div class="pd-table pd-table--bands" role="table" aria-label="Rate steps">
+                <div class="pd-table__row pd-table__row--head" role="row"><span role="columnheader">Member cups this month</span><span role="columnheader">You’re paid</span><span role="columnheader"></span></div>
+                ${S.planConfig().rateSteps.map((x, i, all) => html`<div class="pd-table__row" role="row"><span role="cell" class="num">${all[i + 1] ? `${fmt.num(x.from)} to ${fmt.num(all[i + 1].from)}` : `${fmt.num(x.from)} and more`}</span><span role="cell" class="num">${Math.round(x.rate * 100)}% of the drink’s price</span><span role="cell"></span></div>`)}
               </div>
-              <p class="t-small t-muted num">You’re paid the rate of the drink’s band, up to the band the member’s plan covers. Above that, the member pays the difference at your till, and that stays with you. Rates are agreed with LCC.</p>
+              <p class="t-small t-muted num">Per branch, per calendar month: Pass sales and pack cups both count, and the rate in force applies to every pack cup of the month. The price counts up to the pack’s band (Classic ${fmt.rs(S.band("classic").maxPrice)}, Signature ${fmt.rs(S.band("signature").maxPrice)}); above that the member pays the difference at your till, and that stays with you. Pass sales are paid by the member at the member price; LCC pays nothing for them.</p>
             </div>
             <div class="pd-card">
               <h3 class="eyebrow">Limits</h3>
@@ -449,7 +449,7 @@
           ${head("Money", `${scopeLabel()} · ${monthName(m.monthStart)} so far.`)}
           <div class="pd-stats">
             ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
-            ${stat("Cups", fmt.rs(m.cupEarned), `at band rates: ${m.bands.map((x) => fmt.rs(x.cafeRate)).join(" · ")}`)}
+            ${stat("Pack cups", fmt.rs(m.cupEarned), m.rates.length === 1 ? `at ${Math.round(m.rates[0].rate * 100)}%, this month’s rate step` : `at each branch’s rate step: ${[...new Set(m.rates.map((r) => `${Math.round(r.rate * 100)}%`))].join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
             ${m.paidThisMonth ? stat("This month", "Paid", `on ${fmt.longDate(m.paidThisMonth)} to the ${m.account.label} ending ${m.account.last4}`)
               : stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}

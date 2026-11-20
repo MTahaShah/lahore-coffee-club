@@ -1103,6 +1103,8 @@
       offs.push(store.on("undo", ({ entry, member: who }) => {
         if (who.id !== member().id) return;
         closeCupAlert(entry.id);
+        // An LCC Pass sale undone at the counter: no cup was used, the day's discount comes back
+        if (entry.type === "pass-sale") return ui.toast("Member price undone. Today’s member coffee is back.", { iconName: "check", duration: 6000 });
         const p = S.plansOf(who.id).find((x) => x.cycle === entry.cycle);
         ui.toast(`Cup returned. ${S.pickupPlace(entry.cafeId)} undid the ${S.entryDrinkName(entry)}${p ? `; ${fmt.cups(p.left)} left on your ${p.name}` : ""}.`, { iconName: "check", duration: 6000 });
       }));

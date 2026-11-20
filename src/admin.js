@@ -4,7 +4,7 @@
    digits. Four sections, all reading the one ledger and the store:
 
      Cafés     each partner brand: its branches, staff, setup codes; the
-               menu with prices, band and café rate, size, and the LCC
+               menu with prices, band, size, and the LCC
                switch (in plan / not in plan); reset the owner's and each
                branch's 6-digit executive PIN (a single café has one)
      Members   search by membership number or name (names repeat, so the
@@ -14,7 +14,9 @@
      Ledger    every entry at every café, filtered by brand or branch,
                member, type, staff and dates
      Payouts   per branch per month and per brand, with a total, from
-               store.select.monthPayout (the same sums #/partner shows).
+               store.select.monthPayout (the same sums #/partner shows):
+               pack cups at the branch's rate step for the month
+               (PLAN_CONFIG.rateSteps), plus paid orders less the fee.
                "Mark paid" writes a payout record (actions.markPayoutPaid)
                that #/partner shows under Paid out
 
@@ -191,16 +193,15 @@
           </div>
 
           <h3 class="eyebrow">Menu</h3>
-          <p class="t-small t-muted">The band comes from the menu price; the café is paid the band’s rate, up to the band the member’s plan covers. “Not in plan” keeps a drink out of LCC: members pay for it as usual.</p>
+          <p class="t-small t-muted">The band comes from the menu price and sets what a pack covers. The café is paid its rate step for the month (${S.planConfig().rateSteps.map((x) => `${Math.round(x.rate * 100)}%`).join(", ")}) times the drink’s price, up to the pack’s band. “Not in plan” keeps a drink out of cup packs: members pay for it as usual.</p>
           <div class="ad-scroll"><table class="ad-table">
-            <thead><tr><th>Drink</th><th>Section</th><th>Size</th><th class="ad-num">Hot</th><th class="ad-num">Iced</th><th>Band</th><th class="ad-num">Café rate</th><th>LCC</th></tr></thead>
+            <thead><tr><th>Drink</th><th>Section</th><th>Size</th><th class="ad-num">Hot</th><th class="ad-num">Iced</th><th>Band</th><th>LCC</th></tr></thead>
             <tbody>${b.menu.map((d) => {
               const band = S.itemBand(d);
               return html`<tr class="${d.inPlan === false ? "is-off" : ""}">
                 <td>${d.name}</td><td class="t-small t-muted">${d.section || ""}</td><td class="t-small">${d.size || "–"}</td>
                 <td class="ad-num num">${d.hot != null ? fmt.rs(d.hot) : "–"}</td><td class="ad-num num">${d.iced != null ? fmt.rs(d.iced) : "–"}</td>
                 <td>${band ? band.label : "Above Reserve"}</td>
-                <td class="ad-num num">${fmt.rs((band || S.state().bands[S.state().bands.length - 1]).cafeRate)}</td>
                 <td><label class="ad-switch"><input type="checkbox" role="switch" class="switch" data-ad-inplan="${d.id}" data-fk="inplan-${d.id}" ${d.inPlan === false ? "" : raw("checked")} aria-label="${d.name} in LCC plans">
                   <span class="t-small">${d.inPlan === false ? "Not in plan" : "In plan"}</span></label></td>
               </tr>`;
@@ -320,7 +321,7 @@
         const owed = brands.reduce((n, x) => n + x.open.reduce((k, r) => k + r.total, 0), 0);
         const cell = (v) => (v == null ? html`<span class="t-faint">–</span>` : fmt.rs(v));
         return html`<section class="pd-section">
-          ${head("Payouts", "Per branch and per partner, from the ledger: each cup at its band rate (capped at the plan’s band), plus paid orders less the 5% fee. The same sums as each partner’s Money tab.")}
+          ${head("Payouts", "Per branch and per partner, from the ledger: each pack cup at the branch’s rate step for the month, times the drink’s price up to the pack’s band, plus paid orders less the 5% fee. Pass sales pay nothing. The same sums as each partner’s Money tab.")}
           <div class="pd-filters">
             <label class="pd-filter"><span class="t-micro t-faint">Month</span><span class="select"><select class="input" data-ad-month data-fk="month">${[0, 1, 2, 3].map((n) => html`<option value="${monthStart(n)}" ${monthStart(n) === payMonth ? raw("selected") : ""}>${monthLabel(monthStart(n))}${n === 0 ? " (so far)" : ""}</option>`)}</select></span></label>
           </div>
@@ -329,12 +330,12 @@
             <div class="pd-stat"><p class="t-micro t-faint">Not paid yet</p><p class="pd-stat__value num">${fmt.rs(owed)}</p><p class="t-small t-faint">${brands.reduce((n, x) => n + x.open.length, 0)} branches</p></div>
           </div>
           <div class="ad-scroll"><table class="ad-table ad-payouts">
-            <thead><tr><th>Branch</th><th class="ad-num">Cups</th><th class="ad-num">Cup payout</th><th class="ad-num">Paid orders</th><th class="ad-num">Total</th><th>Status</th></tr></thead>
+            <thead><tr><th>Branch</th><th class="ad-num">Cups</th><th class="ad-num">Rate step</th><th class="ad-num">Cup payout</th><th class="ad-num">Paid orders</th><th class="ad-num">Total</th><th>Status</th></tr></thead>
             ${brands.map((x) => html`<tbody>
-              <tr class="ad-brandrow"><th colspan="6" scope="rowgroup">${x.b.name}</th></tr>
+              <tr class="ad-brandrow"><th colspan="7" scope="rowgroup">${x.b.name}</th></tr>
               ${x.rows.map((r) => html`<tr>
                 <td>${S.branches(x.b.id).length > 1 ? r.cafe.branch || r.cafe.short : r.cafe.name}</td>
-                <td class="ad-num num">${fmt.num(r.cups)}</td><td class="ad-num num">${cell(r.cupEarned)}</td><td class="ad-num num">${cell(r.paidNet)}</td>
+                <td class="ad-num num">${fmt.num(r.cups)}</td><td class="ad-num num">${Math.round(S.rateStepAt(r.cafe.id, payMonth).rate * 100)}%</td><td class="ad-num num">${cell(r.cupEarned)}</td><td class="ad-num num">${cell(r.paidNet)}</td>
                 <td class="ad-num num"><strong>${fmt.rs(r.total)}</strong></td>
                 <td>${r.rec ? html`<span class="t-small">Paid ${fmt.longDate(r.rec.paidAt)}${r.rec.ref ? html` · <span class="num">${r.rec.ref}</span>` : ""}</span>`
                   : html`<button type="button" class="btn btn--secondary btn--compact" data-ad-pay="${r.cafe.id}" data-fk="pay-${r.cafe.id}">Mark paid</button>`}</td>

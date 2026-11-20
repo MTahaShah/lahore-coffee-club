@@ -146,9 +146,9 @@
         .map(view);
     },
 
-    /** What LCC pays a branch for a month: each cup served at the rate of its
-        band (capped at the plan's band; see docs/pricing.md), plus paid
-        pickup orders less the LCC fee. month: "2026-11", a Date or a time. */
+    /** What LCC pays a branch for a month: each cup at the month's rate step
+        (price capped at the pack's band), plus paid pickup orders less the
+        LCC fee. Pass sales pay nothing. month: "2026-11", a Date or a time. */
     payoutFor(cafeId, month = Date.now()) {
       // BACKEND: GET /cafes/:id/statement?month=YYYY-MM
       const { from, key } = monthRange(month);
@@ -198,13 +198,7 @@
         steps are per café. -> { cups, rate, step, next: { at, rate } | null, progress } */
     rateStep(cafeId, month = Date.now()) {
       // BACKEND: GET /cafes/:id/rate-step?month=YYYY-MM (steps from plan_config)
-      const steps = S.planConfig().rateSteps;
-      const cups = ledger.memberCupsThisMonth(cafeId, month).total;
-      let i = 0;
-      steps.forEach((x, k) => { if (cups >= x.from) i = k; });
-      const next = steps[i + 1] || null;
-      return { cafeId, cups, rate: steps[i].rate, step: steps[i], next: next ? { at: next.from, rate: next.rate } : null,
-        progress: next ? Math.min(1, cups / next.from) : 1 };
+      return { cafeId, ...S.rateStepAt(cafeId, monthRange(month).from) }; // the one source (state.js)
     },
 
     /** This month at a café (a branch, or a brand id for all its branches):
@@ -218,9 +212,7 @@
       const rows = ledger.ledgerFor({ cafeId, from, to, types: ["redeem", "pass-sale"] }).filter((e) => !e.undone);
       const pass = rows.filter((e) => e.type === "pass-sale");
       const packs = rows.filter((e) => e.type === "redeem");
-      const rates = {};
-      const rateAt = (id) => (rates[id] ??= ledger.rateStep(id, month).rate);
-      const owed = packs.reduce((n, e) => n + Math.min(S.entryPrice(e), S.band(e.band).maxPrice) * (e.credits || 1) * rateAt(e.cafeId), 0);
+      const owed = packs.reduce((n, e) => n + S.entryPayout(e), 0); // the same per-cup payout as Money and admin
       return {
         pass: { cups: pass.length, discount: pass.reduce((n, e) => n + e.listPrice - e.memberPrice, 0), paid: pass.reduce((n, e) => n + e.memberPrice, 0) },
         pack: { cups: packs.reduce((n, e) => n + (e.credits || 1), 0), owed: Math.round(owed) },

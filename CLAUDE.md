@@ -194,6 +194,8 @@ This order overrides any order implied by the spec.
     retired (member app and ledger only; counter, dashboard and admin next)
 13. [x] Café pass 2: Pass members at the counter, rate steps and the
     Pass / pack split on the dashboard (admin not yet)
+14. [x] Payout pass: rate steps as the only payout model, old plan cups
+    retired, undo copy, new-customer seed
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -257,7 +259,7 @@ next pass until asked.**
   undo as for cups (2 minutes, same cashier; the undo entry has 0 cups and
   `passSale: true`). Used today: "Full price today", no button. Packs keep
   "Redeem 1 cup" (line: "Cup pack: N left, any café · X of 1 today"). Today
-  tab labels rows Pass / Pack / Plan (`counterToday` rows have `label`).
+  tab labels rows Pass or Pack (`counterToday` rows have `label`).
 - Dashboard (#/partner, Live, on top): "143 of 200 member cups this month"
   with a bar and "Next rate step at 200 cups: 65%", per branch (all
   branches: one bar each). `PLAN_CONFIG.rateSteps` (70% from 0, 65% from
@@ -267,25 +269,49 @@ next pass until asked.**
   price capped at the plan's band; every cup redeemed counts as a pack cup,
   legacy plans included; `LCC.ledger.passPackSplit`), and "New customers
   this month" (`LCC.ledger.newCustomers`). Pass sales show in the live feed.
-  The Money tab and "Payout today" still pay band rates (not yet moved to
-  the steps).
+  Since the Payout pass this is the same figure as Money, "Payout today"
+  and admin (see Payout pass).
 - Seed: 60 background Pass members (`m_ps…`, separate PRNG) top Kiln &
   Bean up to 143 member cups this month and Double Shot Gulberg to 236;
   other branches get a few. Danish Hashmi LCC 150 (code 552310), on the
   Pass with today's coffee available, for the counter demo.
 
+## Payout pass (rate steps are the only payout model)
+
+- `PLAN_CONFIG.rateSteps` is the only payout rule: a pack cup pays the
+  branch's step for that calendar month (`select.rateStepAt`: 70% under
+  200 member cups, 65% to 500, 60% above; pass sales and cups both count;
+  the rate in force applies to every cup of the month) × the drink's price
+  capped at the pack's band (`select.entryBand`: on the entry, else the
+  plan of that cycle, else Classic), rounded per cup (`select.entryPayout`).
+  Pass sales pay 0. Paid pickup orders stay separate (less the 5% fee).
+  `monthPayout`, `brandMoney`, `brandToday`, `LCC.ledger.payoutFor` and
+  `passPackSplit` all use it; `cafeRate` is gone from BANDS. Rules shows
+  the steps; admin's Payouts has a "Rate step" column; admin's menu has no
+  café-rate column.
+- Retired plans: every seeded Double Shot plan and My cafés member is on a
+  cup pack (Rabia, Nida, Sana, Zara, Faraz Classic 8; Iqra, Hira Classic
+  16; Kamran Signature 16; Double Shot regulars Classic 8 / 16 /
+  Signature 16; My cafés regulars Classic 8 or 16). Mumtaz's earlier
+  months are a Classic 16 pack a month. Brand plan definitions stay in
+  `data.js` only because they mark Double Shot as a chain; the code still
+  reads the old types if a device sends one.
+- Member app: a pass-sale undo says "Member price undone. Today's member
+  coffee is back."; a cup undo keeps "Cup returned".
+- Seed: `earlierHistory` gives most background members who came to a café
+  this month one earlier coffee there, so "New customers this month" is
+  about 15–25% per branch.
+
 ## Pricing: bands (Pricing pass; numbers and margins in `docs/pricing.md`)
 
 - `data.js` `BANDS` and `PLANS` are the single source (state: `state.bands`,
-  `state.tiers`). Bands by menu price before tax: Classic up to 750 (café
-  rate Rs 490), Signature 751–1,000 (Rs 650), Reserve 1,001–1,500 (Rs 890);
-  above 1,500 no band.
+  `state.tiers`). Bands by menu price before tax: Classic up to 750,
+  Signature 751–1,000, Reserve 1,001–1,500; above 1,500 no band. Bands set
+  what a pack covers; payouts are the rate steps (Payout pass).
 - A plan covers up to a band (`select.planBand`: Explorer from the tier's
   `maxBand`, brand plans from theirs, My cafés Classic; `select.bandAt` for
   a member at a brand). Above it: "Cup + Rs X", X = price − the plan band's
-  `maxPrice`, paid to the café. Payout per cup = rate of the drink's band,
-  capped at the plan's band (`select.entryPayout`; redeem entries carry
-  `band`, missing = Classic). The old `economics` (`coverUpTo`,
+  `maxPrice`, paid to the café. Payout per cup: see Payout pass. The old `economics` (`coverUpTo`,
   `payoutShare`) and `payoutPerCup` are gone; the dashboard's Rules shows
   the bands read-only.
 
@@ -593,8 +619,8 @@ next pass until asked.**
   Bean (8:20 am), Noon Café twice (at the Explorer cap there), and Double
   Shot Phase 6 (her usual, an Iced Spanish Latte), so 1 more at Double
   Shot and at Kiln. Beans 150, passport 4 of 9.
-- Payout today (dashboard, Live) = each cup's band rate today plus paid
-  orders collected today, less the fee; "This month: Rs X" under it.
+- Payout today (dashboard, Live) = today's pack cups at the month's rate
+  step plus paid orders collected today, less the fee; "This month: Rs X" under it.
 - 80 background regulars (mixed Explorer / My cafés) have no codes; the seed
   generates the last 10 days of their redemptions under the real rules,
   around each café's `avgDailyCups` (4–9 a day).
@@ -698,14 +724,14 @@ next pass until asked.**
   the counter's Manager sheet or the dashboard's Rules. While paused the
   counter says "Member cups paused until 4:40 pm".
 - Payouts (dashboard, Money): this month from the ledger (calendar month):
-  each cup pays its band rate (see Pricing), plus paid orders less the 5% fee; next payout on
+  each pack cup at the rate step (see Payout pass), plus paid orders less the 5% fee; next payout on
   the 5th; three months of seeded history per branch. CSV and PDF are
   simulated with a toast.
 
 ## Admin pass
 
 - `#/admin` (switcher: Admin). Cafés: a partner's branches, staff, setup
-  codes, menu (prices, size, band, café rate, the LCC in-plan switch,
+  codes, menu (prices, size, band, the LCC in-plan switch,
   `actions.setInPlan`), and resetting the owner's and each branch's
   executive PIN (`actions.resetExecPin`; a single café has one; the new
   PIN shows once). Members: search by number or name (always with the
