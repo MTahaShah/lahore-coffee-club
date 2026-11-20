@@ -138,7 +138,7 @@
       const btn = $("[data-continue]", view);
       const why = blocked();
       const text = why
-        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} coffees` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
+        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} ${paysBackIn() === 1 ? "coffee" : "coffees"}` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
       note.textContent = text;
       note.classList.remove("is-warn");
       note.classList.toggle("is-save", !why);

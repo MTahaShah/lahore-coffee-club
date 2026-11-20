@@ -9113,8 +9113,16 @@ export function createContactShadow(THREE, groundY) {
     const faces = face.map((d) => ({ d, c: centre(d) }));
     // Match each layer's sub-path to the nearest face (one brick = face + side + top)
     const parts = rest.map((list) => list.map((d) => ({ d, c: centre(d) })));
-    const vb = (svg.getAttribute("viewBox") || "0 0 100 100").split(/\s+/).map(Number);
-    const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    // Centre the ring itself (not the file's canvas): a square viewBox around
+    // the bricks' bounding box, so the number in the middle sits dead centre
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    layers.flat().forEach((d) => {
+      const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+      for (let i = 0; i + 1 < n.length; i += 2) { x0 = Math.min(x0, n[i]); x1 = Math.max(x1, n[i]); y0 = Math.min(y0, n[i + 1]); y1 = Math.max(y1, n[i + 1]); }
+    });
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const half = Math.max(x1 - x0, y1 - y0) / 2 + 2;
+    const vb = [cx - half, cy - half, half * 2, half * 2].map((v) => Number(v.toFixed(2)));
     const bricks = faces.map((f) => {
       const near = (list) => list.reduce((best, p) => (Math.hypot(p.c.x - f.c.x, p.c.y - f.c.y) < Math.hypot(best.c.x - f.c.x, best.c.y - f.c.y) ? p : best), list[0])?.d || "";
       const angle = (Math.atan2(f.c.y - cy, f.c.x - cx) * 180) / Math.PI;
@@ -11415,6 +11423,9 @@ export function createContactShadow(THREE, groundY) {
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+
+  /** "1 cup", "2 cups": a count with the right word. */
+  const pl = (n, one, many = `${one}s`) => `${fmt.num(n)} ${n === 1 ? one : many}`;
   const A = store.actions;
 
   const SECTIONS = [
@@ -11672,7 +11683,7 @@ export function createContactShadow(THREE, groundY) {
             </div>
           </div>
           <div class="pd-stats">
-            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${fmt.num(fresh.of)} members who came`)}
+            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${pl(fresh.of, "member")} who came`)}
           </div>
         </div>`;
       }
@@ -11827,7 +11838,7 @@ export function createContactShadow(THREE, groundY) {
         return html`<section class="pd-section">
           ${head("Money", `${scopeLabel()} · ${monthName(m.monthStart)} so far.`)}
           <div class="pd-stats">
-            ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
+            ${stat("This month so far", fmt.rs(m.earned), `${pl(m.cups, "cup")} and ${pl(m.paidCount, "paid order")}`)}
             ${stat("Pack cups", fmt.rs(m.cupEarned), m.rates.length === 1 ? `at ${Math.round(m.rates[0].rate * 100)}%, this month’s rate step` : `at each branch’s rate step: ${[...new Set(m.rates.map((r) => `${Math.round(r.rate * 100)}%`))].join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
             ${m.paidThisMonth ? stat("This month", "Paid", `on ${fmt.longDate(m.paidThisMonth)} to the ${m.account.label} ending ${m.account.last4}`)
@@ -11869,7 +11880,7 @@ export function createContactShadow(THREE, groundY) {
               <p class="t-small t-muted">${x.busiest.length ? `Busiest at ${x.busiest.map((h) => fmt.clock(h.hour * 60)).join(", then ")}.` : "No cups yet this month."}</p>
               <ol class="pd-bars" role="list" aria-label="Cups by hour">
                 ${x.hours.map((h) => html`<li class="pd-bars__bar${h.hour === top ? " is-top" : ""}" style="--v:${(h.cups / max).toFixed(3)}" title="${fmt.clock(h.hour * 60)}: ${h.cups}">
-                  <span class="sr-only">${fmt.clock(h.hour * 60)}: ${h.cups} cups</span><span class="pd-bars__fill" aria-hidden="true"></span>
+                  <span class="sr-only">${fmt.clock(h.hour * 60)}: ${pl(h.cups, "cup")}</span><span class="pd-bars__fill" aria-hidden="true"></span>
                   <span class="pd-bars__label t-micro t-faint" aria-hidden="true">${h.hour % 3 === 0 ? fmt.clock(h.hour * 60).replace(/\s?(am|pm)$/, "$1").replace("noon", "12pm").replace("midnight", "12am") : ""}</span></li>`)}
               </ol>
             </div>
@@ -11952,7 +11963,7 @@ export function createContactShadow(THREE, groundY) {
         if (t.closest("[data-csv]")) {
           // BACKEND: GET /brands/:id/statement.csv?month=…&branch=…
           const m = S.brandMoney(session.brandId, scope());
-          return ui.toast(`${slug(brand().name)}-${scope() ? slug(branchShort(S.branch(scope()))) + "-" : ""}${new Date().toISOString().slice(0, 7)}.csv: ${fmt.num(m.cups)} cups, ${fmt.rs(m.earned)}. Prototype: no file saved.`, { duration: 4200 });
+          return ui.toast(`${slug(brand().name)}-${scope() ? slug(branchShort(S.branch(scope()))) + "-" : ""}${new Date().toISOString().slice(0, 7)}.csv: ${pl(m.cups, "cup")}, ${fmt.rs(m.earned)}. Prototype: no file saved.`, { duration: 4200 });
         }
         if (t.closest("[data-pdf]")) return ui.toast("Statement for this month and the last three is ready. Prototype: no file saved.", { duration: 4200 });
         const nc = t.closest("[data-newcode]");
@@ -12116,6 +12127,9 @@ export function createContactShadow(THREE, groundY) {
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$ } = ui;
   const S = store.select;
+
+  /** "1 cup", "2 cups": a count with the right word. */
+  const pl = (n, one, many = `${one}s`) => `${fmt.num(n)} ${n === 1 ? one : many}`;
   const A = store.actions;
 
   const SECTIONS = [
@@ -12265,7 +12279,7 @@ export function createContactShadow(THREE, groundY) {
           <div class="pd-card">
             <h3 class="eyebrow">${b.name}${b.plans.length ? " · sells its own plans" : ""}</h3>
             ${pinCell(`owner:${b.id}`, single ? "Owner and branch executive PIN (one café, one PIN)" : "Brand owner executive PIN (every branch)", `data-ad-reset-owner="${b.id}"`)}
-            <p class="t-small t-muted num">Limits: ${b.rules.perMemberPerDay} cups per member a day at one branch · ${b.rules.branchCupsPerDay} member cups a day per branch</p>
+            <p class="t-small t-muted num">Limits: ${pl(b.rules.perMemberPerDay, "cup")} per member a day at one branch · ${b.rules.branchCupsPerDay} member cups a day per branch</p>
           </div>
 
           <h3 class="eyebrow">Branches and staff</h3>
@@ -12413,7 +12427,7 @@ export function createContactShadow(THREE, groundY) {
           </div>
           <div class="pd-stats">
             <div class="pd-stat"><p class="t-micro t-faint">${current ? "This month so far" : monthLabel(payMonth)}</p><p class="pd-stat__value num">${fmt.rs(total)}</p><p class="t-small t-faint">all partners</p></div>
-            <div class="pd-stat"><p class="t-micro t-faint">Not paid yet</p><p class="pd-stat__value num">${fmt.rs(owed)}</p><p class="t-small t-faint">${brands.reduce((n, x) => n + x.open.length, 0)} branches</p></div>
+            <div class="pd-stat"><p class="t-micro t-faint">Not paid yet</p><p class="pd-stat__value num">${fmt.rs(owed)}</p><p class="t-small t-faint">${pl(brands.reduce((n, x) => n + x.open.length, 0), "branch", "branches")}</p></div>
           </div>
           <div class="ad-scroll"><table class="ad-table ad-payouts">
             <thead><tr><th>Branch</th><th class="ad-num">Cups</th><th class="ad-num">Rate step</th><th class="ad-num">Cup payout</th><th class="ad-num">Paid orders</th><th class="ad-num">Total</th><th>Status</th></tr></thead>
@@ -12909,13 +12923,13 @@ export function createContactShadow(THREE, groundY) {
           const onUs = avg ? pm.saved / avg : 0;
           return {
             kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
-            cap: onUs >= 0.95 && onUs < 1.05 ? "cup on us so far" : "cups on us so far",
-            label: `${fmtOnUs(onUs)} cups on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
+            cap: `${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far`,
+            label: `${fmtOnUs(onUs)} ${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
           };
         }
         const b = S.balance();
         const left = Math.max(0, b.left);
-        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${b.total} cups left` };
+        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${fmt.cups(b.total)} left` };
       }
       /** 1.2 under ten, whole numbers after. */
       const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));
@@ -14536,7 +14550,7 @@ export function createContactShadow(THREE, groundY) {
       const btn = $("[data-continue]", view);
       const why = blocked();
       const text = why
-        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} coffees` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
+        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} ${paysBackIn() === 1 ? "coffee" : "coffees"}` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
       note.textContent = text;
       note.classList.remove("is-warn");
       note.classList.toggle("is-save", !why);

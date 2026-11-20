@@ -30,6 +30,9 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$ } = ui;
   const S = store.select;
+
+  /** "1 cup", "2 cups": a count with the right word. */
+  const pl = (n, one, many = `${one}s`) => `${fmt.num(n)} ${n === 1 ? one : many}`;
   const A = store.actions;
 
   const SECTIONS = [
@@ -179,7 +182,7 @@
           <div class="pd-card">
             <h3 class="eyebrow">${b.name}${b.plans.length ? " · sells its own plans" : ""}</h3>
             ${pinCell(`owner:${b.id}`, single ? "Owner and branch executive PIN (one café, one PIN)" : "Brand owner executive PIN (every branch)", `data-ad-reset-owner="${b.id}"`)}
-            <p class="t-small t-muted num">Limits: ${b.rules.perMemberPerDay} cups per member a day at one branch · ${b.rules.branchCupsPerDay} member cups a day per branch</p>
+            <p class="t-small t-muted num">Limits: ${pl(b.rules.perMemberPerDay, "cup")} per member a day at one branch · ${b.rules.branchCupsPerDay} member cups a day per branch</p>
           </div>
 
           <h3 class="eyebrow">Branches and staff</h3>
@@ -327,7 +330,7 @@
           </div>
           <div class="pd-stats">
             <div class="pd-stat"><p class="t-micro t-faint">${current ? "This month so far" : monthLabel(payMonth)}</p><p class="pd-stat__value num">${fmt.rs(total)}</p><p class="t-small t-faint">all partners</p></div>
-            <div class="pd-stat"><p class="t-micro t-faint">Not paid yet</p><p class="pd-stat__value num">${fmt.rs(owed)}</p><p class="t-small t-faint">${brands.reduce((n, x) => n + x.open.length, 0)} branches</p></div>
+            <div class="pd-stat"><p class="t-micro t-faint">Not paid yet</p><p class="pd-stat__value num">${fmt.rs(owed)}</p><p class="t-small t-faint">${pl(brands.reduce((n, x) => n + x.open.length, 0), "branch", "branches")}</p></div>
           </div>
           <div class="ad-scroll"><table class="ad-table ad-payouts">
             <thead><tr><th>Branch</th><th class="ad-num">Cups</th><th class="ad-num">Rate step</th><th class="ad-num">Cup payout</th><th class="ad-num">Paid orders</th><th class="ad-num">Total</th><th>Status</th></tr></thead>

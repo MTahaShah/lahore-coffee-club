@@ -148,8 +148,16 @@
     const faces = face.map((d) => ({ d, c: centre(d) }));
     // Match each layer's sub-path to the nearest face (one brick = face + side + top)
     const parts = rest.map((list) => list.map((d) => ({ d, c: centre(d) })));
-    const vb = (svg.getAttribute("viewBox") || "0 0 100 100").split(/\s+/).map(Number);
-    const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    // Centre the ring itself (not the file's canvas): a square viewBox around
+    // the bricks' bounding box, so the number in the middle sits dead centre
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    layers.flat().forEach((d) => {
+      const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+      for (let i = 0; i + 1 < n.length; i += 2) { x0 = Math.min(x0, n[i]); x1 = Math.max(x1, n[i]); y0 = Math.min(y0, n[i + 1]); y1 = Math.max(y1, n[i + 1]); }
+    });
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const half = Math.max(x1 - x0, y1 - y0) / 2 + 2;
+    const vb = [cx - half, cy - half, half * 2, half * 2].map((v) => Number(v.toFixed(2)));
     const bricks = faces.map((f) => {
       const near = (list) => list.reduce((best, p) => (Math.hypot(p.c.x - f.c.x, p.c.y - f.c.y) < Math.hypot(best.c.x - f.c.x, best.c.y - f.c.y) ? p : best), list[0])?.d || "";
       const angle = (Math.atan2(f.c.y - cy, f.c.x - cx) * 180) / Math.PI;

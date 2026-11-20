@@ -370,13 +370,13 @@
           const onUs = avg ? pm.saved / avg : 0;
           return {
             kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
-            cap: onUs >= 0.95 && onUs < 1.05 ? "cup on us so far" : "cups on us so far",
-            label: `${fmtOnUs(onUs)} cups on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
+            cap: `${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far`,
+            label: `${fmtOnUs(onUs)} ${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
           };
         }
         const b = S.balance();
         const left = Math.max(0, b.left);
-        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${b.total} cups left` };
+        return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${fmt.cups(b.total)} left` };
       }
       /** 1.2 under ten, whole numbers after. */
       const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));

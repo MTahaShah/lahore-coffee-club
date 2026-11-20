@@ -36,6 +36,9 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$, icon } = ui;
   const S = store.select;
+
+  /** "1 cup", "2 cups": a count with the right word. */
+  const pl = (n, one, many = `${one}s`) => `${fmt.num(n)} ${n === 1 ? one : many}`;
   const A = store.actions;
 
   const SECTIONS = [
@@ -293,7 +296,7 @@
             </div>
           </div>
           <div class="pd-stats">
-            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${fmt.num(fresh.of)} members who came`)}
+            ${stat("New customers this month", fmt.num(fresh.count), `first cup at ${scope() ? branchShort(S.branch(scope())) : brand().name} this month, of ${pl(fresh.of, "member")} who came`)}
           </div>
         </div>`;
       }
@@ -448,7 +451,7 @@
         return html`<section class="pd-section">
           ${head("Money", `${scopeLabel()} · ${monthName(m.monthStart)} so far.`)}
           <div class="pd-stats">
-            ${stat("This month so far", fmt.rs(m.earned), `${fmt.num(m.cups)} cups and ${m.paidCount} paid orders`)}
+            ${stat("This month so far", fmt.rs(m.earned), `${pl(m.cups, "cup")} and ${pl(m.paidCount, "paid order")}`)}
             ${stat("Pack cups", fmt.rs(m.cupEarned), m.rates.length === 1 ? `at ${Math.round(m.rates[0].rate * 100)}%, this month’s rate step` : `at each branch’s rate step: ${[...new Set(m.rates.map((r) => `${Math.round(r.rate * 100)}%`))].join(" · ")}`)}
             ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
             ${m.paidThisMonth ? stat("This month", "Paid", `on ${fmt.longDate(m.paidThisMonth)} to the ${m.account.label} ending ${m.account.last4}`)
@@ -490,7 +493,7 @@
               <p class="t-small t-muted">${x.busiest.length ? `Busiest at ${x.busiest.map((h) => fmt.clock(h.hour * 60)).join(", then ")}.` : "No cups yet this month."}</p>
               <ol class="pd-bars" role="list" aria-label="Cups by hour">
                 ${x.hours.map((h) => html`<li class="pd-bars__bar${h.hour === top ? " is-top" : ""}" style="--v:${(h.cups / max).toFixed(3)}" title="${fmt.clock(h.hour * 60)}: ${h.cups}">
-                  <span class="sr-only">${fmt.clock(h.hour * 60)}: ${h.cups} cups</span><span class="pd-bars__fill" aria-hidden="true"></span>
+                  <span class="sr-only">${fmt.clock(h.hour * 60)}: ${pl(h.cups, "cup")}</span><span class="pd-bars__fill" aria-hidden="true"></span>
                   <span class="pd-bars__label t-micro t-faint" aria-hidden="true">${h.hour % 3 === 0 ? fmt.clock(h.hour * 60).replace(/\s?(am|pm)$/, "$1").replace("noon", "12pm").replace("midnight", "12am") : ""}</span></li>`)}
               </ol>
             </div>
@@ -573,7 +576,7 @@
         if (t.closest("[data-csv]")) {
           // BACKEND: GET /brands/:id/statement.csv?month=…&branch=…
           const m = S.brandMoney(session.brandId, scope());
-          return ui.toast(`${slug(brand().name)}-${scope() ? slug(branchShort(S.branch(scope()))) + "-" : ""}${new Date().toISOString().slice(0, 7)}.csv: ${fmt.num(m.cups)} cups, ${fmt.rs(m.earned)}. Prototype: no file saved.`, { duration: 4200 });
+          return ui.toast(`${slug(brand().name)}-${scope() ? slug(branchShort(S.branch(scope()))) + "-" : ""}${new Date().toISOString().slice(0, 7)}.csv: ${pl(m.cups, "cup")}, ${fmt.rs(m.earned)}. Prototype: no file saved.`, { duration: 4200 });
         }
         if (t.closest("[data-pdf]")) return ui.toast("Statement for this month and the last three is ready. Prototype: no file saved.", { duration: 4200 });
         const nc = t.closest("[data-newcode]");
