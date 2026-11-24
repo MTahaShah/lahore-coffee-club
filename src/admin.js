@@ -260,7 +260,7 @@
             <p class="t-small t-muted">Adds a new <strong>adjust</strong> entry to this cycle. Nothing is edited or deleted. Use a minus for cups taken off.</p>
             <div class="ad-adjust__fields">
               <label class="field"><span class="field__label">Cups</span><input class="input num" name="cups" type="number" step="1" min="-30" max="30" value="1" required></label>
-              <label class="field ad-grow"><span class="field__label">Reason (required)</span><input class="input" name="reason" maxlength="140" placeholder="Machine down at Kiln & Bean, cup not served" required></label>
+              <label class="field ad-grow"><span class="field__label">Reason (required)</span><input class="input" name="reason" maxlength="140" placeholder="Machine down at Drip, cup not served" required></label>
               <button type="submit" class="btn btn--primary">Add entry</button>
             </div>
             <p class="cv-error" role="alert">${adjustErr}</p>

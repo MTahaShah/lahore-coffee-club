@@ -8,7 +8,7 @@
    is the read side plus the one admin write, keyed by membership number:
 
      LCC.ledger.cupsLeft(42)                       -> 11
-     LCC.ledger.eligibleItems("LCC 42", "kiln")    -> drinks a cup covers here now
+     LCC.ledger.eligibleItems("LCC 42", "drip")    -> drinks a cup covers here now
      LCC.ledger.ledgerFor({ memberNo: 42, from, to })
      LCC.ledger.ledgerFor({ cafeId: "ds-gulberg" }) / ({ all: true })
      LCC.ledger.payoutFor("ds-gulberg", "2026-11")
@@ -16,10 +16,10 @@
      LCC.ledger.passDay(42)                        -> { count: 1, limit: 1, left: 0, used: true, last }
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
-     LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
-     LCC.ledger.rateStep("kiln")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
-     LCC.ledger.passPackSplit("kiln")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
-     LCC.ledger.newCustomers("kiln")               -> { count, memberIds, of }
+     LCC.ledger.memberCupsThisMonth("drip")        -> { cups, pass, total }
+     LCC.ledger.rateStep("drip")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
+     LCC.ledger.passPackSplit("drip")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
+     LCC.ledger.newCustomers("drip")               -> { count, memberIds, of }
 
    Entry types (cups signed: + gives cups, − takes them):
      purchase  + a plan's cups at the start of a cycle

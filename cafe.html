@@ -2123,19 +2123,13 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ring__unit { font-size: var(--fs-16); color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: -4px; }
 
 /* LCC Pass: the ring is a button; tapping turns the centre over */
-.ring--flip { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
-.ring--flip:focus-visible { outline: 2px solid var(--primary); outline-offset: 6px; }
-.ring--flip .ring__center { perspective: 700px; }
 .ring__faces { position: relative; display: grid; transform-style: preserve-3d; transition: transform 600ms var(--ease); }
 .ring__faces > .ring__face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; align-self: center; }
 .ring__face--back { transform: rotateY(180deg); }
-.ring--flip.is-flipped .ring__faces { transform: rotateY(180deg); }
 @media (prefers-reduced-motion: reduce) {
   .ring__bricks .lr-brick.is-full, .logo-ring.is-spinning { animation: none; }
   .ring__faces { transform: none !important; transition: none; }
   .ring__faces > .ring__face { backface-visibility: visible; transform: none; transition: opacity 200ms linear; }
-  .ring--flip .ring__face--back, .ring--flip.is-flipped .ring__face--front { opacity: 0; }
-  .ring--flip.is-flipped .ring__face--back { opacity: 1; }
 }
 .home.has-pickup .ring--home .ring__cap { font-size: var(--fs-12); }
 .home.has-pickup .ring--home .ring__unit { font-size: var(--fs-12); }
@@ -2601,6 +2595,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   pointer-events: auto; cursor: pointer;
 }
 .cs-pin::before { content: ""; position: absolute; inset: -8px -4px; } /* 44px tap area */
+.cs-pin--soon { border-style: dashed; color: var(--ink-3); font-size: var(--fs-12); } /* listed, menu coming soon */
 .cs-pin.is-selected { background: var(--primary); color: var(--on-primary); border-color: var(--accent); --pin-s: 1.15; z-index: 2; } /* accent: the selected pin */
 .cs-me { position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 3px solid var(--bg); outline: 1px solid var(--ink); }
 
@@ -2661,7 +2656,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-card__meta, .cs-card__hours { font-size: var(--fs-14); color: var(--ink-3); }
 .cs-card__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); }
 .cs-card__price { font-size: var(--fs-14); color: var(--ink-3); }
-.cs-member { color: var(--accent-text); font-weight: 500; } /* accent: the member price */
 .cs-card__tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: 2px; }
 .cs-card__acts { display: grid; padding-top: var(--space-2); }
 .cs-save[aria-pressed="true"] svg path { fill: currentColor; }
@@ -2702,6 +2696,13 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-mappill[hidden] { display: none; }
 .cs-pin.is-selected .num { color: var(--on-primary); }
 .cs-search__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* Home ring: keep the centre text inside the bricks (the Pass caption is long, so it wraps) */
+.ring--home .ring__face { gap: 4px; }
+.ring--home .ring__num { font-size: 72px; }
+.ring--home .ring__cap { max-width: 8.5em; line-height: 1.25; text-wrap: balance; }
+.home.has-pickup .ring--home .ring__num { font-size: 40px; }
+.home.has-pickup .ring--home[data-kind="pass"] .ring__cap { display: none; }  /* too long for the small ring; the aria-label keeps it */
 
 /* ---- src/club.css ---- */
 /* =====================================================================
@@ -4405,11 +4406,10 @@ export function createContactShadow(THREE, groundY) {
     // Two tiers of the Pass (member.plan.tier "pass" | "plus"; missing = "pass").
     // Prices are per month, tax included. Plus: the second coffee is for the
     // same visit (same branch, within secondCupMinutes of the first), so it can
-    // be for a friend. paysBack is the plan picker's line.
-    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true,
-      paysBack: "Pays for itself after 3 coffees" },
+    // be for a friend. No member-facing savings figures anywhere.
+    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true },
     plus: { id: "plus", tier: "plus", name: "LCC Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
-      secondCupMinutes: 30, paysBack: "Pays for itself after 5 cups" },
+      secondCupMinutes: 30 },
     packDays: 45,         // a pack's cups last this many days from purchase
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
@@ -4481,7 +4481,7 @@ export function createContactShadow(THREE, groundY) {
 
   /* Partners: brands and branches -----------------------------------------
      Every partner is a brand with one or more branches. A single-branch
-     café (Kiln & Bean) is simply a brand with one branch; Double Shot has
+     café (Drip) is simply a brand with one branch; Double Shot has
      seven. Nothing below is special to Double Shot.
 
        Brand   id, name, monogram, menu (drinks only: hot / iced prices),
@@ -4569,7 +4569,7 @@ export function createContactShadow(THREE, groundY) {
         { id: "ds-hazel-rush",    section: "Frappes", name: "Hazel Rush",            hot: null, iced: 1210 },
         { id: "ds-frosted-toffee", section: "Frappes", name: "Frosted Toffee",       hot: null, iced: 1220 },
         { id: "ds-java-chip",     section: "Frappes", name: "Java Chip",             hot: null, iced: 1250 },
-        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa",                hot: null, iced: 1290 },
+        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa Super Frappe",   hot: null, iced: 1290 },
 
         { id: "ds-choc-classic",  section: "Dark chocolate", name: "Classic Chocolate", hot: 980, iced: 980 },
         { id: "ds-choc-orange",   section: "Dark chocolate", name: "Orange Chocolate",  hot: 980, iced: 980 },
@@ -4633,6 +4633,59 @@ export function createContactShadow(THREE, groundY) {
   };
   const LATE = { open: "8:00", close: "2:00", label: "8 am – 2 am" };
   const EVENING = [0.15, 0.3, 0.4, 0.45, 0.4, 0.4, 0.45, 0.4, 0.45, 0.55, 0.7, 0.85, 0.9, 0.8, 0.65, 0.45];
+  /* Real partner cafés (prototype demo data) -----------------------------
+     The list price of a cup at each café is its latte price. Menus: the
+     five standard drinks (no flat white where the café lists none) and
+     three signatures, from public menus. Bands follow the price.        */
+  const REAL = [
+    // id, name, area, map x, y, [espresso, cappuccino, latte, flat white, spanish latte], signatures [name, price, "hot" | "iced" | both],
+    // pattern: tags, status, minutes since update, hours, km from the member, cups a day, busyByHour
+    ["drip", "Drip", "gulberg", 545, 345, [499, 699, 699, 780, 849], [["Banana Cinnamon Latte", 850], ["Tiramisu Latte", 850], ["Spanish Mocha", 999]],
+      ["Pastries", "Work-friendly"], "moderate", 6, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 0.8, 9, [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2]],
+    ["artisan", "Artisan Coffee Roasters", "gulberg", 575, 395, [490, 690, 690, 690, 750], [["Sticky Toffee Latte", 800], ["Saffron Latte", 1090], ["Pistachio Latte", 1190]],
+      ["Pastries", "Breakfast", "Outdoor"], "quiet", 22, { open: "7:00", close: "20:00", label: "7 am – 8 pm" }, 1.1, 6, [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0]],
+    ["extraction", "Extraction", "gulberg", 505, 385, [490, 710, 710, 710, 795], [["Vietnamese Espresso", 710], ["Rose Latte", 890], ["Lotus Latte", 1350]],
+      ["Work-friendly"], "moderate", 11, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 1.3, 6, [0.15, 0.3, 0.45, 0.5, 0.5, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.85, 0.75, 0.6, 0.45, 0.3]],
+    ["retrograde", "Retrograde", "gulberg", 560, 320, [600, 700, 750, 700, 825], [["Matcha", 850], ["Mocha Latte", 950], ["Iced Pistachio Latte", 950, "iced"]],
+      ["Work-friendly", "Late night"], "quiet", 15, { open: "10:00", close: "1:00", label: "10 am – 1 am" }, 0.9, 5, [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6]],
+    ["zyah", "Zyah", "gulberg", 605, 360, [580, 820, 820, null, 880], [["Mandarin Americano", 860], ["Coconut Cloud", 950, "iced"], ["Caffeinated Milo", 980]],
+      ["Pastries", "Outdoor"], "packed", 5, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 1.4, 6, [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1]],
+    ["kite", "Kite", "liberty", 440, 405, [550, 720, 740, 700, 980], [["Day Dream Latte", 950], ["Creme Brulee Latte", 980], ["Rocky Road Latte", 1190]],
+      ["Late night", "Work-friendly"], "packed", 4, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 1.6, 7, [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3]],
+    ["thirdculture", "Third Culture", "cantt", 700, 395, [480, 570, 630, 630, 750], [["Hot Tiramisu Latte", 880, "hot"], ["Honey Latte", 690], ["Matcha Kyoto", 760]],
+      ["Pastries", "Outdoor"], "packed", 3, { open: "7:30", close: "22:00", label: "7:30 am – 10 pm" }, 4.0, 7, [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15]],
+    ["brewtique", "Brewtique", "cantt", 765, 405, [550, 720, 720, 720, 750], [["Popcorn Latte", 1050], ["Peanut Praline Latte", 1150], ["Creme Brulee Raf", 1250]],
+      ["Work-friendly", "Late night"], "quiet", 18, { open: "10:00", close: "1:00", label: "10 am – 1 am" }, 4.6, 4, [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6]],
+    ["housespecialty", "House Specialty Coffee", "cantt", 730, 455, [400, 545, 595, 595, 645], [["Creme Brulee Latte", 655], ["Belgium Brown", 845], ["Pistachio Latte", 1145]],
+      ["Work-friendly", "Pastries", "Outdoor"], "moderate", 9, { open: "8:00", close: "21:00", label: "8 am – 9 pm" }, 4.3, 4, [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0]],
+    ["blank", "Blank", "dha", 790, 660, [490, 690, 690, 690, 690], [["Hot Tiramisu Latte", 790, "hot"], ["Kinder Bueno Latte", 950], ["Pistachio Latte", 1200]],
+      ["Work-friendly"], "quiet", 12, { open: "9:00", close: "22:00", label: "9 am – 10 pm" }, 9.4, 5, [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1]],
+    ["luna", "Luna", "dha", 820, 640, [520, 680, 680, 650, 730], [["Lavender Latte", 790], ["Smores Latte", 900], ["Nutty Raf", 975]],
+      ["Pastries", "Late night"], "moderate", 8, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 9.8, 5, [0.1, 0.25, 0.35, 0.4, 0.4, 0.4, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.7, 0.55, 0.4, 0.25]],
+    ["nofilter", "No Filter", "dha", 735, 600, [510, 680, 680, null, 720], [["Tiramisu Latte", 730], ["Taro Latte", 850], ["Pistachio Latte", 900]],
+      ["Pastries"], "moderate", 14, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 7.2, 5, [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1]],
+  ];
+  const AREA_LINE = { gulberg: "Gulberg", liberty: "Liberty", cantt: "Cantt", dha: "DHA" };
+  const real = ([id, name, area, x, y, [espresso, capp, latte, flat, spanish], sigs, tags, status, mins, hours, distanceKm, avgDailyCups, busyByHour]) => {
+    const p = id === "housespecialty" ? "hs" : id === "nofilter" ? "nf" : id === "thirdculture" ? "tc" : id.slice(0, 2);
+    const both = (n) => ({ hot: n, iced: n });
+    const menu = [
+      { id: `${p}-espresso`, section: "Coffee", name: "Espresso", hot: espresso, iced: null },
+      { id: `${p}-capp`,     section: "Coffee", name: "Cappuccino", hot: capp, iced: null },
+      { id: `${p}-latte`,    section: "Coffee", name: "Latte", ...both(latte) },
+      ...(flat ? [{ id: `${p}-flat`, section: "Coffee", name: "Flat white", hot: flat, iced: null }] : []),
+      { id: `${p}-spanish`,  section: "Coffee", name: "Spanish latte", ...both(spanish) },
+      ...sigs.map(([n, price, temp], i) => ({ id: `${p}-sig${i + 1}`, section: "Signatures", name: n, hot: temp === "iced" ? null : price, iced: temp === "hot" ? null : price })),
+    ];
+    return { id, name, area, latte: `${p}-latte`, tags, status, statusUpdatedAt: minsAgo(mins), hours,
+      blurb: `Specialty coffee in ${AREA_LINE[area]}. Prototype listing.`, distanceKm, x, y, menu, busyByHour, avgDailyCups };
+  };
+  /* Listed but not yet priced: on the café list and map with "Menu coming
+     soon". Not partners at the counter or in the ledger demos.         */
+  const comingSoon = [
+    { id: "slab", name: "Slab Coffee", area: "dha", x: 765, y: 690, distanceKm: 9.9, blurb: "Specialty coffee in DHA Phase 6. Prototype listing.", areaLine: "DHA Phase 6", comingSoon: true },
+    { id: "sixthree", name: "6.3 Coffee", area: "dha", x: 845, y: 705, distanceKm: 12.1, blurb: "Specialty coffee in DHA Phase 8. Prototype listing.", areaLine: "DHA Phase 8", comingSoon: true },
+  ];
   const cafes = [
     branch("ds-gulberg",  "Gulberg · Falcon Complex", "DS · Gulberg",  "gulberg",    480, 315, "moderate", 4,  LATE, 1.1, 16, EVENING),
     branch("ds-cantt",    "Cantt · C Block",          "DS · Cantt",    "cantt",      740, 430, "quiet",    9,  LATE, 4.2, 9,  EVENING),
@@ -4641,209 +4694,40 @@ export function createContactShadow(THREE, groundY) {
     branch("ds-lalakjan", "DHA · Lalak Jan Chowk",    "DS · Lalak Jan", "dha",       720, 505, "moderate", 12, LATE, 7.3, 11, EVENING),
     branch("ds-pine",     "Pine Avenue",              "DS · Pine Ave", "dha",        630, 670, "quiet",    16, LATE, 8.8, 8,  EVENING),
     branch("ds-dolmen",   "DHA · Dolmen Mall",        "DS · Dolmen",   "dha",        800, 640, "moderate", 6,  { open: "10:00", close: "23:00", label: "10 am – 11 pm" }, 9.9, 12, [0, 0, 0.35, 0.45, 0.5, 0.55, 0.6, 0.6, 0.65, 0.75, 0.85, 0.85, 0.7, 0.5, 0.3, 0.1]),
-    {
-      id: "kiln",
-      name: "Kiln & Bean",
-      area: "gulberg",
-      latte: "kiln-latte",
-      tags: ["Roastery", "Pastries"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(6),
-      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
-      blurb: "Roasts on site every Tuesday. The window seats go first.",
-      distanceKm: 0.8,
-      x: 545, y: 345,
-      menu: [
-        { id: "kiln-flat", section: "Coffee", name: "Kiln flat white", hot: 650, iced: 650 },
-        { id: "kiln-cort", section: "Coffee", name: "Cardamom cortado", hot: 600, iced: null },
-        { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
-        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
-        { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950, inPlan: false },
-      ],
-      busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
-      avgDailyCups: 9,
-    },
-    {
-      id: "maple",
-      name: "Maple Roastery",
-      area: "dha",
-      latte: "maple-latte",
-      tags: ["Roastery", "Work-friendly"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(12),
-      hours: { open: "9:00", close: "22:00", label: "9 am – 10 pm" },
-      blurb: "Light roasts, long tables, plugs at every seat.",
-      distanceKm: 6.4,
-      x: 790, y: 545,
-      menu: [
-        { id: "maple-espresso", section: "Coffee", name: "Maple house espresso", hot: 550, iced: null },
-        { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
-        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
-        { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
-        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null, inPlan: false },
-      ],
-      busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 5,
-    },
-    {
-      id: "ember",
-      name: "Ember Coffee Co.",
-      area: "model-town",
-      latte: "ember-latte",
-      tags: ["Pastries", "Garden", "Outdoor"],
-      status: "packed",
-      statusUpdatedAt: minsAgo(3),
-      hours: { open: "7:30", close: "22:00", label: "7:30 am – 10 pm" },
-      blurb: "A garden café off the park. Croissants until they run out.",
-      distanceKm: 5.1,
-      x: 500, y: 615,
-      menu: [
-        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 600, iced: 600 },
-        { id: "ember-flat", section: "Coffee", name: "Flat white", hot: 620, iced: null },
-        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 700, iced: 700 },
-        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 750 },
-        { id: "ember-pistachio", section: "Coffee", name: "Pistachio latte", hot: 900, iced: 900 },
-      ],
-      busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
-      avgDailyCups: 7,
-    },
-    {
-      id: "thirdfloor",
-      name: "Third Floor",
-      area: "johar-town",
-      latte: "tf-latte",
-      tags: ["Work-friendly", "Late night"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(18),
-      hours: { open: "10:00", close: "1:00", label: "10 am – 1 am" },
-      blurb: "Up two flights of stairs, and worth it. Open late for exam season.",
-      distanceKm: 9.7,
-      x: 290, y: 625,
-      menu: [
-        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 500, iced: 500 },
-        { id: "tf-latte", section: "Coffee", name: "Latte", hot: 600, iced: 600 },
-        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 650, iced: 650 },
-        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 850, iced: null },
-        { id: "tf-lotus", section: "Cold", name: "Lotus iced latte", hot: null, iced: 950 },
-      ],
-      busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
-      avgDailyCups: 4,
-    },
-    {
-      id: "quiethours",
-      name: "Quiet Hours",
-      area: "fortress",
-      latte: "qh-latte",
-      tags: ["Work-friendly", "Pastries", "Outdoor"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(9),
-      hours: { open: "8:00", close: "21:00", label: "8 am – 9 pm" },
-      blurb: "No music before noon. Ask for the banana bread.",
-      distanceKm: 3.2,
-      x: 670, y: 290,
-      menu: [
-        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 650, iced: null },
-        { id: "qh-latte", section: "Coffee", name: "Latte", hot: 650, iced: 650 },
-        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 700, iced: null },
-        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 550, iced: null },
-        { id: "qh-mocha", section: "Coffee", name: "Dark chocolate mocha", hot: 880, iced: 880 },
-      ],
-      busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
-      avgDailyCups: 4,
-    },
-    {
-      id: "slowpour",
-      name: "Slow Pour",
-      area: "liberty",
-      latte: "sp-latte",
-      tags: ["Roastery", "Pour-over"],
-      status: "packed",
-      statusUpdatedAt: minsAgo(4),
-      hours: { open: "9:00", close: "24:00", label: "9 am – midnight" },
-      blurb: "A six-seat bar and a hand grinder. Worth the wait.",
-      distanceKm: 1.6,
-      x: 440, y: 405,
-      menu: [
-        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 700, iced: null },
-        { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
-        { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
-        { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
-        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null, inPlan: false },
-      ],
-      busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
-      avgDailyCups: 7,
-    },
-    {
-      id: "noon",
-      name: "Noon Café",
-      area: "gulberg",
-      latte: "noon-latte",
-      tags: ["Pastries", "Breakfast", "Outdoor"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(22),
-      hours: { open: "7:00", close: "20:00", label: "7 am – 8 pm" },
-      blurb: "Early opener on MM Alam. Eggs, toast, a proper cappuccino.",
-      distanceKm: 1.1,
-      x: 575, y: 395,
-      menu: [
-        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 600, iced: null },
-        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 650, iced: 650 },
-        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 550 },
-        { id: "noon-chai", section: "Tea", name: "Doodh patti", hot: 400, iced: null },
-        { id: "noon-kunafa", section: "Coffee", name: "Kunafa latte", hot: 950, iced: 950 },
-      ],
-      busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
-      avgDailyCups: 6,
-    },
-    {
-      id: "grind",
-      name: "Grind & Grain",
-      area: "dha",
-      latte: "gg-latte",
-      tags: ["Pastries", "Roastery"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(14),
-      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
-      blurb: "Bakery first, coffee a very close second. Sourdough from 9.",
-      distanceKm: 7.2,
-      x: 735, y: 600,
-      menu: [
-        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 650, iced: 650 },
-        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 550, iced: null },
-        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 700, iced: 700 },
-        { id: "gg-brown", section: "Coffee", name: "Brown sugar oat latte", hot: 850, iced: 850 },
-        { id: "gg-praline", section: "Cold", name: "Hazelnut praline latte", hot: null, iced: 1000 },
-      ],
-      busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 5,
-    },
+    // Real Lahore cafés as prototype demo data (menu prices from their public menus, Nov 2026).
+    // Hours, busy patterns and tags follow the seed pattern; they are not the cafés' own.
+    ...REAL.map(real),
   ];
 
   /* Single-branch cafés: each one is a brand with one branch (the café
      itself, same id). The brand owns the menu and the
      rules; the branch keeps its pin, hours, busy level and staff. Cups
-     and payouts follow the bands above, as at Double Shot.             */
+     and payouts follow the bands above, as at Double Shot. Drip
+     (Gulberg) is the main demo café.                                   */
   const SINGLE = {
-    //            monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
-    kiln:       ["KB", "1111", "KB-01", ["Bilal", "Hira", "Saad"], "2468", 40],
-    maple:      ["MR", "2222", "MR-01", ["Sameer", "Laiba", "Junaid"], "2678", 30],
-    ember:      ["EC", "3333", "EC-01", ["Waqas", "Hafsa", "Nabeel"], "3678", 35],
-    thirdfloor: ["TF", "4444", "TF-01", ["Arham", "Mishal", "Rehan"], "4678", 25],
-    quiethours: ["QH", "5555", "QH-01", ["Ammar", "Eman", "Shahid"], "5678", 25],
-    slowpour:   ["SP", "6666", "SP-01", ["Zain", "Anaya", "Fahad"], "6678", 35],
-    noon:       ["NC", "7777", "NC-01", ["Huzaifa", "Maham", "Adeel"], "7678", 30],
-    grind:      ["GG", "8888", "GG-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
+    //                monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
+    drip:           ["DR", "1111", "DR-01", ["Bilal", "Hira", "Saad"], "2468", 40],
+    blank:          ["BL", "2222", "BL-01", ["Sameer", "Laiba", "Junaid"], "2678", 30],
+    thirdculture:   ["TC", "3333", "TC-01", ["Waqas", "Hafsa", "Nabeel"], "3678", 35],
+    brewtique:      ["BW", "4444", "BW-01", ["Arham", "Mishal", "Rehan"], "4678", 25],
+    housespecialty: ["HS", "5555", "HS-01", ["Ammar", "Eman", "Shahid"], "5678", 25],
+    kite:           ["KT", "6666", "KT-01", ["Zain", "Anaya", "Fahad"], "6678", 35],
+    artisan:        ["AC", "7777", "AC-01", ["Huzaifa", "Maham", "Adeel"], "7678", 30],
+    nofilter:       ["NF", "8888", "NF-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
+    extraction:     ["EX", "9999", "EX-01", ["Owais", "Zoya", "Imran"], "9678", 30],
+    retrograde:     ["RG", "1212", "RG-01", ["Hamid", "Sadia", "Moiz"], "1278", 25],
+    zyah:           ["ZY", "1313", "ZY-01", ["Faizan", "Rameen", "Usama"], "1378", 25],
+    luna:           ["LN", "1414", "LN-01", ["Danyal", "Areesha", "Bilawal"], "1478", 30],
   };
   cafes.filter((c) => c.menu).forEach((c) => {
     c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
       id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Brand owner", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
-      menuNote: "Demo menu. Prices are fictional.",
+      menuNote: `Prices from ${c.name}’s public menu, Nov 2026. Demo only.`,
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
-      account: { label: "bank account", last4: c.id === "kiln" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
+      account: { label: "bank account", last4: c.id === "drip" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
       menu: c.menu,
     };
     brands.push(brand);
@@ -4872,8 +4756,9 @@ export function createContactShadow(THREE, groundY) {
     { id: "ice",   label: "Ice",   options: ["No ice", "Less", "Regular", "Extra"], default: "Regular", icedOnly: true },
   ];
   //              extra shot, larger size (Rs, at the counter)
-  const EXTRAS = { doubleshot: [200, 180], kiln: [150, 120], maple: [200, 150], ember: [180, 150], thirdfloor: [150, 100],
-                   quiethours: [150, 120], slowpour: [250, 200], noon: [150, 100], grind: [180, 150] };
+  const EXTRAS = { doubleshot: [200, 180], drip: [150, 120], blank: [200, 150], thirdculture: [180, 150], brewtique: [150, 100],
+                   housespecialty: [150, 120], kite: [250, 200], artisan: [150, 100], nofilter: [180, 150],
+                   extraction: [180, 150], retrograde: [200, 150], zyah: [200, 180], luna: [180, 150] };
   const sizeOf = (d) => (/flight/i.test(d.name) ? "3 × 4 oz" : /cortado|gibraltar|macchiato|flat white/i.test(d.name) ? "8 oz" : d.hot == null ? "16 oz" : "12 oz");
   brands.forEach((b) => {
     b.menu.forEach((d) => {
@@ -4903,11 +4788,11 @@ export function createContactShadow(THREE, groundY) {
      Nobody stores a cups-left number: balances come from the ledger below.
 
      Mumtaz is the demo member (LCC Pass); Alina (below) is on a Classic 8
-     pack. The others exist so the café view (Kiln &
-     Bean) can show a realistic month and every rule:
+     pack. The others exist so the café view (Drip)
+     can show a realistic month and every rule:
        Bilal  — Classic 16 pack, cups at several cafés this month
        Sana   — Classic 8 pack (was My cafés), 4 left
-       Omar   — Explorer Starter, first visit to Kiln & Bean today
+       Omar   — Explorer Starter, first visit to Drip today
        Zara   — Classic 8 pack (was My cafés), had today's pack cup
        Hamza  — Explorer Starter, no cups left                          */
   const cycleStart = startOfDay(now) - 9 * DAY; // seeded members’ month started 9 days ago
@@ -4940,11 +4825,11 @@ export function createContactShadow(THREE, groundY) {
     cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY, memberSince: daysAgo(40 + (memberNo % 60)),
   });
   const demoMembers = [
-    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "classic16" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }, 117, "+92 321 4410117"),
-    demo("m_sana",  "Sana",  "Tariq",   "her", { type: "explorer", tierId: "classic8" }, "207341", { kiln: 5, maple: 2 }, 203, "+92 333 8120203"),
-    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "classic8" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356, "+92 300 5520356"),
-    demo("m_zara",  "Zara",  "Hussain", "her", { type: "explorer", tierId: "classic8" }, "482913", { kiln: 4, ember: 2 }, 418, "+92 345 2210418"),
-    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "classic8" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 129, "+92 301 7730129"),
+    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "classic16" },  "615028", { drip: 6, kite: 2, artisan: 2, blank: 2, thirdculture: 1 }, 117, "+92 321 4410117"),
+    demo("m_sana",  "Sana",  "Tariq",   "her", { type: "explorer", tierId: "classic8" }, "207341", { drip: 5, blank: 2 }, 203, "+92 333 8120203"),
+    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "classic8" },  "558190", { drip: 1, artisan: 2, kite: 2, brewtique: 1 }, 356, "+92 300 5520356"),
+    demo("m_zara",  "Zara",  "Hussain", "her", { type: "explorer", tierId: "classic8" }, "482913", { drip: 4, thirdculture: 2 }, 418, "+92 345 2210418"),
+    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "classic8" },  "730215", { drip: 2, artisan: 2, kite: 2, nofilter: 2 }, 129, "+92 301 7730129"),
     // Double Shot demo members (counter codes), on cup packs now: Rabia Classic 8,
     // 5 left; Kamran Signature 16, had today's pack cup; Nida Classic 8, none left.
     demo("m_rabia",  "Rabia",  "Anwar",  "her", { type: "explorer", tierId: "classic8" },  "341862", {}, 233, "+92 322 4100233"),
@@ -4975,7 +4860,7 @@ export function createContactShadow(THREE, groundY) {
   const SURNAMES = ["Malik", "Butt", "Chaudhry", "Sheikh", "Qureshi", "Mirza", "Rana", "Javed", "Siddiqui", "Khan", "Awan", "Bajwa", "Gill", "Cheema", "Hashmi", "Raza", "Zaidi", "Nadeem", "Aslam", "Saleem"];
   const REGULAR_COUNT = 80;
   // Popularity weights for My cafés reservations
-  const POPULAR = ["kiln", "kiln", "slowpour", "slowpour", "ember", "ember", "noon", "noon", "maple", "grind", "quiethours", "thirdfloor"];
+  const POPULAR = ["drip", "drip", "kite", "kite", "thirdculture", "thirdculture", "artisan", "artisan", "blank", "nofilter", "housespecialty", "brewtique"];
   const regulars = Array.from({ length: REGULAR_COUNT }, (_, i) => {
     const firstName = REGULAR_NAMES[i % REGULAR_NAMES.length];
     const id = `m_r${i}_${firstName.toLowerCase()}`;
@@ -5054,25 +4939,25 @@ export function createContactShadow(THREE, groundY) {
 
   /* Mumtaz’s earlier months --------------------------------------------
      She joined three months before this cycle on a Classic 16 pack a
-     month (cups at Kiln & Bean, Noon Café and Slow Pour), used 12 of 16
+     month (cups at Drip, Artisan Coffee Roasters and Kite), used 12 of 16
      each month, then moved to the LCC Pass when this cycle began. The Club tab
      (status, passport, badges) reads all of it from the ledger.        */
   const clockAgo = (d, h, m = 0) => startOfToday - d * DAY + (h * 60 + m) * MIN;
   const monthsBefore = (ts, n) => { const d = new Date(ts); d.setMonth(d.getMonth() - n); return d.getTime(); };
   (function mumtazHistory() {
-    const plan = { kiln: 6, noon: 4, slowpour: 3 };
-    // [day in cycle, café, drink, hour, minute]; two Noon cups a month before 9 am
+    const plan = { drip: 6, artisan: 4, kite: 3 };
+    // [day in cycle, café, drink, hour, minute]; two Artisan cups a month before 9 am
     const MONTH = [
-      [1, "kiln", "kiln-flat", 10, 30], [3, "noon", "noon-capp", 8, 10], [5, "kiln", "kiln-cort", 13, 15],
-      [7, "slowpour", "sp-v60", 18, 20], [9, "kiln", "kiln-flat", 16, 40], [11, "noon", "noon-latte", 8, 35],
-      [13, "kiln", "kiln-cort", 11, 5], [15, "noon", "noon-capp", 12, 30], [18, "slowpour", "sp-gibraltar", 19, 0],
-      [21, "kiln", "kiln-flat", 15, 20], [24, "noon", "noon-iced", 14, 45], [27, "kiln", "kiln-cort", 10, 50],
+      [1, "drip", "dr-latte", 10, 30], [3, "artisan", "ar-capp", 8, 10], [5, "drip", "dr-capp", 13, 15],
+      [7, "kite", "ki-flat", 18, 20], [9, "drip", "dr-latte", 16, 40], [11, "artisan", "ar-latte", 8, 35],
+      [13, "drip", "dr-capp", 11, 5], [15, "artisan", "ar-capp", 12, 30], [18, "kite", "ki-espresso", 19, 0],
+      [21, "drip", "dr-latte", 15, 20], [24, "artisan", "ar-spanish", 14, 45], [27, "drip", "dr-capp", 10, 50],
     ];
     for (let k = 3; k >= 1; k--) {
       const start = startOfDay(monthsBefore(mumtaz.cycleStartedAt, k));
       const end = k === 1 ? mumtaz.cycleStartedAt : startOfDay(monthsBefore(mumtaz.cycleStartedAt, k - 1));
       const cycle = `c_m_ayesha_past${k}`;
-      // Formerly My cafés (Kiln 6, Noon 4, Slow Pour 3): one Classic 16 pack a month. seq advances
+      // Formerly My cafés (Drip 6, Artisan 4, Kite 3): one Classic 16 pack a month. seq advances
       // as before (one id per café), so later seeded ids stay the same.
       ledger.push({ id: `s${seq}`, type: "purchase", memberId: mumtaz.id, cafeId: null, cups: 16, packId: "classic16", at: start + 9 * 60 * MIN, cycle });
       seq += Object.keys(plan).length;
@@ -5089,11 +4974,11 @@ export function createContactShadow(THREE, groundY) {
   const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
   const byId = Object.fromEntries(members.map((m) => [m.id, m]));
   const HISTORY = {
-    m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
-    m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
-    m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
-    m_zara:   [["ember", "ember-latte"], ["ember", "ember-mocha"], ["kiln", "kiln-flat"]],
-    m_hamza:  [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["grind", "gg-latte"], ["grind", "gg-macch"]],
+    m_bilal:  [["drip", "dr-capp"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["artisan", "ar-capp"], ["artisan", "ar-spanish"], ["blank", "bl-latte"], ["blank", "bl-espresso"], ["thirdculture", "tc-latte"]],
+    m_sana:   [["drip", "dr-latte"], ["drip", "dr-capp"], ["blank", "bl-latte"]],
+    m_omar:   [["artisan", "ar-capp"], ["artisan", "ar-latte"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["brewtique", "br-spanish"]],
+    m_zara:   [["thirdculture", "tc-latte"], ["thirdculture", "tc-capp"], ["drip", "dr-latte"]],
+    m_hamza:  [["drip", "dr-latte"], ["drip", "dr-capp"], ["artisan", "ar-capp"], ["artisan", "ar-latte"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["nofilter", "nf-latte"], ["nofilter", "nf-espresso"]],
   };
   Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
 
@@ -5132,9 +5017,9 @@ export function createContactShadow(THREE, groundY) {
     ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: c.brandId, cups: 0, drinkId, temp: t, listPrice, memberPrice,
       discount: PLAN_CONFIG.pass.discount, tier: m.plan.tier === "plus" ? "plus" : "pass", cupNo, at, cycle: m.cycle, ...served(cafeId, id) });
   }
-  [["s_mx_1", "slowpour", "sp-gibraltar", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", "hot", clockAgo(14, 8, 20)],
-    ["s_mx_2", "noon", "noon-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
-    ["s_mx_4", "noon", "noon-capp", "hot", clockAgo(6, 11, 10)], ["s_mx_6", "kiln", "kiln-cort", "hot", todayAt(8, 40, 90)]]
+  [["s_mx_1", "kite", "ki-espresso", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "drip", "dr-latte", "hot", clockAgo(14, 8, 20)],
+    ["s_mx_2", "artisan", "ar-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
+    ["s_mx_4", "artisan", "ar-capp", "hot", clockAgo(6, 11, 10)], ["s_mx_6", "drip", "dr-capp", "hot", todayAt(8, 40, 90)]]
     .forEach(([id, cafeId, drinkId, temp, at]) => passSale(mumtaz, id, cafeId, drinkId, temp, at));
 
   /* Alina: the second demo member, on a Classic 8 cup pack (bought 12
@@ -5149,21 +5034,21 @@ export function createContactShadow(THREE, groundY) {
   };
   members.push(alina);
   ledger.push({ id: "s_al_0", type: "purchase", memberId: alina.id, cafeId: null, cups: 8, packId: "classic8", at: alina.cycleStartedAt, cycle: alina.cycle });
-  [["s_al_1", "kiln", "kiln-flat", clockAgo(9, 9, 15), true], ["s_al_2", "maple", "maple-latte", clockAgo(5, 16, 30), true], ["s_al_3", "ember", "ember-latte", clockAgo(2, 11, 45), true]]
+  [["s_al_1", "drip", "dr-latte", clockAgo(9, 9, 15), true], ["s_al_2", "blank", "bl-latte", clockAgo(5, 16, 30), true], ["s_al_3", "thirdculture", "tc-latte", clockAgo(2, 11, 45), true]]
     .forEach(([id, cafeId, drinkId, at, firstVisit]) => {
       ledger.push({ id, type: "redeem", memberId: alina.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit, at, cycle: alina.cycle, ...served(cafeId, id) });
       alina.visits[cafeId] = (alina.visits[cafeId] || 0) + 1;
     });
 
-  /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
-     Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
+  /* Today’s hand-written rows at Drip (the café view’s demo café).
+     Mumtaz: 1 of 2 at Drip this month. Zara: daily limit.       */
   const handToday = {
-    kiln: [
-      { memberId: "m_zara",   drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-cort" },
-      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
-      { memberId: "m_bilal",  drinkId: "kiln-flat" },
-      { memberId: "m_sana",   drinkId: "kiln-flat" },
+    drip: [
+      { memberId: "m_zara",   drinkId: "dr-latte" },
+      { memberId: "m_zara",   drinkId: "dr-capp" },
+      { memberId: "m_omar",   drinkId: "dr-capp", firstVisit: true },
+      { memberId: "m_bilal",  drinkId: "dr-latte" },
+      { memberId: "m_sana",   drinkId: "dr-latte" },
     ],
   };
 
@@ -5400,28 +5285,28 @@ export function createContactShadow(THREE, groundY) {
     }
   };
   // Earlier months (lifetime: stamps and badges)
-  [["kiln", "kiln-flat"], ["slowpour", null], ["noon", null], ["ember", "ember-latte"]].forEach(([c, d], i) =>
+  [["drip", "dr-latte"], ["kite", null], ["artisan", null], ["thirdculture", "tc-latte"]].forEach(([c, d], i) =>
     circleCup(`mah_old${i}`, mahnoor, c, d || cafeById[c].drinks[0].id, daysAgo(40 + i * 6, 600), "hot", true));
-  [["kiln", "kiln-cort"], ["noon", null], ["grind", null], ["maple", "maple-latte"], ["quiethours", null]].forEach(([c, d], i) =>
+  [["drip", "dr-capp"], ["artisan", null], ["nofilter", null], ["blank", "bl-latte"], ["housespecialty", null]].forEach(([c, d], i) =>
     circleCup(`usm_old${i}`, usman, c, d || cafeById[c].drinks[0].id, daysAgo(35 + i * 5, 500), "hot", true));
   ["ds-gulberg", "ds-dha6", "ds-pine"].forEach((c, i) => circleCup(`hir_old${i}`, hira, c, "ds-spanish", daysAgo(30 + i * 4, 700), "iced", true));
   ["ds-cantt", "ds-dolmen"].forEach((c, i) => circleCup(`far_old${i}`, faraz, c, "ds-americano", daysAgo(33 + i * 3, 800), "hot", true));
   // Past rounds, a week apart: 21, 14 and 7 days ago (the streak)
-  circleCup("r3_usm", usman, "kiln", "kiln-flat", clockAgo(21, 18, 10), "hot", true);
-  circleCup("r3_mah", mahnoor, "kiln", "kiln-cort", clockAgo(21, 18, 20), "hot", true);
+  circleCup("r3_usm", usman, "drip", "dr-latte", clockAgo(21, 18, 10), "hot", true);
+  circleCup("r3_mah", mahnoor, "drip", "dr-capp", clockAgo(21, 18, 20), "hot", true);
   circleCup("r2_hir", hira, "ds-gulberg", "ds-matcha", clockAgo(14, 17, 10), "iced", true);
   circleCup("r2_far", faraz, "ds-gulberg", "ds-latte", clockAgo(14, 17, 25), "hot", true);
-  circleCup("r1_usm", usman, "ember", "ember-mocha", clockAgo(7, 17, 5));
-  circleCup("r1_mah", mahnoor, "ember", "ember-latte", clockAgo(7, 17, 15));
+  circleCup("r1_usm", usman, "thirdculture", "tc-capp", clockAgo(7, 17, 5));
+  circleCup("r1_mah", mahnoor, "thirdculture", "tc-latte", clockAgo(7, 17, 15));
   // This week
   circleCup("hir_1", hira, "ds-pine", "ds-flat-white", daysAgo(5, 200));
   circleCup("hir_2", hira, "ds-gulberg", "ds-spanish", daysAgo(2, 300), "iced");
   circleCup("hir_3", hira, "ds-dha6", "ds-matcha", minsAgo(120), "iced");
-  circleCup("usm_1", usman, "grind", cafeById.grind.drinks[0].id, daysAgo(6, 100));
-  circleCup("usm_2", usman, "noon", cafeById.noon.drinks[0].id, daysAgo(3, 240));
-  circleCup("usm_3", usman, "thirdfloor", "tf-spanish", daysAgo(1, 90));
-  circleCup("mah_1", mahnoor, "slowpour", cafeById.slowpour.drinks[0].id, daysAgo(3, 420));
-  circleCup("mah_2", mahnoor, "maple", "maple-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
+  circleCup("usm_1", usman, "nofilter", cafeById.nofilter.drinks[0].id, daysAgo(6, 100));
+  circleCup("usm_2", usman, "artisan", cafeById.artisan.drinks[0].id, daysAgo(3, 240));
+  circleCup("usm_3", usman, "brewtique", "br-spanish", daysAgo(1, 90));
+  circleCup("mah_1", mahnoor, "kite", cafeById.kite.drinks[0].id, daysAgo(3, 420));
+  circleCup("mah_2", mahnoor, "blank", "bl-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
   circleCup("far_1", faraz, "ds-cantt", "ds-cortado", daysAgo(4, 330));
   circleCup("far_2", faraz, "ds-dolmen", "ds-caramel-f", daysAgo(1, 200), "iced");
 
@@ -5443,11 +5328,11 @@ export function createContactShadow(THREE, groundY) {
   }];
   const answer = (going, at) => ({ going, at });
   const rounds = [
-    { id: "round-kiln", circleId: "circle-gulberg", callerId: usman.id, cafeId: "kiln", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
+    { id: "round-drip", circleId: "circle-gulberg", callerId: usman.id, cafeId: "drip", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
       answers: { [usman.id]: answer(true, clockAgo(21, 11, 0)), [mahnoor.id]: answer(true, clockAgo(21, 12, 0)), [hira.id]: answer(false, clockAgo(21, 13, 0)) } },
     { id: "round-ds-gulberg", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-gulberg", at: clockAgo(14, 17, 0), createdAt: clockAgo(14, 10, 0), updatedAt: 0, groupId: null,
       answers: { [hira.id]: answer(true, clockAgo(14, 10, 0)), [faraz.id]: answer(true, clockAgo(14, 12, 30)), [mumtaz.id]: answer(false, clockAgo(14, 13, 0)) } },
-    { id: "round-ember", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "ember", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
+    { id: "round-thirdculture", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "thirdculture", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
       answers: { [mahnoor.id]: answer(true, clockAgo(7, 9, 0)), [usman.id]: answer(true, clockAgo(7, 9, 40)), [faraz.id]: answer(false, clockAgo(7, 11, 0)) } },
     { id: "round-today", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-dha6", at: nextRoundAt, createdAt: minsAgo(55), updatedAt: 0, groupId: null,
       answers: { [hira.id]: answer(true, minsAgo(55)), [faraz.id]: answer(true, minsAgo(40)), [usman.id]: answer(false, minsAgo(25)) } },
@@ -5455,13 +5340,13 @@ export function createContactShadow(THREE, groundY) {
   // One quiet acknowledgement per member per entry: key -> memberId -> at
   const acks = {
     "e:sc_hir_3": { [usman.id]: minsAgo(100), [mahnoor.id]: minsAgo(80) },
-    "s:m_c_mahnoor:maple": { [hira.id]: minsAgo(200) },
+    "s:m_c_mahnoor:blank": { [hira.id]: minsAgo(200) },
     "b:m_c_mahnoor:explorer": { [faraz.id]: minsAgo(190), [hira.id]: minsAgo(185) },
     "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
   };
 
   /* LCC Pass regulars (Café pass 2): 60 background members on the Pass,
-     with pass sales this calendar month, one a day at most. Kiln & Bean is
+     with pass sales this calendar month, one a day at most. Drip is
      topped up to about 143 member cups this month (under the 200 step) and
      Double Shot Gulberg to about 236 (past it); every other branch gets a
      few. About half had a pass coffee 35 to 70 days ago at their home café,
@@ -5493,10 +5378,10 @@ export function createContactShadow(THREE, groundY) {
       memberNo: 150, staticCode: "552310", plan: { type: "pass" }, visits: {}, cycle: cycleOf("m_danish"), cycleStartedAt: daysAgo(11), renewsAt: daysAgo(11 - 30), memberSince: daysAgo(11) };
     members.push(danish);
     ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
-    [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
+    [["sp_dh_1", "drip", "dr-latte", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "drip", "dr-capp", "hot", clockAgo(2, 8, 50)]]
       .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
     /* One named member for each state the counter can show (Static pass):
-       Ayaan, LCC Pass Plus, had his first coffee at Kiln & Bean 5 minutes
+       Ayaan, LCC Pass Plus, had his first coffee at Drip 5 minutes
        ago, so 1 is left today (same visit only); Hassan used his Pass this
        morning at Double Shot Gulberg; Sara's Pass ended 5 days ago; Taimur
        is suspended. Danish (above) has today's coffee available. Phones end
@@ -5515,8 +5400,8 @@ export function createContactShadow(THREE, groundY) {
     passDemo("m_sara", "Sara", "Malik", "her", 171, "+92 321 7730171", "pass", 35);
     passDemo("m_taimur", "Taimur", "Bajwa", "him", 168, "+92 345 6610168", "pass", 6, { suspended: true, suspendedAt: daysAgo(1) });
     [[ayaan, "sp_ay_1", "ds-gulberg", "ds-spanish", "iced", clockAgo(4, 17, 10), 1], [ayaan, "sp_ay_2", "ds-gulberg", "ds-americano", "hot", clockAgo(4, 17, 12), 2],
-      [ayaan, "sp_ay_3", "kiln", "kiln-flat", "hot", minsAgo(5), 1],
-      [hassan, "sp_hr_1", "kiln", "kiln-cort", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
+      [ayaan, "sp_ay_3", "drip", "dr-latte", "hot", minsAgo(5), 1],
+      [hassan, "sp_hr_1", "drip", "dr-capp", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
       .forEach(([m, id, cafeId, drinkId, temp, at, cupNo]) => { passSale(m, id, cafeId, drinkId, temp, at, cupNo); m.visits[cafeId] = (m.visits[cafeId] || 0) + 1; });
     const busy = new Set(); // "memberId|day": one pass coffee a day
     [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
@@ -5543,7 +5428,7 @@ export function createContactShadow(THREE, groundY) {
           memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
       }
     }
-    const TARGETS = { kiln: 143, "ds-gulberg": 236 };
+    const TARGETS = { drip: 143, "ds-gulberg": 236 };
     cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
   })();
 
@@ -5614,31 +5499,31 @@ export function createContactShadow(THREE, groundY) {
     ],
     // Funded by each café, not by plans. for: local (Local and up) | connoisseur | founding
     perks: [
-      { id: "kiln-shot",      cafeId: "kiln",     for: "local",       text: "An extra shot in any drink, on the house" },
-      { id: "kiln-pastry",    cafeId: "kiln",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
-      { id: "noon-refill",    cafeId: "noon",     for: "local",       text: "A complimentary refill on filter coffee" },
-      { id: "ember-croissant", cafeId: "ember",   for: "local",       text: "Half-price croissants before 10 am" },
-      { id: "slowpour-first", cafeId: "slowpour", for: "connoisseur", text: "The first pour of every new single origin" },
-      { id: "maple-beans",    cafeId: "maple",    for: "founding",    text: "A bag of the house roast on your club anniversary" },
+      { id: "drip-shot",      cafeId: "drip",     for: "local",       text: "An extra shot in any drink, on the house" },
+      { id: "drip-pastry",    cafeId: "drip",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
+      { id: "artisan-shot",   cafeId: "artisan",  for: "local",       text: "An extra shot in any drink, on the house" },
+      { id: "thirdculture-size", cafeId: "thirdculture", for: "local",  text: "A larger size at the regular price before 10 am" },
+      { id: "kite-pastry",    cafeId: "kite",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
+      { id: "blank-anniversary", cafeId: "blank", for: "founding",    text: "A complimentary drink on your club anniversary" },
     ],
     // BACKEND: gatherings and RSVPs become tables (gatherings, rsvps); seats are enforced server-side
     gatherings: [
       {
-        id: "gather-maple-cupping",
+        id: "gather-blank-cupping",
         kind: "Club morning",
-        title: "Cupping at Maple Roastery",
-        cafeId: "maple",
+        title: "Tasting morning at Blank",
+        cafeId: "blank",
         at: saturdayFrom(now + 14 * DAY, 1) + 9 * 60 * MIN,
         seats: 30,
         taken: 19,                // RSVPs before this session
         priorityDays: 7,          // Founding Members and Connoisseurs book first; everyone else from a week before
-        line: "Six coffees from three origins, tasted side by side with Maple’s roaster. Tea and something baked after.",
+        line: "A morning tasting for members, side by side. Tea and something baked after.",
       },
       {
-        id: "gather-slowpour-brew",
+        id: "gather-kite-brew",
         kind: "Club evening",
-        title: "Brew bar at Slow Pour",
-        cafeId: "slowpour",
+        title: "Brew bar at Kite",
+        cafeId: "kite",
         at: saturdayFrom(now - 14 * DAY, -1) + 18 * 60 * MIN,
         seats: 24,
         came: 22,
@@ -5648,14 +5533,14 @@ export function createContactShadow(THREE, groundY) {
         // By invitation only: 1,500 Beans (see beans.rewards). Not listed under Gatherings.
         id: "gather-members-evening",
         kind: "Members’ evening",
-        title: "An evening at Noon",
-        cafeId: "noon",
+        title: "An evening at Artisan",
+        cafeId: "artisan",
         at: saturdayFrom(now + 21 * DAY, 1) + 19 * 60 * MIN,
         seats: 20,
         taken: 7,
         priorityDays: 0,
         inviteOnly: true,
-        line: "A late tasting with Noon’s roaster, a small plate menu, and the room to ourselves.",
+        line: "A late tasting for members, a small plate menu, and the room to ourselves.",
       },
     ],
   };
@@ -5701,7 +5586,7 @@ export function createContactShadow(THREE, groundY) {
     partner[c.id] = {
       payoutDay: 5,
       payouts: [1, 2, 3].map((k) => {
-        const cups = c.id === "kiln" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
+        const cups = c.id === "drip" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
         const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : CLUB_AVG_PAYOUT;
         return { month: monthStart(k), cups, amount: cups * perCup, paidAt: monthStart(k - 1) + 4 * DAY };
       }),
@@ -5744,6 +5629,7 @@ export function createContactShadow(THREE, groundY) {
     areas,
     brands,
     cafes,
+    comingSoon,
     members,
     memberId: mumtaz.id,
     demoPackMemberId: "m_alina", // the second demo member (Classic 8), from the Demo menu
@@ -5760,7 +5646,7 @@ export function createContactShadow(THREE, groundY) {
     partner,
     drinkCategories,
     // Builder default for the “My cafés” plan
-    builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
+    builderDraft: { drip: 4, kite: 2, artisan: 2 },
   };
 })();
 
@@ -5775,8 +5661,8 @@ export function createContactShadow(THREE, groundY) {
      const { store } = LCC;
      const off = store.on("cafe:status", ({ cafeId }) => …);  // one event
      const off = store.subscribe((type, payload) => …);        // every event
-     store.actions.setCafeStatus("kiln", "packed");
-     store.select.cafe("kiln").status;
+     store.actions.setCafeStatus("drip", "packed");
+     store.select.cafe("drip").status;
 
    Events: cafe:status, cafe:pause, ledger, redeem, undo, report, pass,
            member, plan, builder, gift, rsvp, order, pickup, group, circle,
@@ -6276,7 +6162,7 @@ export function createContactShadow(THREE, groundY) {
     brand: (id) => state.brands[id] || null,
     /** The chain a branch belongs to (a brand that sells its own plans), or null for a single café. */
     brandOf: (cafeId) => state.brands[state.cafes[cafeId]?.chainId] || null,
-    /** The partner brand of any branch: Double Shot for its branches, Kiln & Bean for Kiln & Bean. */
+    /** The partner brand of any branch: Double Shot for its branches, Drip for Drip. */
     brandFor: (cafeId) => state.brands[state.cafes[cafeId]?.brandId] || null,
     /** Every partner brand, in list order. */
     partnerBrands: () => [...new Set(state.cafeOrder.map((id) => state.cafes[id].brandId))].map((id) => state.brands[id]),
@@ -7422,7 +7308,7 @@ export function createContactShadow(THREE, groundY) {
     /* ---------------- Pickup orders ---------------- */
 
     pickup: (id) => state.orders[id] || null,
-    /** Short name for where to collect: "Double Shot Gulberg", "Kiln & Bean". */
+    /** Short name for where to collect: "Double Shot Gulberg", "Drip". */
     pickupPlace(cafeId) {
       const c = state.cafes[cafeId];
       return c?.chainId ? `${state.brands[c.chainId].name} ${c.short}` : c?.name || "";
@@ -8999,7 +8885,7 @@ export function createContactShadow(THREE, groundY) {
    is the read side plus the one admin write, keyed by membership number:
 
      LCC.ledger.cupsLeft(42)                       -> 11
-     LCC.ledger.eligibleItems("LCC 42", "kiln")    -> drinks a cup covers here now
+     LCC.ledger.eligibleItems("LCC 42", "drip")    -> drinks a cup covers here now
      LCC.ledger.ledgerFor({ memberNo: 42, from, to })
      LCC.ledger.ledgerFor({ cafeId: "ds-gulberg" }) / ({ all: true })
      LCC.ledger.payoutFor("ds-gulberg", "2026-11")
@@ -9007,10 +8893,10 @@ export function createContactShadow(THREE, groundY) {
      LCC.ledger.passDay(42)                        -> { count: 1, limit: 1, left: 0, used: true, last }
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
-     LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
-     LCC.ledger.rateStep("kiln")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
-     LCC.ledger.passPackSplit("kiln")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
-     LCC.ledger.newCustomers("kiln")               -> { count, memberIds, of }
+     LCC.ledger.memberCupsThisMonth("drip")        -> { cups, pass, total }
+     LCC.ledger.rateStep("drip")                   -> { cups: 143, rate: 0.7, next: { at: 200, rate: 0.65 } }
+     LCC.ledger.passPackSplit("drip")              -> { pass: { cups, discount, paid }, pack: { cups, owed } }
+     LCC.ledger.newCustomers("drip")               -> { count, memberIds, of }
 
    Entry types (cups signed: + gives cups, − takes them):
      purchase  + a plan's cups at the start of a cycle
@@ -10037,7 +9923,7 @@ export function createContactShadow(THREE, groundY) {
                   <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
                   <div class="placeholder">
                     <span>Built in Passes 3 to 5.</span>
-                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
+                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Drip is ${ui.statusPill("drip", { bare: true })}</span>
                   </div>
                 </div>
               </div>
@@ -10297,7 +10183,7 @@ export function createContactShadow(THREE, groundY) {
         const a = store.select.member();
         return `${store.select.planLabel(a)} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
-      const kiln = store.select.cafe("kiln");
+      const drip = store.select.cafe("drip");
       el.innerHTML = html`
         <div class="surface container kit">
           <p class="eyebrow">Pass 1 · design system</p>
@@ -10386,9 +10272,9 @@ export function createContactShadow(THREE, groundY) {
 
             <section class="card">
               <div class="panel-title"><h2 class="eyebrow">Status · shared store</h2></div>
-              <p class="t-small t-muted" style="margin-bottom:var(--space-3)">Change Kiln &amp; Bean here, then open the member app or café view. Open two windows to see it mirror across them.</p>
-              <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
-                ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
+              <p class="t-small t-muted" style="margin-bottom:var(--space-3)">Change Drip here, then open the member app or café view. Open two windows to see it mirror across them.</p>
+              <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Drip status">
+                ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${drip.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
               <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.balance().left} of ${store.select.balance().total}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
@@ -10407,9 +10293,9 @@ export function createContactShadow(THREE, groundY) {
                   <div class="sheet__panel">
                     <div class="sheet__handle" aria-hidden="true"></div>
                     <div class="sheet__body stack" style="--stack-gap:var(--space-3)">
-                      <h3 class="t-h2" id="kit-sheet-title">${kiln.name}</h3>
-                      ${ui.statusPill("kiln")}
-                      <p class="t-small t-muted">${kiln.blurb}</p>
+                      <h3 class="t-h2" id="kit-sheet-title">${drip.name}</h3>
+                      ${ui.statusPill("drip")}
+                      <p class="t-small t-muted">${drip.blurb}</p>
                       <button class="btn btn--primary btn--block" type="button" data-sheet-close>Directions</button>
                     </div>
                   </div>
@@ -10438,7 +10324,7 @@ export function createContactShadow(THREE, groundY) {
           ui.setStepper(box, store.getState().builder[id] || 0, store.select.customPrice().atMaximum);
         }
         const st = e.target.closest("[data-kit-status]");
-        if (st) store.actions.setCafeStatus("kiln", st.dataset.kitStatus);
+        if (st) store.actions.setCafeStatus("drip", st.dataset.kitStatus);
         const chip = e.target.closest("[data-kit-chip]");
         if (chip) chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") !== "true");
         const tog = e.target.closest("[data-kit-toggle]");
@@ -10480,7 +10366,7 @@ export function createContactShadow(THREE, groundY) {
           if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
         }),
         store.on("cafe:status", ({ cafeId, status }) => {
-          if (cafeId !== "kiln") return;
+          if (cafeId !== "drip") return;
           $$("[data-kit-status]", el).forEach((b) => b.setAttribute("aria-pressed", b.dataset.kitStatus === status));
         }),
       ];
@@ -10691,7 +10577,7 @@ export function createContactShadow(THREE, groundY) {
                 <label class="field__label" for="ct-setup-code">Branch setup code</label>
                 <input class="input ct-setup__input" id="ct-setup-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
                   placeholder="DS-GUL" aria-describedby="ct-setup-hint ct-setup-err" aria-invalid="${!!err}">
-                <p class="field__hint" id="ct-setup-hint">Your manager has it. Demo: DS-GUL for Double Shot Gulberg, KB-01 for Kiln &amp; Bean.</p>
+                <p class="field__hint" id="ct-setup-hint">Your manager has it. Demo: DS-GUL for Double Shot Gulberg, DR-01 for Drip.</p>
                 <p class="field__error" id="ct-setup-err" role="alert">${err}</p>
               </div>
               <button type="submit" class="btn btn--primary btn--block btn--tall">Set up</button>
@@ -11450,7 +11336,7 @@ export function createContactShadow(THREE, groundY) {
           : forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter.";
         const demo = who ? `Demo: ${branch().staff.map((s) => `${s.name} ${s.pin}`).join(", ")}.`
           : forWhat === "exec" ? `Demo: this branch ${branch().executivePin}${S.branches(brand().id).length > 1 ? `, ${brand().name} owner ${brand().executive?.pin}` : ""}.`
-          : "Demo: Gulberg manager 1678, Kiln &amp; Bean manager 2468, owner 0000 / 1111.";
+          : "Demo: Gulberg manager 1678, Drip manager 2468, owner 0000 / 1111.";
         $("[data-ct-pin-sheet-body]", el).innerHTML = html`
           <h2 class="ct-title" id="ct-pin-title">${title}</h2>
           <p class="t-small t-muted">${line}</p>
@@ -11786,7 +11672,7 @@ export function createContactShadow(THREE, groundY) {
    Lahore Coffee Club — partner.js
    The owner dashboard (#/partner). Sign in with an executive PIN (6
    digits): the brand owner's sees every branch with per-branch totals
-   (demo: Double Shot 000000, Kiln & Bean 111111), a branch's sees that
+   (demo: Double Shot 000000, Drip 111111), a branch's sees that
    branch only (Double Shot Gulberg 111111 … Dolmen 777777). A single café
    has one PIN for both. The 4-digit manager PINs don't open it (they're
    for the counter's Manager tools only). Opened from a counter ("Executive"), it locks after 5 minutes
@@ -11966,7 +11852,7 @@ export function createContactShadow(THREE, groundY) {
             <div class="field" data-invalid="${!!err}">
               <label class="field__label" for="pd-pin">Executive PIN</label>
               <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
-              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Kiln &amp; Bean 111111.</p>
+              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Drip 111111.</p>
               <p class="field__error" id="pd-pin-err" role="alert">${err}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block btn--tall">Sign in</button>
@@ -12754,7 +12640,7 @@ export function createContactShadow(THREE, groundY) {
             <p class="t-small t-muted">Adds a new <strong>adjust</strong> entry to this cycle. Nothing is edited or deleted. Use a minus for cups taken off.</p>
             <div class="ad-adjust__fields">
               <label class="field"><span class="field__label">Cups</span><input class="input num" name="cups" type="number" step="1" min="-30" max="30" value="1" required></label>
-              <label class="field ad-grow"><span class="field__label">Reason (required)</span><input class="input" name="reason" maxlength="140" placeholder="Machine down at Kiln & Bean, cup not served" required></label>
+              <label class="field ad-grow"><span class="field__label">Reason (required)</span><input class="input" name="reason" maxlength="140" placeholder="Machine down at Drip, cup not served" required></label>
               <button type="submit" class="btn btn--primary">Add entry</button>
             </div>
             <p class="cv-error" role="alert">${adjustErr}</p>
@@ -13007,7 +12893,8 @@ export function createContactShadow(THREE, groundY) {
   const project = (x, y) => ({ x: 24 + (x - 260) * 0.58, y: 60 + (y - 250) * 1.1 });
   // Where each pin's name sits, so names stay inside the frame and don't collide (default: right)
   const LABEL_SIDE = {
-    slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below",
+    kite: "left", blank: "left", nofilter: "left", housespecialty: "below", thirdculture: "left", brewtique: "below",
+    extraction: "left", retrograde: "below", luna: "left", slab: "left", sixthree: "left",
     "ds-gulberg": "left", "ds-cantt": "below", "ds-lalakjan": "left", "ds-dha6": "left", "ds-dolmen": "left", "ds-pine": "left", "ds-modeltown": "left",
   };
   const AREA_LABELS = {
@@ -13116,6 +13003,7 @@ export function createContactShadow(THREE, groundY) {
         const brandId = b && (S.brand(b)?.plans.length ? b : S.cafe(b)?.chainId);
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
+        if (a === "cafes" && b && LCC.comingSoonCafe?.(b) && REG.soonDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.soonDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
         // The busy map now sits in the Cafés tab (Map selected)
         if (a === "map") return { key: "map", tab: "cafes", make: () => { REG.cafesView?.("map"); active.on?.cafesView?.("map"); return { redirect: "#/app/cafes" }; } };
@@ -13215,7 +13103,7 @@ export function createContactShadow(THREE, groundY) {
           <div class="cafe-sheet">
             <div class="stack" style="--stack-gap:var(--space-1)">
               <h2 class="t-h2" id="cafe-sheet-title">${c.name}</h2>
-              <p class="t-small t-muted">${S.area(c.area).name} · ${c.distanceKm} km · ${fmt.rs(c.price)} a cup at the counter</p>
+              <p class="t-small t-muted">${S.area(c.area).name} · ${c.distanceKm} km · Latte ${fmt.rs(c.price)}</p>
             </div>
             <div>${ui.statusPill(c.id)}</div>
             <div class="cafe-sheet__facts">
@@ -13285,10 +13173,7 @@ export function createContactShadow(THREE, groundY) {
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
-            // LCC Pass: tap the ring to turn it over (cups on us <-> money saved)
-            const onFlip = (e) => { const r = e.target.closest("[data-ring-flip]"); if (r) flipRing(r); };
-            view.addEventListener("click", onFlip);
-            return () => view.removeEventListener("click", onFlip);
+            return () => {};
           },
           on: {
             pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
@@ -13315,68 +13200,37 @@ export function createContactShadow(THREE, groundY) {
 
       /** The Home ring: the logo's own bricks (ui.logoRing, 15 of them).
           Cup packs: a gold brick per cup left (up to 15), the rest empty
-          outlines; the number is cups left. LCC Pass: the bricks fill with
-          the month's savings toward the Pass's price; the front says how
-          many cups' worth the savings come to ("cups on us"), and a tap turns
-          the ring over to the money saved.                                  */
+          outlines; the number is cups left. LCC Pass: one brick per member
+          coffee this pass month. No savings figures.                       */
       function ringSpec() {
         const N = ui.logoRingSize();
         if (S.isPass()) {
-          const pm = S.passMonth();
-          const avg = pm.coffees ? pm.listTotal / pm.coffees : 0;
-          const onUs = avg ? pm.saved / avg : 0;
-          return {
-            kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
-            cap: `${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far`,
-            label: `${fmtOnUs(onUs)} ${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
-          };
+          // Member coffees this pass month, one brick each (no savings figures: menu prices may not match the counter)
+          const n = S.passMonth().coffees;
+          return { kind: "pass", filled: Math.min(N, n), num: n, cap: `member ${n === 1 ? "coffee" : "coffees"} this month`, label: `${n} member ${n === 1 ? "coffee" : "coffees"} this month` };
         }
         const b = S.balance();
         const left = Math.max(0, b.left);
         return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${fmt.cups(b.total)} left` };
       }
-      /** 1.2 under ten, whole numbers after. */
-      const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));
       function ringHtml() {
         const r = ringSpec();
         const bricks = html`<div class="ring__bricks" data-bricks data-key="${r.filled}">${ui.logoRing({ filled: r.filled, stagger: true })}</div>`;
-        if (r.kind === "pass") {
-          return html`<button type="button" class="ring ring--home ring--flip" data-ring data-ring-flip data-kind="pass" aria-pressed="false" aria-label="${r.label}">
-            ${bricks}
-            <span class="ring__center" aria-hidden="true"><span class="ring__faces" data-faces>
-              <span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span>
-              <span class="ring__face ring__face--back"><span class="ring__unit">Rs</span><span class="ring__num ring__num--money" data-ring-money data-value="0">0</span><span class="ring__cap">saved so far</span></span>
-            </span></span>
-          </button>`;
-        }
-        return html`<div class="ring ring--home" data-ring data-kind="cups" role="img" aria-label="${r.label}">
+        return html`<div class="ring ring--home" data-ring data-kind="${r.kind}" role="img" aria-label="${r.label}">
           ${bricks}
           <div class="ring__center" aria-hidden="true"><span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span></div>
         </div>`;
       }
-      /** Turn the Pass ring over: the bricks spin once, the centre flips. */
-      function flipRing(ring) {
-        const on = ring.getAttribute("aria-pressed") !== "true";
-        ring.setAttribute("aria-pressed", String(on));
-        ring.classList.toggle("is-flipped", on);
-        const svg = $(".logo-ring", ring);
-        if (svg && !ui.reducedMotion()) { svg.classList.remove("is-spinning"); void svg.getBoundingClientRect(); svg.classList.add("is-spinning"); }
-      }
 
-      /** Lines under the ring. Pass: today's member coffee, the savings
-          (accent), paid for itself, the renewal, and after 10 coffees one
-          quiet line on what a Classic 16 would have saved. */
+      /** Lines under the ring. Pass: today's member coffee, the plain offer
+          and the renewal. No savings figures. */
       function homeLinesHtml() {
         const m = member();
         if (S.isPass()) {
           const t = S.passToday();
-          const pm = S.passMonth();
-          const vs = S.passVsPack();
           return html`
             <p class="t-body num" data-home-line>${t.limit > 1 ? `Today: ${t.limit} member coffees · ${t.left} left` : `Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}`}</p>
-            <p class="t-small home__saved num">You’ve saved ${fmt.rs(pm.saved)} this month</p>
-            <p class="t-small t-muted num">${pm.paidOff ? "Your pass has paid for itself." : `${fmt.rs(pm.price - pm.saved)} more and it has paid for itself.`} ${renewLine()}.</p>
-            ${vs ? html`<p class="t-small t-faint num">A ${vs.pack.name} would have saved you ${fmt.rs(vs.more)} more.</p>` : ""}`;
+            <p class="t-small t-muted num">${S.passTier().name} · ${LCC.passCopy ? LCC.passCopy.perDay(S.passTier()) : ""}. ${renewLine()}.</p>`;
         }
         return html`
           <p class="t-body" data-home-line>${homeLine()}</p>
@@ -13537,7 +13391,7 @@ export function createContactShadow(THREE, groundY) {
       }
       function closeCupAlert(id) { $(`[data-cup-alert="${id}"]`, el)?.remove(); }
 
-      /** After every pass sale: "LCC Pass used at Kiln & Bean · 8:40 am. Not you? Tap here." (state.notices) */
+      /** After every pass sale: "LCC Pass used at Drip · 8:40 am. Not you? Tap here." (state.notices) */
       function passNotice(notice) {
         const region = $("[data-cup-alerts]", el);
         if (!region || notice.read || notice.undone) return;
@@ -13610,7 +13464,7 @@ export function createContactShadow(THREE, groundY) {
             return html`<li class="row${r.id === newId ? " enter" : ""}">
               <div class="row__main">
                 <div class="row__title">${S.entryDrinkName(r)}</div>
-                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)}, saved ${fmt.rs(r.listPrice - r.memberPrice)} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)} at the till · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
               </div>
               <span class="badge">Pass</span>
             </li>`;
@@ -13644,9 +13498,7 @@ export function createContactShadow(THREE, groundY) {
         if (ring.dataset.kind !== r.kind) { ring.outerHTML = ringHtml().s; ring = $("[data-ring]", view); }
         const bricks = $("[data-bricks]", ring);
         if (bricks.dataset.key !== String(r.filled)) { bricks.innerHTML = ui.logoRing({ filled: r.filled }).s; bricks.dataset.key = String(r.filled); }
-        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: r.kind === "pass" ? fmtOnUs : fmt.num });
-        const money = $("[data-ring-money]", ring);
-        if (money) ui.animateNumber(money, r.money, { duration: 700, format: fmt.num });
+        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: fmt.num });
         const cap = $("[data-ring-cap]", ring); if (cap) cap.textContent = r.cap;
         ring.setAttribute("aria-label", r.label);
       }
@@ -13804,14 +13656,14 @@ export function createContactShadow(THREE, groundY) {
             <a class="pass-order__text" href="#/app/cafes/${o.brandId}" aria-label="Your order: ${S.drinkLabel(item, o.temp)} at ${S.brand(o.brandId).name}. Change it">
               <span class="t-small t-muted">${S.brand(o.brandId).name}</span>
               <span class="pass-order__drink">${S.drinkLabel(item, o.temp)}</span>
-              <span class="t-small t-muted num">${S.isPass() ? `${fmt.rs(p.price)} · ${fmt.rs(S.memberPrice(p.price))} member price` : `${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}`}</span>
+              <span class="t-small t-muted num">${S.isPass() ? `${fmt.rs(p.price)} on the menu` : `${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}`}</span>
             </a>
             <button type="button" class="icon-btn pass-order__clear" data-clear-order aria-label="Order at the counter instead">${icon("close", { size: 18 })}</button>
           </div>`;
         }
 
-        /** Cup packs: cups used at each café on this pack ("Kiln & Bean 2"), a chain counted once.
-            My cafés: each café's balance ("Kiln & Bean 3 of 6"). Brand plans: nothing,
+        /** Cup packs: cups used at each café on this pack ("Drip 2"), a chain counted once.
+            My cafés: each café's balance ("Drip 3 of 6"). Brand plans: nothing,
             the plan line already says it. Empty string when there's nothing to show. */
         function passCafes() {
           const b = S.balance();
@@ -13879,17 +13731,15 @@ export function createContactShadow(THREE, groundY) {
           $("[data-cd-bar]", view).setAttribute("stroke-dashoffset", (CD_C * (1 - p.secondsLeft / p.period)).toFixed(2));
         }
 
-        /** After a pass sale at the counter: what was paid and saved. */
+        /** After a pass sale at the counter: the drink and what was paid at the till. */
         function showPassSale(entry) {
           const card = $("[data-pass-card]", view);
           if (!card) return;
-          const pm = S.passMonth();
           card.innerHTML = html`
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(entry.cafeId)}.</p>
               <p class="t-body num">${S.entryDrinkName(entry)} · ${fmt.rs(entry.memberPrice)} at the till</p>
-              <p class="t-small home__saved num">Saved ${fmt.rs(entry.listPrice - entry.memberPrice)} · ${fmt.rs(pm.saved)} this month</p>
               <p class="t-small t-faint">${(() => { const ps = S.passStatus(member().id, entry.cafeId); return ps.state === "second" ? `${ps.allowance}. The second is here, until ${fmt.time(ps.until)}.` : "Today’s member coffee is used. Back tomorrow."; })()}</p>
               <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
@@ -14321,6 +14171,7 @@ export function createContactShadow(THREE, groundY) {
 
   /** The drink a café's price line uses: the one searched for (its cheapest match), else the latte. */
   function refDrink(c, drink = CS.drink) {
+    if (c.comingSoon) return null;
     const b = S.brandFor(c.id);
     const menu = b?.menu || [];
     let item = null;
@@ -14333,11 +14184,25 @@ export function createContactShadow(THREE, groundY) {
     if (!item) return null;
     const temp = item.hot != null ? "hot" : "iced";
     const list = S.drinkPrice(b.id, item, temp).price;
-    return { item, name: drink ? item.name : "Latte", list, member: S.memberPrice(list) };
+    return { item, name: drink ? item.name : "Latte", list }; // menu price only: no member-facing savings
   }
   const servesDrink = (c, d) => !!refDrink(c, d);
   const pickupOk = (c) => !!S.pickupAvailable?.(c.id)?.ok;
-  const hasTag = (c, t) => (t === "Pickup" ? pickupOk(c) : c.tags.includes(t));
+  const hasTag = (c, t) => (!c.comingSoon && (t === "Pickup" ? pickupOk(c) : c.tags.includes(t)));
+  /* Listed cafés without a menu yet (data.js comingSoon): on the list and
+     the map with "Menu coming soon"; not in the store, so the counter,
+     ledger and passport never see them. Only a name or area search and the
+     area filter can include them. */
+  const SOON = (LCC.data && LCC.data.comingSoon) || [];
+  const soonById = (id) => SOON.find((c) => c.id === id) || null;
+  const cafeOf = (id) => S.cafe(id) || soonById(id);
+  LCC.comingSoonCafe = soonById;
+  function soonMatches(c, f = CS) {
+    if (f.drink || f.openNow || f.quiet || f.tags.length || f.price) return false;
+    if (f.areas.length && !f.areas.includes(c.area)) return false;
+    if (f.q) { const q = norm(f.q); return norm(c.name).includes(q) || norm(c.areaLine).includes(q) || norm(S.area(c.area).name).includes(q); }
+    return true;
+  }
   /** Every drink on a partner menu, once (for search). */
   let drinkNames = null;
   const allDrinks = () => (drinkNames ??= [...new Map(S.partnerBrands().flatMap((b) => b.menu).map((d) => [norm(d.name), d.name])).values()]);
@@ -14357,7 +14222,7 @@ export function createContactShadow(THREE, groundY) {
     return true;
   }
   // BACKEND: GET /cafes?q=&drink=&area=&open=&quiet=&tags=&price= (the same filters, server-side)
-  const filtered = (f = CS) => S.cafes().filter((c) => matches(c, f));
+  const filtered = (f = CS) => [...S.cafes().filter((c) => matches(c, f)), ...SOON.filter((c) => soonMatches(c, f))];
   const filterCount = (f = CS) => f.areas.length + (f.openNow ? 1 : 0) + (f.quiet ? 1 : 0) + f.tags.length + (f.price ? 1 : 0);
 
   /** "Open · closes 11pm", "Closes in 40 min", "Opens 8am tomorrow". */
@@ -14452,11 +14317,15 @@ export function createContactShadow(THREE, groundY) {
 
     /* ---------- Pins ---------- */
     function pinHtml(c) {
+      if (c.comingSoon) {
+        return html`<button type="button" class="cs-pin cs-pin--soon${CS.selected === c.id ? " is-selected" : ""}" data-cs-pin="${c.id}" tabindex="-1" aria-label="${c.name}, menu coming soon">
+          <span>Soon</span></button>`;
+      }
       const r = refDrink(c);
       const sel = CS.selected === c.id;
       return html`<button type="button" class="cs-pin${sel ? " is-selected" : ""}" data-cs-pin="${c.id}" tabindex="-1"
-          aria-label="${S.placeName(c.id)}, ${r ? `${r.name} member price ${fmt.rs(r.member)}` : "no price"}, ${STATUS_WORD[c.status]}">
-          <span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span><span class="num">${r ? fmt.rs(r.member) : "–"}</span>
+          aria-label="${S.placeName(c.id)}, ${r ? `${r.name} ${fmt.rs(r.list)}` : "no price"}, ${STATUS_WORD[c.status]}">
+          <span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span><span class="num">${r ? fmt.rs(r.list) : "–"}</span>
         </button>`;
     }
     function paintPins() {
@@ -14467,7 +14336,7 @@ export function createContactShadow(THREE, groundY) {
     function positionPins() {
       if (!CS.cam) return;
       $$("[data-cs-pin]", pinsEl).forEach((p) => {
-        const s = toScreen(worldOf(S.cafe(p.dataset.csPin)));
+        const s = toScreen(worldOf(cafeOf(p.dataset.csPin)));
         p.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
       });
       const me = $("[data-cs-me]", pinsEl);
@@ -14492,11 +14361,26 @@ export function createContactShadow(THREE, groundY) {
       const by = {
         nearest: (a, b) => a.distanceKm - b.distanceKm,
         quietest: (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.distanceKm - b.distanceKm,
-        price: (a, b) => (refDrink(a)?.member ?? 1e9) - (refDrink(b)?.member ?? 1e9) || a.distanceKm - b.distanceKm,
+        price: (a, b) => (refDrink(a)?.list ?? 1e9) - (refDrink(b)?.list ?? 1e9) || a.distanceKm - b.distanceKm,
       }[CS.sort];
-      return list.slice().sort(by);
+      // Cafés with no menu yet go last, nearest first
+      return list.slice().sort((a, b) => (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
+    }
+    function soonCardHtml(c) {
+      const sel = CS.selected === c.id;
+      return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
+        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${c.name}. Menu coming soon. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
+          <span class="cs-card__name">${CS.q ? hl(c.name, CS.q) : c.name}</span>
+          <span class="cs-card__meta num">${c.areaLine} · ${c.distanceKm} km</span>
+          <span class="cs-card__hours">Menu coming soon</span>
+        </button>
+        <div class="cs-card__acts">
+          <a class="icon-btn" href="#/app/cafes/${c.id}" aria-label="Open ${c.name}">${icon("chevronRight", { size: 20 })}</a>
+        </div>
+      </li>`;
     }
     function cardHtml(c) {
+      if (c.comingSoon) return soonCardHtml(c);
       const r = refDrink(c);
       const sel = CS.selected === c.id;
       const saved = CS.saved.has(c.id);
@@ -14507,7 +14391,7 @@ export function createContactShadow(THREE, groundY) {
           <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km</span>
           <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]} <span class="t-faint" data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span></span>
           <span class="cs-card__hours" data-cs-hours="${c.id}">${hoursLine(c)}</span>
-          ${r ? html`<span class="cs-card__price num"><span class="cs-member">${r.name} ${fmt.rs(r.member)}</span> · ${fmt.rs(r.list)} at the counter</span>` : ""}
+          ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
           ${c.tags.length ? html`<span class="cs-card__tags">${c.tags.slice(0, 2).map((t) => html`<span class="badge">${t}</span>`)}</span>` : ""}
         </button>
         <div class="cs-card__acts">
@@ -14520,7 +14404,7 @@ export function createContactShadow(THREE, groundY) {
       const listEl = $("[data-cs-list]", root);
       if (!listEl) return;
       const all = filtered();
-      const shown = sorted(S.cafes().filter((c) => inView.includes(c.id) && all.includes(c)));
+      const shown = sorted(all.filter((c) => inView.includes(c.id)));
       // The selected café leads the list (the peek shows its card)
       if (CS.selected) { const i = shown.findIndex((c) => c.id === CS.selected); if (i > 0) shown.unshift(...shown.splice(i, 1)); }
       $("[data-cs-count]", root).textContent = `${plural(shown.length, "café")} in view`;
@@ -14674,7 +14558,7 @@ export function createContactShadow(THREE, groundY) {
     /* ---------- Selecting ---------- */
     function select(id, { from }) {
       CS.selected = id;
-      const c = S.cafe(id);
+      const c = cafeOf(id);
       $$("[data-cs-pin]", pinsEl).forEach((p) => p.classList.toggle("is-selected", p.dataset.csPin === id));
       if (from === "pin") {
         setSnap("peek");
@@ -14884,7 +14768,7 @@ export function createContactShadow(THREE, groundY) {
       const sel = t.closest("[data-cs-select]");
       if (sel) {
         const id = sel.dataset.csSelect;
-        if (CS.selected === id) { location.hash = `#/app/cafes/${S.cafe(id).chainId || id}`; return; } // a second tap opens it
+        if (CS.selected === id) { location.hash = `#/app/cafes/${cafeOf(id).chainId || id}`; return; } // a second tap opens it
         return select(id, { from: "card" });
       }
       const sv = t.closest("[data-cs-save]");
@@ -14968,7 +14852,7 @@ export function createContactShadow(THREE, groundY) {
                 <p class="cs-sheet__count" id="cs-count" data-cs-count aria-live="polite"></p>
                 <label class="cs-sort"><span class="sr-only">Sort by</span>
                   <span class="select"><select class="input" data-cs-sort>
-                    ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest member price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
+                    ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
                   </select></span></label>
               </div>
             </div>
@@ -15031,7 +14915,7 @@ export function createContactShadow(THREE, groundY) {
       on: {
         // BACKEND: busy status arrives over Realtime (cafe:status); pins and cards repaint
         "cafe:status": () => { paintPins(); paintList(); },
-        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { n.textContent = hoursLine(S.cafe(n.dataset.csHours)); }); },
+        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = hoursLine(c); }); },
         cafesView: () => setSnap(CS.snap),
       },
     };
@@ -15041,6 +14925,31 @@ export function createContactShadow(THREE, groundY) {
   /* -------------------------------------------------------------------
      Café detail
      ------------------------------------------------------------------- */
+  /** A listed café without a menu yet: name, area and "Menu coming soon". */
+  REG.soonDetail = (ctx, cafeId) => {
+    const c = soonById(cafeId);
+    return {
+      html: html`
+        <div class="cafe-detail">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app/cafes" aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen cafe-detail__body">
+            <div class="stack" style="--stack-gap:var(--space-2)">
+              <p class="eyebrow">${c.areaLine} · ${c.distanceKm} km</p>
+              <h1 class="t-h1">${c.name}</h1>
+              <p class="t-body t-muted">${c.blurb}</p>
+            </div>
+            <section class="app-section" aria-labelledby="drinks-h">
+              <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
+              <p class="t-body">Menu coming soon</p>
+              <p class="t-small t-muted">This café isn’t taking member coffees yet. We’ll add its menu when it joins.</p>
+            </section>
+          </div>
+        </div>`.s,
+    };
+  };
+
   REG.cafeDetail = (ctx, cafeId) => {
     const { view } = ctx;
     const c = S.cafe(cafeId);
@@ -15140,11 +15049,11 @@ export function createContactShadow(THREE, groundY) {
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
-              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.passTier().name}, ${S.passTier().dailyLimit === 1 ? "one coffee" : `${S.passTier().dailyLimit} coffees`} a day.</p>
+              <p class="t-small t-muted">Menu prices. With the ${S.passTier().name}: ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier().dailyLimit === 1 ? "one coffee a day" : "two a day, same visit"}.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
-                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, member price ${fmt.rs(S.memberPrice(d.price))}, ${bandLabel(c, d)}. Order for pickup">
-                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d.price))} member price</span>${topUpFor(c, d)}</span></span>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)}${topUpFor(c, d)}</span></span>
                     <span class="badge">${bandLabel(c, d)}</span>
                   </button>
                 </li>`)}
@@ -15186,7 +15095,7 @@ export function createContactShadow(THREE, groundY) {
    Lahore Coffee Club — app-brand.js
    Member app: a brand partner's page (#/app/cafes/doubleshot, also
    reached from any branch's row or pin). Your cups, the drinks menu with
-   a Hot / Iced toggle (list price and member price), ordering ("Use a cup"), branches.
+   a Hot / Iced toggle (menu prices), ordering ("Use a cup"), branches.
 
    Cups belong to the brand, not a branch: they work at every branch.
    "Use a cup at the counter" only tells the counter what you'd like; the
@@ -15229,7 +15138,7 @@ export function createContactShadow(THREE, groundY) {
 
     /** What this drink costs the member: the Pass's member price, or what a cup covers. */
     const coverLine = (p) => (S.isPass()
-      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      ? `${Math.round(S.planConfig().pass.discount * 100)}% off with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
       : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
@@ -15273,7 +15182,7 @@ export function createContactShadow(THREE, groundY) {
               <button type="button" class="menu-row" data-drink="${d.id}" aria-haspopup="dialog" aria-controls="order-sheet">
                 <span class="menu-row__main">
                   <span class="row__title">${S.drinkLabel(d, menuTemp)}</span>
-                  <span class="row__meta num">${fmt.rs(d[menuTemp])} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d[menuTemp]))} member price</span>${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
+                  <span class="row__meta num">${fmt.rs(d[menuTemp])}${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
                 </span>
                 ${priceTag(d, menuTemp)}
               </button>
@@ -15515,8 +15424,10 @@ export function createContactShadow(THREE, groundY) {
 
   // The Pass purchase entry records tier "pass" or "plus" (state.js setPlan)
   const draftPlan = () => (draft.mode === "pass" ? { type: "pass", tier: draft.passTier } : { type: "explorer", tierId: draft.tierId });
-  /** "1 member coffee a day" / "2 member coffees a day, at the same visit" */
-  const perDay = (T) => (T.dailyLimit === 1 ? "1 member coffee a day" : `${T.dailyLimit} member coffees a day, at the same visit`);
+  /** The plain offer: "20% off one coffee a day" / "20% off two a day, same visit". No savings figures. */
+  const perDay = (T) => `${Math.round(T.discount * 100)}% off ${T.dailyLimit === 1 ? "one coffee a day" : "two a day, same visit"}`;
+  /** A pack, in plain facts: "8 cups · Any drink up to Rs 750 · Lasts 45 days". No per-cup or savings figures. */
+  const packFacts = (t) => `${fmt.cups(t.cups)} · Any drink up to ${fmt.rs(S.band(t.maxBand).maxPrice)} · Lasts ${cfg().packDays} days`;
   LCC.passCopy = { perDay };
 
   /** Why Continue is off, or null: already on the Pass; a pack with cups still left. */
@@ -15546,13 +15457,12 @@ export function createContactShadow(THREE, groundY) {
           <span class="eyebrow">${T.name}${cur?.type === "pass" && (cur.tier || "pass") === T.tier ? html`<span class="sr-only">, your plan</span>` : ""}</span>
           <span class="pass-offer__price"><span class="t-h1 num">${fmt.rs(T.price)}</span> <span class="t-small t-muted">a month, tax included</span></span>
           <span class="t-body">${perDay(T)}</span>
-          <span class="t-small t-muted">${line}</span>
-          <span class="t-small pass-tier__back">${T.paysBack}</span>
+          ${line ? html`<span class="t-small t-muted">${line}</span>` : ""}
         </label>`;
       return html`
         <fieldset class="pass-tiers">
           <legend class="sr-only">${P.name} or ${X.name}</legend>
-          ${card(P, `${pct}% off any drink, at any partner café.`)}
+          ${card(P, "Any drink, at any partner café.")}
           ${card(X, `A second coffee every day for ${fmt.rs(X.price - P.price)} more. Bring a friend.`)}
         </fieldset>
         <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. You pay the café the member price. Renew from the app each month. Cancel any time.</p>`;
@@ -15574,7 +15484,7 @@ export function createContactShadow(THREE, groundY) {
                 return html`<label class="plan-row${off ? " is-off" : ""}">
                   <input class="sr-only" type="radio" name="tier" value="${t.id}" ${draft.tierId === t.id ? raw("checked") : ""} ${off ? raw("disabled") : ""}>
                   <span class="plan-row__text"><span class="plan-row__name">${t.name}</span>${cur?.type === "explorer" && cur.tierId === t.id ? html`<span class="sr-only">, your pack</span>` : ""}
-                    <span class="t-small t-muted num">${off ? "Once per person, already used" : `${fmt.cups(t.cups)} · ${fmt.rs(Math.round(t.price / t.cups))} a cup${t.oncePerPerson ? " · once per person" : ""}`}</span></span>
+                    <span class="t-small t-muted num">${off ? "Once per person, already used" : `${packFacts(t)}${t.oncePerPerson ? " · once per person" : ""}`}</span></span>
                   <span class="plan-row__price num">${fmt.rs(t.price)}</span>
                 </label>`;
               })}
@@ -15599,10 +15509,10 @@ export function createContactShadow(THREE, groundY) {
       const btn = $("[data-continue]", view);
       const why = blocked();
       const text = why
-        || (draft.mode === "pass" ? S.passTier(draftPlan()).paysBack : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
+        || (draft.mode === "pass" ? perDay(S.passTier(draftPlan())) : packFacts(S.tier(draft.tierId)));
       note.textContent = text;
       note.classList.remove("is-warn");
-      note.classList.toggle("is-save", !why);
+      note.classList.remove("is-save");
       btn.disabled = !!why;
     }
 
@@ -15780,7 +15690,7 @@ export function createContactShadow(THREE, groundY) {
         const mem = ctx.member();
         const title = isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready.`;
         const line = isPass
-          ? `${perDay(S.passTier(plan))}, ${Math.round(cfg().pass.discount * 100)}% off, from today. Renews on ${longDate(mem.renewsAt)}.`
+          ? `${perDay(S.passTier(plan))}, from today. Renews on ${longDate(mem.renewsAt)}.`
           : `${fmt.cups(S.balance(mem.id).total)}, fresh from today. Use by ${longDate(mem.renewsAt)}.`;
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
@@ -15899,7 +15809,7 @@ export function createContactShadow(THREE, groundY) {
               </div>
               ${isPass
                 ? html`<p class="t-small t-muted num">A month, starting today. Renews on ${longDate(renewal)}.</p>
-                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off · ${perDay(S.passTier(plan))} · any drink, any partner café · tax included</p>`
+                    <p class="t-micro t-faint num">${perDay(S.passTier(plan))} · any drink, any partner café · tax included</p>`
                 : html`<p class="t-small t-muted num">${fmt.cups(q.cups)}, starting today. Use by ${longDate(renewal)}; doesn’t renew.</p>
                     <p class="t-micro t-faint num">Selected partner cafés · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>`}
             </div>
@@ -18259,7 +18169,7 @@ export function createContactShadow(THREE, groundY) {
       const base = { at: e.at, cafe: place(e.cafeId), cups: e.cups, channel: e.channel === "pickup" || e.orderId ? "Pickup" : e.type === "redeem" || e.type === "undo" ? "Counter" : "", drink: "", mods: "", note: "" };
       switch (e.type) {
         case "purchase": out.push({ ...base, what: e.pass ? `${S.passTier({ type: "pass", tier: e.tier }).name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
-        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
+        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee" }); break;
         case "redeem": {
           const top = e.topUp ? ` · top-up ${fmt.rs(e.topUp)} ${e.topUpOnline ? "paid online" : "paid at the counter"}` : "";
           out.push({ ...base, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });
@@ -19365,7 +19275,7 @@ export function createContactShadow(THREE, groundY) {
   const S = store.select;
 
   const WHATSAPP_NUMBER = "923100008242";
-  const TEASER_CAFES = ["kiln", "slowpour", "noon"];
+  const TEASER_CAFES = ["drip", "kite", "artisan"];
   const ESTIMATOR = {
     members: { min: 10, max: 200, step: 5, value: 40 },
     visits: { min: 1, max: 8, step: 1, value: 3 },
@@ -19468,13 +19378,12 @@ export function createContactShadow(THREE, groundY) {
 
   function plansTable() {
     return html`<table class="lp-table">
-      <caption class="sr-only">Explorer plans</caption>
-      <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
+      <caption class="sr-only">Cup packs</caption>
+      <thead><tr><th scope="col">Cup pack</th><th scope="col" class="num">Price</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
-          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · Covers: ${S.coversLabel(t.maxBand)}</span></th>
+          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted num">${fmt.cups(t.cups)} · Any drink up to ${fmt.rs(S.band(t.maxBand).maxPrice)} · Lasts ${store.getState().planConfig.packDays} days</span></th>
           <td class="num t-h3">${fmt.rs(t.price)}</td>
-          <td class="num t-small t-muted lp-table__per">about ${fmt.rs(t.price / t.cups)}</td>
         </tr>`)}
       </tbody>
     </table>`;
@@ -19599,7 +19508,7 @@ export function createContactShadow(THREE, groundY) {
               ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
               <dl class="lp-types">
                 <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
-                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month, and pay less per cup. They’re only for those cafés.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month. They’re only for those cafés.</dd></div>
               </dl>
               <div class="lp-plans">
                 ${plansTable()}
@@ -19703,9 +19612,9 @@ export function createContactShadow(THREE, groundY) {
         cupsEl.textContent = fmt.cups(p.cups);
         if (animate) ui.animateNumber(priceEl, p.price, { format: fmt.rs });
         else { priceEl.textContent = fmt.rs(p.price); priceEl.dataset.value = p.price; }
-        $("[data-teaser-note]", el).classList.toggle("is-save", p.meetsMinimum);
+        // No savings figures: menu prices may not match the counter
         $("[data-teaser-note]", el).textContent = p.meetsMinimum
-          ? `You save ${fmt.rs(p.savings)} vs paying at the counter.`
+          ? ""
           : `Add ${fmt.cups(p.cupsShort)}: plans start at ${store.getState().rules.minCupsTotal} cups a month.`;
         TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id], p.atMaximum); });
       }

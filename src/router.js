@@ -316,7 +316,7 @@
                   <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
                   <div class="placeholder">
                     <span>Built in Passes 3 to 5.</span>
-                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Kiln &amp; Bean is ${ui.statusPill("kiln", { bare: true })}</span>
+                    <span>Store check: <span class="num" data-bind="cups">${store.select.balance().left} of ${store.select.balance().total}</span> cups left. Drip is ${ui.statusPill("drip", { bare: true })}</span>
                   </div>
                 </div>
               </div>

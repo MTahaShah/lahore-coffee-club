@@ -20,7 +20,7 @@
         const a = store.select.member();
         return `${store.select.planLabel(a)} plan · renews ${fmt.shortDate(a.renewsAt)}`;
       };
-      const kiln = store.select.cafe("kiln");
+      const drip = store.select.cafe("drip");
       el.innerHTML = html`
         <div class="surface container kit">
           <p class="eyebrow">Pass 1 · design system</p>
@@ -109,9 +109,9 @@
 
             <section class="card">
               <div class="panel-title"><h2 class="eyebrow">Status · shared store</h2></div>
-              <p class="t-small t-muted" style="margin-bottom:var(--space-3)">Change Kiln &amp; Bean here, then open the member app or café view. Open two windows to see it mirror across them.</p>
-              <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Kiln & Bean status">
-                ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${kiln.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
+              <p class="t-small t-muted" style="margin-bottom:var(--space-3)">Change Drip here, then open the member app or café view. Open two windows to see it mirror across them.</p>
+              <div class="cluster" style="--cluster-gap:var(--space-2);margin-bottom:var(--space-4)" role="group" aria-label="Set Drip status">
+                ${store.statuses.map((s) => html`<button type="button" class="chip" aria-pressed="${drip.status === s}" data-kit-status="${s}">${fmt.statusLabel(s)}</button>`)}
               </div>
               <div class="row"><div class="row__main"><div class="row__title">Mumtaz</div><div class="row__meta" data-kit-plan>${planMeta()}</div></div><span class="row__trail num" data-kit-ayesha>${store.select.balance().left} of ${store.select.balance().total}</span></div>
               ${cafes.map((c) => html`<div class="row"><div class="row__main"><div class="row__title">${c.name}</div><div class="row__meta">${store.select.area(c.area).name}</div></div>${ui.statusPill(c.id)}</div>`)}
@@ -130,9 +130,9 @@
                   <div class="sheet__panel">
                     <div class="sheet__handle" aria-hidden="true"></div>
                     <div class="sheet__body stack" style="--stack-gap:var(--space-3)">
-                      <h3 class="t-h2" id="kit-sheet-title">${kiln.name}</h3>
-                      ${ui.statusPill("kiln")}
-                      <p class="t-small t-muted">${kiln.blurb}</p>
+                      <h3 class="t-h2" id="kit-sheet-title">${drip.name}</h3>
+                      ${ui.statusPill("drip")}
+                      <p class="t-small t-muted">${drip.blurb}</p>
                       <button class="btn btn--primary btn--block" type="button" data-sheet-close>Directions</button>
                     </div>
                   </div>
@@ -161,7 +161,7 @@
           ui.setStepper(box, store.getState().builder[id] || 0, store.select.customPrice().atMaximum);
         }
         const st = e.target.closest("[data-kit-status]");
-        if (st) store.actions.setCafeStatus("kiln", st.dataset.kitStatus);
+        if (st) store.actions.setCafeStatus("drip", st.dataset.kitStatus);
         const chip = e.target.closest("[data-kit-chip]");
         if (chip) chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") !== "true");
         const tog = e.target.closest("[data-kit-toggle]");
@@ -203,7 +203,7 @@
           if (member.id === a.id) $("[data-kit-ayesha]", el).textContent = `${store.select.balance().left} of ${store.select.balance().total}`;
         }),
         store.on("cafe:status", ({ cafeId, status }) => {
-          if (cafeId !== "kiln") return;
+          if (cafeId !== "drip") return;
           $$("[data-kit-status]", el).forEach((b) => b.setAttribute("aria-pressed", b.dataset.kitStatus === status));
         }),
       ];

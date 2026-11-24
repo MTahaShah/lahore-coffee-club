@@ -18,12 +18,17 @@ counter screen).
 - Colour: black, white and cream are the base in both modes; the coffee
   palette is for small accents only (see "Where accents are allowed" in
   BRAND.md: the cups-left bricks, the QR ring, the monogram's bricks, the
-  active tab, the savings line, eyebrows, one highlight per screen). Tokens
+  active tab, eyebrows, one highlight per screen). Tokens
   live in `src/base.css`: neutrals (`--bg`, `--surface`, `--ink`, `--line`,
   `--primary` = black on light, cream on dark), `--accent-text` (the only
   coffee colour for text), and fixed `--accent`, `--accent-deep`,
   `--espresso`, `--mocha`, `--roast`, plus `--black`, `--white`, `--cream`.
   No espresso or brown backgrounds anywhere.
+- No member-facing savings figures or per-cup estimates. Our prices come
+  from public menus and may not match the counter, so members never see
+  "You save Rs X", a member price next to a menu price, "Pays for itself
+  after N", or "Rs X a cup" on packs. The counter (cashier) still sees list
+  price, member price and the amount to charge.
 - Dark mode is black with cream text (`prefers-color-scheme`, the theme
   toggle, and `.theme-dark` for surfaces that are always dark, such as the
   pass screen).
@@ -85,7 +90,7 @@ favicon are inlined). Edit `src/`, never `index.html`.
   typography, components, shells
 - `fonts/` — Glacial Indifference Regular and Bold (woff2)
 - `logos/` — wordmark, horizontal monogram, ring, app icons, favicon
-- `data.js` — seed: 8 fictional cafés, the Double Shot brand (7 branches,
+- `data.js` — seed: 12 real Lahore cafés plus 2 listed "Menu coming soon" (prototype demo data, see "Real cafés pass"), the Double Shot brand (7 branches,
   menu, plans), `BANDS` and `PLANS` (5 Explorer tiers), members with plans and
   member numbers, the ledger (Mumtaz's earlier months, and a month generated
   under the real rules), club rules (levels, badges, perks, gatherings)
@@ -198,6 +203,8 @@ This order overrides any order implied by the spec.
     retired, undo copy, new-customer seed
 15. [x] Static pass pass: static member pass with wallet option, Pass Plus,
     Rs 399 / 699 pricing, cross-café daily limit
+16. [x] Real cafés pass: real Lahore cafés as demo data, no member savings
+    or per-cup estimates
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -208,7 +215,7 @@ next pass until asked.**
 ## Plans pass (launch model; overrides "Plan types" below where they differ)
 
 - `data.js` `PLAN_CONFIG` (state: `state.planConfig`, `select.planConfig()`):
-  `pass` { name "LCC Pass", price 350, discount 0.20, dailyLimit 1 },
+  `pass` { name "LCC Pass", price 399, discount 0.20, dailyLimit 1 } and `plus` { "LCC Pass Plus", 699, dailyLimit 2 },
   `packDays` 45, `packAutoRenew` false, `bandLimits` (classic 750,
   signature 1000, reserve 1500; BANDS read their `maxPrice` from it).
   // BACKEND: one admin-editable settings row.
@@ -240,12 +247,12 @@ next pass until asked.**
 - Shared `.screen-bar` (back arrow): 64px, and the screen under it starts
   `--space-5` lower, so the first heading never sits under the arrow.
 - Plan picker: LCC Pass (default) | Cup packs. Home for Pass members: a
-  20-brick ring filling with savings toward Rs 350, "Today's member
-  coffee: available / used, back tomorrow", "You've saved Rs X this
-  month", "Your pass has paid for itself."; café and brand menus show
-  list and member price; the Pass tab reads "LCC Pass · 20% off · 1 today".
+  a ring of member coffees this month, "Today's member coffee: available /
+  used, back tomorrow", the plain offer and the renewal (savings lines
+  removed in the Real cafés pass); café and brand menus show menu prices
+  only.
 - Demo: Mumtaz LCC 42 is on the Pass (6 pass sales this cycle, one this
-  morning at Kiln & Bean; Rs 797 saved; Beans 160). Alina Mirza LCC 88
+  morning at Drip; Rs 797 saved; Beans 160). Alina Mirza LCC 88
   (code 390514) is on Classic 8, 5 of 8 left; Demo menu → "Alina: Classic
   8 pack" (`actions.viewAsMember`), "Mumtaz: LCC Pass" goes back.
 
@@ -273,8 +280,7 @@ next pass until asked.**
   this month" (`LCC.ledger.newCustomers`). Pass sales show in the live feed.
   Since the Payout pass this is the same figure as Money, "Payout today"
   and admin (see Payout pass).
-- Seed: 60 background Pass members (`m_ps…`, separate PRNG) top Kiln &
-  Bean up to 143 member cups this month and Double Shot Gulberg to 236;
+- Seed: 60 background Pass members (`m_ps…`, separate PRNG) top Drip up to 143 member cups this month and Double Shot Gulberg to 236;
   other branches get a few. Danish Hashmi LCC 150 (code 552310), on the
   Pass with today's coffee available, for the counter demo.
 
@@ -304,6 +310,61 @@ next pass until asked.**
   this month one earlier coffee there, so "New customers this month" is
   about 15–25% per branch.
 
+## Real cafés pass (overrides earlier café names, PINs and savings copy)
+
+Prototype demo data: real Lahore cafés with menu prices from their public
+menus (Nov 2026). Hours, busy patterns and tags follow the seed pattern and
+are not the cafés' own; blurbs are neutral ("Specialty coffee in Gulberg.
+Prototype listing."). The landing footer keeps "Prototype: prices and
+cafés are for demonstration." A cup's list price at a café is its latte.
+
+| Café | id (drink prefix) | Area | Latte | Old id it replaced |
+|---|---|---|---|---|
+| Drip (main demo café) | `drip` (dr-) | Gulberg | 699 | kiln |
+| Artisan Coffee Roasters | `artisan` (ar-) | Gulberg | 690 | noon |
+| Extraction | `extraction` (ex-) | Gulberg | 710 | new |
+| Retrograde | `retrograde` (re-) | Gulberg | 750 | new |
+| Zyah | `zyah` (zy-) | Gulberg | 820 | new |
+| Kite | `kite` (ki-) | Liberty | 740 | slowpour |
+| Third Culture | `thirdculture` (tc-) | Cantt | 630 | ember |
+| Brewtique | `brewtique` (br-) | Cantt | 720 | thirdfloor |
+| House Specialty Coffee | `housespecialty` (hs-) | Cantt | 595 | quiethours |
+| Blank | `blank` (bl-) | DHA Phase 6 | 690 | maple |
+| Luna | `luna` (lu-) | DHA Phase 6 | 680 | new |
+| No Filter | `nofilter` (nf-) | DHA | 680 | grind |
+| Double Shot | `doubleshot`, 7 branches | (Cantt) | 710 | unchanged |
+| Slab Coffee | `slab` | DHA Phase 6 | Menu coming soon | new |
+| 6.3 Coffee | `sixthree` | DHA Phase 8 | Menu coming soon | new |
+
+- Menus (`data.js` `REAL`, built by `real()`): `-espresso`, `-capp`,
+  `-latte`, `-flat` (none at Zyah and No Filter), `-spanish`, `-sig1..3`;
+  bands by price (Classic up to 750, Signature to 1,000, Reserve to 1,500).
+  Double Shot keeps its menu ("Kunafa" is now "Kunafa Super Frappe").
+- Every seed reference to an old café moved to the café in the table (same
+  members, staff names, PINs and Beans; old drink ids mapped to the new
+  menus). Setup codes: DR-01, AC-01 (Artisan), EX-01, RG-01,
+  ZY-01, KT-01 (Kite), TC-01, BW-01 (Brewtique), HS-01, BL-01, LN-01,
+  NF-01. Owner PINs: Drip 1111, Blank 2222, Third Culture 3333, Brewtique
+  4444, House Specialty 5555, Kite 6666, Artisan 7777, No Filter 8888,
+  Extraction 9999, Retrograde 1212, Zyah 1313, Luna 1414 (executive PIN:
+  the owner PIN repeated to six digits). Manager PINs: Drip 2468, then
+  2678 … 9678, Retrograde 1278, Zyah 1378, Luna 1478.
+- Slab Coffee and 6.3 Coffee are `data.js` `comingSoon`: not in the store,
+  so never at the counter, in the ledger or the passport. The Cafés tab
+  lists them last with "Menu coming soon" (a dashed "Soon" pin; only a
+  name or area search and the area filter include them) and
+  `#/app/cafes/slab` is a small page (`REG.soonDetail`).
+- Perks and gatherings at real cafés are worded neutrally (no claims about
+  the cafés' roasters or food).
+- Member side has no savings figures (see Design): Home's Pass ring counts
+  member coffees, café and brand menus show menu prices only, pins and
+  cards show the latte's menu price, the plan picker shows the plain offer
+  ("20% off one coffee a day" / "20% off two a day, same visit"; Plus keeps
+  "A second coffee every day for Rs 300 more. Bring a friend.") and packs
+  as "N cups · Any drink up to Rs 750 · Lasts 45 days". `paysBack` and the
+  Home flip are gone. `passVsPack`, `tierSavings` and `quote().savings`
+  stay in state.js unused by the member app.
+
 ## Static pass pass (overrides the Plans pass on Pass prices and the Pass QR)
 
 - `PLAN_CONFIG.pass` Rs 399 (1 a day) and `PLAN_CONFIG.plus` "LCC Pass Plus"
@@ -331,7 +392,7 @@ next pass until asked.**
   `state.flags` (reason "member reported") and reports the entry. No
   admin screen for flags yet.
 - Seed: Danish LCC 150 (available), Ayaan Qureshi LCC 160 (Plus, first cup
-  at Kiln & Bean 5 min before load), Hassan Raza LCC 162 (used at Double
+  at Drip 5 min before load), Hassan Raza LCC 162 (used at Double
   Shot Gulberg this morning), Sara Malik LCC 171 (ended), Taimur Bajwa LCC
   168 (suspended). Phones end in their number (0150, 0160, …).
 
@@ -343,12 +404,10 @@ next pass until asked.**
   three tones (`--rb-face/side/top` on `.ring--home`; Matcha has its own),
   the rest a golden-beige outline of the brick face.
 - Cup packs: one gold brick per cup left (up to 15); big number, "cups
-  left" under it. LCC Pass: bricks fill with the month's savings toward
-  Rs 350; the front shows "cups on us so far" (savings ÷ the average list
-  price of the month's pass coffees, one decimal under ten); tapping the
-  ring (a button, `aria-pressed`) spins the bricks once (700ms) and flips
-  the centre (600ms) to "Rs" over the amount and "saved so far". Reduced
-  motion: no spin, a crossfade. The line under the ring is the plan name.
+  left" under it. LCC Pass: one brick per member coffee this pass month,
+  "member coffees this month" on two lines (the savings flip was removed in the Real
+  cafés pass). With a pickup waiting the ring shrinks to 132px and the
+  Pass caption is hidden.
 
 ## Cafés search pass (the Cafés tab)
 
@@ -362,17 +421,17 @@ next pass until asked.**
   the top of the first card), half (default), full (list only; a "Map"
   pill drops back to half). Drag the grip, tap the handle (up a step; full
   goes to half) or use arrow keys on it. Reduced motion: no transitions.
-- Pins: a pill with the member price (`select.memberPrice`) of the latte,
+- Pins: a pill with the menu price of the latte (no member price since the Real cafés pass),
   or of the drink searched for, and a busy dot; selected = primary
   background, accent border, 1.15×. Tap a pin: sheet to peek, its card
   first. Tap a card: its pin highlights and the map centres; tapping the
   selected card again (or its chevron) opens the café detail.
 - The list is the cafés of the search and filters that are in the visible
   map (under the chips, above the sheet; recomputed 300ms after the map
-  stops), sorted Nearest (default), Quietest or Lowest member price. Cards:
+  stops), sorted Nearest (default), Quietest or Lowest price. Cards:
   name, area · distance, busy word + dot + "updated", hours in context
   ("Open · closes 11pm", "Closes in 40 min", "Opens 8am tomorrow"), "Latte
-  Rs 560 · Rs 700 at the counter" (member price in `--accent-text`), up to
+  Rs 700" (menu price only), up to
   2 tags, a save toggle (in memory). Busy words: Quiet now / Busy / Packed.
 - Search (full screen dialog): Recent (last 3, in memory) and Try (areas,
   drinks, moods "Quiet to work" = Quiet + Work-friendly, "Open late" = Late
@@ -384,7 +443,7 @@ next pass until asked.**
   750, Signature up to Rs 1,000; on the reference drink's counter price),
   "Clear all", and "Show N cafés" live. "Pickup" means taking pickup
   orders now (`select.pickupAvailable`), not a stored tag. Tags added in
-  data.js: Outdoor (Ember, Quiet Hours, Noon); "Late hours" became "Late
+  data.js: Outdoor (Artisan, Zyah, Third Culture, House Specialty Coffee); "Late hours" became "Late
   night". "Near me" recentres on a fake member location in Gulberg.
 - State (search, filters, sort, sheet height, camera, recent, saved) is
   module-level in memory, so it survives a trip into a café and back.
@@ -427,7 +486,7 @@ next pass until asked.**
   starts empty ("Pick the cafés you love. Choose cups for each."); "Add a
   café" opens a sheet (search, list) that adds 2 Classic cups; each row
   has the band control, a stepper (1–10) and Remove. One summary bar: plan,
-  total, "You save Rs X vs the counter", Continue. "Add to my plan" (a quiet
+  total (the savings line was removed in the Real cafés pass), Continue. "Add to my plan" (a quiet
   link on café pages and the Double Shot page) opens My cafés with that
   venue added.
 - Both: max 2 cups per café per day (`rules.dailyLimitPerCafe`).
@@ -465,7 +524,7 @@ next pass until asked.**
   (`order` message, newest wins, in join snapshots) and shows on the Pass and
   the counter; nothing is spent until the counter redeems, which clears it.
 - Club: a brand counts as one café (one passport stamp, any branch), so the
-  passport has 9 stamps.
+  passport has 13 stamps (Double Shot and the 12 priced cafés).
 - Demo members: Rabia LCC 233 (5 of 8), Kamran LCC 311 (daily limit at
   Gulberg), Nida LCC 447 (no cups), Iqra LCC 64 (plan paused); their old
   static codes still work (341862, 905417, 274639). Explorer members can
@@ -602,7 +661,7 @@ next pass until asked.**
   Earned when collected, not when ordered (so cancelled orders earn none).
 - Mumtaz starts on 130 Beans (four cups this month and Fatima's referral):
   20 to her first complimentary drink, so one more cup gets her there.
-- The members' evening (`gather-members-evening`, Noon, `inviteOnly`) is
+- The members' evening (`gather-members-evening`, Artisan, `inviteOnly`) is
   not listed under Gatherings; 1,500 Beans keeps a seat (synced RSVP).
 - Club tab: Beans at the top (number, 2px progress line, the next reward
   in words) opening a sheet: the ladder, Redeem (two taps: Redeem, then
@@ -678,7 +737,7 @@ next pass until asked.**
 - Circles tab (Calm pass): Your circles, then From the club, then Recent
   activity. A Circle card: name, area (where it drinks most,
   `select.circleArea`), members, one line ("Today 6:00 pm, Double Shot
-  Phase 6", else "Last met Tue, Kiln & Bean"), and an inline "I'll be
+  Phase 6", else "Last met Tue, Drip"), and an inline "I'll be
   there" while today's round is unanswered ("You're going" after; nothing
   after "Not this time"). Full round answers live on the Circle's page.
   From the club: the next club event as one card ("Hosted by Lahore Coffee
@@ -699,14 +758,13 @@ next pass until asked.**
 - The demo member is Mumtaz Begum (initials MB), not the spec's "Ayesha".
   Her internal id stays `m_ayesha` (and the `ayesha` variable in data.js).
 - Demo members for the café view (static codes): Bilal 615028 (Explorer, at
-  the cap at Kiln & Bean), Sana 207341 (My cafés: Kiln & Bean 6, Maple 4;
+  the cap at Drip), Sana 207341 (My cafés: Drip 6, Blank 4;
   3 + 3 left), Omar 558190 (Explorer Starter, 2 left), Zara 482913 (My cafés,
-  daily limit at Kiln & Bean), Hamza 730215 (no cups left).
+  daily limit at Drip), Hamza 730215 (no cups left).
 - Mumtaz: LCC 42. Explorer Regular, 11 of 16 left (Plans pass: her Double
-  Shot and Explorer Starter plans merged). This cycle: Slow Pour, Kiln &
-  Bean (8:20 am), Noon Café twice (at the Explorer cap there), and Double
+  Shot and Explorer Starter plans merged). This cycle: Kite, Drip (8:20 am), Artisan Coffee Roasters twice (at the Explorer cap there), and Double
   Shot Phase 6 (her usual, an Iced Spanish Latte), so 1 more at Double
-  Shot and at Kiln. Beans 150, passport 4 of 9.
+  Shot and at Drip. Beans 150, passport 4 of 9.
 - Payout today (dashboard, Live) = today's pack cups at the month's rate
   step plus paid orders collected today, less the fee; "This month: Rs X" under it.
 - 80 background regulars (mixed Explorer / My cafés) have no codes; the seed
@@ -752,7 +810,7 @@ next pass until asked.**
   derived from the ledger by `select.club`. Rules live in `data.js` `club`;
   the Connoisseur copy is written in `select.club` from the café count.
 - Mumtaz: No. 0042, Founding Member, Local (40 cups), 4 of 9 cafés, 7 of 10
-  morning cups. Three earlier months on My cafés (Kiln 6, Noon 4, Slow Pour
+  morning cups. Three earlier months on My cafés (Drip 6, Artisan 4, Kite
   3) are seeded in the ledger. A cup at a fifth café gives a free cup.
 - Ledger type `reward` (+cups, cafeId null): passport at 5 and at all cafés
   (fixed ids, so once only), Beans rewards (reason `beans`). Invites no
@@ -779,7 +837,7 @@ next pass until asked.**
   ones are counted in its second line) that fans out a stack of ticket
   stubs (280ms, fade with reduced motion). Used / expired come from optional
   `member.perksUsed[perkId]` and `perk.expiresAt`; none are seeded.
-- Gatherings (now in the Circles tab, Upcoming): next one is the second Saturday ahead (Maple, 9 am, 30 seats,
+- Gatherings (now in the Circles tab, Upcoming): next one is the second Saturday ahead (Blank, 9 am, 30 seats,
   19 taken); Founding Members and Connoisseurs RSVP before the general
   opening a week ahead. RSVPs sync (`rsvp` message, newest wins, in join
   snapshots). Members created in a session sync their profile in the plan
@@ -865,38 +923,38 @@ next pass until asked.**
 - Every partner is a brand with branches (`data.js` `brands`; a branch is a
   café with `brandId`). A single café is a brand with one branch, same id
   (`kiln`). Brand: menu (hot / iced; single cafés have 4–6
-  drinks, Maple Roastery and Slow Pour 2 Reserve each, the others 1–2
-  Signature), `plans`, `rules` (`perMemberPerDay`, `branchCupsPerDay`),
+  drinks: espresso, cappuccino, latte, flat white (where listed), Spanish
+  latte and three signatures, from public menus), `plans`, `rules` (`perMemberPerDay`, `branchCupsPerDay`),
   `ownerPin`, `account`. Branch: pin, hours, busy level, `staff` (`staff` or
   `manager` with `pin`), `setupCode`, `pausedUntil`. `cafe.chainId` is set
   only when the brand sells its own plans (Double Shot): the member app
   shows chains as a brand page and branch picker (`select.brandOf`);
   `select.brandFor` is any branch's brand. Single cafés' drinks come from
   their brand menu (one cup each; above the plan's band it's "Cup + Rs X").
-- Owner PINs: Double Shot 0000, Kiln & Bean 1111 (others 2222 … 8888).
+- Owner PINs: Double Shot 0000, Drip 1111 (others: see "Real cafés pass").
   Executive PINs (6 digits, `select.execRole`): the brand owner's
   (`brand.executive.pin`) sees every branch with per-branch totals; each
   branch has its own (`cafe.executivePin`) that sees that branch only.
   Double Shot owner 000000, branches 111111 (Gulberg) … 777777 (Dolmen);
   single cafés have one PIN for both: the owner PIN's digit six times
-  (Kiln & Bean 111111 … Grind & Grain 888888). New branches get a random
+  (Drip 111111 … No Filter 888888, Extraction 999999, Retrograde 121212,
+  Zyah 131313, Luna 141414). New branches get a random
   one. Only these open #/partner; the 4-digit manager PINs (and the old
   owner PINs) unlock the counter's Manager tools only. Cashier PINs (`staff.pin`, 4 digits, everyone has
   one; asked when tapping a name at the counter, `actions.startShift(id,
   pin)`): the branch digit then 101 / 202 (Double Shot Gulberg 1101 / 1202
-  … Dolmen 7101 / 7202; Kiln & Bean 1101 / 1202, Maple 2101 / 2202 …);
+  … Dolmen 7101 / 7202; Drip 1101 / 1202, Blank 2101 / 2202 …);
   managers start a shift with their manager PIN.
 - Menus (Ledger pass): every brand menu item has `size` and `inPlan` (in a
   band, so up to Rs 1,500; every seeded drink is). Brands have free `mods`
   (sugar, milk regular / oat / almond, ice for iced drinks) and paid
   `extras` (extra shot, larger size, counter prices per brand; see
   `EXTRAS` in data.js). The counter shows them after the drink (Café
-  pass). Drinks with `inPlan: false` (Kiln & Bean pour-over, Maple Geisha,
-  Slow Pour flight, Double Shot Espresso Protein Shake) are kept out of LCC
+  pass). Drinks with `inPlan: false` (Double Shot Espresso Protein Shake;
+  the real cafés' menus have none) are kept out of LCC
   plans: greyed "Not in plan" at the counter, refused by `counterRedeem`
   and for a cup in `pickupQuote` (paying the full price still works).
-  Manager PINs: Kiln & Bean Saad 2468, other single cafés 2678 … 8678.
-  Setup codes: KB-01, MR-01, EC-01, TF-01, QH-01, SP-01, NC-01, GG-01.
+  Manager PINs and setup codes: see "Real cafés pass".
 - Members: `memberNo` is club-wide and unique ("LCC 42", `fmt.lcc`); every
   member has initials, a phone and a number (`data.js` numbers the rest).
   Plans: `member.plan` plus `member.extraPlans` (`{ plan, cycle,

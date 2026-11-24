@@ -83,6 +83,7 @@
 
   /** The drink a café's price line uses: the one searched for (its cheapest match), else the latte. */
   function refDrink(c, drink = CS.drink) {
+    if (c.comingSoon) return null;
     const b = S.brandFor(c.id);
     const menu = b?.menu || [];
     let item = null;
@@ -95,11 +96,25 @@
     if (!item) return null;
     const temp = item.hot != null ? "hot" : "iced";
     const list = S.drinkPrice(b.id, item, temp).price;
-    return { item, name: drink ? item.name : "Latte", list, member: S.memberPrice(list) };
+    return { item, name: drink ? item.name : "Latte", list }; // menu price only: no member-facing savings
   }
   const servesDrink = (c, d) => !!refDrink(c, d);
   const pickupOk = (c) => !!S.pickupAvailable?.(c.id)?.ok;
-  const hasTag = (c, t) => (t === "Pickup" ? pickupOk(c) : c.tags.includes(t));
+  const hasTag = (c, t) => (!c.comingSoon && (t === "Pickup" ? pickupOk(c) : c.tags.includes(t)));
+  /* Listed cafés without a menu yet (data.js comingSoon): on the list and
+     the map with "Menu coming soon"; not in the store, so the counter,
+     ledger and passport never see them. Only a name or area search and the
+     area filter can include them. */
+  const SOON = (LCC.data && LCC.data.comingSoon) || [];
+  const soonById = (id) => SOON.find((c) => c.id === id) || null;
+  const cafeOf = (id) => S.cafe(id) || soonById(id);
+  LCC.comingSoonCafe = soonById;
+  function soonMatches(c, f = CS) {
+    if (f.drink || f.openNow || f.quiet || f.tags.length || f.price) return false;
+    if (f.areas.length && !f.areas.includes(c.area)) return false;
+    if (f.q) { const q = norm(f.q); return norm(c.name).includes(q) || norm(c.areaLine).includes(q) || norm(S.area(c.area).name).includes(q); }
+    return true;
+  }
   /** Every drink on a partner menu, once (for search). */
   let drinkNames = null;
   const allDrinks = () => (drinkNames ??= [...new Map(S.partnerBrands().flatMap((b) => b.menu).map((d) => [norm(d.name), d.name])).values()]);
@@ -119,7 +134,7 @@
     return true;
   }
   // BACKEND: GET /cafes?q=&drink=&area=&open=&quiet=&tags=&price= (the same filters, server-side)
-  const filtered = (f = CS) => S.cafes().filter((c) => matches(c, f));
+  const filtered = (f = CS) => [...S.cafes().filter((c) => matches(c, f)), ...SOON.filter((c) => soonMatches(c, f))];
   const filterCount = (f = CS) => f.areas.length + (f.openNow ? 1 : 0) + (f.quiet ? 1 : 0) + f.tags.length + (f.price ? 1 : 0);
 
   /** "Open · closes 11pm", "Closes in 40 min", "Opens 8am tomorrow". */
@@ -214,11 +229,15 @@
 
     /* ---------- Pins ---------- */
     function pinHtml(c) {
+      if (c.comingSoon) {
+        return html`<button type="button" class="cs-pin cs-pin--soon${CS.selected === c.id ? " is-selected" : ""}" data-cs-pin="${c.id}" tabindex="-1" aria-label="${c.name}, menu coming soon">
+          <span>Soon</span></button>`;
+      }
       const r = refDrink(c);
       const sel = CS.selected === c.id;
       return html`<button type="button" class="cs-pin${sel ? " is-selected" : ""}" data-cs-pin="${c.id}" tabindex="-1"
-          aria-label="${S.placeName(c.id)}, ${r ? `${r.name} member price ${fmt.rs(r.member)}` : "no price"}, ${STATUS_WORD[c.status]}">
-          <span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span><span class="num">${r ? fmt.rs(r.member) : "–"}</span>
+          aria-label="${S.placeName(c.id)}, ${r ? `${r.name} ${fmt.rs(r.list)}` : "no price"}, ${STATUS_WORD[c.status]}">
+          <span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span><span class="num">${r ? fmt.rs(r.list) : "–"}</span>
         </button>`;
     }
     function paintPins() {
@@ -229,7 +248,7 @@
     function positionPins() {
       if (!CS.cam) return;
       $$("[data-cs-pin]", pinsEl).forEach((p) => {
-        const s = toScreen(worldOf(S.cafe(p.dataset.csPin)));
+        const s = toScreen(worldOf(cafeOf(p.dataset.csPin)));
         p.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
       });
       const me = $("[data-cs-me]", pinsEl);
@@ -254,11 +273,26 @@
       const by = {
         nearest: (a, b) => a.distanceKm - b.distanceKm,
         quietest: (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.distanceKm - b.distanceKm,
-        price: (a, b) => (refDrink(a)?.member ?? 1e9) - (refDrink(b)?.member ?? 1e9) || a.distanceKm - b.distanceKm,
+        price: (a, b) => (refDrink(a)?.list ?? 1e9) - (refDrink(b)?.list ?? 1e9) || a.distanceKm - b.distanceKm,
       }[CS.sort];
-      return list.slice().sort(by);
+      // Cafés with no menu yet go last, nearest first
+      return list.slice().sort((a, b) => (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
+    }
+    function soonCardHtml(c) {
+      const sel = CS.selected === c.id;
+      return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
+        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${c.name}. Menu coming soon. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
+          <span class="cs-card__name">${CS.q ? hl(c.name, CS.q) : c.name}</span>
+          <span class="cs-card__meta num">${c.areaLine} · ${c.distanceKm} km</span>
+          <span class="cs-card__hours">Menu coming soon</span>
+        </button>
+        <div class="cs-card__acts">
+          <a class="icon-btn" href="#/app/cafes/${c.id}" aria-label="Open ${c.name}">${icon("chevronRight", { size: 20 })}</a>
+        </div>
+      </li>`;
     }
     function cardHtml(c) {
+      if (c.comingSoon) return soonCardHtml(c);
       const r = refDrink(c);
       const sel = CS.selected === c.id;
       const saved = CS.saved.has(c.id);
@@ -269,7 +303,7 @@
           <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km</span>
           <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]} <span class="t-faint" data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span></span>
           <span class="cs-card__hours" data-cs-hours="${c.id}">${hoursLine(c)}</span>
-          ${r ? html`<span class="cs-card__price num"><span class="cs-member">${r.name} ${fmt.rs(r.member)}</span> · ${fmt.rs(r.list)} at the counter</span>` : ""}
+          ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
           ${c.tags.length ? html`<span class="cs-card__tags">${c.tags.slice(0, 2).map((t) => html`<span class="badge">${t}</span>`)}</span>` : ""}
         </button>
         <div class="cs-card__acts">
@@ -282,7 +316,7 @@
       const listEl = $("[data-cs-list]", root);
       if (!listEl) return;
       const all = filtered();
-      const shown = sorted(S.cafes().filter((c) => inView.includes(c.id) && all.includes(c)));
+      const shown = sorted(all.filter((c) => inView.includes(c.id)));
       // The selected café leads the list (the peek shows its card)
       if (CS.selected) { const i = shown.findIndex((c) => c.id === CS.selected); if (i > 0) shown.unshift(...shown.splice(i, 1)); }
       $("[data-cs-count]", root).textContent = `${plural(shown.length, "café")} in view`;
@@ -436,7 +470,7 @@
     /* ---------- Selecting ---------- */
     function select(id, { from }) {
       CS.selected = id;
-      const c = S.cafe(id);
+      const c = cafeOf(id);
       $$("[data-cs-pin]", pinsEl).forEach((p) => p.classList.toggle("is-selected", p.dataset.csPin === id));
       if (from === "pin") {
         setSnap("peek");
@@ -646,7 +680,7 @@
       const sel = t.closest("[data-cs-select]");
       if (sel) {
         const id = sel.dataset.csSelect;
-        if (CS.selected === id) { location.hash = `#/app/cafes/${S.cafe(id).chainId || id}`; return; } // a second tap opens it
+        if (CS.selected === id) { location.hash = `#/app/cafes/${cafeOf(id).chainId || id}`; return; } // a second tap opens it
         return select(id, { from: "card" });
       }
       const sv = t.closest("[data-cs-save]");
@@ -730,7 +764,7 @@
                 <p class="cs-sheet__count" id="cs-count" data-cs-count aria-live="polite"></p>
                 <label class="cs-sort"><span class="sr-only">Sort by</span>
                   <span class="select"><select class="input" data-cs-sort>
-                    ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest member price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
+                    ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
                   </select></span></label>
               </div>
             </div>
@@ -793,7 +827,7 @@
       on: {
         // BACKEND: busy status arrives over Realtime (cafe:status); pins and cards repaint
         "cafe:status": () => { paintPins(); paintList(); },
-        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { n.textContent = hoursLine(S.cafe(n.dataset.csHours)); }); },
+        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = hoursLine(c); }); },
         cafesView: () => setSnap(CS.snap),
       },
     };
@@ -803,6 +837,31 @@
   /* -------------------------------------------------------------------
      Café detail
      ------------------------------------------------------------------- */
+  /** A listed café without a menu yet: name, area and "Menu coming soon". */
+  REG.soonDetail = (ctx, cafeId) => {
+    const c = soonById(cafeId);
+    return {
+      html: html`
+        <div class="cafe-detail">
+          <div class="screen-bar">
+            <button type="button" class="icon-btn" data-back="#/app/cafes" aria-label="Back">${icon("arrowLeft")}</button>
+          </div>
+          <div class="app-screen cafe-detail__body">
+            <div class="stack" style="--stack-gap:var(--space-2)">
+              <p class="eyebrow">${c.areaLine} · ${c.distanceKm} km</p>
+              <h1 class="t-h1">${c.name}</h1>
+              <p class="t-body t-muted">${c.blurb}</p>
+            </div>
+            <section class="app-section" aria-labelledby="drinks-h">
+              <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
+              <p class="t-body">Menu coming soon</p>
+              <p class="t-small t-muted">This café isn’t taking member coffees yet. We’ll add its menu when it joins.</p>
+            </section>
+          </div>
+        </div>`.s,
+    };
+  };
+
   REG.cafeDetail = (ctx, cafeId) => {
     const { view } = ctx;
     const c = S.cafe(cafeId);
@@ -902,11 +961,11 @@
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
-              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.passTier().name}, ${S.passTier().dailyLimit === 1 ? "one coffee" : `${S.passTier().dailyLimit} coffees`} a day.</p>
+              <p class="t-small t-muted">Menu prices. With the ${S.passTier().name}: ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier().dailyLimit === 1 ? "one coffee a day" : "two a day, same visit"}.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
-                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, member price ${fmt.rs(S.memberPrice(d.price))}, ${bandLabel(c, d)}. Order for pickup">
-                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d.price))} member price</span>${topUpFor(c, d)}</span></span>
+                  <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">
+                    <span class="row__main"><span class="row__title">${d.name}</span><span class="row__meta num">${fmt.rs(d.price)}${topUpFor(c, d)}</span></span>
                     <span class="badge">${bandLabel(c, d)}</span>
                   </button>
                 </li>`)}

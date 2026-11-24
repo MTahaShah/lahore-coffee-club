@@ -15,7 +15,7 @@
   const S = store.select;
 
   const WHATSAPP_NUMBER = "923100008242";
-  const TEASER_CAFES = ["kiln", "slowpour", "noon"];
+  const TEASER_CAFES = ["drip", "kite", "artisan"];
   const ESTIMATOR = {
     members: { min: 10, max: 200, step: 5, value: 40 },
     visits: { min: 1, max: 8, step: 1, value: 3 },
@@ -118,13 +118,12 @@
 
   function plansTable() {
     return html`<table class="lp-table">
-      <caption class="sr-only">Explorer plans</caption>
-      <thead><tr><th scope="col">Explorer</th><th scope="col" class="num">A month</th><th scope="col" class="num lp-table__per">A cup</th></tr></thead>
+      <caption class="sr-only">Cup packs</caption>
+      <thead><tr><th scope="col">Cup pack</th><th scope="col" class="num">Price</th></tr></thead>
       <tbody>
         ${store.getState().tiers.map((t) => html`<tr>
-          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted">${fmt.cups(t.cups)} · Covers: ${S.coversLabel(t.maxBand)}</span></th>
+          <th scope="row"><span class="t-h3">${t.name}</span><span class="t-small t-muted num">${fmt.cups(t.cups)} · Any drink up to ${fmt.rs(S.band(t.maxBand).maxPrice)} · Lasts ${store.getState().planConfig.packDays} days</span></th>
           <td class="num t-h3">${fmt.rs(t.price)}</td>
-          <td class="num t-small t-muted lp-table__per">about ${fmt.rs(t.price / t.cups)}</td>
         </tr>`)}
       </tbody>
     </table>`;
@@ -249,7 +248,7 @@
               ${sectionHead(2, "plans", "Plans", "Two ways to drink well. Both renew monthly; unused cups don’t roll over.")}
               <dl class="lp-types">
                 <div><dt class="t-h3">Explorer</dt><dd class="t-body t-muted">One pool of cups for any partner café, up to ${store.getState().rules.explorerCapPerCafe} a month at each, so you keep finding new places.</dd></div>
-                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month, and pay less per cup. They’re only for those cafés.</dd></div>
+                <div><dt class="t-h3">My cafés</dt><dd class="t-body t-muted">Reserve cups at the cafés you love, up to ${store.getState().rules.maxCupsTotal} a month. They’re only for those cafés.</dd></div>
               </dl>
               <div class="lp-plans">
                 ${plansTable()}
@@ -353,9 +352,9 @@
         cupsEl.textContent = fmt.cups(p.cups);
         if (animate) ui.animateNumber(priceEl, p.price, { format: fmt.rs });
         else { priceEl.textContent = fmt.rs(p.price); priceEl.dataset.value = p.price; }
-        $("[data-teaser-note]", el).classList.toggle("is-save", p.meetsMinimum);
+        // No savings figures: menu prices may not match the counter
         $("[data-teaser-note]", el).textContent = p.meetsMinimum
-          ? `You save ${fmt.rs(p.savings)} vs paying at the counter.`
+          ? ""
           : `Add ${fmt.cups(p.cupsShort)}: plans start at ${store.getState().rules.minCupsTotal} cups a month.`;
         TEASER_CAFES.forEach((id) => { const s = $(`[data-stepper="${id}"]`, el); if (s) ui.setStepper(s, alloc[id], p.atMaximum); });
       }

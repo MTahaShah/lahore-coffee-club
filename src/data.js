@@ -53,11 +53,10 @@
     // Two tiers of the Pass (member.plan.tier "pass" | "plus"; missing = "pass").
     // Prices are per month, tax included. Plus: the second coffee is for the
     // same visit (same branch, within secondCupMinutes of the first), so it can
-    // be for a friend. paysBack is the plan picker's line.
-    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true,
-      paysBack: "Pays for itself after 3 coffees" },
+    // be for a friend. No member-facing savings figures anywhere.
+    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true },
     plus: { id: "plus", tier: "plus", name: "LCC Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
-      secondCupMinutes: 30, paysBack: "Pays for itself after 5 cups" },
+      secondCupMinutes: 30 },
     packDays: 45,         // a pack's cups last this many days from purchase
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
@@ -129,7 +128,7 @@
 
   /* Partners: brands and branches -----------------------------------------
      Every partner is a brand with one or more branches. A single-branch
-     café (Kiln & Bean) is simply a brand with one branch; Double Shot has
+     café (Drip) is simply a brand with one branch; Double Shot has
      seven. Nothing below is special to Double Shot.
 
        Brand   id, name, monogram, menu (drinks only: hot / iced prices),
@@ -217,7 +216,7 @@
         { id: "ds-hazel-rush",    section: "Frappes", name: "Hazel Rush",            hot: null, iced: 1210 },
         { id: "ds-frosted-toffee", section: "Frappes", name: "Frosted Toffee",       hot: null, iced: 1220 },
         { id: "ds-java-chip",     section: "Frappes", name: "Java Chip",             hot: null, iced: 1250 },
-        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa",                hot: null, iced: 1290 },
+        { id: "ds-kunafa",        section: "Frappes", name: "Kunafa Super Frappe",   hot: null, iced: 1290 },
 
         { id: "ds-choc-classic",  section: "Dark chocolate", name: "Classic Chocolate", hot: 980, iced: 980 },
         { id: "ds-choc-orange",   section: "Dark chocolate", name: "Orange Chocolate",  hot: 980, iced: 980 },
@@ -281,6 +280,59 @@
   };
   const LATE = { open: "8:00", close: "2:00", label: "8 am – 2 am" };
   const EVENING = [0.15, 0.3, 0.4, 0.45, 0.4, 0.4, 0.45, 0.4, 0.45, 0.55, 0.7, 0.85, 0.9, 0.8, 0.65, 0.45];
+  /* Real partner cafés (prototype demo data) -----------------------------
+     The list price of a cup at each café is its latte price. Menus: the
+     five standard drinks (no flat white where the café lists none) and
+     three signatures, from public menus. Bands follow the price.        */
+  const REAL = [
+    // id, name, area, map x, y, [espresso, cappuccino, latte, flat white, spanish latte], signatures [name, price, "hot" | "iced" | both],
+    // pattern: tags, status, minutes since update, hours, km from the member, cups a day, busyByHour
+    ["drip", "Drip", "gulberg", 545, 345, [499, 699, 699, 780, 849], [["Banana Cinnamon Latte", 850], ["Tiramisu Latte", 850], ["Spanish Mocha", 999]],
+      ["Pastries", "Work-friendly"], "moderate", 6, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 0.8, 9, [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2]],
+    ["artisan", "Artisan Coffee Roasters", "gulberg", 575, 395, [490, 690, 690, 690, 750], [["Sticky Toffee Latte", 800], ["Saffron Latte", 1090], ["Pistachio Latte", 1190]],
+      ["Pastries", "Breakfast", "Outdoor"], "quiet", 22, { open: "7:00", close: "20:00", label: "7 am – 8 pm" }, 1.1, 6, [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0]],
+    ["extraction", "Extraction", "gulberg", 505, 385, [490, 710, 710, 710, 795], [["Vietnamese Espresso", 710], ["Rose Latte", 890], ["Lotus Latte", 1350]],
+      ["Work-friendly"], "moderate", 11, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 1.3, 6, [0.15, 0.3, 0.45, 0.5, 0.5, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.85, 0.75, 0.6, 0.45, 0.3]],
+    ["retrograde", "Retrograde", "gulberg", 560, 320, [600, 700, 750, 700, 825], [["Matcha", 850], ["Mocha Latte", 950], ["Iced Pistachio Latte", 950, "iced"]],
+      ["Work-friendly", "Late night"], "quiet", 15, { open: "10:00", close: "1:00", label: "10 am – 1 am" }, 0.9, 5, [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6]],
+    ["zyah", "Zyah", "gulberg", 605, 360, [580, 820, 820, null, 880], [["Mandarin Americano", 860], ["Coconut Cloud", 950, "iced"], ["Caffeinated Milo", 980]],
+      ["Pastries", "Outdoor"], "packed", 5, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 1.4, 6, [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1]],
+    ["kite", "Kite", "liberty", 440, 405, [550, 720, 740, 700, 980], [["Day Dream Latte", 950], ["Creme Brulee Latte", 980], ["Rocky Road Latte", 1190]],
+      ["Late night", "Work-friendly"], "packed", 4, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 1.6, 7, [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3]],
+    ["thirdculture", "Third Culture", "cantt", 700, 395, [480, 570, 630, 630, 750], [["Hot Tiramisu Latte", 880, "hot"], ["Honey Latte", 690], ["Matcha Kyoto", 760]],
+      ["Pastries", "Outdoor"], "packed", 3, { open: "7:30", close: "22:00", label: "7:30 am – 10 pm" }, 4.0, 7, [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15]],
+    ["brewtique", "Brewtique", "cantt", 765, 405, [550, 720, 720, 720, 750], [["Popcorn Latte", 1050], ["Peanut Praline Latte", 1150], ["Creme Brulee Raf", 1250]],
+      ["Work-friendly", "Late night"], "quiet", 18, { open: "10:00", close: "1:00", label: "10 am – 1 am" }, 4.6, 4, [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6]],
+    ["housespecialty", "House Specialty Coffee", "cantt", 730, 455, [400, 545, 595, 595, 645], [["Creme Brulee Latte", 655], ["Belgium Brown", 845], ["Pistachio Latte", 1145]],
+      ["Work-friendly", "Pastries", "Outdoor"], "moderate", 9, { open: "8:00", close: "21:00", label: "8 am – 9 pm" }, 4.3, 4, [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0]],
+    ["blank", "Blank", "dha", 790, 660, [490, 690, 690, 690, 690], [["Hot Tiramisu Latte", 790, "hot"], ["Kinder Bueno Latte", 950], ["Pistachio Latte", 1200]],
+      ["Work-friendly"], "quiet", 12, { open: "9:00", close: "22:00", label: "9 am – 10 pm" }, 9.4, 5, [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1]],
+    ["luna", "Luna", "dha", 820, 640, [520, 680, 680, 650, 730], [["Lavender Latte", 790], ["Smores Latte", 900], ["Nutty Raf", 975]],
+      ["Pastries", "Late night"], "moderate", 8, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 9.8, 5, [0.1, 0.25, 0.35, 0.4, 0.4, 0.4, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.7, 0.55, 0.4, 0.25]],
+    ["nofilter", "No Filter", "dha", 735, 600, [510, 680, 680, null, 720], [["Tiramisu Latte", 730], ["Taro Latte", 850], ["Pistachio Latte", 900]],
+      ["Pastries"], "moderate", 14, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 7.2, 5, [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1]],
+  ];
+  const AREA_LINE = { gulberg: "Gulberg", liberty: "Liberty", cantt: "Cantt", dha: "DHA" };
+  const real = ([id, name, area, x, y, [espresso, capp, latte, flat, spanish], sigs, tags, status, mins, hours, distanceKm, avgDailyCups, busyByHour]) => {
+    const p = id === "housespecialty" ? "hs" : id === "nofilter" ? "nf" : id === "thirdculture" ? "tc" : id.slice(0, 2);
+    const both = (n) => ({ hot: n, iced: n });
+    const menu = [
+      { id: `${p}-espresso`, section: "Coffee", name: "Espresso", hot: espresso, iced: null },
+      { id: `${p}-capp`,     section: "Coffee", name: "Cappuccino", hot: capp, iced: null },
+      { id: `${p}-latte`,    section: "Coffee", name: "Latte", ...both(latte) },
+      ...(flat ? [{ id: `${p}-flat`, section: "Coffee", name: "Flat white", hot: flat, iced: null }] : []),
+      { id: `${p}-spanish`,  section: "Coffee", name: "Spanish latte", ...both(spanish) },
+      ...sigs.map(([n, price, temp], i) => ({ id: `${p}-sig${i + 1}`, section: "Signatures", name: n, hot: temp === "iced" ? null : price, iced: temp === "hot" ? null : price })),
+    ];
+    return { id, name, area, latte: `${p}-latte`, tags, status, statusUpdatedAt: minsAgo(mins), hours,
+      blurb: `Specialty coffee in ${AREA_LINE[area]}. Prototype listing.`, distanceKm, x, y, menu, busyByHour, avgDailyCups };
+  };
+  /* Listed but not yet priced: on the café list and map with "Menu coming
+     soon". Not partners at the counter or in the ledger demos.         */
+  const comingSoon = [
+    { id: "slab", name: "Slab Coffee", area: "dha", x: 765, y: 690, distanceKm: 9.9, blurb: "Specialty coffee in DHA Phase 6. Prototype listing.", areaLine: "DHA Phase 6", comingSoon: true },
+    { id: "sixthree", name: "6.3 Coffee", area: "dha", x: 845, y: 705, distanceKm: 12.1, blurb: "Specialty coffee in DHA Phase 8. Prototype listing.", areaLine: "DHA Phase 8", comingSoon: true },
+  ];
   const cafes = [
     branch("ds-gulberg",  "Gulberg · Falcon Complex", "DS · Gulberg",  "gulberg",    480, 315, "moderate", 4,  LATE, 1.1, 16, EVENING),
     branch("ds-cantt",    "Cantt · C Block",          "DS · Cantt",    "cantt",      740, 430, "quiet",    9,  LATE, 4.2, 9,  EVENING),
@@ -289,209 +341,40 @@
     branch("ds-lalakjan", "DHA · Lalak Jan Chowk",    "DS · Lalak Jan", "dha",       720, 505, "moderate", 12, LATE, 7.3, 11, EVENING),
     branch("ds-pine",     "Pine Avenue",              "DS · Pine Ave", "dha",        630, 670, "quiet",    16, LATE, 8.8, 8,  EVENING),
     branch("ds-dolmen",   "DHA · Dolmen Mall",        "DS · Dolmen",   "dha",        800, 640, "moderate", 6,  { open: "10:00", close: "23:00", label: "10 am – 11 pm" }, 9.9, 12, [0, 0, 0.35, 0.45, 0.5, 0.55, 0.6, 0.6, 0.65, 0.75, 0.85, 0.85, 0.7, 0.5, 0.3, 0.1]),
-    {
-      id: "kiln",
-      name: "Kiln & Bean",
-      area: "gulberg",
-      latte: "kiln-latte",
-      tags: ["Roastery", "Pastries"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(6),
-      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
-      blurb: "Roasts on site every Tuesday. The window seats go first.",
-      distanceKm: 0.8,
-      x: 545, y: 345,
-      menu: [
-        { id: "kiln-flat", section: "Coffee", name: "Kiln flat white", hot: 650, iced: 650 },
-        { id: "kiln-cort", section: "Coffee", name: "Cardamom cortado", hot: 600, iced: null },
-        { id: "kiln-latte", section: "Coffee", name: "Latte", hot: 700, iced: 700 },
-        { id: "kiln-chai", section: "Tea", name: "Karak chai", hot: 450, iced: null },
-        { id: "kiln-matcha", section: "Tea", name: "Ceremonial matcha latte", hot: 880, iced: 880 },
-        { id: "kiln-pour", section: "Brew bar", name: "Single-origin pour-over", hot: 950, iced: 950, inPlan: false },
-      ],
-      busyByHour: [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2],
-      avgDailyCups: 9,
-    },
-    {
-      id: "maple",
-      name: "Maple Roastery",
-      area: "dha",
-      latte: "maple-latte",
-      tags: ["Roastery", "Work-friendly"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(12),
-      hours: { open: "9:00", close: "22:00", label: "9 am – 10 pm" },
-      blurb: "Light roasts, long tables, plugs at every seat.",
-      distanceKm: 6.4,
-      x: 790, y: 545,
-      menu: [
-        { id: "maple-espresso", section: "Coffee", name: "Maple house espresso", hot: 550, iced: null },
-        { id: "maple-latte", section: "Coffee", name: "Oat honey latte", hot: 750, iced: 750 },
-        { id: "maple-cold", section: "Brew bar", name: "Cold brew", hot: null, iced: 750 },
-        { id: "maple-filter", section: "Brew bar", name: "Ethiopia Yirgacheffe pour-over", hot: 1200, iced: 1200 },
-        { id: "maple-geisha", section: "Brew bar", name: "Panama Geisha pour-over", hot: 1450, iced: null, inPlan: false },
-      ],
-      busyByHour: [0.1, 0.25, 0.4, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.65, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 5,
-    },
-    {
-      id: "ember",
-      name: "Ember Coffee Co.",
-      area: "model-town",
-      latte: "ember-latte",
-      tags: ["Pastries", "Garden", "Outdoor"],
-      status: "packed",
-      statusUpdatedAt: minsAgo(3),
-      hours: { open: "7:30", close: "22:00", label: "7:30 am – 10 pm" },
-      blurb: "A garden café off the park. Croissants until they run out.",
-      distanceKm: 5.1,
-      x: 500, y: 615,
-      menu: [
-        { id: "ember-latte", section: "Coffee", name: "Ember latte", hot: 600, iced: 600 },
-        { id: "ember-flat", section: "Coffee", name: "Flat white", hot: 620, iced: null },
-        { id: "ember-mocha", section: "Coffee", name: "Gur mocha", hot: 700, iced: 700 },
-        { id: "ember-cold", section: "Cold", name: "Cold brew tonic", hot: null, iced: 750 },
-        { id: "ember-pistachio", section: "Coffee", name: "Pistachio latte", hot: 900, iced: 900 },
-      ],
-      busyByHour: [0.5, 0.7, 0.75, 0.55, 0.45, 0.5, 0.55, 0.5, 0.6, 0.75, 0.9, 0.85, 0.65, 0.5, 0.3, 0.15],
-      avgDailyCups: 7,
-    },
-    {
-      id: "thirdfloor",
-      name: "Third Floor",
-      area: "johar-town",
-      latte: "tf-latte",
-      tags: ["Work-friendly", "Late night"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(18),
-      hours: { open: "10:00", close: "1:00", label: "10 am – 1 am" },
-      blurb: "Up two flights of stairs, and worth it. Open late for exam season.",
-      distanceKm: 9.7,
-      x: 290, y: 625,
-      menu: [
-        { id: "tf-americano", section: "Coffee", name: "Americano", hot: 500, iced: 500 },
-        { id: "tf-latte", section: "Coffee", name: "Latte", hot: 600, iced: 600 },
-        { id: "tf-spanish", section: "Coffee", name: "Spanish latte", hot: 650, iced: 650 },
-        { id: "tf-affogato", section: "Coffee", name: "Affogato", hot: 850, iced: null },
-        { id: "tf-lotus", section: "Cold", name: "Lotus iced latte", hot: null, iced: 950 },
-      ],
-      busyByHour: [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6],
-      avgDailyCups: 4,
-    },
-    {
-      id: "quiethours",
-      name: "Quiet Hours",
-      area: "fortress",
-      latte: "qh-latte",
-      tags: ["Work-friendly", "Pastries", "Outdoor"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(9),
-      hours: { open: "8:00", close: "21:00", label: "8 am – 9 pm" },
-      blurb: "No music before noon. Ask for the banana bread.",
-      distanceKm: 3.2,
-      x: 670, y: 290,
-      menu: [
-        { id: "qh-flat", section: "Coffee", name: "Flat white", hot: 650, iced: null },
-        { id: "qh-latte", section: "Coffee", name: "Latte", hot: 650, iced: 650 },
-        { id: "qh-cortado", section: "Coffee", name: "Brown butter cortado", hot: 700, iced: null },
-        { id: "qh-chai", section: "Tea", name: "Karak chai latte", hot: 550, iced: null },
-        { id: "qh-mocha", section: "Coffee", name: "Dark chocolate mocha", hot: 880, iced: 880 },
-      ],
-      busyByHour: [0.3, 0.5, 0.55, 0.45, 0.35, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.45, 0.3, 0.15, 0.05, 0],
-      avgDailyCups: 4,
-    },
-    {
-      id: "slowpour",
-      name: "Slow Pour",
-      area: "liberty",
-      latte: "sp-latte",
-      tags: ["Roastery", "Pour-over"],
-      status: "packed",
-      statusUpdatedAt: minsAgo(4),
-      hours: { open: "9:00", close: "24:00", label: "9 am – midnight" },
-      blurb: "A six-seat bar and a hand grinder. Worth the wait.",
-      distanceKm: 1.6,
-      x: 440, y: 405,
-      menu: [
-        { id: "sp-gibraltar", section: "Coffee", name: "Gibraltar", hot: 700, iced: null },
-        { id: "sp-latte", section: "Coffee", name: "Latte", hot: 800, iced: 800 },
-        { id: "sp-v60", section: "Brew bar", name: "V60 of the week", hot: 800, iced: 800 },
-        { id: "sp-chemex", section: "Brew bar", name: "Ethiopia Guji, Chemex", hot: 1250, iced: 1250 },
-        { id: "sp-flight", section: "Brew bar", name: "Single-origin tasting flight", hot: 1400, iced: null, inPlan: false },
-      ],
-      busyByHour: [0.15, 0.3, 0.45, 0.5, 0.55, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.85, 0.7, 0.5, 0.3],
-      avgDailyCups: 7,
-    },
-    {
-      id: "noon",
-      name: "Noon Café",
-      area: "gulberg",
-      latte: "noon-latte",
-      tags: ["Pastries", "Breakfast", "Outdoor"],
-      status: "quiet",
-      statusUpdatedAt: minsAgo(22),
-      hours: { open: "7:00", close: "20:00", label: "7 am – 8 pm" },
-      blurb: "Early opener on MM Alam. Eggs, toast, a proper cappuccino.",
-      distanceKm: 1.1,
-      x: 575, y: 395,
-      menu: [
-        { id: "noon-capp", section: "Coffee", name: "Cappuccino", hot: 600, iced: null },
-        { id: "noon-latte", section: "Coffee", name: "Rose latte", hot: 650, iced: 650 },
-        { id: "noon-iced", section: "Coffee", name: "Iced long black", hot: null, iced: 550 },
-        { id: "noon-chai", section: "Tea", name: "Doodh patti", hot: 400, iced: null },
-        { id: "noon-kunafa", section: "Coffee", name: "Kunafa latte", hot: 950, iced: 950 },
-      ],
-      busyByHour: [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0],
-      avgDailyCups: 6,
-    },
-    {
-      id: "grind",
-      name: "Grind & Grain",
-      area: "dha",
-      latte: "gg-latte",
-      tags: ["Pastries", "Roastery"],
-      status: "moderate",
-      statusUpdatedAt: minsAgo(14),
-      hours: { open: "8:00", close: "23:00", label: "8 am – 11 pm" },
-      blurb: "Bakery first, coffee a very close second. Sourdough from 9.",
-      distanceKm: 7.2,
-      x: 735, y: 600,
-      menu: [
-        { id: "gg-latte", section: "Coffee", name: "Grain latte", hot: 650, iced: 650 },
-        { id: "gg-macch", section: "Coffee", name: "Macchiato", hot: 550, iced: null },
-        { id: "gg-dirty", section: "Tea", name: "Dirty chai", hot: 700, iced: 700 },
-        { id: "gg-brown", section: "Coffee", name: "Brown sugar oat latte", hot: 850, iced: 850 },
-        { id: "gg-praline", section: "Cold", name: "Hazelnut praline latte", hot: null, iced: 1000 },
-      ],
-      busyByHour: [0.25, 0.5, 0.65, 0.6, 0.5, 0.55, 0.6, 0.5, 0.5, 0.6, 0.7, 0.7, 0.55, 0.4, 0.25, 0.1],
-      avgDailyCups: 5,
-    },
+    // Real Lahore cafés as prototype demo data (menu prices from their public menus, Nov 2026).
+    // Hours, busy patterns and tags follow the seed pattern; they are not the cafés' own.
+    ...REAL.map(real),
   ];
 
   /* Single-branch cafés: each one is a brand with one branch (the café
      itself, same id). The brand owns the menu and the
      rules; the branch keeps its pin, hours, busy level and staff. Cups
-     and payouts follow the bands above, as at Double Shot.             */
+     and payouts follow the bands above, as at Double Shot. Drip
+     (Gulberg) is the main demo café.                                   */
   const SINGLE = {
-    //            monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
-    kiln:       ["KB", "1111", "KB-01", ["Bilal", "Hira", "Saad"], "2468", 40],
-    maple:      ["MR", "2222", "MR-01", ["Sameer", "Laiba", "Junaid"], "2678", 30],
-    ember:      ["EC", "3333", "EC-01", ["Waqas", "Hafsa", "Nabeel"], "3678", 35],
-    thirdfloor: ["TF", "4444", "TF-01", ["Arham", "Mishal", "Rehan"], "4678", 25],
-    quiethours: ["QH", "5555", "QH-01", ["Ammar", "Eman", "Shahid"], "5678", 25],
-    slowpour:   ["SP", "6666", "SP-01", ["Zain", "Anaya", "Fahad"], "6678", 35],
-    noon:       ["NC", "7777", "NC-01", ["Huzaifa", "Maham", "Adeel"], "7678", 30],
-    grind:      ["GG", "8888", "GG-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
+    //                monogram, owner PIN, setup code, staff (two at the counter, then the manager), manager PIN, member cups a day
+    drip:           ["DR", "1111", "DR-01", ["Bilal", "Hira", "Saad"], "2468", 40],
+    blank:          ["BL", "2222", "BL-01", ["Sameer", "Laiba", "Junaid"], "2678", 30],
+    thirdculture:   ["TC", "3333", "TC-01", ["Waqas", "Hafsa", "Nabeel"], "3678", 35],
+    brewtique:      ["BW", "4444", "BW-01", ["Arham", "Mishal", "Rehan"], "4678", 25],
+    housespecialty: ["HS", "5555", "HS-01", ["Ammar", "Eman", "Shahid"], "5678", 25],
+    kite:           ["KT", "6666", "KT-01", ["Zain", "Anaya", "Fahad"], "6678", 35],
+    artisan:        ["AC", "7777", "AC-01", ["Huzaifa", "Maham", "Adeel"], "7678", 30],
+    nofilter:       ["NF", "8888", "NF-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
+    extraction:     ["EX", "9999", "EX-01", ["Owais", "Zoya", "Imran"], "9678", 30],
+    retrograde:     ["RG", "1212", "RG-01", ["Hamid", "Sadia", "Moiz"], "1278", 25],
+    zyah:           ["ZY", "1313", "ZY-01", ["Faizan", "Rameen", "Usama"], "1378", 25],
+    luna:           ["LN", "1414", "LN-01", ["Danyal", "Areesha", "Bilawal"], "1478", 30],
   };
   cafes.filter((c) => c.menu).forEach((c) => {
     c.price = c.menu.find((d) => d.id === c.latte).hot; // the latte price
     const [monogram, ownerPin, setupCode, [a, b, manager], managerPin, perDay] = SINGLE[c.id];
     const brand = {
       id: c.id, name: c.name, monogram, ownerPin, executive: { name: "Brand owner", pin: ownerPin.repeat(2).slice(0, 6) }, line: c.blurb,
-      menuNote: "Demo menu. Prices are fictional.",
+      menuNote: `Prices from ${c.name}’s public menu, Nov 2026. Demo only.`,
       plans: [],
       rules: { perMemberPerDay: rules.dailyLimitPerCafe, branchCupsPerDay: perDay },
-      account: { label: "bank account", last4: c.id === "kiln" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
+      account: { label: "bank account", last4: c.id === "drip" ? "4821" : String(1000 + ((c.x * 7 + c.y) % 9000)) },
       menu: c.menu,
     };
     brands.push(brand);
@@ -520,8 +403,9 @@
     { id: "ice",   label: "Ice",   options: ["No ice", "Less", "Regular", "Extra"], default: "Regular", icedOnly: true },
   ];
   //              extra shot, larger size (Rs, at the counter)
-  const EXTRAS = { doubleshot: [200, 180], kiln: [150, 120], maple: [200, 150], ember: [180, 150], thirdfloor: [150, 100],
-                   quiethours: [150, 120], slowpour: [250, 200], noon: [150, 100], grind: [180, 150] };
+  const EXTRAS = { doubleshot: [200, 180], drip: [150, 120], blank: [200, 150], thirdculture: [180, 150], brewtique: [150, 100],
+                   housespecialty: [150, 120], kite: [250, 200], artisan: [150, 100], nofilter: [180, 150],
+                   extraction: [180, 150], retrograde: [200, 150], zyah: [200, 180], luna: [180, 150] };
   const sizeOf = (d) => (/flight/i.test(d.name) ? "3 × 4 oz" : /cortado|gibraltar|macchiato|flat white/i.test(d.name) ? "8 oz" : d.hot == null ? "16 oz" : "12 oz");
   brands.forEach((b) => {
     b.menu.forEach((d) => {
@@ -551,11 +435,11 @@
      Nobody stores a cups-left number: balances come from the ledger below.
 
      Mumtaz is the demo member (LCC Pass); Alina (below) is on a Classic 8
-     pack. The others exist so the café view (Kiln &
-     Bean) can show a realistic month and every rule:
+     pack. The others exist so the café view (Drip)
+     can show a realistic month and every rule:
        Bilal  — Classic 16 pack, cups at several cafés this month
        Sana   — Classic 8 pack (was My cafés), 4 left
-       Omar   — Explorer Starter, first visit to Kiln & Bean today
+       Omar   — Explorer Starter, first visit to Drip today
        Zara   — Classic 8 pack (was My cafés), had today's pack cup
        Hamza  — Explorer Starter, no cups left                          */
   const cycleStart = startOfDay(now) - 9 * DAY; // seeded members’ month started 9 days ago
@@ -588,11 +472,11 @@
     cycle: cycleOf(id), cycleStartedAt: cycleStart, renewsAt: cycleStart + 30 * DAY, memberSince: daysAgo(40 + (memberNo % 60)),
   });
   const demoMembers = [
-    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "classic16" },  "615028", { kiln: 6, slowpour: 2, noon: 2, maple: 2, ember: 1 }, 117, "+92 321 4410117"),
-    demo("m_sana",  "Sana",  "Tariq",   "her", { type: "explorer", tierId: "classic8" }, "207341", { kiln: 5, maple: 2 }, 203, "+92 333 8120203"),
-    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "classic8" },  "558190", { kiln: 1, noon: 2, slowpour: 2, thirdfloor: 1 }, 356, "+92 300 5520356"),
-    demo("m_zara",  "Zara",  "Hussain", "her", { type: "explorer", tierId: "classic8" }, "482913", { kiln: 4, ember: 2 }, 418, "+92 345 2210418"),
-    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "classic8" },  "730215", { kiln: 2, noon: 2, slowpour: 2, grind: 2 }, 129, "+92 301 7730129"),
+    demo("m_bilal", "Bilal", "Ahmed",   "him", { type: "explorer", tierId: "classic16" },  "615028", { drip: 6, kite: 2, artisan: 2, blank: 2, thirdculture: 1 }, 117, "+92 321 4410117"),
+    demo("m_sana",  "Sana",  "Tariq",   "her", { type: "explorer", tierId: "classic8" }, "207341", { drip: 5, blank: 2 }, 203, "+92 333 8120203"),
+    demo("m_omar",  "Omar",  "Farooq",  "him", { type: "explorer", tierId: "classic8" },  "558190", { drip: 1, artisan: 2, kite: 2, brewtique: 1 }, 356, "+92 300 5520356"),
+    demo("m_zara",  "Zara",  "Hussain", "her", { type: "explorer", tierId: "classic8" }, "482913", { drip: 4, thirdculture: 2 }, 418, "+92 345 2210418"),
+    demo("m_hamza", "Hamza", "Iqbal",   "him", { type: "explorer", tierId: "classic8" },  "730215", { drip: 2, artisan: 2, kite: 2, nofilter: 2 }, 129, "+92 301 7730129"),
     // Double Shot demo members (counter codes), on cup packs now: Rabia Classic 8,
     // 5 left; Kamran Signature 16, had today's pack cup; Nida Classic 8, none left.
     demo("m_rabia",  "Rabia",  "Anwar",  "her", { type: "explorer", tierId: "classic8" },  "341862", {}, 233, "+92 322 4100233"),
@@ -623,7 +507,7 @@
   const SURNAMES = ["Malik", "Butt", "Chaudhry", "Sheikh", "Qureshi", "Mirza", "Rana", "Javed", "Siddiqui", "Khan", "Awan", "Bajwa", "Gill", "Cheema", "Hashmi", "Raza", "Zaidi", "Nadeem", "Aslam", "Saleem"];
   const REGULAR_COUNT = 80;
   // Popularity weights for My cafés reservations
-  const POPULAR = ["kiln", "kiln", "slowpour", "slowpour", "ember", "ember", "noon", "noon", "maple", "grind", "quiethours", "thirdfloor"];
+  const POPULAR = ["drip", "drip", "kite", "kite", "thirdculture", "thirdculture", "artisan", "artisan", "blank", "nofilter", "housespecialty", "brewtique"];
   const regulars = Array.from({ length: REGULAR_COUNT }, (_, i) => {
     const firstName = REGULAR_NAMES[i % REGULAR_NAMES.length];
     const id = `m_r${i}_${firstName.toLowerCase()}`;
@@ -702,25 +586,25 @@
 
   /* Mumtaz’s earlier months --------------------------------------------
      She joined three months before this cycle on a Classic 16 pack a
-     month (cups at Kiln & Bean, Noon Café and Slow Pour), used 12 of 16
+     month (cups at Drip, Artisan Coffee Roasters and Kite), used 12 of 16
      each month, then moved to the LCC Pass when this cycle began. The Club tab
      (status, passport, badges) reads all of it from the ledger.        */
   const clockAgo = (d, h, m = 0) => startOfToday - d * DAY + (h * 60 + m) * MIN;
   const monthsBefore = (ts, n) => { const d = new Date(ts); d.setMonth(d.getMonth() - n); return d.getTime(); };
   (function mumtazHistory() {
-    const plan = { kiln: 6, noon: 4, slowpour: 3 };
-    // [day in cycle, café, drink, hour, minute]; two Noon cups a month before 9 am
+    const plan = { drip: 6, artisan: 4, kite: 3 };
+    // [day in cycle, café, drink, hour, minute]; two Artisan cups a month before 9 am
     const MONTH = [
-      [1, "kiln", "kiln-flat", 10, 30], [3, "noon", "noon-capp", 8, 10], [5, "kiln", "kiln-cort", 13, 15],
-      [7, "slowpour", "sp-v60", 18, 20], [9, "kiln", "kiln-flat", 16, 40], [11, "noon", "noon-latte", 8, 35],
-      [13, "kiln", "kiln-cort", 11, 5], [15, "noon", "noon-capp", 12, 30], [18, "slowpour", "sp-gibraltar", 19, 0],
-      [21, "kiln", "kiln-flat", 15, 20], [24, "noon", "noon-iced", 14, 45], [27, "kiln", "kiln-cort", 10, 50],
+      [1, "drip", "dr-latte", 10, 30], [3, "artisan", "ar-capp", 8, 10], [5, "drip", "dr-capp", 13, 15],
+      [7, "kite", "ki-flat", 18, 20], [9, "drip", "dr-latte", 16, 40], [11, "artisan", "ar-latte", 8, 35],
+      [13, "drip", "dr-capp", 11, 5], [15, "artisan", "ar-capp", 12, 30], [18, "kite", "ki-espresso", 19, 0],
+      [21, "drip", "dr-latte", 15, 20], [24, "artisan", "ar-spanish", 14, 45], [27, "drip", "dr-capp", 10, 50],
     ];
     for (let k = 3; k >= 1; k--) {
       const start = startOfDay(monthsBefore(mumtaz.cycleStartedAt, k));
       const end = k === 1 ? mumtaz.cycleStartedAt : startOfDay(monthsBefore(mumtaz.cycleStartedAt, k - 1));
       const cycle = `c_m_ayesha_past${k}`;
-      // Formerly My cafés (Kiln 6, Noon 4, Slow Pour 3): one Classic 16 pack a month. seq advances
+      // Formerly My cafés (Drip 6, Artisan 4, Kite 3): one Classic 16 pack a month. seq advances
       // as before (one id per café), so later seeded ids stay the same.
       ledger.push({ id: `s${seq}`, type: "purchase", memberId: mumtaz.id, cafeId: null, cups: 16, packId: "classic16", at: start + 9 * 60 * MIN, cycle });
       seq += Object.keys(plan).length;
@@ -737,11 +621,11 @@
   const before = (k, n) => startOfToday - Math.round(((n - k) / (n + 1)) * 8 * DAY) - 3 * 60 * MIN; // spread over the last 8 days
   const byId = Object.fromEntries(members.map((m) => [m.id, m]));
   const HISTORY = {
-    m_bilal:  [["kiln", "kiln-cort"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["noon", "noon-capp"], ["noon", "noon-iced"], ["maple", "maple-latte"], ["maple", "maple-espresso"], ["ember", "ember-latte"]],
-    m_sana:   [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["maple", "maple-latte"]],
-    m_omar:   [["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["thirdfloor", "tf-spanish"]],
-    m_zara:   [["ember", "ember-latte"], ["ember", "ember-mocha"], ["kiln", "kiln-flat"]],
-    m_hamza:  [["kiln", "kiln-flat"], ["kiln", "kiln-cort"], ["noon", "noon-capp"], ["noon", "noon-latte"], ["slowpour", "sp-v60"], ["slowpour", "sp-gibraltar"], ["grind", "gg-latte"], ["grind", "gg-macch"]],
+    m_bilal:  [["drip", "dr-capp"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["artisan", "ar-capp"], ["artisan", "ar-spanish"], ["blank", "bl-latte"], ["blank", "bl-espresso"], ["thirdculture", "tc-latte"]],
+    m_sana:   [["drip", "dr-latte"], ["drip", "dr-capp"], ["blank", "bl-latte"]],
+    m_omar:   [["artisan", "ar-capp"], ["artisan", "ar-latte"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["brewtique", "br-spanish"]],
+    m_zara:   [["thirdculture", "tc-latte"], ["thirdculture", "tc-capp"], ["drip", "dr-latte"]],
+    m_hamza:  [["drip", "dr-latte"], ["drip", "dr-capp"], ["artisan", "ar-capp"], ["artisan", "ar-latte"], ["kite", "ki-flat"], ["kite", "ki-espresso"], ["nofilter", "nf-latte"], ["nofilter", "nf-espresso"]],
   };
   Object.entries(HISTORY).forEach(([id, rows]) => rows.forEach(([cafeId, drinkId, at], k) => redeem(byId[id], cafeId, drinkId, at || before(k, rows.length))));
 
@@ -780,9 +664,9 @@
     ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: c.brandId, cups: 0, drinkId, temp: t, listPrice, memberPrice,
       discount: PLAN_CONFIG.pass.discount, tier: m.plan.tier === "plus" ? "plus" : "pass", cupNo, at, cycle: m.cycle, ...served(cafeId, id) });
   }
-  [["s_mx_1", "slowpour", "sp-gibraltar", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", "hot", clockAgo(14, 8, 20)],
-    ["s_mx_2", "noon", "noon-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
-    ["s_mx_4", "noon", "noon-capp", "hot", clockAgo(6, 11, 10)], ["s_mx_6", "kiln", "kiln-cort", "hot", todayAt(8, 40, 90)]]
+  [["s_mx_1", "kite", "ki-espresso", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "drip", "dr-latte", "hot", clockAgo(14, 8, 20)],
+    ["s_mx_2", "artisan", "ar-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
+    ["s_mx_4", "artisan", "ar-capp", "hot", clockAgo(6, 11, 10)], ["s_mx_6", "drip", "dr-capp", "hot", todayAt(8, 40, 90)]]
     .forEach(([id, cafeId, drinkId, temp, at]) => passSale(mumtaz, id, cafeId, drinkId, temp, at));
 
   /* Alina: the second demo member, on a Classic 8 cup pack (bought 12
@@ -797,21 +681,21 @@
   };
   members.push(alina);
   ledger.push({ id: "s_al_0", type: "purchase", memberId: alina.id, cafeId: null, cups: 8, packId: "classic8", at: alina.cycleStartedAt, cycle: alina.cycle });
-  [["s_al_1", "kiln", "kiln-flat", clockAgo(9, 9, 15), true], ["s_al_2", "maple", "maple-latte", clockAgo(5, 16, 30), true], ["s_al_3", "ember", "ember-latte", clockAgo(2, 11, 45), true]]
+  [["s_al_1", "drip", "dr-latte", clockAgo(9, 9, 15), true], ["s_al_2", "blank", "bl-latte", clockAgo(5, 16, 30), true], ["s_al_3", "thirdculture", "tc-latte", clockAgo(2, 11, 45), true]]
     .forEach(([id, cafeId, drinkId, at, firstVisit]) => {
       ledger.push({ id, type: "redeem", memberId: alina.id, cafeId, cups: -1, credits: 1, drinkId, firstVisit, at, cycle: alina.cycle, ...served(cafeId, id) });
       alina.visits[cafeId] = (alina.visits[cafeId] || 0) + 1;
     });
 
-  /* Today’s hand-written rows at Kiln & Bean (the café view’s demo café).
-     Mumtaz: 1 of 2 at Kiln & Bean this month. Zara: daily limit.       */
+  /* Today’s hand-written rows at Drip (the café view’s demo café).
+     Mumtaz: 1 of 2 at Drip this month. Zara: daily limit.       */
   const handToday = {
-    kiln: [
-      { memberId: "m_zara",   drinkId: "kiln-flat" },
-      { memberId: "m_zara",   drinkId: "kiln-cort" },
-      { memberId: "m_omar",   drinkId: "kiln-cort", firstVisit: true },
-      { memberId: "m_bilal",  drinkId: "kiln-flat" },
-      { memberId: "m_sana",   drinkId: "kiln-flat" },
+    drip: [
+      { memberId: "m_zara",   drinkId: "dr-latte" },
+      { memberId: "m_zara",   drinkId: "dr-capp" },
+      { memberId: "m_omar",   drinkId: "dr-capp", firstVisit: true },
+      { memberId: "m_bilal",  drinkId: "dr-latte" },
+      { memberId: "m_sana",   drinkId: "dr-latte" },
     ],
   };
 
@@ -1048,28 +932,28 @@
     }
   };
   // Earlier months (lifetime: stamps and badges)
-  [["kiln", "kiln-flat"], ["slowpour", null], ["noon", null], ["ember", "ember-latte"]].forEach(([c, d], i) =>
+  [["drip", "dr-latte"], ["kite", null], ["artisan", null], ["thirdculture", "tc-latte"]].forEach(([c, d], i) =>
     circleCup(`mah_old${i}`, mahnoor, c, d || cafeById[c].drinks[0].id, daysAgo(40 + i * 6, 600), "hot", true));
-  [["kiln", "kiln-cort"], ["noon", null], ["grind", null], ["maple", "maple-latte"], ["quiethours", null]].forEach(([c, d], i) =>
+  [["drip", "dr-capp"], ["artisan", null], ["nofilter", null], ["blank", "bl-latte"], ["housespecialty", null]].forEach(([c, d], i) =>
     circleCup(`usm_old${i}`, usman, c, d || cafeById[c].drinks[0].id, daysAgo(35 + i * 5, 500), "hot", true));
   ["ds-gulberg", "ds-dha6", "ds-pine"].forEach((c, i) => circleCup(`hir_old${i}`, hira, c, "ds-spanish", daysAgo(30 + i * 4, 700), "iced", true));
   ["ds-cantt", "ds-dolmen"].forEach((c, i) => circleCup(`far_old${i}`, faraz, c, "ds-americano", daysAgo(33 + i * 3, 800), "hot", true));
   // Past rounds, a week apart: 21, 14 and 7 days ago (the streak)
-  circleCup("r3_usm", usman, "kiln", "kiln-flat", clockAgo(21, 18, 10), "hot", true);
-  circleCup("r3_mah", mahnoor, "kiln", "kiln-cort", clockAgo(21, 18, 20), "hot", true);
+  circleCup("r3_usm", usman, "drip", "dr-latte", clockAgo(21, 18, 10), "hot", true);
+  circleCup("r3_mah", mahnoor, "drip", "dr-capp", clockAgo(21, 18, 20), "hot", true);
   circleCup("r2_hir", hira, "ds-gulberg", "ds-matcha", clockAgo(14, 17, 10), "iced", true);
   circleCup("r2_far", faraz, "ds-gulberg", "ds-latte", clockAgo(14, 17, 25), "hot", true);
-  circleCup("r1_usm", usman, "ember", "ember-mocha", clockAgo(7, 17, 5));
-  circleCup("r1_mah", mahnoor, "ember", "ember-latte", clockAgo(7, 17, 15));
+  circleCup("r1_usm", usman, "thirdculture", "tc-capp", clockAgo(7, 17, 5));
+  circleCup("r1_mah", mahnoor, "thirdculture", "tc-latte", clockAgo(7, 17, 15));
   // This week
   circleCup("hir_1", hira, "ds-pine", "ds-flat-white", daysAgo(5, 200));
   circleCup("hir_2", hira, "ds-gulberg", "ds-spanish", daysAgo(2, 300), "iced");
   circleCup("hir_3", hira, "ds-dha6", "ds-matcha", minsAgo(120), "iced");
-  circleCup("usm_1", usman, "grind", cafeById.grind.drinks[0].id, daysAgo(6, 100));
-  circleCup("usm_2", usman, "noon", cafeById.noon.drinks[0].id, daysAgo(3, 240));
-  circleCup("usm_3", usman, "thirdfloor", "tf-spanish", daysAgo(1, 90));
-  circleCup("mah_1", mahnoor, "slowpour", cafeById.slowpour.drinks[0].id, daysAgo(3, 420));
-  circleCup("mah_2", mahnoor, "maple", "maple-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
+  circleCup("usm_1", usman, "nofilter", cafeById.nofilter.drinks[0].id, daysAgo(6, 100));
+  circleCup("usm_2", usman, "artisan", cafeById.artisan.drinks[0].id, daysAgo(3, 240));
+  circleCup("usm_3", usman, "brewtique", "br-spanish", daysAgo(1, 90));
+  circleCup("mah_1", mahnoor, "kite", cafeById.kite.drinks[0].id, daysAgo(3, 420));
+  circleCup("mah_2", mahnoor, "blank", "bl-latte", minsAgo(250)); // fifth café: a new stamp and the Explorer badge
   circleCup("far_1", faraz, "ds-cantt", "ds-cortado", daysAgo(4, 330));
   circleCup("far_2", faraz, "ds-dolmen", "ds-caramel-f", daysAgo(1, 200), "iced");
 
@@ -1091,11 +975,11 @@
   }];
   const answer = (going, at) => ({ going, at });
   const rounds = [
-    { id: "round-kiln", circleId: "circle-gulberg", callerId: usman.id, cafeId: "kiln", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
+    { id: "round-drip", circleId: "circle-gulberg", callerId: usman.id, cafeId: "drip", at: clockAgo(21, 18, 0), createdAt: clockAgo(21, 11, 0), updatedAt: 0, groupId: null,
       answers: { [usman.id]: answer(true, clockAgo(21, 11, 0)), [mahnoor.id]: answer(true, clockAgo(21, 12, 0)), [hira.id]: answer(false, clockAgo(21, 13, 0)) } },
     { id: "round-ds-gulberg", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-gulberg", at: clockAgo(14, 17, 0), createdAt: clockAgo(14, 10, 0), updatedAt: 0, groupId: null,
       answers: { [hira.id]: answer(true, clockAgo(14, 10, 0)), [faraz.id]: answer(true, clockAgo(14, 12, 30)), [mumtaz.id]: answer(false, clockAgo(14, 13, 0)) } },
-    { id: "round-ember", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "ember", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
+    { id: "round-thirdculture", circleId: "circle-gulberg", callerId: mahnoor.id, cafeId: "thirdculture", at: clockAgo(7, 17, 0), createdAt: clockAgo(7, 9, 0), updatedAt: 0, groupId: null,
       answers: { [mahnoor.id]: answer(true, clockAgo(7, 9, 0)), [usman.id]: answer(true, clockAgo(7, 9, 40)), [faraz.id]: answer(false, clockAgo(7, 11, 0)) } },
     { id: "round-today", circleId: "circle-gulberg", callerId: hira.id, cafeId: "ds-dha6", at: nextRoundAt, createdAt: minsAgo(55), updatedAt: 0, groupId: null,
       answers: { [hira.id]: answer(true, minsAgo(55)), [faraz.id]: answer(true, minsAgo(40)), [usman.id]: answer(false, minsAgo(25)) } },
@@ -1103,13 +987,13 @@
   // One quiet acknowledgement per member per entry: key -> memberId -> at
   const acks = {
     "e:sc_hir_3": { [usman.id]: minsAgo(100), [mahnoor.id]: minsAgo(80) },
-    "s:m_c_mahnoor:maple": { [hira.id]: minsAgo(200) },
+    "s:m_c_mahnoor:blank": { [hira.id]: minsAgo(200) },
     "b:m_c_mahnoor:explorer": { [faraz.id]: minsAgo(190), [hira.id]: minsAgo(185) },
     "e:sc_usm_3": { [faraz.id]: daysAgo(1, 30) },
   };
 
   /* LCC Pass regulars (Café pass 2): 60 background members on the Pass,
-     with pass sales this calendar month, one a day at most. Kiln & Bean is
+     with pass sales this calendar month, one a day at most. Drip is
      topped up to about 143 member cups this month (under the 200 step) and
      Double Shot Gulberg to about 236 (past it); every other branch gets a
      few. About half had a pass coffee 35 to 70 days ago at their home café,
@@ -1141,10 +1025,10 @@
       memberNo: 150, staticCode: "552310", plan: { type: "pass" }, visits: {}, cycle: cycleOf("m_danish"), cycleStartedAt: daysAgo(11), renewsAt: daysAgo(11 - 30), memberSince: daysAgo(11) };
     members.push(danish);
     ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
-    [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
+    [["sp_dh_1", "drip", "dr-latte", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "drip", "dr-capp", "hot", clockAgo(2, 8, 50)]]
       .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
     /* One named member for each state the counter can show (Static pass):
-       Ayaan, LCC Pass Plus, had his first coffee at Kiln & Bean 5 minutes
+       Ayaan, LCC Pass Plus, had his first coffee at Drip 5 minutes
        ago, so 1 is left today (same visit only); Hassan used his Pass this
        morning at Double Shot Gulberg; Sara's Pass ended 5 days ago; Taimur
        is suspended. Danish (above) has today's coffee available. Phones end
@@ -1163,8 +1047,8 @@
     passDemo("m_sara", "Sara", "Malik", "her", 171, "+92 321 7730171", "pass", 35);
     passDemo("m_taimur", "Taimur", "Bajwa", "him", 168, "+92 345 6610168", "pass", 6, { suspended: true, suspendedAt: daysAgo(1) });
     [[ayaan, "sp_ay_1", "ds-gulberg", "ds-spanish", "iced", clockAgo(4, 17, 10), 1], [ayaan, "sp_ay_2", "ds-gulberg", "ds-americano", "hot", clockAgo(4, 17, 12), 2],
-      [ayaan, "sp_ay_3", "kiln", "kiln-flat", "hot", minsAgo(5), 1],
-      [hassan, "sp_hr_1", "kiln", "kiln-cort", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
+      [ayaan, "sp_ay_3", "drip", "dr-latte", "hot", minsAgo(5), 1],
+      [hassan, "sp_hr_1", "drip", "dr-capp", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
       .forEach(([m, id, cafeId, drinkId, temp, at, cupNo]) => { passSale(m, id, cafeId, drinkId, temp, at, cupNo); m.visits[cafeId] = (m.visits[cafeId] || 0) + 1; });
     const busy = new Set(); // "memberId|day": one pass coffee a day
     [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
@@ -1191,7 +1075,7 @@
           memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
       }
     }
-    const TARGETS = { kiln: 143, "ds-gulberg": 236 };
+    const TARGETS = { drip: 143, "ds-gulberg": 236 };
     cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
   })();
 
@@ -1262,31 +1146,31 @@
     ],
     // Funded by each café, not by plans. for: local (Local and up) | connoisseur | founding
     perks: [
-      { id: "kiln-shot",      cafeId: "kiln",     for: "local",       text: "An extra shot in any drink, on the house" },
-      { id: "kiln-pastry",    cafeId: "kiln",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
-      { id: "noon-refill",    cafeId: "noon",     for: "local",       text: "A complimentary refill on filter coffee" },
-      { id: "ember-croissant", cafeId: "ember",   for: "local",       text: "Half-price croissants before 10 am" },
-      { id: "slowpour-first", cafeId: "slowpour", for: "connoisseur", text: "The first pour of every new single origin" },
-      { id: "maple-beans",    cafeId: "maple",    for: "founding",    text: "A bag of the house roast on your club anniversary" },
+      { id: "drip-shot",      cafeId: "drip",     for: "local",       text: "An extra shot in any drink, on the house" },
+      { id: "drip-pastry",    cafeId: "drip",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
+      { id: "artisan-shot",   cafeId: "artisan",  for: "local",       text: "An extra shot in any drink, on the house" },
+      { id: "thirdculture-size", cafeId: "thirdculture", for: "local",  text: "A larger size at the regular price before 10 am" },
+      { id: "kite-pastry",    cafeId: "kite",     for: "connoisseur", text: "A complimentary pastry with your coffee, once a week" },
+      { id: "blank-anniversary", cafeId: "blank", for: "founding",    text: "A complimentary drink on your club anniversary" },
     ],
     // BACKEND: gatherings and RSVPs become tables (gatherings, rsvps); seats are enforced server-side
     gatherings: [
       {
-        id: "gather-maple-cupping",
+        id: "gather-blank-cupping",
         kind: "Club morning",
-        title: "Cupping at Maple Roastery",
-        cafeId: "maple",
+        title: "Tasting morning at Blank",
+        cafeId: "blank",
         at: saturdayFrom(now + 14 * DAY, 1) + 9 * 60 * MIN,
         seats: 30,
         taken: 19,                // RSVPs before this session
         priorityDays: 7,          // Founding Members and Connoisseurs book first; everyone else from a week before
-        line: "Six coffees from three origins, tasted side by side with Maple’s roaster. Tea and something baked after.",
+        line: "A morning tasting for members, side by side. Tea and something baked after.",
       },
       {
-        id: "gather-slowpour-brew",
+        id: "gather-kite-brew",
         kind: "Club evening",
-        title: "Brew bar at Slow Pour",
-        cafeId: "slowpour",
+        title: "Brew bar at Kite",
+        cafeId: "kite",
         at: saturdayFrom(now - 14 * DAY, -1) + 18 * 60 * MIN,
         seats: 24,
         came: 22,
@@ -1296,14 +1180,14 @@
         // By invitation only: 1,500 Beans (see beans.rewards). Not listed under Gatherings.
         id: "gather-members-evening",
         kind: "Members’ evening",
-        title: "An evening at Noon",
-        cafeId: "noon",
+        title: "An evening at Artisan",
+        cafeId: "artisan",
         at: saturdayFrom(now + 21 * DAY, 1) + 19 * 60 * MIN,
         seats: 20,
         taken: 7,
         priorityDays: 0,
         inviteOnly: true,
-        line: "A late tasting with Noon’s roaster, a small plate menu, and the room to ourselves.",
+        line: "A late tasting for members, a small plate menu, and the room to ourselves.",
       },
     ],
   };
@@ -1349,7 +1233,7 @@
     partner[c.id] = {
       payoutDay: 5,
       payouts: [1, 2, 3].map((k) => {
-        const cups = c.id === "kiln" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
+        const cups = c.id === "drip" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
         const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : CLUB_AVG_PAYOUT;
         return { month: monthStart(k), cups, amount: cups * perCup, paidAt: monthStart(k - 1) + 4 * DAY };
       }),
@@ -1392,6 +1276,7 @@
     areas,
     brands,
     cafes,
+    comingSoon,
     members,
     memberId: mumtaz.id,
     demoPackMemberId: "m_alina", // the second demo member (Classic 8), from the Demo menu
@@ -1408,6 +1293,6 @@
     partner,
     drinkCategories,
     // Builder default for the “My cafés” plan
-    builderDraft: { kiln: 4, slowpour: 2, noon: 2 },
+    builderDraft: { drip: 4, kite: 2, artisan: 2 },
   };
 })();

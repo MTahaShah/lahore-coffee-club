@@ -232,19 +232,13 @@
 .ring__unit { font-size: var(--fs-16); color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: -4px; }
 
 /* LCC Pass: the ring is a button; tapping turns the centre over */
-.ring--flip { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
-.ring--flip:focus-visible { outline: 2px solid var(--primary); outline-offset: 6px; }
-.ring--flip .ring__center { perspective: 700px; }
 .ring__faces { position: relative; display: grid; transform-style: preserve-3d; transition: transform 600ms var(--ease); }
 .ring__faces > .ring__face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; align-self: center; }
 .ring__face--back { transform: rotateY(180deg); }
-.ring--flip.is-flipped .ring__faces { transform: rotateY(180deg); }
 @media (prefers-reduced-motion: reduce) {
   .ring__bricks .lr-brick.is-full, .logo-ring.is-spinning { animation: none; }
   .ring__faces { transform: none !important; transition: none; }
   .ring__faces > .ring__face { backface-visibility: visible; transform: none; transition: opacity 200ms linear; }
-  .ring--flip .ring__face--back, .ring--flip.is-flipped .ring__face--front { opacity: 0; }
-  .ring--flip.is-flipped .ring__face--back { opacity: 1; }
 }
 .home.has-pickup .ring--home .ring__cap { font-size: var(--fs-12); }
 .home.has-pickup .ring--home .ring__unit { font-size: var(--fs-12); }
@@ -710,6 +704,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   pointer-events: auto; cursor: pointer;
 }
 .cs-pin::before { content: ""; position: absolute; inset: -8px -4px; } /* 44px tap area */
+.cs-pin--soon { border-style: dashed; color: var(--ink-3); font-size: var(--fs-12); } /* listed, menu coming soon */
 .cs-pin.is-selected { background: var(--primary); color: var(--on-primary); border-color: var(--accent); --pin-s: 1.15; z-index: 2; } /* accent: the selected pin */
 .cs-me { position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 3px solid var(--bg); outline: 1px solid var(--ink); }
 
@@ -770,7 +765,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-card__meta, .cs-card__hours { font-size: var(--fs-14); color: var(--ink-3); }
 .cs-card__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); }
 .cs-card__price { font-size: var(--fs-14); color: var(--ink-3); }
-.cs-member { color: var(--accent-text); font-weight: 500; } /* accent: the member price */
 .cs-card__tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: 2px; }
 .cs-card__acts { display: grid; padding-top: var(--space-2); }
 .cs-save[aria-pressed="true"] svg path { fill: currentColor; }
@@ -811,3 +805,10 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-mappill[hidden] { display: none; }
 .cs-pin.is-selected .num { color: var(--on-primary); }
 .cs-search__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* Home ring: keep the centre text inside the bricks (the Pass caption is long, so it wraps) */
+.ring--home .ring__face { gap: 4px; }
+.ring--home .ring__num { font-size: 72px; }
+.ring--home .ring__cap { max-width: 8.5em; line-height: 1.25; text-wrap: balance; }
+.home.has-pickup .ring--home .ring__num { font-size: 40px; }
+.home.has-pickup .ring--home[data-kind="pass"] .ring__cap { display: none; }  /* too long for the small ring; the aria-label keeps it */

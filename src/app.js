@@ -57,7 +57,8 @@
   const project = (x, y) => ({ x: 24 + (x - 260) * 0.58, y: 60 + (y - 250) * 1.1 });
   // Where each pin's name sits, so names stay inside the frame and don't collide (default: right)
   const LABEL_SIDE = {
-    slowpour: "left", maple: "left", grind: "left", quiethours: "left", ember: "below", thirdfloor: "below",
+    kite: "left", blank: "left", nofilter: "left", housespecialty: "below", thirdculture: "left", brewtique: "below",
+    extraction: "left", retrograde: "below", luna: "left", slab: "left", sixthree: "left",
     "ds-gulberg": "left", "ds-cantt": "below", "ds-lalakjan": "left", "ds-dha6": "left", "ds-dolmen": "left", "ds-pine": "left", "ds-modeltown": "left",
   };
   const AREA_LABELS = {
@@ -166,6 +167,7 @@
         const brandId = b && (S.brand(b)?.plans.length ? b : S.cafe(b)?.chainId);
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
+        if (a === "cafes" && b && LCC.comingSoonCafe?.(b) && REG.soonDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.soonDetail(ctx, b) };
         if (a === "cafes" && REG.cafes) return { key: "cafes", tab: "cafes", make: () => REG.cafes(ctx) };
         // The busy map now sits in the Cafés tab (Map selected)
         if (a === "map") return { key: "map", tab: "cafes", make: () => { REG.cafesView?.("map"); active.on?.cafesView?.("map"); return { redirect: "#/app/cafes" }; } };
@@ -265,7 +267,7 @@
           <div class="cafe-sheet">
             <div class="stack" style="--stack-gap:var(--space-1)">
               <h2 class="t-h2" id="cafe-sheet-title">${c.name}</h2>
-              <p class="t-small t-muted">${S.area(c.area).name} · ${c.distanceKm} km · ${fmt.rs(c.price)} a cup at the counter</p>
+              <p class="t-small t-muted">${S.area(c.area).name} · ${c.distanceKm} km · Latte ${fmt.rs(c.price)}</p>
             </div>
             <div>${ui.statusPill(c.id)}</div>
             <div class="cafe-sheet__facts">
@@ -335,10 +337,7 @@
             </div>`.s,
           mount() {
             requestAnimationFrame(() => paintRing());
-            // LCC Pass: tap the ring to turn it over (cups on us <-> money saved)
-            const onFlip = (e) => { const r = e.target.closest("[data-ring-flip]"); if (r) flipRing(r); };
-            view.addEventListener("click", onFlip);
-            return () => view.removeEventListener("click", onFlip);
+            return () => {};
           },
           on: {
             pickup: ({ order }) => { if (order.memberId === member().id) paintPickups(); },
@@ -365,68 +364,37 @@
 
       /** The Home ring: the logo's own bricks (ui.logoRing, 15 of them).
           Cup packs: a gold brick per cup left (up to 15), the rest empty
-          outlines; the number is cups left. LCC Pass: the bricks fill with
-          the month's savings toward the Pass's price; the front says how
-          many cups' worth the savings come to ("cups on us"), and a tap turns
-          the ring over to the money saved.                                  */
+          outlines; the number is cups left. LCC Pass: one brick per member
+          coffee this pass month. No savings figures.                       */
       function ringSpec() {
         const N = ui.logoRingSize();
         if (S.isPass()) {
-          const pm = S.passMonth();
-          const avg = pm.coffees ? pm.listTotal / pm.coffees : 0;
-          const onUs = avg ? pm.saved / avg : 0;
-          return {
-            kind: "pass", filled: Math.min(N, Math.floor(pm.progress * N + 1e-9)), num: onUs, money: pm.saved,
-            cap: `${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far`,
-            label: `${fmtOnUs(onUs)} ${fmtOnUs(onUs) === "1" ? "cup" : "cups"} on us so far: ${fmt.rs(pm.saved)} saved this month. Tap to turn over.`,
-          };
+          // Member coffees this pass month, one brick each (no savings figures: menu prices may not match the counter)
+          const n = S.passMonth().coffees;
+          return { kind: "pass", filled: Math.min(N, n), num: n, cap: `member ${n === 1 ? "coffee" : "coffees"} this month`, label: `${n} member ${n === 1 ? "coffee" : "coffees"} this month` };
         }
         const b = S.balance();
         const left = Math.max(0, b.left);
         return { kind: "cups", filled: Math.min(N, left), num: left, cap: left === 1 ? "cup left" : "cups left", label: `${left} of ${fmt.cups(b.total)} left` };
       }
-      /** 1.2 under ten, whole numbers after. */
-      const fmtOnUs = (v) => (v < 10 && Math.abs(v - Math.round(v)) >= 0.05 ? v.toFixed(1) : String(Math.round(v)));
       function ringHtml() {
         const r = ringSpec();
         const bricks = html`<div class="ring__bricks" data-bricks data-key="${r.filled}">${ui.logoRing({ filled: r.filled, stagger: true })}</div>`;
-        if (r.kind === "pass") {
-          return html`<button type="button" class="ring ring--home ring--flip" data-ring data-ring-flip data-kind="pass" aria-pressed="false" aria-label="${r.label}">
-            ${bricks}
-            <span class="ring__center" aria-hidden="true"><span class="ring__faces" data-faces>
-              <span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span>
-              <span class="ring__face ring__face--back"><span class="ring__unit">Rs</span><span class="ring__num ring__num--money" data-ring-money data-value="0">0</span><span class="ring__cap">saved so far</span></span>
-            </span></span>
-          </button>`;
-        }
-        return html`<div class="ring ring--home" data-ring data-kind="cups" role="img" aria-label="${r.label}">
+        return html`<div class="ring ring--home" data-ring data-kind="${r.kind}" role="img" aria-label="${r.label}">
           ${bricks}
           <div class="ring__center" aria-hidden="true"><span class="ring__face ring__face--front"><span class="ring__num" data-ring-num data-value="0">0</span><span class="ring__cap" data-ring-cap>${r.cap}</span></span></div>
         </div>`;
       }
-      /** Turn the Pass ring over: the bricks spin once, the centre flips. */
-      function flipRing(ring) {
-        const on = ring.getAttribute("aria-pressed") !== "true";
-        ring.setAttribute("aria-pressed", String(on));
-        ring.classList.toggle("is-flipped", on);
-        const svg = $(".logo-ring", ring);
-        if (svg && !ui.reducedMotion()) { svg.classList.remove("is-spinning"); void svg.getBoundingClientRect(); svg.classList.add("is-spinning"); }
-      }
 
-      /** Lines under the ring. Pass: today's member coffee, the savings
-          (accent), paid for itself, the renewal, and after 10 coffees one
-          quiet line on what a Classic 16 would have saved. */
+      /** Lines under the ring. Pass: today's member coffee, the plain offer
+          and the renewal. No savings figures. */
       function homeLinesHtml() {
         const m = member();
         if (S.isPass()) {
           const t = S.passToday();
-          const pm = S.passMonth();
-          const vs = S.passVsPack();
           return html`
             <p class="t-body num" data-home-line>${t.limit > 1 ? `Today: ${t.limit} member coffees · ${t.left} left` : `Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}`}</p>
-            <p class="t-small home__saved num">You’ve saved ${fmt.rs(pm.saved)} this month</p>
-            <p class="t-small t-muted num">${pm.paidOff ? "Your pass has paid for itself." : `${fmt.rs(pm.price - pm.saved)} more and it has paid for itself.`} ${renewLine()}.</p>
-            ${vs ? html`<p class="t-small t-faint num">A ${vs.pack.name} would have saved you ${fmt.rs(vs.more)} more.</p>` : ""}`;
+            <p class="t-small t-muted num">${S.passTier().name} · ${LCC.passCopy ? LCC.passCopy.perDay(S.passTier()) : ""}. ${renewLine()}.</p>`;
         }
         return html`
           <p class="t-body" data-home-line>${homeLine()}</p>
@@ -587,7 +555,7 @@
       }
       function closeCupAlert(id) { $(`[data-cup-alert="${id}"]`, el)?.remove(); }
 
-      /** After every pass sale: "LCC Pass used at Kiln & Bean · 8:40 am. Not you? Tap here." (state.notices) */
+      /** After every pass sale: "LCC Pass used at Drip · 8:40 am. Not you? Tap here." (state.notices) */
       function passNotice(notice) {
         const region = $("[data-cup-alerts]", el);
         if (!region || notice.read || notice.undone) return;
@@ -660,7 +628,7 @@
             return html`<li class="row${r.id === newId ? " enter" : ""}">
               <div class="row__main">
                 <div class="row__title">${S.entryDrinkName(r)}</div>
-                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)}, saved ${fmt.rs(r.listPrice - r.memberPrice)} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
+                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)} at the till · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
               </div>
               <span class="badge">Pass</span>
             </li>`;
@@ -694,9 +662,7 @@
         if (ring.dataset.kind !== r.kind) { ring.outerHTML = ringHtml().s; ring = $("[data-ring]", view); }
         const bricks = $("[data-bricks]", ring);
         if (bricks.dataset.key !== String(r.filled)) { bricks.innerHTML = ui.logoRing({ filled: r.filled }).s; bricks.dataset.key = String(r.filled); }
-        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: r.kind === "pass" ? fmtOnUs : fmt.num });
-        const money = $("[data-ring-money]", ring);
-        if (money) ui.animateNumber(money, r.money, { duration: 700, format: fmt.num });
+        ui.animateNumber($("[data-ring-num]", ring), r.num, { duration: 700, format: fmt.num });
         const cap = $("[data-ring-cap]", ring); if (cap) cap.textContent = r.cap;
         ring.setAttribute("aria-label", r.label);
       }
@@ -854,14 +820,14 @@
             <a class="pass-order__text" href="#/app/cafes/${o.brandId}" aria-label="Your order: ${S.drinkLabel(item, o.temp)} at ${S.brand(o.brandId).name}. Change it">
               <span class="t-small t-muted">${S.brand(o.brandId).name}</span>
               <span class="pass-order__drink">${S.drinkLabel(item, o.temp)}</span>
-              <span class="t-small t-muted num">${S.isPass() ? `${fmt.rs(p.price)} · ${fmt.rs(S.memberPrice(p.price))} member price` : `${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}`}</span>
+              <span class="t-small t-muted num">${S.isPass() ? `${fmt.rs(p.price)} on the menu` : `${p.band ? p.band.label : "Above Reserve"}${p.included ? "" : ` · Cup + ${fmt.rs(p.topUp)}`}`}</span>
             </a>
             <button type="button" class="icon-btn pass-order__clear" data-clear-order aria-label="Order at the counter instead">${icon("close", { size: 18 })}</button>
           </div>`;
         }
 
-        /** Cup packs: cups used at each café on this pack ("Kiln & Bean 2"), a chain counted once.
-            My cafés: each café's balance ("Kiln & Bean 3 of 6"). Brand plans: nothing,
+        /** Cup packs: cups used at each café on this pack ("Drip 2"), a chain counted once.
+            My cafés: each café's balance ("Drip 3 of 6"). Brand plans: nothing,
             the plan line already says it. Empty string when there's nothing to show. */
         function passCafes() {
           const b = S.balance();
@@ -929,17 +895,15 @@
           $("[data-cd-bar]", view).setAttribute("stroke-dashoffset", (CD_C * (1 - p.secondsLeft / p.period)).toFixed(2));
         }
 
-        /** After a pass sale at the counter: what was paid and saved. */
+        /** After a pass sale at the counter: the drink and what was paid at the till. */
         function showPassSale(entry) {
           const card = $("[data-pass-card]", view);
           if (!card) return;
-          const pm = S.passMonth();
           card.innerHTML = html`
             <div class="pass-success" role="status">
               <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
               <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(entry.cafeId)}.</p>
               <p class="t-body num">${S.entryDrinkName(entry)} · ${fmt.rs(entry.memberPrice)} at the till</p>
-              <p class="t-small home__saved num">Saved ${fmt.rs(entry.listPrice - entry.memberPrice)} · ${fmt.rs(pm.saved)} this month</p>
               <p class="t-small t-faint">${(() => { const ps = S.passStatus(member().id, entry.cafeId); return ps.state === "second" ? `${ps.allowance}. The second is here, until ${fmt.time(ps.until)}.` : "Today’s member coffee is used. Back tomorrow."; })()}</p>
               <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>

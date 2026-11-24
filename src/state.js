@@ -6,8 +6,8 @@
      const { store } = LCC;
      const off = store.on("cafe:status", ({ cafeId }) => …);  // one event
      const off = store.subscribe((type, payload) => …);        // every event
-     store.actions.setCafeStatus("kiln", "packed");
-     store.select.cafe("kiln").status;
+     store.actions.setCafeStatus("drip", "packed");
+     store.select.cafe("drip").status;
 
    Events: cafe:status, cafe:pause, ledger, redeem, undo, report, pass,
            member, plan, builder, gift, rsvp, order, pickup, group, circle,
@@ -507,7 +507,7 @@
     brand: (id) => state.brands[id] || null,
     /** The chain a branch belongs to (a brand that sells its own plans), or null for a single café. */
     brandOf: (cafeId) => state.brands[state.cafes[cafeId]?.chainId] || null,
-    /** The partner brand of any branch: Double Shot for its branches, Kiln & Bean for Kiln & Bean. */
+    /** The partner brand of any branch: Double Shot for its branches, Drip for Drip. */
     brandFor: (cafeId) => state.brands[state.cafes[cafeId]?.brandId] || null,
     /** Every partner brand, in list order. */
     partnerBrands: () => [...new Set(state.cafeOrder.map((id) => state.cafes[id].brandId))].map((id) => state.brands[id]),
@@ -1653,7 +1653,7 @@
     /* ---------------- Pickup orders ---------------- */
 
     pickup: (id) => state.orders[id] || null,
-    /** Short name for where to collect: "Double Shot Gulberg", "Kiln & Bean". */
+    /** Short name for where to collect: "Double Shot Gulberg", "Drip". */
     pickupPlace(cafeId) {
       const c = state.cafes[cafeId];
       return c?.chainId ? `${state.brands[c.chainId].name} ${c.short}` : c?.name || "";

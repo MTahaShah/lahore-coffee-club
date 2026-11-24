@@ -2,7 +2,7 @@
    Lahore Coffee Club — partner.js
    The owner dashboard (#/partner). Sign in with an executive PIN (6
    digits): the brand owner's sees every branch with per-branch totals
-   (demo: Double Shot 000000, Kiln & Bean 111111), a branch's sees that
+   (demo: Double Shot 000000, Drip 111111), a branch's sees that
    branch only (Double Shot Gulberg 111111 … Dolmen 777777). A single café
    has one PIN for both. The 4-digit manager PINs don't open it (they're
    for the counter's Manager tools only). Opened from a counter ("Executive"), it locks after 5 minutes
@@ -182,7 +182,7 @@
             <div class="field" data-invalid="${!!err}">
               <label class="field__label" for="pd-pin">Executive PIN</label>
               <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
-              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Kiln &amp; Bean 111111.</p>
+              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Drip 111111.</p>
               <p class="field__error" id="pd-pin-err" role="alert">${err}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block btn--tall">Sign in</button>

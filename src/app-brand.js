@@ -2,7 +2,7 @@
    Lahore Coffee Club — app-brand.js
    Member app: a brand partner's page (#/app/cafes/doubleshot, also
    reached from any branch's row or pin). Your cups, the drinks menu with
-   a Hot / Iced toggle (list price and member price), ordering ("Use a cup"), branches.
+   a Hot / Iced toggle (menu prices), ordering ("Use a cup"), branches.
 
    Cups belong to the brand, not a branch: they work at every branch.
    "Use a cup at the counter" only tells the counter what you'd like; the
@@ -45,7 +45,7 @@
 
     /** What this drink costs the member: the Pass's member price, or what a cup covers. */
     const coverLine = (p) => (S.isPass()
-      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      ? `${Math.round(S.planConfig().pass.discount * 100)}% off with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
       : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
@@ -89,7 +89,7 @@
               <button type="button" class="menu-row" data-drink="${d.id}" aria-haspopup="dialog" aria-controls="order-sheet">
                 <span class="menu-row__main">
                   <span class="row__title">${S.drinkLabel(d, menuTemp)}</span>
-                  <span class="row__meta num">${fmt.rs(d[menuTemp])} · <span class="drink-row__member">${fmt.rs(S.memberPrice(d[menuTemp]))} member price</span>${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
+                  <span class="row__meta num">${fmt.rs(d[menuTemp])}${d.hot != null && d.iced != null ? "" : ` · ${d.hot != null ? "hot only" : "iced only"}`}</span>
                 </span>
                 ${priceTag(d, menuTemp)}
               </button>
