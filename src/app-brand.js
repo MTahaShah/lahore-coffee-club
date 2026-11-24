@@ -45,7 +45,7 @@
 
     /** What this drink costs the member: the Pass's member price, or what a cup covers. */
     const coverLine = (p) => (S.isPass()
-      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.planConfig().pass.name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
       : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
@@ -55,7 +55,7 @@
       if (S.isPass()) {
         const t = S.passToday();
         const pct = Math.round(S.planConfig().pass.discount * 100);
-        return html`<p class="brand-cups__line">${t.used ? "Today’s member coffee is used" : "Today’s member coffee: available"}</p>
+        return html`<p class="brand-cups__line num">${t.used ? "Today’s member coffee is used" : t.limit > 1 ? `${t.left} of ${t.limit} member coffees left today` : "Today’s member coffee: available"}</p>
           <p class="t-small t-muted">${S.planLabel(m)} · ${t.used ? "Back tomorrow; another one today is full price." : `${pct}% off any drink, at any of the ${S.branches(b.id).length} branches.`}</p>`;
       }
       if (!opt) {

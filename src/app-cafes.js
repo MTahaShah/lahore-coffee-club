@@ -857,7 +857,7 @@
         const pct = Math.round(S.planConfig().pass.discount * 100);
         return html`<p class="t-small t-muted num" data-here-line>${t.used
           ? html`<strong>Today’s member coffee is used.</strong> Back tomorrow; this one is full price.`
-          : html`<strong>Today’s member coffee: available.</strong> ${pct}% off any drink here.`}</p>`;
+          : html`<strong>${t.limit > 1 ? `${t.left} of ${t.limit} member coffees left today.` : "Today’s member coffee: available."}</strong> ${pct}% off any drink here.`}</p>`;
       }
       if (here.type === "mycafes") {
         return html`<p class="t-small t-muted num" data-here-line>${here.reserved
@@ -902,7 +902,7 @@
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
-              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.planConfig().pass.name}, one coffee a day.</p>
+              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.passTier().name}, ${S.passTier().dailyLimit === 1 ? "one coffee" : `${S.passTier().dailyLimit} coffees`} a day.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
                   <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, member price ${fmt.rs(S.memberPrice(d.price))}, ${bandLabel(c, d)}. Order for pickup">

@@ -55,6 +55,8 @@
   ];
   const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"];
   const METHOD_WORD = { number: "member number", scan: "scanned pass", code: "6-digit code" };
+  // The static member pass QR (LCC Pass and Plus): "LCC-0042". A USB scanner types it into the field and presses Enter.
+  const STATIC_QR = /^LCC-\d{1,6}$/i;
 
   let api = null; // the mounted counter, for update()
 
@@ -64,7 +66,8 @@
       let tab = "counter";
       let mode = "number";     // the field: number (also name / phone) | name (system keyboard) | code (6 digits)
       let query = "";
-      let view = "find";       // find | member | done
+      let view = "find";       // find | verify (Pass: last 4 of the phone) | member | done
+      let verify = null;       // { memberId, method, digits, error }: a Pass member found by a typed number
       let picked = null;       // { memberId, method }
       let drink = null;        // { drinkId, temp, source: usual | app | pick }
       let pickerOpen = false, pickerQuery = "";
@@ -266,11 +269,16 @@
       function paintPanel({ focus = false } = {}) {
         const panel = $("[data-panel]", el);
         if (!panel) return;
+        if (view === "verify" && verify) {
+          panel.innerHTML = verifyHtml().s;
+          if (focus) $("#ct-phone4", panel)?.focus({ preventScroll: false });
+          return;
+        }
         if (view === "member" && member()) panel.innerHTML = memberHtml().s;
         else if (view === "done" && done) panel.innerHTML = doneHtml().s;
         else panel.innerHTML = resultsHtml().s;
         if (focus) {
-          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
+          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-friend-cup]", panel) || $("[data-next]", panel) : null;
           target?.focus({ preventScroll: false });
         }
       }
@@ -288,17 +296,49 @@
           <ul class="ct-results" role="list">
             ${res.results.map(({ member: m, match }) => {
               const chk = S.counterCheck(m.id, branch().id);
-              return html`<li><button type="button" class="ct-result" data-pick="${m.id}">
+              return html`<li><button type="button" class="ct-result" data-pick="${m.id}" data-match="${match}">
                 ${ui.avatar(m, { size: 44 })}
                 <span class="ct-result__main">
                   <span class="ct-result__name">${S.fullName(m)}</span>
                   <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
-                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.reason === "pass" ? "Pass · 20% off" : chk.reason === "pass-used" ? "Pass · used today" : chk.title}</span>
+                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.pass?.ok ? (chk.pass.allowance || "Available today") : chk.pass?.state === "used" ? "Used today" : chk.pass?.state === "visit" ? "Same visit only" : chk.title}</span>
               </button></li>`;
             })}
           </ul>
           ${res.total > res.results.length ? html`<p class="t-small t-faint">${res.total - res.results.length} more. Keep typing to narrow it down.</p>` : ""}`;
+      }
+
+      function verifyHtml() {
+        const m = S.member(verify.memberId);
+        return html`<article class="ct-card enter" aria-labelledby="ct-who">
+          <div class="ct-card__who">
+            ${ui.avatar(m, { size: 72 })}
+            <div>
+              <h2 class="ct-card__name" id="ct-who">${S.fullName(m)}</h2>
+              <p class="ct-card__meta num">${fmt.lcc(m.memberNo)} · ${S.passTier(m).name}</p>
+            </div>
+          </div>
+          <form class="ct-verify" data-verify novalidate>
+            <label class="ct-field__label" for="ct-phone4">Last 4 digits of their phone</label>
+            <input class="ct-q num ct-verify__input" id="ct-phone4" data-phone4 value="${verify.digits}" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"
+              aria-describedby="ct-phone4-hint${verify.error ? " ct-phone4-err" : ""}" ${verify.error ? raw('aria-invalid="true"') : ""}>
+            <p class="t-small t-faint" id="ct-phone4-hint">They told you their number, so check the phone on their account. The keypad works too.</p>
+            ${verify.error ? html`<div class="ct-refuse" role="alert" id="ct-phone4-err">${icon("info", { size: 22 })}<p class="ct-refuse__title">${verify.error}</p></div>` : ""}
+            <button type="submit" class="btn btn--primary btn--block ct-redeem">Check</button>
+          </form>
+          <button type="button" class="btn btn--link" data-back>Not ${m.firstName}? Back to the keypad</button>
+        </article>`;
+      }
+      function paintPhone4() {
+        const n = $("#ct-phone4", el);
+        if (n && n.value !== verify.digits) n.value = verify.digits;
+      }
+      function checkPhone() {
+        if (!verify) return;
+        if (verify.digits.length === 4 && S.phoneMatches(verify.memberId, verify.digits)) return pickMember(verify.memberId, verify.method, { verified: true });
+        verify = { ...verify, digits: "", error: verify.digits.length === 4 ? "Those don’t match. Ask them to show their pass." : "Type all four digits." };
+        paintPanel({ focus: true });
       }
 
       /** Default drink: what they chose in the app, else their usual here, else the first on the menu. */
@@ -312,10 +352,20 @@
         const first = S.counterMenu(branch().id).find((d) => d.item.inPlan !== false);
         return first ? { drinkId: first.id, temp: first.temp, source: "pick" } : null;
       }
-      function pickMember(memberId, method) {
+      /* Pass members show one static QR. Found by a typed number or name
+         instead, the cashier also asks for the last 4 digits of their phone
+         (not when the phone was what they typed, or the pass was scanned). */
+      const onPass = (m) => S.plansOf(m.id).some((p) => p.plan.type === "pass");
+      function pickMember(memberId, method, { verified = false } = {}) {
         const m = S.member(memberId);
         if (!m) return;
         message = null;
+        if (!verified && method === "number" && onPass(m)) {
+          verify = { memberId, method, digits: "", error: "" };
+          setView("verify");
+          return paintPanel({ focus: true });
+        }
+        verify = null;
         picked = { memberId, method };
         drink = defaultDrink(m);
         choices = { mods: {}, extras: [] };
@@ -367,16 +417,22 @@
         const pr = $("[data-pass-prices]", el); if (pr) pr.textContent = pricesText(q);
         const ch = $("[data-charge]", el); if (ch) ch.innerHTML = chargeHtml(q).s;
       }
-      function passCardHtml(m, used) {
-        const P = passCfg();
+      /** One clear status (passStatus): "Available today" (Plus: "2 today · 1 left"),
+          "Used today at [café] · [time]", "Second cup is for the same visit only."
+          Ended and suspended passes show in the refusal box (memberHtml). */
+      function passCardHtml(m, chk) {
+        const ps = chk.pass;
+        const P = ps.tier;
+        const used = !ps.ok;
         const b = brand();
         const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
         const q = passQuote();
         return html`
-          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · Today’s member coffee: <strong>${used ? "used today, full price" : "available"}</strong></p>
+          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · ${P.dailyLimit} a day, any café</p>
           ${used
-            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">Full price today</p><p class="t-small t-muted">${m.firstName} has had today’s member coffee. Ring this one up at the menu price; the next member price is tomorrow.</p></div></div>`
+            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title num">${ps.title}</p><p class="t-small t-muted">${ps.line}</p></div></div>`
             : item ? html`
+              <div class="ct-passok" role="status">${icon("check", { size: 22 })}<div><p class="ct-refuse__title">${ps.title}${ps.allowance ? html` <span class="num">· ${ps.allowance}</span>` : ""}</p><p class="t-small t-muted">${ps.line}</p></div></div>
               <div class="ct-drink">
                 <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
                 <p class="ct-drink__name"><span data-drink-name>${S.drinkLabel(item, drink.temp)}</span></p>
@@ -385,7 +441,7 @@
               </div>
               <div class="ct-mods" data-mods>${modsHtml()}</div>
               <p class="ct-charge num" data-charge aria-live="polite">${chargeHtml(q)}</p>
-              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">Apply member price</button>
+              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">${ps.state === "second" ? "Apply member price · second cup" : "Apply member price"}</button>
               <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}`;
       }
       function applyPassNow() {
@@ -393,14 +449,24 @@
         const res = A.recordPassSale({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
         if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.message || "That didn’t go through.", { iconName: "info" }); }
         const q = { member: res.entry.memberPrice, extras: res.entry.extrasPaid || 0 };
-        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras };
+        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras, status: res.status, method: picked.method };
         picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
         paintField();
         setView("done");
         paintPanel({ focus: true });
         paintRecent();
         clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+        // Plus, after the first cup: the friend's cup button stays until the cashier moves on
+        if (!friendCup()) resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+      }
+      /** Plus: the second member coffee is open here, for this visit. */
+      const friendCup = () => !!(done?.pass && done.entry.cupNo === 1 && done.status?.state === "second");
+      function addFriendCup() {
+        if (!done) return;
+        const { member: m, method } = done;
+        clearTimeout(resetTimer);
+        done = null;
+        pickMember(m.id, method || "scan", { verified: true });
       }
 
       function memberHtml() {
@@ -433,7 +499,7 @@
               <p class="t-micro t-faint num">${clubLine}</p>
             </div>
           </div>
-          ${pass ? passCardHtml(m, pass === "pass-used") : chk.ok
+          ${pass && chk.pass ? passCardHtml(m, chk) : chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
                 <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Cup pack: ${chk.plan.left} left, any café` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.plan.plan.type === "explorer" ? `${S.packCupsToday(m.id, chk.plan.cycle)} of ${S.planConfig().packDailyLimit}` : `${chk.usedToday} of ${chk.limit}`} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
@@ -549,17 +615,20 @@
         if (done.pass) {
           return html`<div class="ct-done" role="status">
             <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
-            <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
+            <p class="ct-done__title">Done · ${m.firstName}${entry.cupNo === 2 ? "’s second cup" : ""} · ${S.entryDrinkName(entry)}</p>
             <p class="ct-charge num">Charge <strong>${fmt.rs(done.charge)}</strong>${entry.extrasPaid ? html` <span class="t-small t-muted">(${fmt.rs(entry.memberPrice)} + extras ${fmt.rs(entry.extrasPaid)})</span>` : ""}</p>
             <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
             ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
-            <p class="cv-till">Ring it up on your till as: <strong>${passCfg().name}, ${Math.round(entry.discount * 100)}% off</strong></p>
+            <p class="cv-till">Ring it up on your till as: <strong>${S.passTier({ type: "pass", tier: entry.tier }).name}, ${Math.round(entry.discount * 100)}% off</strong></p>
             <p class="t-small t-faint num">${fmt.time(entry.at)} · served by ${S.staffMember(entry.staffId)?.name || "the counter"} · list ${fmt.rs(entry.listPrice)}</p>
+            ${friendCup() ? html`<p class="t-small t-muted num">${done.status.allowance} · same visit, until ${fmt.time(done.status.until)}</p>` : ""}
             <div class="ct-done__acts">
               <button type="button" class="btn btn--secondary" data-undo="${entry.id}">Undo</button>
-              <button type="button" class="btn btn--primary" data-next>Next member</button>
+              ${friendCup() ? html`<button type="button" class="btn btn--primary" data-friend-cup>Add their friend’s cup</button>
+                <button type="button" class="btn btn--secondary" data-next>Next member</button>`
+                : html`<button type="button" class="btn btn--primary" data-next>Next member</button>`}
             </div>
-            <span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>
+            ${friendCup() ? "" : html`<span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>`}
           </div>`;
         }
         return html`<div class="ct-done" role="status">
@@ -579,7 +648,7 @@
       }
       function backToKeypad({ focus = true } = {}) {
         clearTimeout(resetTimer);
-        done = null; picked = null; drink = null; message = null;
+        done = null; picked = null; drink = null; message = null; verify = null;
         if (view !== "find") setView("find");
         if (focus) $("[data-q]", el)?.focus();
       }
@@ -618,6 +687,15 @@
       }
 
       function typeKey(k) {
+        if (view === "verify" && verify) {
+          if (k === "clear") verify.digits = "";
+          else if (k === "del") verify.digits = verify.digits.slice(0, -1);
+          else if (verify.digits.length < 4) verify.digits += k;
+          verify.error = "";
+          paintPhone4();
+          if (verify.digits.length === 4) checkPhone();
+          return;
+        }
         message = null;
         if (k === "clear") query = "";
         else if (k === "del") query = query.slice(0, -1);
@@ -672,7 +750,7 @@
             if (!scanStream) return;
             try {
               const codes = await detector.detect(video);
-              const hit = codes.map((c) => c.rawValue).find((v) => /^LCC1:/.test(v));
+              const hit = codes.map((c) => c.rawValue).find((v) => /^LCC1:/.test(v) || STATIC_QR.test(v));
               if (hit) return onScan(hit);
             } catch (_) { /* a frame that couldn't be read */ }
             scanLoop = setTimeout(tick, 250);
@@ -689,6 +767,16 @@
         scanStream = null;
       }
       function onScan(payload) {
+        if (STATIC_QR.test(payload)) {
+          // The static member pass: the QR is the membership number
+          const m = S.memberByNo(payload);
+          const msg = $("[data-scan-msg]", el);
+          if (!m) { if (msg) msg.textContent = "That number isn’t an LCC member. Ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
+          ui.closeSheet($("#ct-scan-sheet", el));
+          stopScan();
+          if (tab !== "counter") showTab("counter");
+          return pickMember(m.id, "scan");
+        }
         const [, memberId, code] = payload.split(":");
         const found = store.findMemberByCode(code);
         const msg = $("[data-scan-msg]", el);
@@ -1000,7 +1088,8 @@
         const md = t.closest("[data-mode]");
         if (md) return setMode(md.dataset.mode);
         const pk = t.closest("[data-pick]");
-        if (pk) return pickMember(pk.dataset.pick, mode === "name" ? "number" : "number");
+        if (pk) return pickMember(pk.dataset.pick, "number", { verified: pk.dataset.match === "phone" });
+        if (t.closest("[data-friend-cup]")) return addFriendCup();
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-apply-pass]")) return applyPassNow();
         if (t.closest("[data-back]") || t.closest("[data-next]")) return backToKeypad();
@@ -1057,6 +1146,13 @@
           if (view !== "find") { picked = null; done = null; setView("find"); }
           return afterQuery();
         }
+        if (t.matches("[data-phone4]") && verify) {
+          verify.digits = t.value.replace(/\D/g, "").slice(0, 4);
+          if (t.value !== verify.digits) t.value = verify.digits;
+          if (verify.error) { verify.error = ""; t.removeAttribute("aria-invalid"); $("#ct-phone4-err", el)?.remove(); }
+          if (verify.digits.length === 4) checkPhone();
+          return;
+        }
         if (t.matches("[data-drink-q]")) { pickerQuery = t.value; const pos = t.selectionStart; paintPicker(); const n = $("#ct-drink-q", el); n.focus(); n.setSelectionRange(pos, pos); return; }
         if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, pinLen()); paintPin(); if (pin.length === pinLen()) tryPin(); return; }
         if (t.id === "ct-setup-code") t.value = t.value.toUpperCase();
@@ -1075,11 +1171,14 @@
           renderAll();
           return ui.toast(`This counter is set up for ${heading()}.`);
         }
+        if (e.target.matches("[data-verify]")) { e.preventDefault(); return checkPhone(); }
         if (e.target.matches("[data-find]")) {
           e.preventDefault();
+          // A USB or Bluetooth scanner reading the static pass types "LCC-0042" and Enter
+          if (STATIC_QR.test(query.trim())) { const sm = S.memberByNo(query.trim()); query = ""; mode = "number"; paintTab(); if (sm) return pickMember(sm.id, "scan"); message = { title: "Number not found", line: "That pass isn’t an LCC member. Ask for their number." }; return paintPanel(); }
           if (mode === "code") return query.length === 6 ? checkCode() : (message = { title: `That’s ${query.length} digit${query.length === 1 ? "" : "s"}`, line: "Codes have six." }, paintPanel());
           const res = S.counterSearch(query, branch().id);
-          if (res.results.length === 1 || (res.results[0] && String(res.results[0].member.memberNo) === query)) pickMember(res.results[0].member.id, "number");
+          if (res.results.length === 1 || (res.results[0] && String(res.results[0].member.memberNo) === query)) pickMember(res.results[0].member.id, "number", { verified: res.results[0].match === "phone" });
         }
       };
       const onKeydown = (e) => {

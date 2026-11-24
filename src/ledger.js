@@ -13,6 +13,7 @@
      LCC.ledger.ledgerFor({ cafeId: "ds-gulberg" }) / ({ all: true })
      LCC.ledger.payoutFor("ds-gulberg", "2026-11")
      LCC.ledger.adjust({ memberNo, cups, reason, admin })
+     LCC.ledger.passDay(42)                        -> { count: 1, limit: 1, left: 0, used: true, last }
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
      LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
@@ -36,7 +37,8 @@
      beans     0  Beans spent (see select.beans)
      pass-sale 0  an LCC Pass coffee: the member paid the café the member
                  price (listPrice, memberPrice, discount, drinkId, temp,
-                 staffId, at). No cups and no LCC payout; it counts for
+                 staffId, at, tier "pass" | "plus", cupNo 1 | 2). No cups
+                 and no LCC payout; it counts for
                  the club (passport, Beans, Circles) like a cup
    Paid pickups don't touch cups; they are state.orders with pay "paid"
    (or "group"), and count in payoutFor as paid orders.
@@ -166,11 +168,24 @@
 
     /* ---------------- LCC Pass ---------------- */
 
-    /** Has this Pass member had today's member coffee (planConfig.pass.dailyLimit)? */
-    passUsedToday(memberNo, at = Date.now()) {
-      // BACKEND: SELECT count(*) FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND at >= today
+    /** Today's member coffees for a Pass member, across ALL partner cafés,
+        from the pass-sale entries dated today (undone ones don't count).
+        The limit is the tier's: 1 on the LCC Pass, 2 on Plus.
+        -> { count, limit, left, used, entries, first, last, entry } */
+    passDay(memberNo, at = Date.now()) {
+      // BACKEND: SELECT * FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND NOT undone AND at >= today (every café)
       const m = memberOf(memberNo);
-      return m ? S.passToday(m.id, at).used : false;
+      const d = new Date(at); d.setHours(0, 0, 0, 0);
+      const from = d.getTime(); d.setDate(d.getDate() + 1);
+      const entries = m ? S.passSales(m.id, from, d.getTime()) : [];
+      const limit = (m ? S.passTier(m) : S.planConfig().pass).dailyLimit;
+      const last = entries[entries.length - 1] || null;
+      return { memberId: m?.id || null, count: entries.length, limit, left: Math.max(0, limit - entries.length), used: entries.length >= limit, entries, first: entries[0] || null, last, entry: last };
+    },
+
+    /** Has this Pass member had today's member coffees (1 on the Pass, 2 on Plus), at any café? */
+    passUsedToday(memberNo, at = Date.now()) {
+      return ledger.passDay(memberNo, at).used;
     },
 
     /** Rs saved on pass sales this month (list price less member price).

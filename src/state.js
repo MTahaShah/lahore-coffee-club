@@ -131,6 +131,8 @@
     partnerRequests: [],
     reports: {},       // redeem entry id -> { memberId, brandId, branchId, at }: "Not you?" from the member
     confirmed: {},     // redeem entry id -> at: "That was me"
+    notices: [],       // in-app notifications: { id, memberId, kind: "pass-used", entryId, cafeId, at, text, read }
+    flags: [],         // "Not you?" on a pass sale: { id, memberId, cafeId, entryId, at, reason: "member reported", flaggedAt }
     availability: {},  // branchId -> { day: "2026-11-12", off: { drinkId: true } } ("Available today" switches)
     // This device as a counter: locked to one branch once set up; who is on shift
     counter: { branchId: null, staffId: null, managerUntil: 0 },
@@ -414,6 +416,7 @@
         const orig = state.ledger.find((x) => x.id === e.undoes);
         if (orig && !orig.undone) {
           orig.undone = true; orig.undoneAt = e.at;
+          state.notices.forEach((n) => { if (n.entryId === orig.id) n.undone = true; });
           const m = state.members[orig.memberId];
           if (m.visits?.[orig.cafeId] > 0) m.visits[orig.cafeId] -= 1;
           if (!catchUp) undone.push({ entry: orig, undo: e, member: m });
@@ -439,7 +442,10 @@
     if (!added.length) return added;
     emit("ledger", { entries: added, catchUp, plans: remote ? [] : added.filter((e) => e.type === "purchase").map((e) => e.memberId).filter((id, i, a) => a.indexOf(id) === i).map((id) => planMeta(state.members[id])) }, { remote });
     if (!catchUp) added.filter((e) => isRedeem(e)).forEach((entry) => emit("redeem", { entry, member: state.members[entry.memberId] }, { remote }));
-    if (!catchUp) added.filter((e) => e.type === "pass-sale").forEach((entry) => emit("passSale", { entry, member: state.members[entry.memberId] }, { remote }));
+    if (!catchUp) added.filter((e) => e.type === "pass-sale").forEach((entry) => {
+      addPassNotice(entry);
+      emit("passSale", { entry, member: state.members[entry.memberId] }, { remote });
+    });
     undone.forEach((u) => emit("undo", u, { remote }));
     return added;
   }
@@ -455,6 +461,16 @@
   /** A member coffee the club counts (passport, status, badges, Beans, Circles):
       a cup redeemed, or an LCC Pass sale. Pass sales carry no cups, so they
       read as one drink (credits 1). */
+  /** After every pass sale: an in-app notification for that member, with "Not you?".
+      // BACKEND: a push notification to the member's phone, from the pass-sale insert */
+  function addPassNotice(entry) {
+    if (state.notices.some((n) => n.entryId === entry.id)) return;
+    const T = select.passTier(entry.tier === "plus" ? { type: "pass", tier: "plus" } : state.members[entry.memberId]);
+    const notice = { id: `nt_${entry.id}`, memberId: entry.memberId, kind: "pass-used", entryId: entry.id, cafeId: entry.cafeId, at: entry.at,
+      text: `${T.name} used at ${select.pickupPlace(entry.cafeId)} · ${fmt.time(entry.at)}.`, read: false };
+    state.notices.push(notice);
+    emit("notice", { notice }, { remote: true }); // the entry itself travels; each device writes its own notice
+  }
   function isMemberCoffee(e) { return isRedeem(e) || (e.type === "pass-sale" && !e.undone); }
   const asDrink = (e) => (e.credits ? e : { ...e, credits: 1 });
   const listNames = (ids) => {
@@ -646,7 +662,7 @@
       // BACKEND: GET /branches/:id/today (no amounts for the counter role)
       const since = startOfDay(at);
       // Cups and Pass sales; label: "Pass" (a pass sale) or "Pack" (a cup)
-      const label = (e) => (e.type === "pass-sale" ? "Pass" : "Pack");
+      const label = (e) => (e.type === "pass-sale" ? (e.tier === "plus" ? "Plus" : "Pass") : "Pack");
       const cups = state.ledger.filter((e) => (e.type === "redeem" || e.type === "pass-sale") && e.cafeId === branchId && e.at >= since && !e.orderId)
         .map((e) => ({ kind: "cup", label: label(e), at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
       const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
@@ -870,20 +886,60 @@
     isPack: (plan) => plan?.type === "explorer",
     /** What a Pass member pays the café for a drink at this list price. */
     memberPrice: (listPrice) => Math.round(listPrice * (1 - state.planConfig.pass.discount)),
+    /** The Pass tier for a member id, a member or a plan: planConfig.pass or planConfig.plus. */
+    passTier(x = state.memberId) {
+      const plan = typeof x === "string" ? state.members[x]?.plan : x?.type ? x : x?.plan;
+      return plan?.tier === "plus" ? state.planConfig.plus : state.planConfig.pass;
+    },
     /** A member's pass sales (not undone), oldest first, from `since`. */
     passSales(memberId = state.memberId, since = 0, until = Infinity) {
       return (byMember.get(memberId) || []).filter((e) => e.type === "pass-sale" && !e.undone && e.at >= since && e.at < until).sort((a, b) => a.at - b.at);
     },
-    /** Today's member coffee: { used, entry, limit, left }. */
+    /** Today's member coffees, at every café: { used, count, limit, left, entries, first, last, entry }.
+        Read from the ledger by LCC.ledger.passDay (ledger.js); 1 a day on the Pass, 2 on Plus. */
     passToday(memberId = state.memberId, at = Date.now()) {
+      if (LCC.ledger?.passDay) return LCC.ledger.passDay(state.members[memberId], at);
       const list = select.passSales(memberId, startOfDay(at), startOfDay(at) + 24 * 60 * MIN);
-      const limit = state.planConfig.pass.dailyLimit;
-      return { used: list.length >= limit, entry: list[list.length - 1] || null, limit, left: Math.max(0, limit - list.length) };
+      const limit = select.passTier(memberId).dailyLimit;
+      return { used: list.length >= limit, count: list.length, entries: list, first: list[0] || null, last: list[list.length - 1] || null, entry: list[list.length - 1] || null, limit, left: Math.max(0, limit - list.length) };
+    },
+    /** Has this member's Pass ended (not renewed by renewsAt)? */
+    passEnded: (memberId = state.memberId, at = Date.now()) => {
+      const m = state.members[memberId];
+      return m?.plan?.type === "pass" && !!m.renewsAt && m.renewsAt <= at;
+    },
+    /** One clear status for a Pass member, for the counter and the member's pass.
+        state: available | second (Plus, same visit) | visit (Plus, second cup
+        elsewhere or too late) | used | ended | suspended | paused.
+        branchId: the counter asking (the second Plus cup must be the same
+        branch, within secondCupMinutes of the first). title is the counter's
+        words; allowance is "2 today · 1 left" on Plus.                     */
+    passStatus(memberId, branchId = null, at = Date.now()) {
+      const m = state.members[memberId];
+      const T = select.passTier(m);
+      const day = select.passToday(memberId, at);
+      const allowance = T.dailyLimit > 1 ? `${T.dailyLimit} today · ${day.left} left` : "";
+      const base = { tier: T, day, count: day.count, limit: T.dailyLimit, left: day.left, allowance, cupNo: day.count + 1 };
+      const name = m?.firstName || "They";
+      if (m?.suspended) return { ...base, state: "suspended", ok: false, title: "Suspended. Ask them to contact LCC.", line: `${name} can pay the full price as usual.` };
+      if (select.passEnded(memberId, at)) return { ...base, state: "ended", ok: false, title: `Pass ended ${fmt.shortDate(m.renewsAt)}. They can renew in the app.`, line: "Ring this one up at the menu price." };
+      if (m?.plan?.paused) return { ...base, state: "paused", ok: false, title: "Plan paused", line: `${name} paused their pass. They can resume it in the app.` };
+      if (day.used) {
+        const e = day.last;
+        return { ...base, state: "used", ok: false, title: `Used today at ${select.pickupPlace(e.cafeId)} · ${fmt.time(e.at)}`, line: `Another one is full price; the next member coffee is tomorrow.` };
+      }
+      if (!day.count) return { ...base, state: "available", ok: true, title: "Available today", line: `${name} pays the member price. No cup is used.` };
+      // Plus, second cup: the same visit only
+      const first = day.first;
+      const until = first.at + (T.secondCupMinutes || 0) * MIN;
+      const sameVisit = !branchId || (first.cafeId === branchId && at <= until);
+      if (!sameVisit) return { ...base, state: "visit", ok: false, title: "Second cup is for the same visit only.", line: `The first was at ${select.pickupPlace(first.cafeId)} · ${fmt.time(first.at)}. This one is full price.`, until };
+      return { ...base, state: "second", ok: true, title: "Available today", line: `Second cup, same visit, until ${fmt.time(until)}. It can be for a friend.`, until };
     },
     /** Savings in the member's pass month: { saved, coffees, listTotal, paid, price, paidOff, progress }. */
     passMonth(memberId = state.memberId, at = Date.now()) {
       const m = state.members[memberId];
-      const P = state.planConfig.pass;
+      const P = select.passTier(m);
       const since = m?.plan?.type === "pass" ? m.cycleStartedAt : monthStartOf(at);
       const list = select.passSales(memberId, since, at + 1);
       const listTotal = list.reduce((n, e) => n + e.listPrice, 0);
@@ -929,7 +985,7 @@
         const bp = b.plans.find((x) => x.id === member.plan.planId);
         return { type: "brand", brandId: b.id, typeName: b.name, name: `${bp.cups} cups`, cups, planCups: bp.cups };
       }
-      if (member.plan.type === "pass") return { type: "pass", typeName: state.planConfig.pass.name, name: state.planConfig.pass.name, cups };
+      if (member.plan.type === "pass") { const T = select.passTier(member); return { type: "pass", tier: T.tier, typeName: T.name, name: T.name, cups }; }
       return { type: "explorer", typeName: "Cup pack", name: select.tier(member.plan.tierId)?.name || "Cup pack", cups };
     },
 
@@ -1001,8 +1057,8 @@
         return { name: `${bp.cups} cups`, typeName: b.name, brandId: b.id, cups: bp.cups, price: bp.price, perCup: bp.price / bp.cups, savings: 0, meetsMinimum: true, cupsShort: 0 };
       }
       if (plan.type === "pass") {
-        const P = state.planConfig.pass;
-        return { name: P.name, typeName: P.name, cups: 0, price: P.price, savings: 0, meetsMinimum: true, cupsShort: 0, pass: true };
+        const P = select.passTier(plan);
+        return { name: P.name, typeName: P.name, tier: P.tier, cups: 0, price: P.price, savings: 0, meetsMinimum: true, cupsShort: 0, pass: true };
       }
       if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
@@ -1015,7 +1071,7 @@
     isCurrentPlan(plan, memberId = state.memberId) {
       const cur = state.members[memberId].plan;
       if (!cur || plan.type !== cur.type) return false;
-      if (plan.type === "pass") return true;
+      if (plan.type === "pass") return (plan.tier || "pass") === (cur.tier || "pass");
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
       if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
@@ -1276,7 +1332,7 @@
     planName(plan) {
       if (!plan) return "No plan";
       if (plan.type === "brand") return `${state.brands[plan.brandId]?.name || "Brand"} plan`;
-      if (plan.type === "pass") return state.planConfig.pass.name;
+      if (plan.type === "pass") return select.passTier(plan).name;
       return plan.type === "explorer" ? select.tier(plan.tierId)?.name || "Cup pack" : "My cafés";
     },
 
@@ -1323,15 +1379,15 @@
       const no = (reason, title, line) => ({ ...base, ok: false, reason, title, line });
       const usable = options.filter((o) => o.here > 0 && !o.plan.paused);
       const name = m.firstName;
+      if (m.suspended) return no("suspended", "Suspended. Ask them to contact LCC.", `${name} can pay the full price as usual.`);
       if (select.isPaused(branchId, at)) return no("paused", `Member cups paused until ${fmt.time(cafe.pausedUntil)}`, `${name} can pay as usual, or come back after.`);
       if (!plans.length) return no("no-plan", "No plan yet", `${name} hasn’t bought a plan yet. They can pay as usual.`);
       if (!options.length && plans.every((p) => p.plan.type === "pass")) {
-        // BACKEND: the counter records this as a pass sale (actions.recordPassSale), not a cup
-        const P = state.planConfig.pass;
-        const t = select.passToday(memberId, at);
-        return t.used
-          ? no("pass-used", `${P.name} · used today`, `${name} has had today’s member coffee. Another one is full price; the next is tomorrow.`)
-          : no("pass", `${P.name} · ${Math.round(P.discount * 100)}% off one coffee today`, `${name} pays the member price for one drink. No cup is used.`);
+        // BACKEND: the counter records this as a pass sale (actions.recordPassSale), not a cup.
+        // The daily limit counts every café (LCC.ledger.passDay); Plus's second cup is the same visit only.
+        const ps = select.passStatus(memberId, branchId, at);
+        const reason = { available: "pass", second: "pass", used: "pass-used", visit: "pass-used", ended: "pass-ended", suspended: "suspended", paused: "plan-paused" }[ps.state];
+        return { ...no(reason, ps.title, ps.line), pass: ps };
       }
       if (!options.length) {
         const where = [...new Set(plans.map((p) => (p.plan.type === "brand" ? state.brands[p.plan.brandId].name : p.plan.type === "mycafes" ? "the cafés in their plan" : "partner cafés")))];
@@ -1420,6 +1476,16 @@
     },
     /** A redeem entry by id (undone ones included). */
     entry: (id) => state.ledger.find((e) => e.id === id) || null,
+    /** The counter's check when a Pass member's number is typed: the last 4 digits of their phone.
+        // BACKEND: POST /members/:no/verify-phone { last4 } (never send the phone to the counter) */
+    phoneMatches(memberId, last4) {
+      const d = String(state.members[memberId]?.phone || "").replace(/\D/g, "");
+      return /^\d{4}$/.test(String(last4)) && d.length >= 4 && d.endsWith(String(last4));
+    },
+    /** A member's in-app notifications, newest first (undone pass sales left out). */
+    notices: (memberId = state.memberId, { unread = false } = {}) => state.notices.filter((n) => n.memberId === memberId && !n.undone && (!unread || !n.read)).sort((a, b) => b.at - a.at),
+    /** "Not you?" flags on pass sales, newest first (no admin screen yet). */
+    flags: () => [...state.flags].sort((a, b) => b.flaggedAt - a.flaggedAt),
     report: (entryId) => state.reports[entryId] || null,
 
     /** Your members: everyone on this brand's plan (or with My cafés cups
@@ -1747,7 +1813,7 @@
       const add = (at, beans, title, meta) => { if (at >= B.launchedAt) rows.push({ at, beans, title, meta }); };
       (byMember.get(memberId) || []).forEach((e) => {
         if (isRedeem(e) && !e.orderId) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · at the counter`);
-        if (e.type === "pass-sale" && !e.undone) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · ${state.planConfig.pass.name}`);
+        if (e.type === "pass-sale" && !e.undone) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · ${select.passTier({ type: "pass", tier: e.tier }).name}`);
         if (e.type === "beans") rows.push({ at: e.at, beans: e.beans, title: e.title, meta: e.meta, spend: e.beans < 0 });
       });
       Object.values(state.orders).forEach((o) => {
@@ -2600,7 +2666,7 @@
       // New cycle
       const cycle = uid("c");
       member.plan = plan.type === "pass"
-        ? { type: "pass" }
+        ? { type: "pass", ...(plan.tier === "plus" ? { tier: "plus" } : {}) }
         : plan.type === "brand"
         ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
         : plan.type === "explorer"
@@ -2623,7 +2689,8 @@
         entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, packId: member.plan.tierId, at: now, cycle, live: true });
       } else if (member.plan.type === "pass") {
         // BACKEND: a monthly subscription; each renewal is one 0-cup purchase row
-        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: 0, pass: true, price: state.planConfig.pass.price, at: now, cycle, live: true });
+        const T = select.passTier(member.plan);
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: 0, pass: true, tier: T.tier, price: T.price, at: now, cycle, live: true });
       } else {
         Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
       }
@@ -2999,10 +3066,10 @@
     recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", mods = null, extras = [], at = Date.now() }) {
       // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
       const m = state.members[memberId];
-      const P = state.planConfig.pass;
       if (!m || m.plan?.type !== "pass") return { ok: false, reason: "not-pass", message: "Not on the LCC Pass." };
-      if (m.plan.paused) return { ok: false, reason: "plan-paused", message: "The Pass is paused." };
-      if (select.passToday(memberId, at).used) return { ok: false, reason: "pass-used", message: "Today’s member coffee is used. This one is full price." };
+      const P = select.passTier(m);
+      const ps = select.passStatus(memberId, branchId, at); // every café today, from the ledger
+      if (!ps.ok) return { ok: false, reason: ps.state === "used" ? "pass-used" : ps.state, message: ps.state === "used" ? "Today’s member coffee is used. This one is full price." : ps.title, status: ps };
       const cafe = state.cafes[branchId];
       const b = select.brandFor(branchId);
       if (!cafe || !b) return { ok: false, reason: "no-cafe" };
@@ -3012,13 +3079,36 @@
       const listPrice = p.price;
       const entry = {
         id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: p.temp,
-        listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, staffId, method, channel: "counter",
+        listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, tier: P.tier, cupNo: ps.cupNo, staffId, method, channel: "counter",
         firstVisit: !(m.visits && m.visits[branchId] > 0), at, cycle: m.cycle, live: true,
         ...select.drinkChoices(b.id, p.temp, mods, extras), // extras are paid at full price, never discounted
       };
       entry.ref = select.redemptionRef(entry);
       appendEntries([entry]);
-      return { ok: true, entry, saved: entry.listPrice - entry.memberPrice };
+      return { ok: true, entry, saved: entry.listPrice - entry.memberPrice, status: select.passStatus(memberId, branchId, at + 1) };
+    },
+
+    /** The member: "Not you?" on a pass-sale notification. Adds a flag (member,
+        café, time, reason) and reports the entry, so the café sees it live.
+        // BACKEND: push notification + admin review (POST /flags; LCC reviews the queue)
+        No admin screen for flags yet.                                     */
+    flagPassUse(entryId, reason = "member reported") {
+      const e = select.entry(entryId);
+      if (!e) return { ok: false };
+      let flag = state.flags.find((f) => f.entryId === entryId);
+      if (!flag) {
+        flag = { id: uid("fl"), memberId: e.memberId, cafeId: e.cafeId, entryId, at: e.at, reason, flaggedAt: Date.now() };
+        state.flags.push(flag);
+        actions.reportRedemption(entryId);
+        emit("flag", { flag }, { remote: true });
+      }
+      actions.readNotice(`nt_${entryId}`);
+      return { ok: true, flag };
+    },
+    /** A notification seen or dismissed. */
+    readNotice(id) {
+      const n = state.notices.find((x) => x.id === id);
+      if (n && !n.read) { n.read = true; emit("notice", { notice: n }, { remote: true }); }
     },
 
     /** Presenter: show another seeded member in the app (the cup pack demo), keeping Mumtaz as she is. */

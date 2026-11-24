@@ -22,7 +22,7 @@
      pack id. My cafés and the old Explorer tiers are no longer sold;
      legacy Double Shot plans aren't either.
      ------------------------------------------------------------------- */
-  const draft = { started: false, mode: "pass", tierId: "classic8", highlight: null };
+  const draft = { started: false, mode: "pass", passTier: "pass", tierId: "classic8", highlight: null };
 
   const pay = {
     method: "jazzcash",
@@ -43,6 +43,7 @@
     const cur = S.member().plan;
     draft.started = true;
     draft.mode = mode === "pass" || mode === "packs" ? mode : cur?.type === "explorer" ? "packs" : "pass";
+    draft.passTier = cur?.type === "pass" && cur.tier === "plus" ? "plus" : "pass";
     const own = cur?.type === "explorer" && packs().find((t) => t.id === cur.tierId);
     draft.tierId = own && canBuy(own) ? own.id : "classic8";
     pay.phase = "form";
@@ -53,21 +54,18 @@
   }
   LCC.appPlan = { start, draft };
 
-  const draftPlan = () => (draft.mode === "pass" ? { type: "pass" } : { type: "explorer", tierId: draft.tierId });
-
-  /** Coffees until the Pass pays for itself, at the average Classic latte across partner cafés. */
-  function paysBackIn() {
-    const prices = S.clubCafes().map((c) => c.price).filter(Boolean);
-    const avg = prices.reduce((n, x) => n + x, 0) / (prices.length || 1);
-    return Math.max(1, Math.ceil(cfg().pass.price / (avg * cfg().pass.discount)));
-  }
+  // The Pass purchase entry records tier "pass" or "plus" (state.js setPlan)
+  const draftPlan = () => (draft.mode === "pass" ? { type: "pass", tier: draft.passTier } : { type: "explorer", tierId: draft.tierId });
+  /** "1 member coffee a day" / "2 member coffees a day, at the same visit" */
+  const perDay = (T) => (T.dailyLimit === 1 ? "1 member coffee a day" : `${T.dailyLimit} member coffees a day, at the same visit`);
+  LCC.passCopy = { perDay };
 
   /** Why Continue is off, or null: already on the Pass; a pack with cups still left. */
   function blocked() {
     const m = S.member();
     const plan = draftPlan();
     if (!S.isCurrentPlan(plan)) return null;
-    if (plan.type === "pass") return `You’re on the ${cfg().pass.name}. ${S.planDateLine(m)}.`;
+    if (plan.type === "pass") return `You’re on the ${S.passTier(plan).name}. ${S.planDateLine(m)}.`;
     const left = Math.max(0, S.balance().left);
     return left > 0 ? `You have ${fmt.cups(left)} left on this pack. ${S.planDateLine(m)}.` : null;
   }
@@ -79,22 +77,26 @@
     const { view } = ctx;
     const m = ctx.member();
 
-    /* LCC Pass: one offer, said plainly ------------------------------------ */
+    /* LCC Pass and LCC Pass Plus: two cards, side by side when there's room */
     function passHtml() {
-      const P = cfg().pass;
+      const { pass: P, plus: X } = cfg();
       const pct = Math.round(P.discount * 100);
+      const cur = S.member().plan;
+      const card = (T, line) => html`<label class="card pass-offer pass-tier">
+          <input class="sr-only" type="radio" name="passtier" value="${T.tier}" ${draft.passTier === T.tier ? raw("checked") : ""}>
+          <span class="eyebrow">${T.name}${cur?.type === "pass" && (cur.tier || "pass") === T.tier ? html`<span class="sr-only">, your plan</span>` : ""}</span>
+          <span class="pass-offer__price"><span class="t-h1 num">${fmt.rs(T.price)}</span> <span class="t-small t-muted">a month, tax included</span></span>
+          <span class="t-body">${perDay(T)}</span>
+          <span class="t-small t-muted">${line}</span>
+          <span class="t-small pass-tier__back">${T.paysBack}</span>
+        </label>`;
       return html`
-        <div class="card pass-offer">
-          <p class="eyebrow">${P.name}</p>
-          <p class="pass-offer__price"><span class="t-h1 num">${fmt.rs(P.price)}</span> <span class="t-small t-muted">a month</span></p>
-          <ul role="list" class="pass-offer__list">
-            <li>${pct}% off one coffee a day</li>
-            <li>Any drink, at any partner café</li>
-            <li>Pay the café the member price at the counter</li>
-            <li class="t-muted">A second coffee the same day is full price</li>
-          </ul>
-        </div>
-        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. Renew from the app each month. Cancel any time.</p>`;
+        <fieldset class="pass-tiers">
+          <legend class="sr-only">${P.name} or ${X.name}</legend>
+          ${card(P, `${pct}% off any drink, at any partner café.`)}
+          ${card(X, `A second coffee every day for ${fmt.rs(X.price - P.price)} more. Bring a friend.`)}
+        </fieldset>
+        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. You pay the café the member price. Renew from the app each month. Cancel any time.</p>`;
     }
 
     /* Cup packs: one list, two quiet groups --------------------------------- */
@@ -138,7 +140,7 @@
       const btn = $("[data-continue]", view);
       const why = blocked();
       const text = why
-        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} ${paysBackIn() === 1 ? "coffee" : "coffees"}` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
+        || (draft.mode === "pass" ? S.passTier(draftPlan()).paysBack : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
       note.textContent = text;
       note.classList.remove("is-warn");
       note.classList.toggle("is-save", !why);
@@ -163,6 +165,7 @@
     }
 
     function onChange(e) {
+      if (e.target.name === "passtier") { draft.passTier = e.target.value === "plus" ? "plus" : "pass"; return paintSummary(); }
       if (e.target.name !== "tier") return;
       draft.tierId = e.target.value;
       paintSummary();
@@ -182,7 +185,7 @@
                 ? html`<p class="t-small t-muted num">A new plan starts today; cups left on a pack don’t carry over.</p>`
                 : html`<p class="t-small t-muted">A monthly pass for money off, or prepaid cups. You can change whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: cfg().pass.name }, { value: "packs", label: "Cup packs" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: "LCC Pass" }, { value: "packs", label: "Cup packs" }] })}
             <div class="plan-body" data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -318,7 +321,7 @@
         const mem = ctx.member();
         const title = isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready.`;
         const line = isPass
-          ? `${Math.round(cfg().pass.discount * 100)}% off one coffee a day, from today. Renews on ${longDate(mem.renewsAt)}.`
+          ? `${perDay(S.passTier(plan))}, ${Math.round(cfg().pass.discount * 100)}% off, from today. Renews on ${longDate(mem.renewsAt)}.`
           : `${fmt.cups(S.balance(mem.id).total)}, fresh from today. Use by ${longDate(mem.renewsAt)}.`;
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
@@ -437,7 +440,7 @@
               </div>
               ${isPass
                 ? html`<p class="t-small t-muted num">A month, starting today. Renews on ${longDate(renewal)}.</p>
-                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off one coffee a day · any drink, any partner café</p>`
+                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off · ${perDay(S.passTier(plan))} · any drink, any partner café · tax included</p>`
                 : html`<p class="t-small t-muted num">${fmt.cups(q.cups)}, starting today. Use by ${longDate(renewal)}; doesn’t renew.</p>
                     <p class="t-micro t-faint num">Selected partner cafés · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>`}
             </div>

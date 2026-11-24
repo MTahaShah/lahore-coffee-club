@@ -929,7 +929,7 @@
         return html`<div class="pay-state">
           <span class="pay-state__mark" aria-hidden="true">${icon("gift", { size: 28 })}</span>
           <h2 class="t-h3">No cups to give right now.</h2>
-          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.planConfig().pass.name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
+          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.passTier(m).name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
           <a class="btn btn--secondary btn--block" href="#/app">Back to home</a>
         </div>`;
       }

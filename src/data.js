@@ -50,7 +50,14 @@
      // BACKEND: an admin-editable settings row (plan_config); the app reads
      // it at start, the counter applies it to each pass sale.            */
   const PLAN_CONFIG = {
-    pass: { id: "pass", name: "LCC Pass", price: 350, discount: 0.20, dailyLimit: 1 },
+    // Two tiers of the Pass (member.plan.tier "pass" | "plus"; missing = "pass").
+    // Prices are per month, tax included. Plus: the second coffee is for the
+    // same visit (same branch, within secondCupMinutes of the first), so it can
+    // be for a friend. paysBack is the plan picker's line.
+    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true,
+      paysBack: "Pays for itself after 3 coffees" },
+    plus: { id: "plus", tier: "plus", name: "LCC Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
+      secondCupMinutes: 30, paysBack: "Pays for itself after 5 cups" },
     packDays: 45,         // a pack's cups last this many days from purchase
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
@@ -659,7 +666,7 @@
   function purchase(m) {
     const at = m.cycleStartedAt;
     if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), packId: m.plan.tierId, at, cycle: m.cycle });
-    else if (m.plan.type === "pass") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at, cycle: m.cycle });
+    else if (m.plan.type === "pass") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: 0, pass: true, tier: "pass", price: PLAN_CONFIG.pass.price, at, cycle: m.cycle });
   }
   members.forEach(purchase);
 
@@ -764,14 +771,14 @@
      All cafés she already knew, plus Double Shot Phase 6 (her usual, an
      Iced Spanish Latte).                                               */
   const menuOf = (cafeId) => brands.find((b) => b.id === cafeById[cafeId].brandId).menu;
-  function passSale(m, id, cafeId, drinkId, temp, at) {
+  function passSale(m, id, cafeId, drinkId, temp, at, cupNo = 1) {
     const d = menuOf(cafeId).find((x) => x.id === drinkId);
     const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
     const listPrice = d[t];
     const memberPrice = Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount));
     const c = cafeById[cafeId];
     ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: c.brandId, cups: 0, drinkId, temp: t, listPrice, memberPrice,
-      discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
+      discount: PLAN_CONFIG.pass.discount, tier: m.plan.tier === "plus" ? "plus" : "pass", cupNo, at, cycle: m.cycle, ...served(cafeId, id) });
   }
   [["s_mx_1", "slowpour", "sp-gibraltar", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", "hot", clockAgo(14, 8, 20)],
     ["s_mx_2", "noon", "noon-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
@@ -1136,6 +1143,29 @@
     ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
     [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
       .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
+    /* One named member for each state the counter can show (Static pass):
+       Ayaan, LCC Pass Plus, had his first coffee at Kiln & Bean 5 minutes
+       ago, so 1 is left today (same visit only); Hassan used his Pass this
+       morning at Double Shot Gulberg; Sara's Pass ended 5 days ago; Taimur
+       is suspended. Danish (above) has today's coffee available. Phones end
+       0160, 0162, 0171, 0168 (asked when the number is typed). */
+    const passDemo = (id, firstName, lastName, pronoun, memberNo, phone, tier, started, extra = {}) => {
+      const m = { id, firstName, lastName, initials: `${firstName[0]}${lastName[0]}`, pronoun, phone, area: "gulberg", memberNo,
+        plan: { type: "pass", ...(tier === "plus" ? { tier: "plus" } : {}) }, visits: {}, cycle: cycleOf(id), cycleStartedAt: daysAgo(started),
+        renewsAt: daysAgo(started - 30), memberSince: daysAgo(started + 20), ...extra };
+      members.push(m);
+      const T = PLAN_CONFIG[tier];
+      ledger.push({ id: `${id}_buy`, type: "purchase", memberId: id, cafeId: null, cups: 0, pass: true, tier, price: T.price, at: m.cycleStartedAt, cycle: m.cycle });
+      return m;
+    };
+    const ayaan = passDemo("m_ayaan", "Ayaan", "Qureshi", "him", 160, "+92 300 4410160", "plus", 9);
+    const hassan = passDemo("m_hassan", "Hassan", "Raza", "him", 162, "+92 333 2280162", "pass", 14);
+    passDemo("m_sara", "Sara", "Malik", "her", 171, "+92 321 7730171", "pass", 35);
+    passDemo("m_taimur", "Taimur", "Bajwa", "him", 168, "+92 345 6610168", "pass", 6, { suspended: true, suspendedAt: daysAgo(1) });
+    [[ayaan, "sp_ay_1", "ds-gulberg", "ds-spanish", "iced", clockAgo(4, 17, 10), 1], [ayaan, "sp_ay_2", "ds-gulberg", "ds-americano", "hot", clockAgo(4, 17, 12), 2],
+      [ayaan, "sp_ay_3", "kiln", "kiln-flat", "hot", minsAgo(5), 1],
+      [hassan, "sp_hr_1", "kiln", "kiln-cort", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
+      .forEach(([m, id, cafeId, drinkId, temp, at, cupNo]) => { passSale(m, id, cafeId, drinkId, temp, at, cupNo); m.visits[cafeId] = (m.visits[cafeId] || 0) + 1; });
     const busy = new Set(); // "memberId|day": one pass coffee a day
     [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
     const days = [];

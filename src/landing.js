@@ -195,7 +195,7 @@
   };
 
   const FAQ = [
-    ["How does redeeming a cup work?", "Open the Pass tab and show the QR code at the counter, or read out the six-digit code. The barista enters it on their screen and the cup comes off your month. The code changes every 30 seconds, so a screenshot won’t work."],
+    ["How does redeeming a cup work?", "Open the Pass tab and show your member pass at the counter, or tell them your membership number. With a typed number they also ask for the last 4 digits of your phone. You get a notification every time your pass is used, with a way to tell us if it wasn’t you."],
     ["What happens to cups I don’t use?", "They don’t roll over. Each month starts fresh on your renewal date, so pick a plan that matches how much coffee you actually drink. You can change plans whenever you like."],
     ["Can I cancel?", "Yes, from the app, at any time. You won’t be charged again, and you keep your cups until the end of the month you’ve paid for."],
     ["Which cafés are part of it?", "This prototype shows eight independent cafés across Gulberg, Liberty, Fortress, DHA, Model Town and Johar Town. They’re examples while we sign up our first partners."],
@@ -229,7 +229,7 @@
             <section class="lp-hero" aria-labelledby="hero-h">
               <div class="lp-hero__mark">${ui.logo("wordmark")}</div>
               <h1 class="t-display lp-hero__title" id="hero-h">Every café you love. One monthly pass.</h1>
-              <p class="t-body t-muted lp-hero__sub">Pick your places, pick your cups. Pay once, drink well all month.</p>
+              <p class="t-body t-muted lp-hero__sub">Rs 399 a month. 20% off a coffee a day, wherever you are in Lahore.</p>
               <div class="lp-hero__actions">
                 ${scrollLink("join", "Join the waitlist", "btn btn--primary")}
                 ${scrollLink("partner", "I run a café", "btn btn--secondary")}
@@ -240,7 +240,7 @@
               ${sectionHead(1, "how", "How it works")}
               <ol class="lp-steps" role="list">
                 <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Explore with one pool of cups for any café, or reserve cups at the cafés you already like. Plans start at six cups a month.</p></div></li>
-                <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, open the app and show your QR code, or read out the six-digit code. It changes every 30 seconds.</p></div></li>
+                <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, show the member pass in the app (or your phone’s wallet), or tell them your membership number and the last 4 digits of your phone.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">03</span><div><h3 class="t-h3">Enjoy your coffee</h3><p class="t-body t-muted">The barista taps once and the cup comes off your month. Nothing to pay at the till.</p></div></li>
               </ol>
             </section>

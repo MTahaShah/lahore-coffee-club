@@ -262,7 +262,7 @@
             <p class="t-body t-muted">${c.founding
               ? `That makes you one of our Founding Members, the first ${store.getState().club.foundingLimit}. It stays on your card for good.`
               : "Your number is yours for as long as you’re a member."}</p>
-            <p class="t-small t-muted num">${p.type === "pass" ? `${S.planLabel(m)} · ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : `${S.planLabel(m)} · ${fmt.cups(S.balance(m.id).total)} · ${S.planDateLine(m)}`}.</p>
+            <p class="t-small t-muted num">${p.type === "pass" ? `${S.planLabel(m)} · ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier(m).dailyLimit === 1 ? "one coffee" : `${S.passTier(m).dailyLimit} coffees`} a day` : `${S.planLabel(m)} · ${fmt.cups(S.balance(m.id).total)} · ${S.planDateLine(m)}`}.</p>
             ${inviter && m.invitedBy ? html`<p class="t-small num beans-plus">${icon("bean", { size: 16 })}+${S.beans().rules.referral} Beans, from ${inviter.firstName}’s invitation</p>` : ""}
           </div>
           <div class="issued__actions">

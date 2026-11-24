@@ -40,8 +40,8 @@
     es.forEach((e) => {
       const base = { at: e.at, cafe: place(e.cafeId), cups: e.cups, channel: e.channel === "pickup" || e.orderId ? "Pickup" : e.type === "redeem" || e.type === "undo" ? "Counter" : "", drink: "", mods: "", note: "" };
       switch (e.type) {
-        case "purchase": out.push({ ...base, what: e.pass ? `${S.planConfig().pass.name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
-        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.planConfig().pass.name} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
+        case "purchase": out.push({ ...base, what: e.pass ? `${S.passTier({ type: "pass", tier: e.tier }).name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
+        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
         case "redeem": {
           const top = e.topUp ? ` · top-up ${fmt.rs(e.topUp)} ${e.topUpOnline ? "paid online" : "paid at the counter"}` : "";
           out.push({ ...base, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });

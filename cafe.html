@@ -1588,7 +1588,8 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-counter[data-view="member"] .ct-pad,
 .ct-counter[data-view="done"] .ct-pad,
 .ct-counter[data-view="member"] .ct-field,
-.ct-counter[data-view="done"] .ct-field { display: none; }
+.ct-counter[data-view="done"] .ct-field,
+.ct-counter[data-view="verify"] .ct-field { display: none; }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 640px) {
   .ct-counter {
     grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
@@ -1676,6 +1677,12 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
   border-radius: var(--radius-sm);
 }
 .ct-refuse svg { flex: none; margin-top: 2px; }
+/* Pass status at the counter when a member coffee is available: the words carry it, a hairline box */
+.ct-passok { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border: var(--hairline); border-radius: var(--radius-sm); }
+.ct-passok svg { flex: none; margin-top: 2px; }
+/* Last 4 digits of the phone, when a Pass member's number was typed */
+.ct-verify { display: grid; gap: var(--space-3); }
+.ct-verify__input { max-width: 12ch; letter-spacing: 0.2em; }
 .ct-refuse__title { font-size: var(--fs-20); font-weight: 700; line-height: 1.2; }
 .ct-drink { display: grid; gap: 2px; padding: var(--space-3) 0; border-block: var(--hairline); }
 .ct-drink__name { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-20); font-weight: 700; }
@@ -2011,6 +2018,24 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .pass__note { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); }
 .pass__note svg { width: 18px; height: 18px; flex: none; }
 .pass__cafes-box { width: 100%; text-align: left; }
+/* Static member pass (LCC Pass and Plus): one QR with the membership number */
+.mpass { width: 100%; display: grid; justify-items: center; gap: var(--space-2); }
+.mpass .qr { margin: var(--space-3) 0 var(--space-1); }
+.mpass__tier { margin-top: var(--space-1); }
+.mpass__today { max-width: 32ch; }
+.mpass__wallets { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+.mpass__wallets .btn { gap: var(--space-2); }
+/* The simulated wallet card: plain, our own style (no official badges) */
+.wallet-card { display: grid; gap: var(--space-4); padding: var(--space-5); margin: var(--space-4) 0; border-radius: var(--radius-card); background: var(--card-bg); color: var(--card-ink); border: 1px solid var(--card-edge); }
+.wallet-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.wallet-card__logo { width: 88px; --logo-ink: var(--card-ink); }
+.wallet-card__logo svg { display: block; width: 100%; height: auto; }
+.wallet-card__tier { letter-spacing: 0.3em; text-transform: uppercase; color: var(--card-muted); }
+.wallet-card__rows { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: var(--space-3); margin: 0; }
+.wallet-card__rows dt { color: var(--card-muted); }
+.wallet-card__rows dd { margin: 0; font-weight: 700; }
+.wallet-card__qr { justify-self: center; width: min(100%, 200px); }
+.wallet-added { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
 .pass-success { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-2); }
 .pass-success .check-draw { width: 72px; height: 72px; color: var(--primary); }
 
@@ -2329,6 +2354,14 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .pass-offer__list { display: grid; gap: var(--space-2); }
 .pass-offer__list li { padding-left: var(--space-4); position: relative; }
 .pass-offer__list li::before { content: ""; position: absolute; left: 0; top: 0.65em; width: 6px; height: 1px; background: currentColor; }
+/* LCC Pass and Pass Plus: two cards, stacked on the phone, side by side when wide */
+.pass-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); border: 0; padding: 0; margin: 0; min-width: 0; }
+.pass-tier { cursor: pointer; gap: var(--space-2); align-content: start; transition: box-shadow var(--dur-1) var(--ease); }
+.pass-tier > span { display: block; }
+.pass-tier .pass-offer__price { display: flex; }
+.pass-tier:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
+.pass-tier:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pass-tier__back { font-weight: 700; }
 .plan-row.is-off { opacity: 0.5; cursor: default; }
 .plan-row.is-off:hover { background: transparent; }
 
@@ -4369,7 +4402,14 @@ export function createContactShadow(THREE, groundY) {
      // BACKEND: an admin-editable settings row (plan_config); the app reads
      // it at start, the counter applies it to each pass sale.            */
   const PLAN_CONFIG = {
-    pass: { id: "pass", name: "LCC Pass", price: 350, discount: 0.20, dailyLimit: 1 },
+    // Two tiers of the Pass (member.plan.tier "pass" | "plus"; missing = "pass").
+    // Prices are per month, tax included. Plus: the second coffee is for the
+    // same visit (same branch, within secondCupMinutes of the first), so it can
+    // be for a friend. paysBack is the plan picker's line.
+    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true,
+      paysBack: "Pays for itself after 3 coffees" },
+    plus: { id: "plus", tier: "plus", name: "LCC Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
+      secondCupMinutes: 30, paysBack: "Pays for itself after 5 cups" },
     packDays: 45,         // a pack's cups last this many days from purchase
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
     packAutoRenew: false, // packs are bought again by hand
@@ -4978,7 +5018,7 @@ export function createContactShadow(THREE, groundY) {
   function purchase(m) {
     const at = m.cycleStartedAt;
     if (m.plan.type === "explorer") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: tierCups(m.plan.tierId), packId: m.plan.tierId, at, cycle: m.cycle });
-    else if (m.plan.type === "pass") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at, cycle: m.cycle });
+    else if (m.plan.type === "pass") ledger.push({ id: `s${seq++}`, type: "purchase", memberId: m.id, cafeId: null, cups: 0, pass: true, tier: "pass", price: PLAN_CONFIG.pass.price, at, cycle: m.cycle });
   }
   members.forEach(purchase);
 
@@ -5083,14 +5123,14 @@ export function createContactShadow(THREE, groundY) {
      All cafés she already knew, plus Double Shot Phase 6 (her usual, an
      Iced Spanish Latte).                                               */
   const menuOf = (cafeId) => brands.find((b) => b.id === cafeById[cafeId].brandId).menu;
-  function passSale(m, id, cafeId, drinkId, temp, at) {
+  function passSale(m, id, cafeId, drinkId, temp, at, cupNo = 1) {
     const d = menuOf(cafeId).find((x) => x.id === drinkId);
     const t = temp === "iced" ? (d.iced != null ? "iced" : "hot") : (d.hot != null ? "hot" : "iced");
     const listPrice = d[t];
     const memberPrice = Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount));
     const c = cafeById[cafeId];
     ledger.push({ id, type: "pass-sale", memberId: m.id, cafeId, brandId: c.brandId, cups: 0, drinkId, temp: t, listPrice, memberPrice,
-      discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
+      discount: PLAN_CONFIG.pass.discount, tier: m.plan.tier === "plus" ? "plus" : "pass", cupNo, at, cycle: m.cycle, ...served(cafeId, id) });
   }
   [["s_mx_1", "slowpour", "sp-gibraltar", "hot", clockAgo(15, 18, 40)], ["s_mx_3", "kiln", "kiln-flat", "hot", clockAgo(14, 8, 20)],
     ["s_mx_2", "noon", "noon-latte", "hot", clockAgo(13, 12, 15)], ["s_mx_5", "ds-dha6", "ds-spanish", "iced", clockAgo(10, 17, 40)],
@@ -5455,6 +5495,29 @@ export function createContactShadow(THREE, groundY) {
     ledger.push({ id: "sp_dh_buy", type: "purchase", memberId: danish.id, cafeId: null, cups: 0, pass: true, price: PLAN_CONFIG.pass.price, at: danish.cycleStartedAt, cycle: danish.cycle });
     [["sp_dh_1", "kiln", "kiln-flat", "hot", clockAgo(9, 9, 10)], ["sp_dh_2", "ds-gulberg", "ds-spanish", "iced", clockAgo(5, 17, 30)], ["sp_dh_3", "kiln", "kiln-cort", "hot", clockAgo(2, 8, 50)]]
       .forEach(([id, cafeId, drinkId, temp, at]) => { passSale(danish, id, cafeId, drinkId, temp, at); danish.visits[cafeId] = (danish.visits[cafeId] || 0) + 1; });
+    /* One named member for each state the counter can show (Static pass):
+       Ayaan, LCC Pass Plus, had his first coffee at Kiln & Bean 5 minutes
+       ago, so 1 is left today (same visit only); Hassan used his Pass this
+       morning at Double Shot Gulberg; Sara's Pass ended 5 days ago; Taimur
+       is suspended. Danish (above) has today's coffee available. Phones end
+       0160, 0162, 0171, 0168 (asked when the number is typed). */
+    const passDemo = (id, firstName, lastName, pronoun, memberNo, phone, tier, started, extra = {}) => {
+      const m = { id, firstName, lastName, initials: `${firstName[0]}${lastName[0]}`, pronoun, phone, area: "gulberg", memberNo,
+        plan: { type: "pass", ...(tier === "plus" ? { tier: "plus" } : {}) }, visits: {}, cycle: cycleOf(id), cycleStartedAt: daysAgo(started),
+        renewsAt: daysAgo(started - 30), memberSince: daysAgo(started + 20), ...extra };
+      members.push(m);
+      const T = PLAN_CONFIG[tier];
+      ledger.push({ id: `${id}_buy`, type: "purchase", memberId: id, cafeId: null, cups: 0, pass: true, tier, price: T.price, at: m.cycleStartedAt, cycle: m.cycle });
+      return m;
+    };
+    const ayaan = passDemo("m_ayaan", "Ayaan", "Qureshi", "him", 160, "+92 300 4410160", "plus", 9);
+    const hassan = passDemo("m_hassan", "Hassan", "Raza", "him", 162, "+92 333 2280162", "pass", 14);
+    passDemo("m_sara", "Sara", "Malik", "her", 171, "+92 321 7730171", "pass", 35);
+    passDemo("m_taimur", "Taimur", "Bajwa", "him", 168, "+92 345 6610168", "pass", 6, { suspended: true, suspendedAt: daysAgo(1) });
+    [[ayaan, "sp_ay_1", "ds-gulberg", "ds-spanish", "iced", clockAgo(4, 17, 10), 1], [ayaan, "sp_ay_2", "ds-gulberg", "ds-americano", "hot", clockAgo(4, 17, 12), 2],
+      [ayaan, "sp_ay_3", "kiln", "kiln-flat", "hot", minsAgo(5), 1],
+      [hassan, "sp_hr_1", "kiln", "kiln-cort", "hot", clockAgo(3, 9, 0), 1], [hassan, "sp_hr_2", "ds-gulberg", "ds-spanish", "iced", todayAt(9, 15, 45), 1]]
+      .forEach(([m, id, cafeId, drinkId, temp, at, cupNo]) => { passSale(m, id, cafeId, drinkId, temp, at, cupNo); m.visits[cafeId] = (m.visits[cafeId] || 0) + 1; });
     const busy = new Set(); // "memberId|day": one pass coffee a day
     [mumtaz].forEach((m) => ledger.filter((e) => e.memberId === m.id && e.type === "pass-sale").forEach((e) => busy.add(`${m.id}|${startOfDay(e.at)}`)));
     const days = [];
@@ -5837,6 +5900,8 @@ export function createContactShadow(THREE, groundY) {
     partnerRequests: [],
     reports: {},       // redeem entry id -> { memberId, brandId, branchId, at }: "Not you?" from the member
     confirmed: {},     // redeem entry id -> at: "That was me"
+    notices: [],       // in-app notifications: { id, memberId, kind: "pass-used", entryId, cafeId, at, text, read }
+    flags: [],         // "Not you?" on a pass sale: { id, memberId, cafeId, entryId, at, reason: "member reported", flaggedAt }
     availability: {},  // branchId -> { day: "2026-11-12", off: { drinkId: true } } ("Available today" switches)
     // This device as a counter: locked to one branch once set up; who is on shift
     counter: { branchId: null, staffId: null, managerUntil: 0 },
@@ -6120,6 +6185,7 @@ export function createContactShadow(THREE, groundY) {
         const orig = state.ledger.find((x) => x.id === e.undoes);
         if (orig && !orig.undone) {
           orig.undone = true; orig.undoneAt = e.at;
+          state.notices.forEach((n) => { if (n.entryId === orig.id) n.undone = true; });
           const m = state.members[orig.memberId];
           if (m.visits?.[orig.cafeId] > 0) m.visits[orig.cafeId] -= 1;
           if (!catchUp) undone.push({ entry: orig, undo: e, member: m });
@@ -6145,7 +6211,10 @@ export function createContactShadow(THREE, groundY) {
     if (!added.length) return added;
     emit("ledger", { entries: added, catchUp, plans: remote ? [] : added.filter((e) => e.type === "purchase").map((e) => e.memberId).filter((id, i, a) => a.indexOf(id) === i).map((id) => planMeta(state.members[id])) }, { remote });
     if (!catchUp) added.filter((e) => isRedeem(e)).forEach((entry) => emit("redeem", { entry, member: state.members[entry.memberId] }, { remote }));
-    if (!catchUp) added.filter((e) => e.type === "pass-sale").forEach((entry) => emit("passSale", { entry, member: state.members[entry.memberId] }, { remote }));
+    if (!catchUp) added.filter((e) => e.type === "pass-sale").forEach((entry) => {
+      addPassNotice(entry);
+      emit("passSale", { entry, member: state.members[entry.memberId] }, { remote });
+    });
     undone.forEach((u) => emit("undo", u, { remote }));
     return added;
   }
@@ -6161,6 +6230,16 @@ export function createContactShadow(THREE, groundY) {
   /** A member coffee the club counts (passport, status, badges, Beans, Circles):
       a cup redeemed, or an LCC Pass sale. Pass sales carry no cups, so they
       read as one drink (credits 1). */
+  /** After every pass sale: an in-app notification for that member, with "Not you?".
+      // BACKEND: a push notification to the member's phone, from the pass-sale insert */
+  function addPassNotice(entry) {
+    if (state.notices.some((n) => n.entryId === entry.id)) return;
+    const T = select.passTier(entry.tier === "plus" ? { type: "pass", tier: "plus" } : state.members[entry.memberId]);
+    const notice = { id: `nt_${entry.id}`, memberId: entry.memberId, kind: "pass-used", entryId: entry.id, cafeId: entry.cafeId, at: entry.at,
+      text: `${T.name} used at ${select.pickupPlace(entry.cafeId)} · ${fmt.time(entry.at)}.`, read: false };
+    state.notices.push(notice);
+    emit("notice", { notice }, { remote: true }); // the entry itself travels; each device writes its own notice
+  }
   function isMemberCoffee(e) { return isRedeem(e) || (e.type === "pass-sale" && !e.undone); }
   const asDrink = (e) => (e.credits ? e : { ...e, credits: 1 });
   const listNames = (ids) => {
@@ -6352,7 +6431,7 @@ export function createContactShadow(THREE, groundY) {
       // BACKEND: GET /branches/:id/today (no amounts for the counter role)
       const since = startOfDay(at);
       // Cups and Pass sales; label: "Pass" (a pass sale) or "Pack" (a cup)
-      const label = (e) => (e.type === "pass-sale" ? "Pass" : "Pack");
+      const label = (e) => (e.type === "pass-sale" ? (e.tier === "plus" ? "Plus" : "Pass") : "Pack");
       const cups = state.ledger.filter((e) => (e.type === "redeem" || e.type === "pass-sale") && e.cafeId === branchId && e.at >= since && !e.orderId)
         .map((e) => ({ kind: "cup", label: label(e), at: e.at, member: state.members[e.memberId], drink: select.entryDrinkName(e), staff: select.staffMember(e.staffId)?.name || null, undone: !!e.undone, entry: e }));
       const pickups = Object.values(state.orders).filter((o) => o.cafeId === branchId && o.placedAt >= since)
@@ -6576,20 +6655,60 @@ export function createContactShadow(THREE, groundY) {
     isPack: (plan) => plan?.type === "explorer",
     /** What a Pass member pays the café for a drink at this list price. */
     memberPrice: (listPrice) => Math.round(listPrice * (1 - state.planConfig.pass.discount)),
+    /** The Pass tier for a member id, a member or a plan: planConfig.pass or planConfig.plus. */
+    passTier(x = state.memberId) {
+      const plan = typeof x === "string" ? state.members[x]?.plan : x?.type ? x : x?.plan;
+      return plan?.tier === "plus" ? state.planConfig.plus : state.planConfig.pass;
+    },
     /** A member's pass sales (not undone), oldest first, from `since`. */
     passSales(memberId = state.memberId, since = 0, until = Infinity) {
       return (byMember.get(memberId) || []).filter((e) => e.type === "pass-sale" && !e.undone && e.at >= since && e.at < until).sort((a, b) => a.at - b.at);
     },
-    /** Today's member coffee: { used, entry, limit, left }. */
+    /** Today's member coffees, at every café: { used, count, limit, left, entries, first, last, entry }.
+        Read from the ledger by LCC.ledger.passDay (ledger.js); 1 a day on the Pass, 2 on Plus. */
     passToday(memberId = state.memberId, at = Date.now()) {
+      if (LCC.ledger?.passDay) return LCC.ledger.passDay(state.members[memberId], at);
       const list = select.passSales(memberId, startOfDay(at), startOfDay(at) + 24 * 60 * MIN);
-      const limit = state.planConfig.pass.dailyLimit;
-      return { used: list.length >= limit, entry: list[list.length - 1] || null, limit, left: Math.max(0, limit - list.length) };
+      const limit = select.passTier(memberId).dailyLimit;
+      return { used: list.length >= limit, count: list.length, entries: list, first: list[0] || null, last: list[list.length - 1] || null, entry: list[list.length - 1] || null, limit, left: Math.max(0, limit - list.length) };
+    },
+    /** Has this member's Pass ended (not renewed by renewsAt)? */
+    passEnded: (memberId = state.memberId, at = Date.now()) => {
+      const m = state.members[memberId];
+      return m?.plan?.type === "pass" && !!m.renewsAt && m.renewsAt <= at;
+    },
+    /** One clear status for a Pass member, for the counter and the member's pass.
+        state: available | second (Plus, same visit) | visit (Plus, second cup
+        elsewhere or too late) | used | ended | suspended | paused.
+        branchId: the counter asking (the second Plus cup must be the same
+        branch, within secondCupMinutes of the first). title is the counter's
+        words; allowance is "2 today · 1 left" on Plus.                     */
+    passStatus(memberId, branchId = null, at = Date.now()) {
+      const m = state.members[memberId];
+      const T = select.passTier(m);
+      const day = select.passToday(memberId, at);
+      const allowance = T.dailyLimit > 1 ? `${T.dailyLimit} today · ${day.left} left` : "";
+      const base = { tier: T, day, count: day.count, limit: T.dailyLimit, left: day.left, allowance, cupNo: day.count + 1 };
+      const name = m?.firstName || "They";
+      if (m?.suspended) return { ...base, state: "suspended", ok: false, title: "Suspended. Ask them to contact LCC.", line: `${name} can pay the full price as usual.` };
+      if (select.passEnded(memberId, at)) return { ...base, state: "ended", ok: false, title: `Pass ended ${fmt.shortDate(m.renewsAt)}. They can renew in the app.`, line: "Ring this one up at the menu price." };
+      if (m?.plan?.paused) return { ...base, state: "paused", ok: false, title: "Plan paused", line: `${name} paused their pass. They can resume it in the app.` };
+      if (day.used) {
+        const e = day.last;
+        return { ...base, state: "used", ok: false, title: `Used today at ${select.pickupPlace(e.cafeId)} · ${fmt.time(e.at)}`, line: `Another one is full price; the next member coffee is tomorrow.` };
+      }
+      if (!day.count) return { ...base, state: "available", ok: true, title: "Available today", line: `${name} pays the member price. No cup is used.` };
+      // Plus, second cup: the same visit only
+      const first = day.first;
+      const until = first.at + (T.secondCupMinutes || 0) * MIN;
+      const sameVisit = !branchId || (first.cafeId === branchId && at <= until);
+      if (!sameVisit) return { ...base, state: "visit", ok: false, title: "Second cup is for the same visit only.", line: `The first was at ${select.pickupPlace(first.cafeId)} · ${fmt.time(first.at)}. This one is full price.`, until };
+      return { ...base, state: "second", ok: true, title: "Available today", line: `Second cup, same visit, until ${fmt.time(until)}. It can be for a friend.`, until };
     },
     /** Savings in the member's pass month: { saved, coffees, listTotal, paid, price, paidOff, progress }. */
     passMonth(memberId = state.memberId, at = Date.now()) {
       const m = state.members[memberId];
-      const P = state.planConfig.pass;
+      const P = select.passTier(m);
       const since = m?.plan?.type === "pass" ? m.cycleStartedAt : monthStartOf(at);
       const list = select.passSales(memberId, since, at + 1);
       const listTotal = list.reduce((n, e) => n + e.listPrice, 0);
@@ -6635,7 +6754,7 @@ export function createContactShadow(THREE, groundY) {
         const bp = b.plans.find((x) => x.id === member.plan.planId);
         return { type: "brand", brandId: b.id, typeName: b.name, name: `${bp.cups} cups`, cups, planCups: bp.cups };
       }
-      if (member.plan.type === "pass") return { type: "pass", typeName: state.planConfig.pass.name, name: state.planConfig.pass.name, cups };
+      if (member.plan.type === "pass") { const T = select.passTier(member); return { type: "pass", tier: T.tier, typeName: T.name, name: T.name, cups }; }
       return { type: "explorer", typeName: "Cup pack", name: select.tier(member.plan.tierId)?.name || "Cup pack", cups };
     },
 
@@ -6707,8 +6826,8 @@ export function createContactShadow(THREE, groundY) {
         return { name: `${bp.cups} cups`, typeName: b.name, brandId: b.id, cups: bp.cups, price: bp.price, perCup: bp.price / bp.cups, savings: 0, meetsMinimum: true, cupsShort: 0 };
       }
       if (plan.type === "pass") {
-        const P = state.planConfig.pass;
-        return { name: P.name, typeName: P.name, cups: 0, price: P.price, savings: 0, meetsMinimum: true, cupsShort: 0, pass: true };
+        const P = select.passTier(plan);
+        return { name: P.name, typeName: P.name, tier: P.tier, cups: 0, price: P.price, savings: 0, meetsMinimum: true, cupsShort: 0, pass: true };
       }
       if (plan.type === "explorer") {
         const t = select.tier(plan.tierId);
@@ -6721,7 +6840,7 @@ export function createContactShadow(THREE, groundY) {
     isCurrentPlan(plan, memberId = state.memberId) {
       const cur = state.members[memberId].plan;
       if (!cur || plan.type !== cur.type) return false;
-      if (plan.type === "pass") return true;
+      if (plan.type === "pass") return (plan.tier || "pass") === (cur.tier || "pass");
       if (plan.type === "explorer") return plan.tierId === cur.tierId;
       if (plan.type === "brand") return plan.brandId === cur.brandId && plan.planId === cur.planId;
       const a = plan.allocation || state.builder, b = cur.allocation || {};
@@ -6982,7 +7101,7 @@ export function createContactShadow(THREE, groundY) {
     planName(plan) {
       if (!plan) return "No plan";
       if (plan.type === "brand") return `${state.brands[plan.brandId]?.name || "Brand"} plan`;
-      if (plan.type === "pass") return state.planConfig.pass.name;
+      if (plan.type === "pass") return select.passTier(plan).name;
       return plan.type === "explorer" ? select.tier(plan.tierId)?.name || "Cup pack" : "My cafés";
     },
 
@@ -7029,15 +7148,15 @@ export function createContactShadow(THREE, groundY) {
       const no = (reason, title, line) => ({ ...base, ok: false, reason, title, line });
       const usable = options.filter((o) => o.here > 0 && !o.plan.paused);
       const name = m.firstName;
+      if (m.suspended) return no("suspended", "Suspended. Ask them to contact LCC.", `${name} can pay the full price as usual.`);
       if (select.isPaused(branchId, at)) return no("paused", `Member cups paused until ${fmt.time(cafe.pausedUntil)}`, `${name} can pay as usual, or come back after.`);
       if (!plans.length) return no("no-plan", "No plan yet", `${name} hasn’t bought a plan yet. They can pay as usual.`);
       if (!options.length && plans.every((p) => p.plan.type === "pass")) {
-        // BACKEND: the counter records this as a pass sale (actions.recordPassSale), not a cup
-        const P = state.planConfig.pass;
-        const t = select.passToday(memberId, at);
-        return t.used
-          ? no("pass-used", `${P.name} · used today`, `${name} has had today’s member coffee. Another one is full price; the next is tomorrow.`)
-          : no("pass", `${P.name} · ${Math.round(P.discount * 100)}% off one coffee today`, `${name} pays the member price for one drink. No cup is used.`);
+        // BACKEND: the counter records this as a pass sale (actions.recordPassSale), not a cup.
+        // The daily limit counts every café (LCC.ledger.passDay); Plus's second cup is the same visit only.
+        const ps = select.passStatus(memberId, branchId, at);
+        const reason = { available: "pass", second: "pass", used: "pass-used", visit: "pass-used", ended: "pass-ended", suspended: "suspended", paused: "plan-paused" }[ps.state];
+        return { ...no(reason, ps.title, ps.line), pass: ps };
       }
       if (!options.length) {
         const where = [...new Set(plans.map((p) => (p.plan.type === "brand" ? state.brands[p.plan.brandId].name : p.plan.type === "mycafes" ? "the cafés in their plan" : "partner cafés")))];
@@ -7126,6 +7245,16 @@ export function createContactShadow(THREE, groundY) {
     },
     /** A redeem entry by id (undone ones included). */
     entry: (id) => state.ledger.find((e) => e.id === id) || null,
+    /** The counter's check when a Pass member's number is typed: the last 4 digits of their phone.
+        // BACKEND: POST /members/:no/verify-phone { last4 } (never send the phone to the counter) */
+    phoneMatches(memberId, last4) {
+      const d = String(state.members[memberId]?.phone || "").replace(/\D/g, "");
+      return /^\d{4}$/.test(String(last4)) && d.length >= 4 && d.endsWith(String(last4));
+    },
+    /** A member's in-app notifications, newest first (undone pass sales left out). */
+    notices: (memberId = state.memberId, { unread = false } = {}) => state.notices.filter((n) => n.memberId === memberId && !n.undone && (!unread || !n.read)).sort((a, b) => b.at - a.at),
+    /** "Not you?" flags on pass sales, newest first (no admin screen yet). */
+    flags: () => [...state.flags].sort((a, b) => b.flaggedAt - a.flaggedAt),
     report: (entryId) => state.reports[entryId] || null,
 
     /** Your members: everyone on this brand's plan (or with My cafés cups
@@ -7453,7 +7582,7 @@ export function createContactShadow(THREE, groundY) {
       const add = (at, beans, title, meta) => { if (at >= B.launchedAt) rows.push({ at, beans, title, meta }); };
       (byMember.get(memberId) || []).forEach((e) => {
         if (isRedeem(e) && !e.orderId) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · at the counter`);
-        if (e.type === "pass-sale" && !e.undone) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · ${state.planConfig.pass.name}`);
+        if (e.type === "pass-sale" && !e.undone) add(e.at, B.perDrink, select.entryDrinkName(e), `${select.placeName(e.cafeId)} · ${select.passTier({ type: "pass", tier: e.tier }).name}`);
         if (e.type === "beans") rows.push({ at: e.at, beans: e.beans, title: e.title, meta: e.meta, spend: e.beans < 0 });
       });
       Object.values(state.orders).forEach((o) => {
@@ -8306,7 +8435,7 @@ export function createContactShadow(THREE, groundY) {
       // New cycle
       const cycle = uid("c");
       member.plan = plan.type === "pass"
-        ? { type: "pass" }
+        ? { type: "pass", ...(plan.tier === "plus" ? { tier: "plus" } : {}) }
         : plan.type === "brand"
         ? { type: "brand", brandId: plan.brandId, planId: plan.planId }
         : plan.type === "explorer"
@@ -8329,7 +8458,8 @@ export function createContactShadow(THREE, groundY) {
         entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: select.tier(member.plan.tierId).cups, packId: member.plan.tierId, at: now, cycle, live: true });
       } else if (member.plan.type === "pass") {
         // BACKEND: a monthly subscription; each renewal is one 0-cup purchase row
-        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: 0, pass: true, price: state.planConfig.pass.price, at: now, cycle, live: true });
+        const T = select.passTier(member.plan);
+        entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId: null, cups: 0, pass: true, tier: T.tier, price: T.price, at: now, cycle, live: true });
       } else {
         Object.entries(member.plan.allocation).forEach(([cafeId, n]) => entries.push({ id: uid("l"), type: "purchase", memberId: member.id, cafeId, cups: n, at: now, cycle, live: true }));
       }
@@ -8705,10 +8835,10 @@ export function createContactShadow(THREE, groundY) {
     recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", mods = null, extras = [], at = Date.now() }) {
       // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
       const m = state.members[memberId];
-      const P = state.planConfig.pass;
       if (!m || m.plan?.type !== "pass") return { ok: false, reason: "not-pass", message: "Not on the LCC Pass." };
-      if (m.plan.paused) return { ok: false, reason: "plan-paused", message: "The Pass is paused." };
-      if (select.passToday(memberId, at).used) return { ok: false, reason: "pass-used", message: "Today’s member coffee is used. This one is full price." };
+      const P = select.passTier(m);
+      const ps = select.passStatus(memberId, branchId, at); // every café today, from the ledger
+      if (!ps.ok) return { ok: false, reason: ps.state === "used" ? "pass-used" : ps.state, message: ps.state === "used" ? "Today’s member coffee is used. This one is full price." : ps.title, status: ps };
       const cafe = state.cafes[branchId];
       const b = select.brandFor(branchId);
       if (!cafe || !b) return { ok: false, reason: "no-cafe" };
@@ -8718,13 +8848,36 @@ export function createContactShadow(THREE, groundY) {
       const listPrice = p.price;
       const entry = {
         id: uid("ps"), type: "pass-sale", memberId, cafeId: branchId, branchId, brandId: b.id, cups: 0, drinkId: item.id, temp: p.temp,
-        listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, staffId, method, channel: "counter",
+        listPrice, memberPrice: select.memberPrice(listPrice), discount: P.discount, tier: P.tier, cupNo: ps.cupNo, staffId, method, channel: "counter",
         firstVisit: !(m.visits && m.visits[branchId] > 0), at, cycle: m.cycle, live: true,
         ...select.drinkChoices(b.id, p.temp, mods, extras), // extras are paid at full price, never discounted
       };
       entry.ref = select.redemptionRef(entry);
       appendEntries([entry]);
-      return { ok: true, entry, saved: entry.listPrice - entry.memberPrice };
+      return { ok: true, entry, saved: entry.listPrice - entry.memberPrice, status: select.passStatus(memberId, branchId, at + 1) };
+    },
+
+    /** The member: "Not you?" on a pass-sale notification. Adds a flag (member,
+        café, time, reason) and reports the entry, so the café sees it live.
+        // BACKEND: push notification + admin review (POST /flags; LCC reviews the queue)
+        No admin screen for flags yet.                                     */
+    flagPassUse(entryId, reason = "member reported") {
+      const e = select.entry(entryId);
+      if (!e) return { ok: false };
+      let flag = state.flags.find((f) => f.entryId === entryId);
+      if (!flag) {
+        flag = { id: uid("fl"), memberId: e.memberId, cafeId: e.cafeId, entryId, at: e.at, reason, flaggedAt: Date.now() };
+        state.flags.push(flag);
+        actions.reportRedemption(entryId);
+        emit("flag", { flag }, { remote: true });
+      }
+      actions.readNotice(`nt_${entryId}`);
+      return { ok: true, flag };
+    },
+    /** A notification seen or dismissed. */
+    readNotice(id) {
+      const n = state.notices.find((x) => x.id === id);
+      if (n && !n.read) { n.read = true; emit("notice", { notice: n }, { remote: true }); }
     },
 
     /** Presenter: show another seeded member in the app (the cup pack demo), keeping Mumtaz as she is. */
@@ -8851,6 +9004,7 @@ export function createContactShadow(THREE, groundY) {
      LCC.ledger.ledgerFor({ cafeId: "ds-gulberg" }) / ({ all: true })
      LCC.ledger.payoutFor("ds-gulberg", "2026-11")
      LCC.ledger.adjust({ memberNo, cups, reason, admin })
+     LCC.ledger.passDay(42)                        -> { count: 1, limit: 1, left: 0, used: true, last }
      LCC.ledger.passUsedToday(42)                  -> true
      LCC.ledger.savingsThisMonth(42)               -> 800 (Rs, this pass month)
      LCC.ledger.memberCupsThisMonth("kiln")        -> { cups, pass, total }
@@ -8874,7 +9028,8 @@ export function createContactShadow(THREE, groundY) {
      beans     0  Beans spent (see select.beans)
      pass-sale 0  an LCC Pass coffee: the member paid the café the member
                  price (listPrice, memberPrice, discount, drinkId, temp,
-                 staffId, at). No cups and no LCC payout; it counts for
+                 staffId, at, tier "pass" | "plus", cupNo 1 | 2). No cups
+                 and no LCC payout; it counts for
                  the club (passport, Beans, Circles) like a cup
    Paid pickups don't touch cups; they are state.orders with pay "paid"
    (or "group"), and count in payoutFor as paid orders.
@@ -9004,11 +9159,24 @@ export function createContactShadow(THREE, groundY) {
 
     /* ---------------- LCC Pass ---------------- */
 
-    /** Has this Pass member had today's member coffee (planConfig.pass.dailyLimit)? */
-    passUsedToday(memberNo, at = Date.now()) {
-      // BACKEND: SELECT count(*) FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND at >= today
+    /** Today's member coffees for a Pass member, across ALL partner cafés,
+        from the pass-sale entries dated today (undone ones don't count).
+        The limit is the tier's: 1 on the LCC Pass, 2 on Plus.
+        -> { count, limit, left, used, entries, first, last, entry } */
+    passDay(memberNo, at = Date.now()) {
+      // BACKEND: SELECT * FROM ledger WHERE member_id = :id AND type = 'pass-sale' AND NOT undone AND at >= today (every café)
       const m = memberOf(memberNo);
-      return m ? S.passToday(m.id, at).used : false;
+      const d = new Date(at); d.setHours(0, 0, 0, 0);
+      const from = d.getTime(); d.setDate(d.getDate() + 1);
+      const entries = m ? S.passSales(m.id, from, d.getTime()) : [];
+      const limit = (m ? S.passTier(m) : S.planConfig().pass).dailyLimit;
+      const last = entries[entries.length - 1] || null;
+      return { memberId: m?.id || null, count: entries.length, limit, left: Math.max(0, limit - entries.length), used: entries.length >= limit, entries, first: entries[0] || null, last, entry: last };
+    },
+
+    /** Has this Pass member had today's member coffees (1 on the Pass, 2 on Plus), at any café? */
+    passUsedToday(memberNo, at = Date.now()) {
+      return ledger.passDay(memberNo, at).used;
     },
 
     /** Rs saved on pass sales this month (list price less member price).
@@ -10381,6 +10549,8 @@ export function createContactShadow(THREE, groundY) {
   ];
   const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"];
   const METHOD_WORD = { number: "member number", scan: "scanned pass", code: "6-digit code" };
+  // The static member pass QR (LCC Pass and Plus): "LCC-0042". A USB scanner types it into the field and presses Enter.
+  const STATIC_QR = /^LCC-\d{1,6}$/i;
 
   let api = null; // the mounted counter, for update()
 
@@ -10390,7 +10560,8 @@ export function createContactShadow(THREE, groundY) {
       let tab = "counter";
       let mode = "number";     // the field: number (also name / phone) | name (system keyboard) | code (6 digits)
       let query = "";
-      let view = "find";       // find | member | done
+      let view = "find";       // find | verify (Pass: last 4 of the phone) | member | done
+      let verify = null;       // { memberId, method, digits, error }: a Pass member found by a typed number
       let picked = null;       // { memberId, method }
       let drink = null;        // { drinkId, temp, source: usual | app | pick }
       let pickerOpen = false, pickerQuery = "";
@@ -10592,11 +10763,16 @@ export function createContactShadow(THREE, groundY) {
       function paintPanel({ focus = false } = {}) {
         const panel = $("[data-panel]", el);
         if (!panel) return;
+        if (view === "verify" && verify) {
+          panel.innerHTML = verifyHtml().s;
+          if (focus) $("#ct-phone4", panel)?.focus({ preventScroll: false });
+          return;
+        }
         if (view === "member" && member()) panel.innerHTML = memberHtml().s;
         else if (view === "done" && done) panel.innerHTML = doneHtml().s;
         else panel.innerHTML = resultsHtml().s;
         if (focus) {
-          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-next]", panel) : null;
+          const target = view === "member" ? $("[data-redeem]:not([disabled]), [data-apply-pass]", panel) || $("[data-back]", panel) : view === "done" ? $("[data-friend-cup]", panel) || $("[data-next]", panel) : null;
           target?.focus({ preventScroll: false });
         }
       }
@@ -10614,17 +10790,49 @@ export function createContactShadow(THREE, groundY) {
           <ul class="ct-results" role="list">
             ${res.results.map(({ member: m, match }) => {
               const chk = S.counterCheck(m.id, branch().id);
-              return html`<li><button type="button" class="ct-result" data-pick="${m.id}">
+              return html`<li><button type="button" class="ct-result" data-pick="${m.id}" data-match="${match}">
                 ${ui.avatar(m, { size: 44 })}
                 <span class="ct-result__main">
                   <span class="ct-result__name">${S.fullName(m)}</span>
                   <span class="ct-result__meta num">${fmt.lcc(m.memberNo)}${match === "phone" ? ` · phone ending ${query}` : ""} · ${chk.ok ? chk.plan.name : chk.plans[0]?.name || "No plan"}${waitingFor(m.id).length ? " · pickup waiting" : ""}</span>
                 </span>
-                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.reason === "pass" ? "Pass · 20% off" : chk.reason === "pass-used" ? "Pass · used today" : chk.title}</span>
+                <span class="ct-result__trail">${chk.ok ? html`<span class="num">${chk.cupsHere}</span> here` : chk.pass?.ok ? (chk.pass.allowance || "Available today") : chk.pass?.state === "used" ? "Used today" : chk.pass?.state === "visit" ? "Same visit only" : chk.title}</span>
               </button></li>`;
             })}
           </ul>
           ${res.total > res.results.length ? html`<p class="t-small t-faint">${res.total - res.results.length} more. Keep typing to narrow it down.</p>` : ""}`;
+      }
+
+      function verifyHtml() {
+        const m = S.member(verify.memberId);
+        return html`<article class="ct-card enter" aria-labelledby="ct-who">
+          <div class="ct-card__who">
+            ${ui.avatar(m, { size: 72 })}
+            <div>
+              <h2 class="ct-card__name" id="ct-who">${S.fullName(m)}</h2>
+              <p class="ct-card__meta num">${fmt.lcc(m.memberNo)} · ${S.passTier(m).name}</p>
+            </div>
+          </div>
+          <form class="ct-verify" data-verify novalidate>
+            <label class="ct-field__label" for="ct-phone4">Last 4 digits of their phone</label>
+            <input class="ct-q num ct-verify__input" id="ct-phone4" data-phone4 value="${verify.digits}" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"
+              aria-describedby="ct-phone4-hint${verify.error ? " ct-phone4-err" : ""}" ${verify.error ? raw('aria-invalid="true"') : ""}>
+            <p class="t-small t-faint" id="ct-phone4-hint">They told you their number, so check the phone on their account. The keypad works too.</p>
+            ${verify.error ? html`<div class="ct-refuse" role="alert" id="ct-phone4-err">${icon("info", { size: 22 })}<p class="ct-refuse__title">${verify.error}</p></div>` : ""}
+            <button type="submit" class="btn btn--primary btn--block ct-redeem">Check</button>
+          </form>
+          <button type="button" class="btn btn--link" data-back>Not ${m.firstName}? Back to the keypad</button>
+        </article>`;
+      }
+      function paintPhone4() {
+        const n = $("#ct-phone4", el);
+        if (n && n.value !== verify.digits) n.value = verify.digits;
+      }
+      function checkPhone() {
+        if (!verify) return;
+        if (verify.digits.length === 4 && S.phoneMatches(verify.memberId, verify.digits)) return pickMember(verify.memberId, verify.method, { verified: true });
+        verify = { ...verify, digits: "", error: verify.digits.length === 4 ? "Those don’t match. Ask them to show their pass." : "Type all four digits." };
+        paintPanel({ focus: true });
       }
 
       /** Default drink: what they chose in the app, else their usual here, else the first on the menu. */
@@ -10638,10 +10846,20 @@ export function createContactShadow(THREE, groundY) {
         const first = S.counterMenu(branch().id).find((d) => d.item.inPlan !== false);
         return first ? { drinkId: first.id, temp: first.temp, source: "pick" } : null;
       }
-      function pickMember(memberId, method) {
+      /* Pass members show one static QR. Found by a typed number or name
+         instead, the cashier also asks for the last 4 digits of their phone
+         (not when the phone was what they typed, or the pass was scanned). */
+      const onPass = (m) => S.plansOf(m.id).some((p) => p.plan.type === "pass");
+      function pickMember(memberId, method, { verified = false } = {}) {
         const m = S.member(memberId);
         if (!m) return;
         message = null;
+        if (!verified && method === "number" && onPass(m)) {
+          verify = { memberId, method, digits: "", error: "" };
+          setView("verify");
+          return paintPanel({ focus: true });
+        }
+        verify = null;
         picked = { memberId, method };
         drink = defaultDrink(m);
         choices = { mods: {}, extras: [] };
@@ -10693,16 +10911,22 @@ export function createContactShadow(THREE, groundY) {
         const pr = $("[data-pass-prices]", el); if (pr) pr.textContent = pricesText(q);
         const ch = $("[data-charge]", el); if (ch) ch.innerHTML = chargeHtml(q).s;
       }
-      function passCardHtml(m, used) {
-        const P = passCfg();
+      /** One clear status (passStatus): "Available today" (Plus: "2 today · 1 left"),
+          "Used today at [café] · [time]", "Second cup is for the same visit only."
+          Ended and suspended passes show in the refusal box (memberHtml). */
+      function passCardHtml(m, chk) {
+        const ps = chk.pass;
+        const P = ps.tier;
+        const used = !ps.ok;
         const b = brand();
         const item = drink ? S.menuItem(b.id, drink.drinkId) : null;
         const q = passQuote();
         return html`
-          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · Today’s member coffee: <strong>${used ? "used today, full price" : "available"}</strong></p>
+          <p class="ct-pass num">${P.name} · ${Math.round(P.discount * 100)}% off · ${P.dailyLimit} a day, any café</p>
           ${used
-            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">Full price today</p><p class="t-small t-muted">${m.firstName} has had today’s member coffee. Ring this one up at the menu price; the next member price is tomorrow.</p></div></div>`
+            ? html`<div class="ct-refuse" role="status">${icon("info", { size: 22 })}<div><p class="ct-refuse__title num">${ps.title}</p><p class="t-small t-muted">${ps.line}</p></div></div>`
             : item ? html`
+              <div class="ct-passok" role="status">${icon("check", { size: 22 })}<div><p class="ct-refuse__title">${ps.title}${ps.allowance ? html` <span class="num">· ${ps.allowance}</span>` : ""}</p><p class="t-small t-muted">${ps.line}</p></div></div>
               <div class="ct-drink">
                 <p class="ct-drink__label t-micro t-faint">${drink.source === "usual" ? "Usual" : drink.source === "app" ? "Chosen in the app" : "Drink"}</p>
                 <p class="ct-drink__name"><span data-drink-name>${S.drinkLabel(item, drink.temp)}</span></p>
@@ -10711,7 +10935,7 @@ export function createContactShadow(THREE, groundY) {
               </div>
               <div class="ct-mods" data-mods>${modsHtml()}</div>
               <p class="ct-charge num" data-charge aria-live="polite">${chargeHtml(q)}</p>
-              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">Apply member price</button>
+              <button type="button" class="btn btn--primary btn--block ct-redeem" data-apply-pass aria-describedby="ct-who">${ps.state === "second" ? "Apply member price · second cup" : "Apply member price"}</button>
               <div class="ct-picker" id="ct-picker" ${pickerOpen ? "" : raw("hidden")}>${pickerHtml()}</div>` : ""}`;
       }
       function applyPassNow() {
@@ -10719,14 +10943,24 @@ export function createContactShadow(THREE, groundY) {
         const res = A.recordPassSale({ memberId: picked.memberId, branchId: branch().id, drinkId: drink.drinkId, temp: drink.temp, method: picked.method, mods: choices.mods, extras: choices.extras });
         if (!res.ok) { paintPanel({ focus: true }); return ui.toast(res.message || "That didn’t go through.", { iconName: "info" }); }
         const q = { member: res.entry.memberPrice, extras: res.entry.extrasPaid || 0 };
-        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras };
+        done = { entry: res.entry, member: S.member(res.entry.memberId), pass: true, charge: q.member + q.extras, status: res.status, method: picked.method };
         picked = null; drink = null; query = ""; mode = "number"; choices = { mods: {}, extras: [] };
         paintField();
         setView("done");
         paintPanel({ focus: true });
         paintRecent();
         clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+        // Plus, after the first cup: the friend's cup button stays until the cashier moves on
+        if (!friendCup()) resetTimer = setTimeout(() => backToKeypad({ focus: false }), RULES().counterResetSeconds * 1000);
+      }
+      /** Plus: the second member coffee is open here, for this visit. */
+      const friendCup = () => !!(done?.pass && done.entry.cupNo === 1 && done.status?.state === "second");
+      function addFriendCup() {
+        if (!done) return;
+        const { member: m, method } = done;
+        clearTimeout(resetTimer);
+        done = null;
+        pickMember(m.id, method || "scan", { verified: true });
       }
 
       function memberHtml() {
@@ -10759,7 +10993,7 @@ export function createContactShadow(THREE, groundY) {
               <p class="t-micro t-faint num">${clubLine}</p>
             </div>
           </div>
-          ${pass ? passCardHtml(m, pass === "pass-used") : chk.ok
+          ${pass && chk.pass ? passCardHtml(m, chk) : chk.ok
             ? html`<p class="ct-card__cups"><span class="num">${chk.cupsHere}</span> ${chk.cupsHere === 1 ? "cup" : "cups"} usable here
                 <span class="t-small t-faint">· Covers ${S.coversLabel(band)} ${chk.plan.plan.type === "explorer" ? `· Cup pack: ${chk.plan.left} left, any café` : chk.plan.plan.type === "brand" ? "· any branch" : chk.plan.bonus ? "· complimentary" : "· reserved here"} · ${chk.plan.plan.type === "explorer" ? `${S.packCupsToday(m.id, chk.plan.cycle)} of ${S.planConfig().packDailyLimit}` : `${chk.usedToday} of ${chk.limit}`} today</span></p>`
             : html`<div class="ct-refuse" role="alert">${icon("info", { size: 22 })}<div><p class="ct-refuse__title">${chk.title}</p><p class="t-small t-muted">${chk.line}</p></div></div>`}
@@ -10875,17 +11109,20 @@ export function createContactShadow(THREE, groundY) {
         if (done.pass) {
           return html`<div class="ct-done" role="status">
             <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
-            <p class="ct-done__title">Done · ${m.firstName} · ${S.entryDrinkName(entry)}</p>
+            <p class="ct-done__title">Done · ${m.firstName}${entry.cupNo === 2 ? "’s second cup" : ""} · ${S.entryDrinkName(entry)}</p>
             <p class="ct-charge num">Charge <strong>${fmt.rs(done.charge)}</strong>${entry.extrasPaid ? html` <span class="t-small t-muted">(${fmt.rs(entry.memberPrice)} + extras ${fmt.rs(entry.extrasPaid)})</span>` : ""}</p>
             <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
             ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
-            <p class="cv-till">Ring it up on your till as: <strong>${passCfg().name}, ${Math.round(entry.discount * 100)}% off</strong></p>
+            <p class="cv-till">Ring it up on your till as: <strong>${S.passTier({ type: "pass", tier: entry.tier }).name}, ${Math.round(entry.discount * 100)}% off</strong></p>
             <p class="t-small t-faint num">${fmt.time(entry.at)} · served by ${S.staffMember(entry.staffId)?.name || "the counter"} · list ${fmt.rs(entry.listPrice)}</p>
+            ${friendCup() ? html`<p class="t-small t-muted num">${done.status.allowance} · same visit, until ${fmt.time(done.status.until)}</p>` : ""}
             <div class="ct-done__acts">
               <button type="button" class="btn btn--secondary" data-undo="${entry.id}">Undo</button>
-              <button type="button" class="btn btn--primary" data-next>Next member</button>
+              ${friendCup() ? html`<button type="button" class="btn btn--primary" data-friend-cup>Add their friend’s cup</button>
+                <button type="button" class="btn btn--secondary" data-next>Next member</button>`
+                : html`<button type="button" class="btn btn--primary" data-next>Next member</button>`}
             </div>
-            <span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>
+            ${friendCup() ? "" : html`<span class="ct-done__timer" style="--secs:${secs}s" aria-hidden="true"></span>`}
           </div>`;
         }
         return html`<div class="ct-done" role="status">
@@ -10905,7 +11142,7 @@ export function createContactShadow(THREE, groundY) {
       }
       function backToKeypad({ focus = true } = {}) {
         clearTimeout(resetTimer);
-        done = null; picked = null; drink = null; message = null;
+        done = null; picked = null; drink = null; message = null; verify = null;
         if (view !== "find") setView("find");
         if (focus) $("[data-q]", el)?.focus();
       }
@@ -10944,6 +11181,15 @@ export function createContactShadow(THREE, groundY) {
       }
 
       function typeKey(k) {
+        if (view === "verify" && verify) {
+          if (k === "clear") verify.digits = "";
+          else if (k === "del") verify.digits = verify.digits.slice(0, -1);
+          else if (verify.digits.length < 4) verify.digits += k;
+          verify.error = "";
+          paintPhone4();
+          if (verify.digits.length === 4) checkPhone();
+          return;
+        }
         message = null;
         if (k === "clear") query = "";
         else if (k === "del") query = query.slice(0, -1);
@@ -10998,7 +11244,7 @@ export function createContactShadow(THREE, groundY) {
             if (!scanStream) return;
             try {
               const codes = await detector.detect(video);
-              const hit = codes.map((c) => c.rawValue).find((v) => /^LCC1:/.test(v));
+              const hit = codes.map((c) => c.rawValue).find((v) => /^LCC1:/.test(v) || STATIC_QR.test(v));
               if (hit) return onScan(hit);
             } catch (_) { /* a frame that couldn't be read */ }
             scanLoop = setTimeout(tick, 250);
@@ -11015,6 +11261,16 @@ export function createContactShadow(THREE, groundY) {
         scanStream = null;
       }
       function onScan(payload) {
+        if (STATIC_QR.test(payload)) {
+          // The static member pass: the QR is the membership number
+          const m = S.memberByNo(payload);
+          const msg = $("[data-scan-msg]", el);
+          if (!m) { if (msg) msg.textContent = "That number isn’t an LCC member. Ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
+          ui.closeSheet($("#ct-scan-sheet", el));
+          stopScan();
+          if (tab !== "counter") showTab("counter");
+          return pickMember(m.id, "scan");
+        }
         const [, memberId, code] = payload.split(":");
         const found = store.findMemberByCode(code);
         const msg = $("[data-scan-msg]", el);
@@ -11326,7 +11582,8 @@ export function createContactShadow(THREE, groundY) {
         const md = t.closest("[data-mode]");
         if (md) return setMode(md.dataset.mode);
         const pk = t.closest("[data-pick]");
-        if (pk) return pickMember(pk.dataset.pick, mode === "name" ? "number" : "number");
+        if (pk) return pickMember(pk.dataset.pick, "number", { verified: pk.dataset.match === "phone" });
+        if (t.closest("[data-friend-cup]")) return addFriendCup();
         if (t.closest("[data-redeem]")) return redeemNow();
         if (t.closest("[data-apply-pass]")) return applyPassNow();
         if (t.closest("[data-back]") || t.closest("[data-next]")) return backToKeypad();
@@ -11383,6 +11640,13 @@ export function createContactShadow(THREE, groundY) {
           if (view !== "find") { picked = null; done = null; setView("find"); }
           return afterQuery();
         }
+        if (t.matches("[data-phone4]") && verify) {
+          verify.digits = t.value.replace(/\D/g, "").slice(0, 4);
+          if (t.value !== verify.digits) t.value = verify.digits;
+          if (verify.error) { verify.error = ""; t.removeAttribute("aria-invalid"); $("#ct-phone4-err", el)?.remove(); }
+          if (verify.digits.length === 4) checkPhone();
+          return;
+        }
         if (t.matches("[data-drink-q]")) { pickerQuery = t.value; const pos = t.selectionStart; paintPicker(); const n = $("#ct-drink-q", el); n.focus(); n.setSelectionRange(pos, pos); return; }
         if (t.matches("[data-pin-input]")) { pin = t.value.replace(/\D/g, "").slice(0, pinLen()); paintPin(); if (pin.length === pinLen()) tryPin(); return; }
         if (t.id === "ct-setup-code") t.value = t.value.toUpperCase();
@@ -11401,11 +11665,14 @@ export function createContactShadow(THREE, groundY) {
           renderAll();
           return ui.toast(`This counter is set up for ${heading()}.`);
         }
+        if (e.target.matches("[data-verify]")) { e.preventDefault(); return checkPhone(); }
         if (e.target.matches("[data-find]")) {
           e.preventDefault();
+          // A USB or Bluetooth scanner reading the static pass types "LCC-0042" and Enter
+          if (STATIC_QR.test(query.trim())) { const sm = S.memberByNo(query.trim()); query = ""; mode = "number"; paintTab(); if (sm) return pickMember(sm.id, "scan"); message = { title: "Number not found", line: "That pass isn’t an LCC member. Ask for their number." }; return paintPanel(); }
           if (mode === "code") return query.length === 6 ? checkCode() : (message = { title: `That’s ${query.length} digit${query.length === 1 ? "" : "s"}`, line: "Codes have six." }, paintPanel());
           const res = S.counterSearch(query, branch().id);
-          if (res.results.length === 1 || (res.results[0] && String(res.results[0].member.memberNo) === query)) pickMember(res.results[0].member.id, "number");
+          if (res.results.length === 1 || (res.results[0] && String(res.results[0].member.memberNo) === query)) pickMember(res.results[0].member.id, "number", { verified: res.results[0].match === "phone" });
         }
       };
       const onKeydown = (e) => {
@@ -12827,6 +13094,13 @@ export function createContactShadow(THREE, groundY) {
                 <div class="sheet__panel" data-drawer-body></div>
               </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
+              <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true">
+                <div class="sheet__scrim" data-sheet-close></div>
+                <div class="sheet__panel">
+                  <div class="sheet__handle" aria-hidden="true"></div>
+                  <div class="sheet__body" data-wallet-body></div>
+                </div>
+              </div>
               <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
               <input type="file" accept="image/*" class="sr-only" tabindex="-1" aria-hidden="true" data-photo-input>
             </div>
@@ -13099,7 +13373,7 @@ export function createContactShadow(THREE, groundY) {
           const pm = S.passMonth();
           const vs = S.passVsPack();
           return html`
-            <p class="t-body" data-home-line>Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}</p>
+            <p class="t-body num" data-home-line>${t.limit > 1 ? `Today: ${t.limit} member coffees · ${t.left} left` : `Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}`}</p>
             <p class="t-small home__saved num">You’ve saved ${fmt.rs(pm.saved)} this month</p>
             <p class="t-small t-muted num">${pm.paidOff ? "Your pass has paid for itself." : `${fmt.rs(pm.price - pm.saved)} more and it has paid for itself.`} ${renewLine()}.</p>
             ${vs ? html`<p class="t-small t-faint num">A ${vs.pack.name} would have saved you ${fmt.rs(vs.more)} more.</p>` : ""}`;
@@ -13190,7 +13464,7 @@ export function createContactShadow(THREE, groundY) {
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
-                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
+                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier(m).dailyLimit === 1 ? "one coffee" : `${S.passTier(m).dailyLimit} coffees`} a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
                     <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)}${plan.type === "explorer" ? "" : " a month"} · ` : ""}${S.planDateLine(m).replace(/^./, (c) => c.toLowerCase())}</p>
                     ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
                 : html`<p class="t-body">No plan yet</p>`}
@@ -13210,7 +13484,7 @@ export function createContactShadow(THREE, groundY) {
 
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
-              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
+              <p class="t-small t-muted">Show your pass at the counter. On the LCC Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
@@ -13262,6 +13536,52 @@ export function createContactShadow(THREE, groundY) {
         $(`[data-cup-me="${entry.id}"]`, region)?.focus({ preventScroll: true });
       }
       function closeCupAlert(id) { $(`[data-cup-alert="${id}"]`, el)?.remove(); }
+
+      /** After every pass sale: "LCC Pass used at Kiln & Bean · 8:40 am. Not you? Tap here." (state.notices) */
+      function passNotice(notice) {
+        const region = $("[data-cup-alerts]", el);
+        if (!region || notice.read || notice.undone) return;
+        $$(".cup-alert", region).forEach((n) => n.remove());
+        region.insertAdjacentHTML("beforeend", html`<div class="cup-alert enter" role="alertdialog" aria-labelledby="pn-${notice.id}" data-cup-alert="${notice.entryId}">
+          <p class="cup-alert__title" id="pn-${notice.id}">${notice.text}</p>
+          <div class="cup-alert__acts">
+            <button type="button" class="btn btn--primary btn--compact" data-notice-ok="${notice.id}">That was me</button>
+            <button type="button" class="btn btn--secondary btn--compact" data-notice-flag="${notice.entryId}">Not you? Tap here.</button>
+          </div>
+        </div>`.s);
+        $(`[data-notice-ok="${notice.id}"]`, region)?.focus({ preventScroll: true });
+      }
+
+      /* Wallet (simulated): the same pass as a wallet card.
+         // BACKEND: Google Wallet API / Apple PassKit signed pass (a .pkpass
+         // or a "Save to Google Wallet" JWT from the server, with the static
+         // QR, the member number and the valid-until date).               */
+      function openWallet(kind) {
+        const m = member();
+        const T = S.passTier(m);
+        const sheet = $("#wallet-sheet", el);
+        const where = kind === "apple" ? "Apple Wallet" : "Google Wallet";
+        $("[data-wallet-body]", sheet).innerHTML = html`
+          <h2 class="t-h3" id="wallet-title">${where}</h2>
+          <div class="wallet-card">
+            <div class="wallet-card__top">
+              <span class="wallet-card__logo">${ui.logo("monogram-horizontal")}</span>
+              <span class="t-micro wallet-card__tier">${T.name}</span>
+            </div>
+            <dl class="wallet-card__rows">
+              <div><dt class="t-micro">Member</dt><dd>${S.fullName(m)}</dd></div>
+              <div><dt class="t-micro">Number</dt><dd class="num">${fmt.lcc(m.memberNo)}</dd></div>
+              <div><dt class="t-micro">Valid until</dt><dd class="num">${fmt.longDate(m.renewsAt)}</dd></div>
+            </dl>
+            <div class="qr wallet-card__qr" role="img" aria-label="QR code for membership number ${fmt.lcc(m.memberNo)}">${raw(ui.qrSvg(staticPayload(m), { fallback: fmt.lcc(m.memberNo) }))}</div>
+          </div>
+          <p class="t-body wallet-added" role="status">${icon("check", { size: 18 })} Added to your wallet.</p>
+          <p class="t-small t-muted">Prototype: nothing was sent to ${where}.</p>
+          <button type="button" class="btn btn--primary btn--block" data-sheet-close>Done</button>`.s;
+        ui.openSheet(sheet);
+      }
+      /** The static pass QR encodes the membership number only ("LCC-0042"). */
+      const staticPayload = (m) => `LCC-${String(m.memberNo).padStart(4, "0")}`;
 
       /** Circles see the café and the time after the fact; never a location. */
       function privacyHtml() {
@@ -13381,7 +13701,7 @@ export function createContactShadow(THREE, groundY) {
           const m2 = member();
           if (!m2.plan) return "No plan yet";
           if (m2.plan.type === "pass") {
-            const P = S.planConfig().pass;
+            const P = S.passTier(m2);
             // The allowance, as on the card ("1 today"); Home says whether it's used
             const extra = Math.max(0, S.balance().left);
             return `${P.name} · ${Math.round(P.discount * 100)}% off · ${P.dailyLimit} today${extra ? ` · ${fmt.cups(extra)} complimentary` : ""}`;
@@ -13391,9 +13711,53 @@ export function createContactShadow(THREE, groundY) {
         }
         function cardNo(n) { return `LCC-${String(n).padStart(4, "0")}`; }
 
+        /** Pass members: today's member coffee, in words, from the ledger (every café). */
+        function passTodayLine() {
+          const m2 = member();
+          const ps = S.passStatus(m2.id);
+          const T = ps.tier;
+          if (ps.state === "suspended") return "Your membership is suspended. Please contact LCC.";
+          if (ps.state === "ended") return `Your pass ended on ${fmt.longDate(m2.renewsAt)}. Renew it in Choose your plan.`;
+          if (ps.state === "paused") return "Your pass is paused.";
+          if (ps.state === "used") return `Today: used at ${S.pickupPlace(ps.day.last.cafeId)} · ${fmt.time(ps.day.last.at)}. Back tomorrow.`;
+          if (T.dailyLimit > 1) return `Today: ${ps.allowance}${ps.count ? ` · the second at ${S.pickupPlace(ps.day.first.cafeId)} until ${fmt.time(ps.until)}` : ""}`;
+          return "Today: member coffee available";
+        }
+
+        /* The static member pass (LCC Pass and Plus): no rotation, no
+           countdown. One QR that encodes the membership number; the
+           counter asks for the last 4 digits of the phone when the number
+           is typed instead.                                              */
+        function staticCardHtml() {
+          const m2 = member();
+          const T = S.passTier(m2);
+          const ended = S.passEnded(m2.id);
+          return html`
+            <div class="mpass">
+              <div class="pass__logo">${ui.logo("monogram-horizontal")}</div>
+              <p class="pass-who" data-pass-who>${passWho()}</p>
+              <p class="pass__no num" aria-label="Membership number LCC ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
+              <p class="eyebrow mpass__tier">${T.name}</p>
+              <div class="qr" data-static-qr role="img" aria-label="QR code with your membership number, ${fmt.lcc(m2.memberNo)}">${raw(ui.qrSvg(staticPayload(m2), { fallback: `Tell the counter: ${fmt.lcc(m2.memberNo)}` }))}</div>
+              <p class="t-small t-muted num">${ended ? "Ended" : "Valid until"} ${fmt.longDate(m2.renewsAt)}</p>
+            </div>
+            <p class="t-body mpass__today num" data-pass-today>${passTodayLine()}</p>
+            ${ended ? html`<a class="btn btn--primary" href="#/app/plan">Renew my pass</a>` : ""}
+            <div class="mpass__wallets">
+              <button type="button" class="btn btn--secondary" data-wallet="google">${icon("wallet", { size: 18 })}<span>Add to Google Wallet</span></button>
+              <button type="button" class="btn btn--secondary" data-wallet="apple">${icon("wallet", { size: 18 })}<span>Add to Apple Wallet</span></button>
+            </div>
+            <p class="t-small t-muted">Show this at the counter, or tell them your membership number.</p>
+            <div class="pass__stack">
+              <div data-pass-plans>${extraPlansHtml()}</div>
+            </div>
+            <div class="pass-order" data-pass-order>${orderHtml()}</div>`;
+        }
+
         function paintQrCard() {
           const m2 = member();
           const card = $("[data-pass-card]", view);
+          if (S.isPass()) { card.innerHTML = staticCardHtml().s; lastCode = null; return; }
           const cafes = passCafes();
           card.innerHTML = html`
             <div class="pass__head">
@@ -13475,7 +13839,10 @@ export function createContactShadow(THREE, groundY) {
         // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
+          // A plan change between the Pass and a pack swaps the whole card
+          if (!!S.isPass() !== !!$("[data-pass-today]", view) && !$(".pass-success", view)) return paintQrCard();
           set("[data-pass-plan]", planLine());
+          set("[data-pass-today]", S.isPass() ? passTodayLine() : "");
           const list = $("[data-pass-cafes]", view);
           if (list) list.innerHTML = passCafes().s || "";
           const also = $("[data-pass-plans]", view);
@@ -13496,6 +13863,7 @@ export function createContactShadow(THREE, groundY) {
         }
 
         function rotate() {
+          if (S.isPass()) return; // the static pass doesn't rotate
           const qrEl = $("[data-qr]", view);
           if (!qrEl) return;
           qrEl.classList.add("is-rotating");
@@ -13522,7 +13890,7 @@ export function createContactShadow(THREE, groundY) {
               <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(entry.cafeId)}.</p>
               <p class="t-body num">${S.entryDrinkName(entry)} · ${fmt.rs(entry.memberPrice)} at the till</p>
               <p class="t-small home__saved num">Saved ${fmt.rs(entry.listPrice - entry.memberPrice)} · ${fmt.rs(pm.saved)} this month</p>
-              <p class="t-small t-faint">Today’s member coffee is used. Back tomorrow.</p>
+              <p class="t-small t-faint">${(() => { const ps = S.passStatus(member().id, entry.cafeId); return ps.state === "second" ? `${ps.allowance}. The second is here, until ${fmt.time(ps.until)}.` : "Today’s member coffee is used. Back tomorrow."; })()}</p>
               <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
@@ -13670,6 +14038,17 @@ export function createContactShadow(THREE, groundY) {
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
         if (t.closest("[data-add-photo]")) { $("[data-photo-input]", el).click(); return; }
         if (t.closest("[data-remove-photo]")) { A.setMemberPhoto(null); ui.toast("Photo removed. The counter sees your initials."); return; }
+        const wal = t.closest("[data-wallet]");
+        if (wal) { openWallet(wal.dataset.wallet); return; }
+        const nok = t.closest("[data-notice-ok]");
+        if (nok) { A.readNotice(nok.dataset.noticeOk); nok.closest(".cup-alert")?.remove(); return; }
+        const nfl = t.closest("[data-notice-flag]");
+        if (nfl) {
+          A.flagPassUse(nfl.dataset.noticeFlag);
+          nfl.closest(".cup-alert")?.remove();
+          ui.toast("Thanks. We’ll look into it.", { iconName: "info", duration: 5000 });
+          return;
+        }
         const me = t.closest("[data-cup-me]");
         if (me) { A.confirmRedemption(me.dataset.cupMe); closeCupAlert(me.dataset.cupMe); return; }
         const rep = t.closest("[data-cup-report]");
@@ -13812,6 +14191,11 @@ export function createContactShadow(THREE, groundY) {
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || entry.orderId) return;
         cupAlert(entry);
+      }));
+      // A pass sale for this member, at any counter: the notification with "Not you?"
+      offs.push(store.on("notice", ({ notice }) => {
+        if (notice.memberId !== member().id || notice.read) return;
+        passNotice(notice);
       }));
       // The café undid a cup: it's back
       offs.push(store.on("undo", ({ entry, member: who }) => {
@@ -14711,7 +15095,7 @@ export function createContactShadow(THREE, groundY) {
         const pct = Math.round(S.planConfig().pass.discount * 100);
         return html`<p class="t-small t-muted num" data-here-line>${t.used
           ? html`<strong>Today’s member coffee is used.</strong> Back tomorrow; this one is full price.`
-          : html`<strong>Today’s member coffee: available.</strong> ${pct}% off any drink here.`}</p>`;
+          : html`<strong>${t.limit > 1 ? `${t.left} of ${t.limit} member coffees left today.` : "Today’s member coffee: available."}</strong> ${pct}% off any drink here.`}</p>`;
       }
       if (here.type === "mycafes") {
         return html`<p class="t-small t-muted num" data-here-line>${here.reserved
@@ -14756,7 +15140,7 @@ export function createContactShadow(THREE, groundY) {
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
-              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.planConfig().pass.name}, one coffee a day.</p>
+              <p class="t-small t-muted">Member price: ${Math.round(S.planConfig().pass.discount * 100)}% off with the ${S.passTier().name}, ${S.passTier().dailyLimit === 1 ? "one coffee" : `${S.passTier().dailyLimit} coffees`} a day.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
                   <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, member price ${fmt.rs(S.memberPrice(d.price))}, ${bandLabel(c, d)}. Order for pickup">
@@ -14845,7 +15229,7 @@ export function createContactShadow(THREE, groundY) {
 
     /** What this drink costs the member: the Pass's member price, or what a cup covers. */
     const coverLine = (p) => (S.isPass()
-      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.planConfig().pass.name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      ? `${fmt.rs(S.memberPrice(p.price))} with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
       : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
@@ -14855,7 +15239,7 @@ export function createContactShadow(THREE, groundY) {
       if (S.isPass()) {
         const t = S.passToday();
         const pct = Math.round(S.planConfig().pass.discount * 100);
-        return html`<p class="brand-cups__line">${t.used ? "Today’s member coffee is used" : "Today’s member coffee: available"}</p>
+        return html`<p class="brand-cups__line num">${t.used ? "Today’s member coffee is used" : t.limit > 1 ? `${t.left} of ${t.limit} member coffees left today` : "Today’s member coffee: available"}</p>
           <p class="t-small t-muted">${S.planLabel(m)} · ${t.used ? "Back tomorrow; another one today is full price." : `${pct}% off any drink, at any of the ${S.branches(b.id).length} branches.`}</p>`;
       }
       if (!opt) {
@@ -15097,7 +15481,7 @@ export function createContactShadow(THREE, groundY) {
      pack id. My cafés and the old Explorer tiers are no longer sold;
      legacy Double Shot plans aren't either.
      ------------------------------------------------------------------- */
-  const draft = { started: false, mode: "pass", tierId: "classic8", highlight: null };
+  const draft = { started: false, mode: "pass", passTier: "pass", tierId: "classic8", highlight: null };
 
   const pay = {
     method: "jazzcash",
@@ -15118,6 +15502,7 @@ export function createContactShadow(THREE, groundY) {
     const cur = S.member().plan;
     draft.started = true;
     draft.mode = mode === "pass" || mode === "packs" ? mode : cur?.type === "explorer" ? "packs" : "pass";
+    draft.passTier = cur?.type === "pass" && cur.tier === "plus" ? "plus" : "pass";
     const own = cur?.type === "explorer" && packs().find((t) => t.id === cur.tierId);
     draft.tierId = own && canBuy(own) ? own.id : "classic8";
     pay.phase = "form";
@@ -15128,21 +15513,18 @@ export function createContactShadow(THREE, groundY) {
   }
   LCC.appPlan = { start, draft };
 
-  const draftPlan = () => (draft.mode === "pass" ? { type: "pass" } : { type: "explorer", tierId: draft.tierId });
-
-  /** Coffees until the Pass pays for itself, at the average Classic latte across partner cafés. */
-  function paysBackIn() {
-    const prices = S.clubCafes().map((c) => c.price).filter(Boolean);
-    const avg = prices.reduce((n, x) => n + x, 0) / (prices.length || 1);
-    return Math.max(1, Math.ceil(cfg().pass.price / (avg * cfg().pass.discount)));
-  }
+  // The Pass purchase entry records tier "pass" or "plus" (state.js setPlan)
+  const draftPlan = () => (draft.mode === "pass" ? { type: "pass", tier: draft.passTier } : { type: "explorer", tierId: draft.tierId });
+  /** "1 member coffee a day" / "2 member coffees a day, at the same visit" */
+  const perDay = (T) => (T.dailyLimit === 1 ? "1 member coffee a day" : `${T.dailyLimit} member coffees a day, at the same visit`);
+  LCC.passCopy = { perDay };
 
   /** Why Continue is off, or null: already on the Pass; a pack with cups still left. */
   function blocked() {
     const m = S.member();
     const plan = draftPlan();
     if (!S.isCurrentPlan(plan)) return null;
-    if (plan.type === "pass") return `You’re on the ${cfg().pass.name}. ${S.planDateLine(m)}.`;
+    if (plan.type === "pass") return `You’re on the ${S.passTier(plan).name}. ${S.planDateLine(m)}.`;
     const left = Math.max(0, S.balance().left);
     return left > 0 ? `You have ${fmt.cups(left)} left on this pack. ${S.planDateLine(m)}.` : null;
   }
@@ -15154,22 +15536,26 @@ export function createContactShadow(THREE, groundY) {
     const { view } = ctx;
     const m = ctx.member();
 
-    /* LCC Pass: one offer, said plainly ------------------------------------ */
+    /* LCC Pass and LCC Pass Plus: two cards, side by side when there's room */
     function passHtml() {
-      const P = cfg().pass;
+      const { pass: P, plus: X } = cfg();
       const pct = Math.round(P.discount * 100);
+      const cur = S.member().plan;
+      const card = (T, line) => html`<label class="card pass-offer pass-tier">
+          <input class="sr-only" type="radio" name="passtier" value="${T.tier}" ${draft.passTier === T.tier ? raw("checked") : ""}>
+          <span class="eyebrow">${T.name}${cur?.type === "pass" && (cur.tier || "pass") === T.tier ? html`<span class="sr-only">, your plan</span>` : ""}</span>
+          <span class="pass-offer__price"><span class="t-h1 num">${fmt.rs(T.price)}</span> <span class="t-small t-muted">a month, tax included</span></span>
+          <span class="t-body">${perDay(T)}</span>
+          <span class="t-small t-muted">${line}</span>
+          <span class="t-small pass-tier__back">${T.paysBack}</span>
+        </label>`;
       return html`
-        <div class="card pass-offer">
-          <p class="eyebrow">${P.name}</p>
-          <p class="pass-offer__price"><span class="t-h1 num">${fmt.rs(P.price)}</span> <span class="t-small t-muted">a month</span></p>
-          <ul role="list" class="pass-offer__list">
-            <li>${pct}% off one coffee a day</li>
-            <li>Any drink, at any partner café</li>
-            <li>Pay the café the member price at the counter</li>
-            <li class="t-muted">A second coffee the same day is full price</li>
-          </ul>
-        </div>
-        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. Renew from the app each month. Cancel any time.</p>`;
+        <fieldset class="pass-tiers">
+          <legend class="sr-only">${P.name} or ${X.name}</legend>
+          ${card(P, `${pct}% off any drink, at any partner café.`)}
+          ${card(X, `A second coffee every day for ${fmt.rs(X.price - P.price)} more. Bring a friend.`)}
+        </fieldset>
+        <p class="t-small t-muted plan-intro">Show your pass, and the barista takes ${pct}% off. You pay the café the member price. Renew from the app each month. Cancel any time.</p>`;
     }
 
     /* Cup packs: one list, two quiet groups --------------------------------- */
@@ -15213,7 +15599,7 @@ export function createContactShadow(THREE, groundY) {
       const btn = $("[data-continue]", view);
       const why = blocked();
       const text = why
-        || (draft.mode === "pass" ? `Pays for itself in about ${paysBackIn()} ${paysBackIn() === 1 ? "coffee" : "coffees"}` : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
+        || (draft.mode === "pass" ? S.passTier(draftPlan()).paysBack : q.savings > 0 ? `You save about ${fmt.rs(q.savings)} vs the counter` : `${fmt.cups(q.cups)} for ${cfg().packDays} days`);
       note.textContent = text;
       note.classList.remove("is-warn");
       note.classList.toggle("is-save", !why);
@@ -15238,6 +15624,7 @@ export function createContactShadow(THREE, groundY) {
     }
 
     function onChange(e) {
+      if (e.target.name === "passtier") { draft.passTier = e.target.value === "plus" ? "plus" : "pass"; return paintSummary(); }
       if (e.target.name !== "tier") return;
       draft.tierId = e.target.value;
       paintSummary();
@@ -15257,7 +15644,7 @@ export function createContactShadow(THREE, groundY) {
                 ? html`<p class="t-small t-muted num">A new plan starts today; cups left on a pack don’t carry over.</p>`
                 : html`<p class="t-small t-muted">A monthly pass for money off, or prepaid cups. You can change whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: cfg().pass.name }, { value: "packs", label: "Cup packs" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: "LCC Pass" }, { value: "packs", label: "Cup packs" }] })}
             <div class="plan-body" data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -15393,7 +15780,7 @@ export function createContactShadow(THREE, groundY) {
         const mem = ctx.member();
         const title = isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready.`;
         const line = isPass
-          ? `${Math.round(cfg().pass.discount * 100)}% off one coffee a day, from today. Renews on ${longDate(mem.renewsAt)}.`
+          ? `${perDay(S.passTier(plan))}, ${Math.round(cfg().pass.discount * 100)}% off, from today. Renews on ${longDate(mem.renewsAt)}.`
           : `${fmt.cups(S.balance(mem.id).total)}, fresh from today. Use by ${longDate(mem.renewsAt)}.`;
         return html`<div class="pay-state" role="status">
           <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
@@ -15512,7 +15899,7 @@ export function createContactShadow(THREE, groundY) {
               </div>
               ${isPass
                 ? html`<p class="t-small t-muted num">A month, starting today. Renews on ${longDate(renewal)}.</p>
-                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off one coffee a day · any drink, any partner café</p>`
+                    <p class="t-micro t-faint num">${Math.round(cfg().pass.discount * 100)}% off · ${perDay(S.passTier(plan))} · any drink, any partner café · tax included</p>`
                 : html`<p class="t-small t-muted num">${fmt.cups(q.cups)}, starting today. Use by ${longDate(renewal)}; doesn’t renew.</p>
                     <p class="t-micro t-faint num">Selected partner cafés · Covers: ${S.coversLabel(S.planBand(plan))}, drinks up to ${fmt.rs(S.band(S.planBand(plan)).maxPrice)}</p>`}
             </div>
@@ -17664,7 +18051,7 @@ export function createContactShadow(THREE, groundY) {
         return html`<div class="pay-state">
           <span class="pay-state__mark" aria-hidden="true">${icon("gift", { size: 28 })}</span>
           <h2 class="t-h3">No cups to give right now.</h2>
-          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.planConfig().pass.name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
+          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.passTier(m).name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
           <a class="btn btn--secondary btn--block" href="#/app">Back to home</a>
         </div>`;
       }
@@ -17871,8 +18258,8 @@ export function createContactShadow(THREE, groundY) {
     es.forEach((e) => {
       const base = { at: e.at, cafe: place(e.cafeId), cups: e.cups, channel: e.channel === "pickup" || e.orderId ? "Pickup" : e.type === "redeem" || e.type === "undo" ? "Counter" : "", drink: "", mods: "", note: "" };
       switch (e.type) {
-        case "purchase": out.push({ ...base, what: e.pass ? `${S.planConfig().pass.name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
-        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.planConfig().pass.name} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
+        case "purchase": out.push({ ...base, what: e.pass ? `${S.passTier({ type: "pass", tier: e.tier }).name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
+        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee", note: `saved ${fmt.rs(e.listPrice - e.memberPrice)} on ${fmt.rs(e.listPrice)}` }); break;
         case "redeem": {
           const top = e.topUp ? ` · top-up ${fmt.rs(e.topUp)} ${e.topUpOnline ? "paid online" : "paid at the counter"}` : "";
           out.push({ ...base, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });
@@ -18941,7 +19328,7 @@ export function createContactShadow(THREE, groundY) {
             <p class="t-body t-muted">${c.founding
               ? `That makes you one of our Founding Members, the first ${store.getState().club.foundingLimit}. It stays on your card for good.`
               : "Your number is yours for as long as you’re a member."}</p>
-            <p class="t-small t-muted num">${p.type === "pass" ? `${S.planLabel(m)} · ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : `${S.planLabel(m)} · ${fmt.cups(S.balance(m.id).total)} · ${S.planDateLine(m)}`}.</p>
+            <p class="t-small t-muted num">${p.type === "pass" ? `${S.planLabel(m)} · ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier(m).dailyLimit === 1 ? "one coffee" : `${S.passTier(m).dailyLimit} coffees`} a day` : `${S.planLabel(m)} · ${fmt.cups(S.balance(m.id).total)} · ${S.planDateLine(m)}`}.</p>
             ${inviter && m.invitedBy ? html`<p class="t-small num beans-plus">${icon("bean", { size: 16 })}+${S.beans().rules.referral} Beans, from ${inviter.firstName}’s invitation</p>` : ""}
           </div>
           <div class="issued__actions">
@@ -19158,7 +19545,7 @@ export function createContactShadow(THREE, groundY) {
   };
 
   const FAQ = [
-    ["How does redeeming a cup work?", "Open the Pass tab and show the QR code at the counter, or read out the six-digit code. The barista enters it on their screen and the cup comes off your month. The code changes every 30 seconds, so a screenshot won’t work."],
+    ["How does redeeming a cup work?", "Open the Pass tab and show your member pass at the counter, or tell them your membership number. With a typed number they also ask for the last 4 digits of your phone. You get a notification every time your pass is used, with a way to tell us if it wasn’t you."],
     ["What happens to cups I don’t use?", "They don’t roll over. Each month starts fresh on your renewal date, so pick a plan that matches how much coffee you actually drink. You can change plans whenever you like."],
     ["Can I cancel?", "Yes, from the app, at any time. You won’t be charged again, and you keep your cups until the end of the month you’ve paid for."],
     ["Which cafés are part of it?", "This prototype shows eight independent cafés across Gulberg, Liberty, Fortress, DHA, Model Town and Johar Town. They’re examples while we sign up our first partners."],
@@ -19192,7 +19579,7 @@ export function createContactShadow(THREE, groundY) {
             <section class="lp-hero" aria-labelledby="hero-h">
               <div class="lp-hero__mark">${ui.logo("wordmark")}</div>
               <h1 class="t-display lp-hero__title" id="hero-h">Every café you love. One monthly pass.</h1>
-              <p class="t-body t-muted lp-hero__sub">Pick your places, pick your cups. Pay once, drink well all month.</p>
+              <p class="t-body t-muted lp-hero__sub">Rs 399 a month. 20% off a coffee a day, wherever you are in Lahore.</p>
               <div class="lp-hero__actions">
                 ${scrollLink("join", "Join the waitlist", "btn btn--primary")}
                 ${scrollLink("partner", "I run a café", "btn btn--secondary")}
@@ -19203,7 +19590,7 @@ export function createContactShadow(THREE, groundY) {
               ${sectionHead(1, "how", "How it works")}
               <ol class="lp-steps" role="list">
                 <li><span class="lp-steps__n num" aria-hidden="true">01</span><div><h3 class="t-h3">Choose a plan</h3><p class="t-body t-muted">Explore with one pool of cups for any café, or reserve cups at the cafés you already like. Plans start at six cups a month.</p></div></li>
-                <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, open the app and show your QR code, or read out the six-digit code. It changes every 30 seconds.</p></div></li>
+                <li><span class="lp-steps__n num" aria-hidden="true">02</span><div><h3 class="t-h3">Show your pass</h3><p class="t-body t-muted">At the counter, show the member pass in the app (or your phone’s wallet), or tell them your membership number and the last 4 digits of your phone.</p></div></li>
                 <li><span class="lp-steps__n num" aria-hidden="true">03</span><div><h3 class="t-h3">Enjoy your coffee</h3><p class="t-body t-muted">The barista taps once and the cup comes off your month. Nothing to pay at the till.</p></div></li>
               </ol>
             </section>

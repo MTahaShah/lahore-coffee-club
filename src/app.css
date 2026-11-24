@@ -127,6 +127,24 @@
 .pass__note { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); color: var(--ink-3); }
 .pass__note svg { width: 18px; height: 18px; flex: none; }
 .pass__cafes-box { width: 100%; text-align: left; }
+/* Static member pass (LCC Pass and Plus): one QR with the membership number */
+.mpass { width: 100%; display: grid; justify-items: center; gap: var(--space-2); }
+.mpass .qr { margin: var(--space-3) 0 var(--space-1); }
+.mpass__tier { margin-top: var(--space-1); }
+.mpass__today { max-width: 32ch; }
+.mpass__wallets { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+.mpass__wallets .btn { gap: var(--space-2); }
+/* The simulated wallet card: plain, our own style (no official badges) */
+.wallet-card { display: grid; gap: var(--space-4); padding: var(--space-5); margin: var(--space-4) 0; border-radius: var(--radius-card); background: var(--card-bg); color: var(--card-ink); border: 1px solid var(--card-edge); }
+.wallet-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.wallet-card__logo { width: 88px; --logo-ink: var(--card-ink); }
+.wallet-card__logo svg { display: block; width: 100%; height: auto; }
+.wallet-card__tier { letter-spacing: 0.3em; text-transform: uppercase; color: var(--card-muted); }
+.wallet-card__rows { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: var(--space-3); margin: 0; }
+.wallet-card__rows dt { color: var(--card-muted); }
+.wallet-card__rows dd { margin: 0; font-weight: 700; }
+.wallet-card__qr { justify-self: center; width: min(100%, 200px); }
+.wallet-added { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
 .pass-success { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-2); }
 .pass-success .check-draw { width: 72px; height: 72px; color: var(--primary); }
 
@@ -445,6 +463,14 @@
 .pass-offer__list { display: grid; gap: var(--space-2); }
 .pass-offer__list li { padding-left: var(--space-4); position: relative; }
 .pass-offer__list li::before { content: ""; position: absolute; left: 0; top: 0.65em; width: 6px; height: 1px; background: currentColor; }
+/* LCC Pass and Pass Plus: two cards, stacked on the phone, side by side when wide */
+.pass-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); border: 0; padding: 0; margin: 0; min-width: 0; }
+.pass-tier { cursor: pointer; gap: var(--space-2); align-content: start; transition: box-shadow var(--dur-1) var(--ease); }
+.pass-tier > span { display: block; }
+.pass-tier .pass-offer__price { display: flex; }
+.pass-tier:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
+.pass-tier:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pass-tier__back { font-weight: 700; }
 .plan-row.is-off { opacity: 0.5; cursor: default; }
 .plan-row.is-off:hover { background: transparent; }
 

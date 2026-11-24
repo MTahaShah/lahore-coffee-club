@@ -196,6 +196,8 @@ This order overrides any order implied by the spec.
     Pass / pack split on the dashboard (admin not yet)
 14. [x] Payout pass: rate steps as the only payout model, old plan cups
     retired, undo copy, new-customer seed
+15. [x] Static pass pass: static member pass with wallet option, Pass Plus,
+    Rs 399 / 699 pricing, cross-café daily limit
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -301,6 +303,37 @@ next pass until asked.**
 - Seed: `earlierHistory` gives most background members who came to a café
   this month one earlier coffee there, so "New customers this month" is
   about 15–25% per branch.
+
+## Static pass pass (overrides the Plans pass on Pass prices and the Pass QR)
+
+- `PLAN_CONFIG.pass` Rs 399 (1 a day) and `PLAN_CONFIG.plus` "LCC Pass Plus"
+  Rs 699 (2 a day, the second at the same branch within `secondCupMinutes`
+  30 of the first), tax included, `paysBack` lines. `member.plan.tier`
+  "plus" (missing = "pass"); `select.passTier(member | plan | id)`. Purchase
+  and pass-sale entries carry `tier`; pass sales also `cupNo` (1 | 2).
+- Daily limit across all cafés: `LCC.ledger.passDay` (ledger.js, today's
+  pass-sale entries); `select.passToday` delegates to it.
+  `select.passStatus(memberId, branchId)`: available | second | visit
+  ("Second cup is for the same visit only.") | used ("Used today at
+  [café] · [time]") | ended (`renewsAt` passed) | suspended
+  (`member.suspended`). counterCheck returns it as `chk.pass`.
+- Member app, Pass tab for Pass members: a static card (name, LCC number,
+  tier, QR of "LCC-0042", "Valid until"), today's line, "Add to Google /
+  Apple Wallet" (a simulated wallet sheet, // BACKEND), no rotation or
+  countdown. Packs keep the rotating QR and 6-digit code.
+- Counter: a scanned static QR (camera, or a USB scanner typing "LCC-0042"
+  + Enter in the field) opens the member; a typed number or name for a
+  Pass member asks "Last 4 digits of their phone" (`select.phoneMatches`;
+  a phone-digits search skips it). Plus: "Add their friend's cup" on the
+  Done screen after cup 1 (no auto-reset while it shows).
+- After every pass sale: `state.notices` (in-app alert "LCC Pass used at
+  … Not you? Tap here."); "Not you?" → `actions.flagPassUse` adds to
+  `state.flags` (reason "member reported") and reports the entry. No
+  admin screen for flags yet.
+- Seed: Danish LCC 150 (available), Ayaan Qureshi LCC 160 (Plus, first cup
+  at Kiln & Bean 5 min before load), Hassan Raza LCC 162 (used at Double
+  Shot Gulberg this morning), Sara Malik LCC 171 (ended), Taimur Bajwa LCC
+  168 (suspended). Phones end in their number (0150, 0160, …).
 
 ## Home ring (after the Payout pass)
 

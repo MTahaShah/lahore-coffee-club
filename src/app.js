@@ -144,6 +144,13 @@
                 <div class="sheet__panel" data-drawer-body></div>
               </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
+              <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true">
+                <div class="sheet__scrim" data-sheet-close></div>
+                <div class="sheet__panel">
+                  <div class="sheet__handle" aria-hidden="true"></div>
+                  <div class="sheet__body" data-wallet-body></div>
+                </div>
+              </div>
               <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
               <input type="file" accept="image/*" class="sr-only" tabindex="-1" aria-hidden="true" data-photo-input>
             </div>
@@ -416,7 +423,7 @@
           const pm = S.passMonth();
           const vs = S.passVsPack();
           return html`
-            <p class="t-body" data-home-line>Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}</p>
+            <p class="t-body num" data-home-line>${t.limit > 1 ? `Today: ${t.limit} member coffees · ${t.left} left` : `Today’s member coffee: ${t.used ? "used, back tomorrow" : "available"}`}</p>
             <p class="t-small home__saved num">You’ve saved ${fmt.rs(pm.saved)} this month</p>
             <p class="t-small t-muted num">${pm.paidOff ? "Your pass has paid for itself." : `${fmt.rs(pm.price - pm.saved)} more and it has paid for itself.`} ${renewLine()}.</p>
             ${vs ? html`<p class="t-small t-faint num">A ${vs.pack.name} would have saved you ${fmt.rs(vs.more)} more.</p>` : ""}`;
@@ -507,7 +514,7 @@
             <section class="drawer__section" aria-labelledby="dr-plan">
               <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
               ${m.plan
-                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
+                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier(m).dailyLimit === 1 ? "one coffee" : `${S.passTier(m).dailyLimit} coffees`} a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
                     <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)}${plan.type === "explorer" ? "" : " a month"} · ` : ""}${S.planDateLine(m).replace(/^./, (c) => c.toLowerCase())}</p>
                     ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
                 : html`<p class="t-body">No plan yet</p>`}
@@ -527,7 +534,7 @@
 
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
-              <p class="t-small t-muted">Show your pass at the counter, or read the barista your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
+              <p class="t-small t-muted">Show your pass at the counter. On the LCC Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
@@ -579,6 +586,52 @@
         $(`[data-cup-me="${entry.id}"]`, region)?.focus({ preventScroll: true });
       }
       function closeCupAlert(id) { $(`[data-cup-alert="${id}"]`, el)?.remove(); }
+
+      /** After every pass sale: "LCC Pass used at Kiln & Bean · 8:40 am. Not you? Tap here." (state.notices) */
+      function passNotice(notice) {
+        const region = $("[data-cup-alerts]", el);
+        if (!region || notice.read || notice.undone) return;
+        $$(".cup-alert", region).forEach((n) => n.remove());
+        region.insertAdjacentHTML("beforeend", html`<div class="cup-alert enter" role="alertdialog" aria-labelledby="pn-${notice.id}" data-cup-alert="${notice.entryId}">
+          <p class="cup-alert__title" id="pn-${notice.id}">${notice.text}</p>
+          <div class="cup-alert__acts">
+            <button type="button" class="btn btn--primary btn--compact" data-notice-ok="${notice.id}">That was me</button>
+            <button type="button" class="btn btn--secondary btn--compact" data-notice-flag="${notice.entryId}">Not you? Tap here.</button>
+          </div>
+        </div>`.s);
+        $(`[data-notice-ok="${notice.id}"]`, region)?.focus({ preventScroll: true });
+      }
+
+      /* Wallet (simulated): the same pass as a wallet card.
+         // BACKEND: Google Wallet API / Apple PassKit signed pass (a .pkpass
+         // or a "Save to Google Wallet" JWT from the server, with the static
+         // QR, the member number and the valid-until date).               */
+      function openWallet(kind) {
+        const m = member();
+        const T = S.passTier(m);
+        const sheet = $("#wallet-sheet", el);
+        const where = kind === "apple" ? "Apple Wallet" : "Google Wallet";
+        $("[data-wallet-body]", sheet).innerHTML = html`
+          <h2 class="t-h3" id="wallet-title">${where}</h2>
+          <div class="wallet-card">
+            <div class="wallet-card__top">
+              <span class="wallet-card__logo">${ui.logo("monogram-horizontal")}</span>
+              <span class="t-micro wallet-card__tier">${T.name}</span>
+            </div>
+            <dl class="wallet-card__rows">
+              <div><dt class="t-micro">Member</dt><dd>${S.fullName(m)}</dd></div>
+              <div><dt class="t-micro">Number</dt><dd class="num">${fmt.lcc(m.memberNo)}</dd></div>
+              <div><dt class="t-micro">Valid until</dt><dd class="num">${fmt.longDate(m.renewsAt)}</dd></div>
+            </dl>
+            <div class="qr wallet-card__qr" role="img" aria-label="QR code for membership number ${fmt.lcc(m.memberNo)}">${raw(ui.qrSvg(staticPayload(m), { fallback: fmt.lcc(m.memberNo) }))}</div>
+          </div>
+          <p class="t-body wallet-added" role="status">${icon("check", { size: 18 })} Added to your wallet.</p>
+          <p class="t-small t-muted">Prototype: nothing was sent to ${where}.</p>
+          <button type="button" class="btn btn--primary btn--block" data-sheet-close>Done</button>`.s;
+        ui.openSheet(sheet);
+      }
+      /** The static pass QR encodes the membership number only ("LCC-0042"). */
+      const staticPayload = (m) => `LCC-${String(m.memberNo).padStart(4, "0")}`;
 
       /** Circles see the café and the time after the fact; never a location. */
       function privacyHtml() {
@@ -698,7 +751,7 @@
           const m2 = member();
           if (!m2.plan) return "No plan yet";
           if (m2.plan.type === "pass") {
-            const P = S.planConfig().pass;
+            const P = S.passTier(m2);
             // The allowance, as on the card ("1 today"); Home says whether it's used
             const extra = Math.max(0, S.balance().left);
             return `${P.name} · ${Math.round(P.discount * 100)}% off · ${P.dailyLimit} today${extra ? ` · ${fmt.cups(extra)} complimentary` : ""}`;
@@ -708,9 +761,53 @@
         }
         function cardNo(n) { return `LCC-${String(n).padStart(4, "0")}`; }
 
+        /** Pass members: today's member coffee, in words, from the ledger (every café). */
+        function passTodayLine() {
+          const m2 = member();
+          const ps = S.passStatus(m2.id);
+          const T = ps.tier;
+          if (ps.state === "suspended") return "Your membership is suspended. Please contact LCC.";
+          if (ps.state === "ended") return `Your pass ended on ${fmt.longDate(m2.renewsAt)}. Renew it in Choose your plan.`;
+          if (ps.state === "paused") return "Your pass is paused.";
+          if (ps.state === "used") return `Today: used at ${S.pickupPlace(ps.day.last.cafeId)} · ${fmt.time(ps.day.last.at)}. Back tomorrow.`;
+          if (T.dailyLimit > 1) return `Today: ${ps.allowance}${ps.count ? ` · the second at ${S.pickupPlace(ps.day.first.cafeId)} until ${fmt.time(ps.until)}` : ""}`;
+          return "Today: member coffee available";
+        }
+
+        /* The static member pass (LCC Pass and Plus): no rotation, no
+           countdown. One QR that encodes the membership number; the
+           counter asks for the last 4 digits of the phone when the number
+           is typed instead.                                              */
+        function staticCardHtml() {
+          const m2 = member();
+          const T = S.passTier(m2);
+          const ended = S.passEnded(m2.id);
+          return html`
+            <div class="mpass">
+              <div class="pass__logo">${ui.logo("monogram-horizontal")}</div>
+              <p class="pass-who" data-pass-who>${passWho()}</p>
+              <p class="pass__no num" aria-label="Membership number LCC ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
+              <p class="eyebrow mpass__tier">${T.name}</p>
+              <div class="qr" data-static-qr role="img" aria-label="QR code with your membership number, ${fmt.lcc(m2.memberNo)}">${raw(ui.qrSvg(staticPayload(m2), { fallback: `Tell the counter: ${fmt.lcc(m2.memberNo)}` }))}</div>
+              <p class="t-small t-muted num">${ended ? "Ended" : "Valid until"} ${fmt.longDate(m2.renewsAt)}</p>
+            </div>
+            <p class="t-body mpass__today num" data-pass-today>${passTodayLine()}</p>
+            ${ended ? html`<a class="btn btn--primary" href="#/app/plan">Renew my pass</a>` : ""}
+            <div class="mpass__wallets">
+              <button type="button" class="btn btn--secondary" data-wallet="google">${icon("wallet", { size: 18 })}<span>Add to Google Wallet</span></button>
+              <button type="button" class="btn btn--secondary" data-wallet="apple">${icon("wallet", { size: 18 })}<span>Add to Apple Wallet</span></button>
+            </div>
+            <p class="t-small t-muted">Show this at the counter, or tell them your membership number.</p>
+            <div class="pass__stack">
+              <div data-pass-plans>${extraPlansHtml()}</div>
+            </div>
+            <div class="pass-order" data-pass-order>${orderHtml()}</div>`;
+        }
+
         function paintQrCard() {
           const m2 = member();
           const card = $("[data-pass-card]", view);
+          if (S.isPass()) { card.innerHTML = staticCardHtml().s; lastCode = null; return; }
           const cafes = passCafes();
           card.innerHTML = html`
             <div class="pass__head">
@@ -792,7 +889,10 @@
         // Plan change, redemption elsewhere or gift while the pass is open
         function paintMeta() {
           const set = (sel, v) => { const n = $(sel, view); if (n) n.textContent = v; };
+          // A plan change between the Pass and a pack swaps the whole card
+          if (!!S.isPass() !== !!$("[data-pass-today]", view) && !$(".pass-success", view)) return paintQrCard();
           set("[data-pass-plan]", planLine());
+          set("[data-pass-today]", S.isPass() ? passTodayLine() : "");
           const list = $("[data-pass-cafes]", view);
           if (list) list.innerHTML = passCafes().s || "";
           const also = $("[data-pass-plans]", view);
@@ -813,6 +913,7 @@
         }
 
         function rotate() {
+          if (S.isPass()) return; // the static pass doesn't rotate
           const qrEl = $("[data-qr]", view);
           if (!qrEl) return;
           qrEl.classList.add("is-rotating");
@@ -839,7 +940,7 @@
               <p class="t-h2">Enjoy your coffee at ${S.pickupPlace(entry.cafeId)}.</p>
               <p class="t-body num">${S.entryDrinkName(entry)} · ${fmt.rs(entry.memberPrice)} at the till</p>
               <p class="t-small home__saved num">Saved ${fmt.rs(entry.listPrice - entry.memberPrice)} · ${fmt.rs(pm.saved)} this month</p>
-              <p class="t-small t-faint">Today’s member coffee is used. Back tomorrow.</p>
+              <p class="t-small t-faint">${(() => { const ps = S.passStatus(member().id, entry.cafeId); return ps.state === "second" ? `${ps.allowance}. The second is here, until ${fmt.time(ps.until)}.` : "Today’s member coffee is used. Back tomorrow."; })()}</p>
               <p class="beans-plus num">${icon("bean", { size: 16 })}+${S.beans().perDrink} Beans</p>
               <button type="button" class="btn btn--secondary" data-pass-back style="margin-top:var(--space-3)">Back to my pass</button>
             </div>`.s;
@@ -987,6 +1088,17 @@
         if (t.closest("[data-clear-order]")) { A.placeOrder({}); return; }
         if (t.closest("[data-add-photo]")) { $("[data-photo-input]", el).click(); return; }
         if (t.closest("[data-remove-photo]")) { A.setMemberPhoto(null); ui.toast("Photo removed. The counter sees your initials."); return; }
+        const wal = t.closest("[data-wallet]");
+        if (wal) { openWallet(wal.dataset.wallet); return; }
+        const nok = t.closest("[data-notice-ok]");
+        if (nok) { A.readNotice(nok.dataset.noticeOk); nok.closest(".cup-alert")?.remove(); return; }
+        const nfl = t.closest("[data-notice-flag]");
+        if (nfl) {
+          A.flagPassUse(nfl.dataset.noticeFlag);
+          nfl.closest(".cup-alert")?.remove();
+          ui.toast("Thanks. We’ll look into it.", { iconName: "info", duration: 5000 });
+          return;
+        }
         const me = t.closest("[data-cup-me]");
         if (me) { A.confirmRedemption(me.dataset.cupMe); closeCupAlert(me.dataset.cupMe); return; }
         const rep = t.closest("[data-cup-report]");
@@ -1129,6 +1241,11 @@
       offs.push(store.on("redeem", ({ entry, member: who }) => {
         if (who.id !== member().id || entry.orderId) return;
         cupAlert(entry);
+      }));
+      // A pass sale for this member, at any counter: the notification with "Not you?"
+      offs.push(store.on("notice", ({ notice }) => {
+        if (notice.memberId !== member().id || notice.read) return;
+        passNotice(notice);
       }));
       // The café undid a cup: it's back
       offs.push(store.on("undo", ({ entry, member: who }) => {

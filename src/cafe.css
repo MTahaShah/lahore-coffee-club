@@ -399,7 +399,8 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-counter[data-view="member"] .ct-pad,
 .ct-counter[data-view="done"] .ct-pad,
 .ct-counter[data-view="member"] .ct-field,
-.ct-counter[data-view="done"] .ct-field { display: none; }
+.ct-counter[data-view="done"] .ct-field,
+.ct-counter[data-view="verify"] .ct-field { display: none; }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 640px) {
   .ct-counter {
     grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
@@ -487,6 +488,12 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
   border-radius: var(--radius-sm);
 }
 .ct-refuse svg { flex: none; margin-top: 2px; }
+/* Pass status at the counter when a member coffee is available: the words carry it, a hairline box */
+.ct-passok { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border: var(--hairline); border-radius: var(--radius-sm); }
+.ct-passok svg { flex: none; margin-top: 2px; }
+/* Last 4 digits of the phone, when a Pass member's number was typed */
+.ct-verify { display: grid; gap: var(--space-3); }
+.ct-verify__input { max-width: 12ch; letter-spacing: 0.2em; }
 .ct-refuse__title { font-size: var(--fs-20); font-weight: 700; line-height: 1.2; }
 .ct-drink { display: grid; gap: 2px; padding: var(--space-3) 0; border-block: var(--hairline); }
 .ct-drink__name { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-20); font-weight: 700; }
