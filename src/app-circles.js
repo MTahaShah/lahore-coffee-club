@@ -16,7 +16,7 @@
    joined members filled, empty slots outlined. The logo isn't redrawn.
 
    Privacy: members see each other's café and time, after the fact, never
-   a location. Each member chooses in the drawer whether to share at all
+   a location. Each member chooses in Profile whether to share at all
    and whether to hide the branch (store.select.privacy).
    ===================================================================== */
 (function () {

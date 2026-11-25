@@ -310,7 +310,6 @@
   function bindDrag(sheet) {
     if (sheet._dragBound) return;
     sheet._dragBound = true;
-    if (sheet.classList.contains("sheet--drawer")) { bindSwipe(sheet); return; }
     let startY = 0, dy = 0, t0 = 0, active = false;
     sheet.addEventListener("pointerdown", (e) => {
       const handle = e.target.closest(".sheet__handle");
@@ -360,7 +359,7 @@
       </div>`;
   }
 
-  /* Menu row: the drawer's rows, and any list of places to go in a sheet.
+  /* Menu row: the profile rows, and any list of places to go in a sheet.
      Label left, an optional second line or a value on the right, a
      chevron (or the external-link icon). The whole row is the target.
      attrs: extra attributes, as { "data-x": "y" }.                      */
@@ -444,39 +443,6 @@
       </span>
       ${trail}
     </li>`;
-  }
-
-  /* Side drawer (.sheet--drawer): swipe right on the panel to close.
-     Vertical moves are left alone, so the drawer still scrolls. */
-  function bindSwipe(sheet) {
-    const panel = sheet.querySelector(".sheet__panel");
-    let x0 = 0, y0 = 0, dx = 0, t0 = 0, mode = null; // null: undecided, "x": dragging, "y": scrolling
-    panel.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse") return;
-      x0 = e.clientX; y0 = e.clientY; dx = 0; t0 = performance.now(); mode = null;
-    });
-    panel.addEventListener("pointermove", (e) => {
-      if (mode === "y" || e.pointerType === "mouse") return;
-      const mx = e.clientX - x0, my = e.clientY - y0;
-      if (mode === null) {
-        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
-        mode = Math.abs(mx) > Math.abs(my) ? "x" : "y";
-        if (mode === "x") { sheet.classList.add("is-dragging"); panel.setPointerCapture(e.pointerId); }
-        return;
-      }
-      dx = Math.max(0, mx);
-      sheet.style.setProperty("--drag", `${dx}px`);
-    });
-    const end = () => {
-      if (mode !== "x") { mode = null; return; }
-      mode = null;
-      sheet.classList.remove("is-dragging");
-      const velocity = dx / Math.max(1, performance.now() - t0);
-      if (dx > 80 || velocity > 0.5) closeSheet(sheet);
-      else sheet.style.setProperty("--drag", "0px");
-    };
-    panel.addEventListener("pointerup", end);
-    panel.addEventListener("pointercancel", end);
   }
 
   document.addEventListener("click", (e) => {

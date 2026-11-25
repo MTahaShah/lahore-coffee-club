@@ -14,7 +14,7 @@
    base.css) in both modes, a hairline edge, no shadow. About 22 hairline
    rings, centred a little left, lit at top right and bottom left by a
    per-ring gradient (the accent use). Type is sized to the card's width
-   (cqw), so it is larger on the Club tab than in the drawer. Tap turns
+   (cqw), so it is larger on the Club tab than at onboarding. Tap turns
    it over (400ms rotateY; crossfade with reduced motion). */
 .mcard {
   position: relative;
@@ -95,7 +95,6 @@
   .mcard.is-issuing, .mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no, .mcard.is-issuing .mcard__rings { animation: none; }
 }
 
-/* Profile drawer: the card at the top, full width */
 
 /* Club tab --------------------------------------------------------------- */
 .club { display: grid; gap: var(--space-5); }
@@ -521,7 +520,7 @@
 .circle-leave { display: flex; justify-content: space-between; gap: var(--space-3); }
 .circle-leave .btn--quiet { --btn-h: 36px; font-size: var(--fs-14); color: var(--ink-2); }
 
-/* Privacy switches (drawer) */
+/* Privacy switches (Profile) */
 .switch-row { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-2) 0; cursor: pointer; }
 .switch-row__text { flex: 1; display: grid; gap: 2px; }
 .switch-row.is-off { opacity: 0.5; cursor: default; }

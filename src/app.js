@@ -134,10 +134,7 @@
               </div>
               <div class="sheet" id="cafe-sheet" role="dialog" aria-modal="true" aria-labelledby="cafe-sheet-title" aria-hidden="true"></div>
               <div class="sheet" id="bands-sheet" role="dialog" aria-modal="true" aria-labelledby="bands-title" aria-hidden="true"></div>
-              <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
-                <div class="sheet__scrim" data-sheet-close></div>
-                <div class="sheet__panel" data-drawer-body></div>
-              </div>
+              <div class="sheet" id="photo-sheet" role="dialog" aria-modal="true" aria-labelledby="photo-title" aria-hidden="true"></div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
               <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true"></div>
               <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
@@ -166,6 +163,7 @@
         if (a === "circle") return { key: "circle", tab: "circles", make: () => ({ redirect: b ? `#/app/circles/${b}${path[2] === "join" ? "/join" : ""}` : "#/app/circles" }) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "done" && path[2] && REG.orderDone) return { key: `order/done/${path[2]}`, tab: "home", flow: true, make: () => REG.orderDone(ctx, path[2]) };
+        if (a === "profile") return { key: b ? `profile/${b}` : "profile", tab: "home", slide: true, make: () => profileScreen(b) };
         if (a === "cups" && REG.cups) return { key: "cups", tab: "home", flow: true, make: () => REG.cups(ctx) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -185,15 +183,16 @@
         if (active.key === r.key && !force) return;
         const screen = r.make();
         if (screen.redirect) { history.replaceState(null, "", LCC.sync ? LCC.sync.withRoom(screen.redirect) : screen.redirect); LCC.router.render(); return; }
+        let forward = false;
         if (active.key !== r.key) {
           if (replacing && trail.length) trail[trail.length - 1] = r.key;
           else if (trail[trail.length - 2] === r.key) trail.pop();
-          else trail.push(r.key);
+          else { trail.push(r.key); forward = true; }
         }
         replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
-        ui.closeSheet($("#profile-drawer", el));
+        ui.closeSheet($("#photo-sheet", el));
         $$("[data-tab]", el).forEach((btn) => {
           const on = btn.dataset.tab === r.tab;
           btn.setAttribute("aria-selected", on);
@@ -204,8 +203,24 @@
         // The pass is the moment at the counter: a black screen (BRAND.md)
         $(".phone__screen", el).classList.toggle("theme-dark", r.tab === "pass");
         view.setAttribute("aria-labelledby", `tab-${r.tab}`);
+        // Profile pages slide in from the right over the screen they came from (300ms, transform only)
+        const slide = r.slide && forward && !ui.reducedMotion();
+        $$(".app-ghost", el).forEach((g) => g.remove());
+        const prev = view.firstElementChild;
+        if (slide && prev) {
+          const ghost = document.createElement("div");
+          ghost.className = "app-ghost";
+          ghost.setAttribute("aria-hidden", "true");
+          ghost.inert = true;
+          ghost.style.top = `${view.offsetTop}px`;
+          ghost.style.height = `${view.clientHeight}px`;
+          prev.style.transform = `translateY(${-view.scrollTop}px)`;
+          ghost.appendChild(prev);
+          view.before(ghost);
+          setTimeout(() => ghost.remove(), 320);
+        }
+        view.innerHTML = `<div class="enter${slide ? " slide-in" : ""}">${screen.html}</div>`;
         view.scrollTop = 0;
-        view.innerHTML = `<div class="enter">${screen.html}</div>`;
         active = { key: r.key, tab: r.tab, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
       }
 
@@ -281,7 +296,7 @@
       // One calm, centred block: the brick ring, cups left, renewal, and
       // "Order for pickup" (plan and gift are quieter links under it). An
       // open pickup order sits above the ring, which shrinks to make room.
-      // Recent activity, plan details and help live in the profile drawer.
+      // Recent activity lives in My cups; plan details and help in the profile page.
       function homeScreen() {
         const m = member();
         const hasPickup = () => !!LCC.appOrder?.visible().length;
@@ -418,19 +433,17 @@
         ui.openSheet(sh);
       }
 
-      /* Profile drawer ---------------------------------------------------- */
+      /* Profile (#/app/profile) ------------------------------------------
+         A full page that slides in from the right over the screen (the tab
+         bar stays). Hero (avatar, name in Versailles, number and level),
+         then three groups: Membership, Settings, Support. Sub-pages are
+         their own routes (#/app/profile/plan …) in the same card style. */
       function profileButton() {
-        return html`<button type="button" class="icon-btn profile-btn" data-open-drawer aria-label="Profile and account" aria-haspopup="dialog" aria-controls="profile-drawer">${icon("user")}</button>`;
+        return html`<a class="icon-btn profile-btn" href="#/app/profile" aria-label="Profile and account">${icon("user")}</a>`;
       }
 
-      /* The drawer is a short menu: a name row, three groups of rows, and
-         sub-pages that slide in from the right inside the same panel
-         (250ms, transform only; none with reduced motion). Focus goes to
-         the sub-page title; Back returns it to the row; Escape closes. */
-      let drawerPage = null; // null: the menu; else "photo" | "plan" | "pickups" | "privacy" | "look" | "help"
       const WHATSAPP = "https://wa.me/923100008242";
       const passPct = () => Math.round(S.planConfig().pass.discount * 100);
-
       function planLines(m) {
         const plan = S.memberPlan(m);
         if (!m.plan) return null;
@@ -459,138 +472,153 @@
         const o = LCC.appOrder?.visible()[0];
         return o ? LCC.appOrder.statusLine(o) : "None right now";
       }
-      function drawerLines() {
-        const m = member(), p = planLines(m);
+      function profileLines() {
+        const p = planLines(member());
         return { plan: p ? `${p.name} · ${p.short}` : "No plan yet", cups: lastCupLine(), pickups: pickupsLine(), look: lookValue() };
       }
+      const group = (id, label, rows) => html`<section class="pgroup" aria-labelledby="pg-${id}">
+          <h2 class="eyebrow pgroup__label" id="pg-${id}">${label}</h2>
+          <div class="pcard">${rows}</div>
+        </section>`;
 
-      function drawerMainHtml() {
-        const m = member();
+      function profileHeroHtml(m) {
         const c = S.club(m.id);
-        const L = drawerLines();
-        const row = (o) => ui.menuRow({ ...o, attrs: { "data-drawer-page": o.page, ...(o.attrs || {}) } });
-        return html`
-          <div class="drawer__top">
-            <button type="button" class="drawer__me" data-drawer-page="photo" aria-describedby="drawer-me-line">
-              ${ui.avatar(m, { size: 48 })}
-              <span class="drawer__me-text">
-                <span class="drawer__name" id="drawer-title">${S.fullName(m)}</span>
-                <span class="drawer__me-line num" id="drawer-me-line">${fmt.lcc(m.memberNo)} · ${c.founding ? "Founding Member" : c.level.name}</span>
-              </span>
-            </button>
-            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-          </div>
-          <div class="mgroup">
-            ${row({ page: "plan", label: "Plan", line: L.plan, lineKey: "plan" })}
-            ${ui.menuRow({ label: "My cups", line: L.cups, lineKey: "cups", href: "#/app/cups", attrs: { "data-drawer-cups": "" } })}
-            ${row({ page: "pickups", label: "Pickup orders", line: L.pickups, lineKey: "pickups" })}
-          </div>
-          <div class="mgroup">
-            ${row({ page: "privacy", label: "Privacy" })}
-            ${row({ page: "look", label: "Appearance", value: L.look })}
-            ${row({ page: "help", label: "Help" })}
-          </div>
-          <div class="mgroup">
-            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}
-          </div>`;
+        return html`<div class="phero" data-phero>
+          <button type="button" class="phero__avatar" data-photo-menu aria-haspopup="dialog" aria-label="${m.photo ? "Change or remove your photo" : "Add a photo"}">
+            ${ui.avatar(m, { size: 72 })}
+            <span class="phero__cam" aria-hidden="true">${icon(m.photo ? "sliders" : "plus", { size: 14 })}</span>
+          </button>
+          <h1 class="t-title phero__name">${S.fullName(m)}</h1>
+          <p class="phero__line num">${fmt.lcc(m.memberNo)} · ${c.founding ? "Founding Member" : c.level.name}</p>
+        </div>`;
       }
 
-      const SUB_TITLES = { photo: "Your photo", plan: "Plan", pickups: "Pickup orders", privacy: "Privacy", look: "Appearance", help: "Help" };
-      function drawerSubHtml(page) {
+      function profileMainHtml() {
         const m = member();
-        const body = {
-          photo: () => photoHtml(m),
+        const L = profileLines();
+        return html`
+          ${profileHeroHtml(m)}
+          ${group("member", "Membership", html`
+            ${ui.menuRow({ label: "Plan", line: L.plan, lineKey: "plan", href: "#/app/profile/plan" })}
+            ${ui.menuRow({ label: "My cups", line: L.cups, lineKey: "cups", href: "#/app/cups" })}
+            ${ui.menuRow({ label: "Pickup orders", line: L.pickups, lineKey: "pickups", href: "#/app/profile/pickups" })}`)}
+          ${group("settings", "Settings", html`
+            ${ui.menuRow({ label: "Privacy", href: "#/app/profile/privacy" })}
+            ${ui.menuRow({ label: "Appearance", value: L.look, href: "#/app/profile/look", attrs: { "data-look-row": "" } })}`)}
+          ${group("support", "Support", html`
+            ${ui.menuRow({ label: "Help", href: "#/app/profile/help" })}
+            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}`)}`;
+      }
+
+      const SUB_TITLES = { plan: "Plan", pickups: "Pickup orders", privacy: "Privacy", look: "Appearance", help: "Help" };
+      function profileSubBody(page) {
+        const m = member();
+        return {
           plan: () => {
             const p = planLines(m);
             return p
-              ? html`<div class="drawer-plan">
-                  <p class="drawer-plan__name">${p.name}</p>
-                  <p class="t-body t-muted">${p.what}</p>
-                  <p class="t-small t-muted num">${[p.price, p.date].filter(Boolean).join(" · ")}</p>
-                  ${p.paid ? html`<p class="t-small t-muted num">Paid with ${p.paid}</p>` : ""}
-                </div>
-                <button type="button" class="btn btn--primary btn--block" data-start-plan>Change plan</button>`
-              : html`<p class="t-body t-muted">No plan yet. Pick The Round Pass or a cup pack to start.</p>
-                <button type="button" class="btn btn--primary btn--block" data-start-plan>Choose a plan</button>`;
+              ? html`${group("plan", "Your plan", html`
+                    <div class="pcard__block">
+                      <p class="pcard__name">${p.name}</p>
+                      <p class="t-small t-muted">${p.what}</p>
+                    </div>
+                    ${p.price ? ui.menuRow({ label: "Price", value: p.price, chevron: false, cls: "mrow--static" }) : ""}
+                    ${ui.menuRow({ label: p.date.startsWith("Use") ? "Use by" : "Renews", value: p.date.replace(/^(Renews on|Use by) /, ""), chevron: false, cls: "mrow--static" })}
+                    ${p.paid ? ui.menuRow({ label: "Paid with", value: p.paid, chevron: false, cls: "mrow--static" }) : ""}`)}
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>Change plan</button>`
+              : html`<div class="pcard"><div class="pcard__block"><p class="t-body t-muted">No plan yet. Pick The Round Pass or a cup pack to start.</p></div></div>
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>Choose a plan</button>`;
           },
-          pickups: () => html`<div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>`,
-          privacy: () => html`<div class="mlist" data-privacy-box>${privacyHtml()}</div>`,
-          look: () => html`<div class="drawer-look">
-              <div class="drawer-look__group"><p class="drawer-look__label" id="look-flavour">Colour</p>
-                ${ui.segmented({ name: "flavour", label: "Colour", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}</div>
-              <div class="drawer-look__group"><p class="drawer-look__label" id="look-mode">Light or dark</p>
-                ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}</div>
+          pickups: () => html`<div class="pstack" data-profile-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>`,
+          privacy: () => html`<div class="pcard" data-privacy-box>${privacyHtml()}</div>`,
+          look: () => html`<div class="pcard">
+              <div class="pcard__block plook">
+                <p class="plook__label">Colour</p>
+                ${ui.segmented({ name: "flavour", label: "Colour", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
+              </div>
+              <div class="pcard__block plook">
+                <p class="plook__label">Light or dark</p>
+                ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}
+              </div>
             </div>`,
-          help: () => html`<div class="mlist drawer-help">
+          help: () => html`<div class="pcard phelp">
               ${ui.disclosure({ id: "help-pass", label: "How do I use my pass?", body: html`<p class="t-small t-muted">Show your pass at the counter. On The Round Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code.</p>` })}
               ${ui.disclosure({ id: "help-plan", label: "What does The Round Pass give me?", body: html`<p class="t-small t-muted">${passPct()}% off one coffee a day at any partner café. The barista takes it off at the till.</p>` })}
               ${ui.disclosure({ id: "help-pack", label: "How long do pack cups last?", body: html`<p class="t-small t-muted num">Pack cups last ${S.planConfig().packDays} days from the day you buy the pack.</p>` })}
             </div>
-            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}`,
+            <div class="pcard">${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}</div>`,
         }[page];
-        return html`
-          <div class="drawer__bar">
-            <button type="button" class="icon-btn" data-drawer-back aria-label="Back">${icon("arrowLeft")}</button>
-            <h2 class="drawer__title" id="drawer-sub-title" tabindex="-1">${SUB_TITLES[page]}</h2>
-          </div>
-          <div class="drawer__subbody">${body ? body() : ""}</div>`;
       }
 
-      function drawerHtml() {
-        return html`<div class="drawer__pages${drawerPage ? " is-sub" : ""}" data-drawer-pages>
-          <div class="drawer__page drawer__main" data-drawer-main ${drawerPage ? raw("inert") : ""}>${drawerMainHtml()}</div>
-          <div class="drawer__page drawer__sub" data-drawer-sub ${drawerPage ? "" : raw("inert")}>${drawerPage ? drawerSubHtml(drawerPage) : ""}</div>
-        </div>`;
-      }
-
-      function openDrawerPage(page) {
-        const d = $("#profile-drawer", el);
-        drawerPage = page;
-        const sub = $("[data-drawer-sub]", d);
-        sub.innerHTML = drawerSubHtml(page).s;
-        sub.scrollTop = 0;
-        sub.removeAttribute("inert");
-        $("[data-drawer-main]", d).setAttribute("inert", "");
-        $("[data-drawer-pages]", d).classList.add("is-sub");
-        $("#drawer-sub-title", d).focus({ preventScroll: true });
-      }
-      function closeDrawerPage() {
-        const d = $("#profile-drawer", el);
-        const was = drawerPage;
-        drawerPage = null;
-        const main = $("[data-drawer-main]", d);
-        main.innerHTML = drawerMainHtml().s; // the Appearance value and lines may have changed
-        main.removeAttribute("inert");
-        $("[data-drawer-sub]", d).setAttribute("inert", "");
-        $("[data-drawer-pages]", d).classList.remove("is-sub");
-        $(`[data-drawer-page="${was}"]`, main)?.focus({ preventScroll: true });
-      }
-      /** Keep the drawer's lines (and an open live sub-page) current. */
-      function repaintDrawer(pages = []) {
-        const d = $("#profile-drawer", el);
-        if (!d || d.dataset.open !== "true") return;
-        const L = drawerLines();
-        Object.entries(L).forEach(([k, v]) => { const n = $(`[data-mrow-line="${k}"]`, d); if (n) n.textContent = v; });
-        const look = $('[data-drawer-page="look"] .mrow__value', d);
-        if (look) look.textContent = L.look;
-        if (drawerPage && pages.includes(drawerPage)) {
-          const box = $("[data-drawer-sub] .drawer__subbody", d);
-          const keep = document.activeElement && box?.contains(document.activeElement);
-          if (drawerPage === "pickups") { const p = $("[data-drawer-pickups]", d); if (p && LCC.appOrder) p.innerHTML = LCC.appOrder.drawerHtml().s; }
-          else if (box) { const t = document.createElement("div"); t.innerHTML = drawerSubHtml(drawerPage).s; box.innerHTML = $(".drawer__subbody", t).innerHTML; }
-          if (keep) $("#drawer-sub-title", d)?.focus({ preventScroll: true });
+      function profileScreen(page) {
+        if (page && !SUB_TITLES[page]) return { redirect: "#/app/profile" };
+        const box = () => $("[data-profile]", view);
+        function paint(pages = []) {
+          const root = box();
+          if (!root) return;
+          if (!page) {
+            const L = profileLines();
+            Object.entries(L).forEach(([k, v]) => { const n = $(`[data-mrow-line="${k}"]`, root); if (n) n.textContent = v; });
+            const look = $("[data-look-row] .mrow__value", root);
+            if (look) look.textContent = L.look;
+            const hero = $("[data-phero]", root);
+            if (hero && pages.includes("profile")) {
+              const focus = hero.contains(document.activeElement);
+              hero.outerHTML = profileHeroHtml(member()).s;
+              if (focus) $("[data-photo-menu]", root)?.focus({ preventScroll: true });
+            }
+            return;
+          }
+          if (page === "pickups" && pages.includes("pickups")) { const p = $("[data-profile-pickups]", root); if (p && LCC.appOrder) p.innerHTML = LCC.appOrder.drawerHtml().s; }
+          if (page === "plan" && pages.includes("plan")) { const b = $("[data-profile-body]", root); if (b && !b.contains(document.activeElement)) b.innerHTML = profileSubBody("plan")().s; }
         }
+        const body = page ? profileSubBody(page) : null;
+        return {
+          html: html`<div class="profile${page ? " profile--sub" : ""}" data-profile>
+              <div class="screen-bar">
+                <button type="button" class="icon-btn" data-back="${page ? "#/app/profile" : "#/app"}" aria-label="Back">${icon("arrowLeft")}</button>
+              </div>
+              <div class="app-screen profile__body">
+                ${page ? html`<h1 class="t-title profile__title" tabindex="-1" data-focus-title>${SUB_TITLES[page]}</h1>
+                  <div class="pstack" data-profile-body>${body()}</div>` : profileMainHtml()}
+              </div>
+            </div>`.s,
+          mount() {
+            const t = () => { const h = $("[data-focus-title]", view); if (h && document.activeElement !== h) h.focus({ preventScroll: true }); };
+            requestAnimationFrame(t);
+            const timer = setTimeout(t, 60); // no frame comes in a background tab
+            return () => clearTimeout(timer);
+          },
+          on: {
+            ledger: () => paint(["plan"]),
+            pickup: () => paint(["pickups"]),
+            order: () => paint(["pickups"]),
+            dismissPickup: () => paint(["pickups"]),
+            plan: () => paint(["plan"]),
+            member: () => paint(["plan"]),
+            profile: () => paint(["profile"]),
+            look: () => paint(),
+            tick: () => paint(),
+          },
+        };
       }
 
-      /** The member's face at the counter: initials by default, or a photo. */
-      function photoHtml(m) {
-        return html`<div class="photo-page" data-photo-row>
-          ${ui.avatar(m, { size: 96 })}
-          <p class="t-small t-muted">Your photo helps the barista recognise you.</p>
-          <button type="button" class="btn btn--primary btn--block" data-add-photo>${m.photo ? "Change photo" : "Add a photo"}</button>
-          ${m.photo ? html`<button type="button" class="btn btn--quiet is-muted" data-remove-photo>Remove photo</button>` : ""}
-        </div>`;
+      /* Photo options: a small sheet from the avatar (add, change, remove) */
+      function openPhotoMenu(btn) {
+        const m = member();
+        const sh = $("#photo-sheet", el);
+        btn?.focus();
+        sh.innerHTML = ui.sheetPanel({
+          id: "photo-title", title: "Your photo", subtitle: "Your photo helps the barista recognise you.",
+          body: html`<div class="photo-sheet__face">${ui.avatar(m, { size: 96 })}</div>
+            <div class="mlist">
+              ${ui.menuRow({ label: m.photo ? "Change photo" : "Add a photo", attrs: { "data-add-photo": "", "data-sheet-close": "" }, chevron: false })}
+              ${m.photo ? ui.menuRow({ label: "Remove photo", attrs: { "data-remove-photo": "", "data-sheet-close": "" }, chevron: false }) : ""}
+            </div>`,
+        }).s;
+        ui.openSheet(sh);
       }
+
       /** A square 160px JPEG from the chosen picture, small enough to sync. */
       function readPhoto(file) {
         return new Promise((resolve, reject) => {
@@ -685,13 +713,6 @@
         </label>`;
         return html`${sw("share", p.share, "Share my coffee with my Circles", "The café and the time, after you’ve had it. Never where you are now.")}
           ${sw("hideBranch", p.hideBranch, "Hide which branch", "Your Circles see “Double Shot”, not the branch.", !p.share)}`;
-      }
-
-      function openDrawer() {
-        const d = $("#profile-drawer", el);
-        drawerPage = null;
-        $("[data-drawer-body]", d).innerHTML = drawerHtml().s;
-        ui.openSheet(d);
       }
 
       function paintRing() {
@@ -1072,12 +1093,8 @@
         const t = e.target;
         const tab = t.closest("[data-tab]");
         if (tab) { location.hash = hrefFor(tab.dataset.tab); return; }
-        // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
-        const pb = t.closest("[data-open-drawer]");
-        if (pb) { pb.focus(); openDrawer(); return; }
-        const dpg = t.closest("[data-drawer-page]");
-        if (dpg) { openDrawerPage(dpg.dataset.drawerPage); return; }
-        if (t.closest("[data-drawer-back]")) { closeDrawerPage(); return; }
+        const pm = t.closest("[data-photo-menu]");
+        if (pm) { openPhotoMenu(pm); return; }
         const bg = t.closest("[data-bands-guide]");
         if (bg) { openBands(bg); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
@@ -1088,7 +1105,7 @@
           ui.selectSegment(group, look.dataset.value);
           if (group.dataset.segmented === "flavour") LCC.theme.setFlavour(look.dataset.value);
           else LCC.theme.setMode(look.dataset.value);
-          repaintDrawer();
+          active.on?.look?.();
           return;
         }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
@@ -1160,7 +1177,7 @@
         location.hash = hrefFor(ids[i]);
       };
 
-      // Drawer: privacy switches
+      // Profile: privacy switches
       const onChange = (e) => {
         const t = e.target;
         if (t.matches("[data-photo-input]")) {
@@ -1185,18 +1202,13 @@
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
       function repaintPickups() {
         active.on?.dismissPickup?.();
-        repaintDrawer(["pickups"]);
+        active.on?.pickup?.();
       }
-      // The drawer's lines (last cup, plan, pickups) follow the ledger while it is open
-      const offDrawer = store.on("ledger", ({ entries }) => {
-        if (entries.some((e) => e.memberId === member().id)) repaintDrawer(["plan"]);
-      });
       const offs = ["redeem", "undo", "profile", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
-      // Pickup orders: the drawer follows along, and the café's moves get a word
+      // Pickup orders: the café's moves get a word (the profile page repaints through active.on)
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
         if (order.memberId !== member().id) return;
-        repaintDrawer(["pickups"]);
         if (quiet || prev === order.status) return;
         const place = S.pickupPlace(order.cafeId);
         const me = member().id;
@@ -1222,7 +1234,6 @@
       };
       const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
       let earned = earnedNow();
-      offs.push(offDrawer);
       offs.push(store.on("ledger", ({ entries, catchUp }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         if (!mine.length) return;
@@ -1262,12 +1273,7 @@
       }));
       offs.push(store.on("profile", ({ memberId }) => {
         if (memberId !== member().id) return;
-        const d = $("#profile-drawer", el);
-        const av = $(".drawer__me .avatar", d);
-        if (av) av.outerHTML = ui.avatar(member(), { size: 48 }).s;
-        const focusAdd = document.activeElement?.matches?.("[data-add-photo], [data-remove-photo]");
-        repaintDrawer(["photo"]);
-        if (focusAdd) $("[data-add-photo]", d)?.focus({ preventScroll: true });
+        // The profile page repaints its hero through active.on.profile
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase

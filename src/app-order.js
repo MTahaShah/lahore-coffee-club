@@ -10,7 +10,7 @@
                         within 10 minutes (cup, online, or the host covers
                         the table); the host sends it as one order
 
-   Also the order status card (Home and the profile drawer):
+   Also the order status card (Home and the profile page):
    Placed → Being made → Ready → Collected, with a 6-digit pickup code.
    The store does the work (store.actions.placePickup / checkoutPickup /
    cancelPickup); the café moves orders on from #/cafe → Orders, and
@@ -101,7 +101,7 @@
   const placeLabel = (cafeId) => S.pickupPlace(cafeId);
 
   /* -------------------------------------------------------------------
-     Order status card: Home and the drawer
+     Order status card: Home and Profile
      ------------------------------------------------------------------- */
   const STEPS = [["placed", "Placed"], ["preparing", "Being made"], ["ready", "Ready"], ["collected", "Collected"]];
   const NOTES = {
@@ -176,7 +176,7 @@
   const cardsHtml = (memberId) => html`${visible(memberId).map((o) => cardHtml(o, { compact: true }))}`;
 
   const DONE = { collected: "Collected", cancelled: "Cancelled", rejected: "Couldn’t be made" };
-  /** The profile drawer's Pickup orders page: live cards, the last few, then one action. */
+  /** The profile page's Pickup orders page: live cards, the last few, then one action. */
   function drawerHtml(memberId = S.member().id) {
     const cards = visible(memberId);
     const past = S.memberPickups(memberId).filter((o) => !S.isPickupOpen(o) && !cards.includes(o)).slice(0, 3);
@@ -193,7 +193,7 @@
       ${!cards.length && !past.length ? html`<p class="t-small t-muted">No pickup orders yet. Order ahead and skip the queue.</p>` : ""}
       <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>`;
   }
-  /** One line for the drawer's row: "Iced Spanish Latte · Being made". */
+  /** One line for the profile row: "Iced Spanish Latte · Being made". */
   function statusLine(o) {
     if (o.status === "rejected") return `${S.pickupDrinkName(o)} · Couldn’t be made`;
     const step = STEPS.find(([id]) => id === o.status);

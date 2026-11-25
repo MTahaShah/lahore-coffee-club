@@ -6,7 +6,7 @@
    through store.select.club(): status, passport, badges and perks. Beans
    (points) sit at the top, from store.select.beans(); invitations from
    store.select.invitations(). The member card is shared with onboarding
-   and the profile drawer (LCC.memberCard).
+   and the profile page (LCC.memberCard).
    ===================================================================== */
 (function () {
   "use strict";
@@ -28,7 +28,7 @@
   const fullName = (m) => [m.firstName, m.lastName].filter(Boolean).join(" ");
 
   /* -------------------------------------------------------------------
-     Member card (Club tab, profile drawer; onboarding issues it)
+     Member card (Club tab, profile page; onboarding issues it)
      Built in code so the name and number are live. Black (near-black green
      in Matcha) with about 22 hairline rings whose gradient catches the
      light at top right and bottom left. Tap to turn it over.
@@ -82,7 +82,7 @@
   }
   LCC.memberCard = memberCard;
 
-  // One listener for every card (Club tab, drawer, onboarding): tap to turn it over
+  // One listener for every card (Club tab, onboarding): tap to turn it over
   document.addEventListener("click", (e) => {
     const btn = e.target.closest && e.target.closest("[data-card-flip]");
     if (!btn) return;

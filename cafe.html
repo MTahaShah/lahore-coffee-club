@@ -2077,72 +2077,57 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .home__lines { display: grid; gap: var(--space-1); }
 .home__actions { display: grid; gap: var(--space-3); width: 100%; max-width: 280px; margin-top: var(--space-2); }
 
-/* Profile drawer: slides in from the right (a .sheet, so focus trap,
-   Escape and scrim come from ui.js; swipe right to close) */
-.sheet--drawer .sheet__panel {
-  top: 0; bottom: 0; left: auto; right: 0;
-  width: min(340px, 88%);
-  max-height: none;
-  overflow: hidden;
-  touch-action: pan-y;
-  background: var(--bg);
-  border-top: 0;
-  border-left: var(--hairline);
-  border-radius: 0;
-  box-shadow: none;
-  transform: translateX(100%);
-}
-.sheet--drawer[data-open="true"] .sheet__panel { transform: translateX(var(--drag, 0px)); }
-/* Two pages side by side: the menu, and the sub-page that slides over it */
-.drawer__pages { position: absolute; inset: 0; overflow: hidden; }
-.drawer__page {
-  position: absolute; inset: 0;
-  overflow-y: auto; overscroll-behavior: contain;
-  background: var(--bg);
-  transition: transform 250ms var(--ease);
-}
-.drawer__main { padding: var(--space-3) 20px calc(var(--space-6) + env(safe-area-inset-bottom)); }
-.drawer__sub { transform: translateX(100%); }
-.drawer__pages.is-sub .drawer__main { transform: translateX(-24%); }
-.drawer__pages.is-sub .drawer__sub { transform: translateX(0); }
-@media (prefers-reduced-motion: reduce) { .drawer__page { transition: none; } }
+/* Profile (#/app/profile and its sub-pages): a full page that slides in
+   from the right over the screen it came from (300ms, transform only).
+   The old screen stays under it as .app-ghost until the slide ends. */
+.app-view { position: relative; z-index: 1; }
+.app-ghost { position: absolute; left: 0; right: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.app-view > .slide-in { background: var(--bg); min-height: 100%; animation: slide-in 300ms var(--ease) both; }
+@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .app-view > .slide-in { animation: none; } }
 
-.drawer__top { display: flex; align-items: center; gap: var(--space-2); margin: 0 calc(-1 * var(--space-2)) var(--space-5) 0; }
-.drawer__me {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3);
-  min-height: 64px; padding: var(--space-2) 0; border: 0; background: none; color: inherit; font: inherit; text-align: left;
-  cursor: pointer; border-radius: var(--radius-sm);
+.profile__body { padding-top: var(--space-2); }
+.phero { display: grid; justify-items: start; padding-bottom: var(--space-6); }
+.phero__avatar { position: relative; padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; }
+.phero__avatar:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.phero__cam {
+  position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 2px var(--bg);
 }
-.drawer__me:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.drawer__me:active { opacity: 0.7; }
-.drawer__me-text { display: grid; gap: 2px; min-width: 0; }
-.drawer__name { font-size: var(--fs-16); font-weight: 600; line-height: 1.3; }
-.drawer__me-line { font-size: var(--fs-12); color: var(--ink-2); }
-/* Groups: a quiet 8px between them, no headings, no dividers */
-.mgroup { display: grid; background: var(--surface); border-radius: var(--radius-card); padding: 0 var(--space-4); }
-.mgroup + .mgroup { margin-top: var(--space-2); }
+.phero__name { margin-top: var(--space-4); font-size: 28px; letter-spacing: 0.12em; line-height: 1.2; overflow-wrap: anywhere; }
+.phero__line { margin-top: var(--space-1); font-size: var(--fs-14); color: var(--ink-2); }
+.profile__title { margin-bottom: var(--space-6); }
+.profile__title:focus, .profile__title:focus-visible { outline: none; } /* moved here on arrival, not a control */
 
-.drawer__bar {
-  position: sticky; top: 0; z-index: 1;
-  display: flex; align-items: center; gap: var(--space-2);
-  min-height: 64px;
-  padding: var(--space-2) 20px var(--space-2) var(--space-2);
-  background: var(--bg);
-}
-.drawer__title { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
-.drawer__title:focus, .drawer__title:focus-visible { outline: none; } /* moved here by the drawer, not a control */
-.drawer__subbody { display: grid; gap: var(--space-5); align-content: start; padding: var(--space-2) 20px calc(var(--space-6) + env(safe-area-inset-bottom)); }
-.drawer-plan { display: grid; gap: var(--space-2); padding: var(--space-5); background: var(--surface); border-radius: var(--radius-card); }
-.drawer-plan__name { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
-.drawer-look { display: grid; gap: var(--space-5); }
-.drawer-look__group { display: grid; gap: var(--space-2); }
-.drawer-look__label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-2); }
-.drawer-help .disclosure { min-height: 56px; }
-.drawer-help .disclosure__label { flex: 1; font-size: var(--fs-16); font-weight: 500; }
-.drawer-help .disclosure__inner > :first-child { margin-top: 0; }
-.drawer-help .disclosure__inner { padding-bottom: var(--space-3); }
-.photo-page { display: grid; justify-items: center; gap: var(--space-4); text-align: center; padding-top: var(--space-4); }
-.photo-page .btn--quiet { margin-top: calc(-1 * var(--space-2)); }
+/* Groups: an eyebrow, then one Surface card (radius 16). Rows 64px (one
+   line) or 72px (two), 20px sides, a hairline inset 20px between rows. */
+.pgroup + .pgroup { margin-top: 28px; }
+.pgroup__label { margin: 0 0 var(--space-2); }
+.pstack { display: grid; gap: 28px; }
+.pstack > .pgroup + .pgroup { margin-top: 0; }
+.pcard { display: grid; background: var(--surface); border-radius: 16px; overflow: hidden; }
+.pcard > * { position: relative; }
+.pcard > * + *::before { content: ""; position: absolute; top: 0; left: 20px; right: 0; border-top: var(--hairline); }
+.pcard .mrow { min-height: 64px; padding: var(--space-2) 20px; border-radius: 0; }
+.pcard .mrow:has(.mrow__line:not(:empty)) { min-height: 72px; }
+.pcard .mrow:focus-visible { outline-offset: -2px; border-radius: 16px; }
+.pcard .mrow__value { max-width: 60%; text-align: right; }
+.mrow--static { cursor: default; }
+.mrow--static:active { opacity: 1; }
+.pcard__block { display: grid; gap: var(--space-1); padding: 20px; }
+.pcard__name { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
+.pcard .switch-row { min-height: 72px; padding: var(--space-3) 20px; }
+.plook { gap: var(--space-2); }
+.plook__label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-2); }
+.plook .segmented { width: 100%; }
+.phelp .fold { padding: 0 20px; }
+.phelp .disclosure { min-height: 64px; }
+.phelp .disclosure__label { flex: 1; font-size: var(--fs-16); font-weight: 500; }
+.phelp .disclosure__inner > :first-child { margin-top: 0; }
+.phelp .disclosure__inner { padding-bottom: var(--space-4); }
+.pstack .pickup { padding: var(--space-5); }
+.photo-sheet__face { display: grid; place-items: center; }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__cap:empty { display: none; }
 /* Home ring: the logo's bricks (ui.logoRing). Gold in the logo's three
@@ -2535,7 +2520,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .pickup__head { align-items: center; }
 .pickup__ok { justify-self: start; }
 .pickup-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
-.drawer__subbody .pickup { padding: var(--space-5); }
 
 .drink-row { width: 100%; text-align: left; cursor: pointer; }
 .drink-row .row__main { display: grid; gap: 2px; }
@@ -2612,15 +2596,24 @@ li:last-child > .branch-row { border-bottom: 0; }
    ===================================================================== */
 .app-view:has(> .enter > .cs) { overflow: hidden; }
 .enter:has(> .cs) { height: 100%; }
-.cs { position: relative; height: 100%; overflow: hidden; background: var(--bg); touch-action: none; }
+.cs { position: relative; height: 100%; overflow: hidden; contain: paint; background: var(--bg); touch-action: none; overscroll-behavior: none; }
 
 /* The map: the Lahore schematic, panned and zoomed by transform */
-.cs-map.map { position: absolute; inset: 0; width: auto; aspect-ratio: auto; border: 0; background: var(--bg); cursor: grab; touch-action: none; }
+.cs-map.map { position: absolute; inset: 0; width: auto; aspect-ratio: auto; overflow: hidden; contain: paint; border: 0; background: var(--bg); cursor: grab; touch-action: none; }
 .cs-map.map:active { cursor: grabbing; }
 .cs-map:focus-visible { outline: 2px solid var(--primary); outline-offset: -4px; }
 .cs-world { position: absolute; left: 0; top: 0; width: 360px; height: 560px; transform-origin: 0 0; will-change: transform; }
 .cs-world svg { display: block; width: 360px; height: 560px; }
-.cs-pins { position: absolute; inset: 0; pointer-events: none; }
+.cs-pins { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.cs-pin[hidden] { display: none; }
+/* "+2": pins hidden under this one; tap zooms in */
+.cs-cluster {
+  position: absolute; left: 0; top: 0; z-index: 3;
+  min-width: 22px; height: 22px; padding: 0 6px; border: 0; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary); font: 600 11px/22px var(--font-sans);
+  pointer-events: auto; cursor: pointer; box-shadow: 0 0 0 2px var(--bg);
+}
+.cs-cluster::before { content: ""; position: absolute; inset: -11px; } /* 44px tap area */
 
 /* Price pins: a small pill with the member price and a busy dot */
 .cs-pin {
@@ -2644,7 +2637,8 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-dot[data-status="packed"] { background: var(--status-packed); }
 
 /* Search bar and chips, floating */
-.cs-top { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: grid; gap: var(--space-2); padding: var(--space-3) 0 0; pointer-events: none; }
+/* Search and chips sit on a soft --bg gradient so they read over the map */
+.cs-top { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: grid; gap: var(--space-2); padding: var(--space-3) 0 var(--space-4); pointer-events: none; background: linear-gradient(to bottom, var(--bg) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 65%, transparent 100%); }
 .cs-top > * { pointer-events: auto; }
 .cs-bar { position: relative; margin: 0 20px; }
 .cs-bar__field {
@@ -2658,7 +2652,9 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-bar__ph { color: var(--ink-3); }
 .cs-bar__field:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .cs-bar__clear { position: absolute; right: 2px; top: 2px; }
-.cs-chips { display: flex; gap: var(--space-2); overflow-x: auto; padding: 4px 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; }
+/* One scrolling row, 20px in at both ends, a soft fade on the right says "more" */
+.cs-chips { display: flex; gap: var(--space-2); overflow-x: auto; padding: 4px 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; overscroll-behavior-x: contain; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.cs-chips::after { content: ""; flex: none; width: 12px; } /* end padding that every browser keeps */
 .cs-chips::-webkit-scrollbar { display: none; }
 .cs-chips .chip { flex: none; background: var(--surface); min-height: 36px; }
 .cs-chips .chip[aria-pressed="true"], .cs-chips .chip.is-on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
@@ -2680,22 +2676,28 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-sheet__handle:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 20px 20px 0 0; }
 .cs-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 0 20px var(--space-2); }
 .cs-sheet__count { margin: 0; font: 500 var(--fs-16)/1.3 var(--font-sans); }
-.cs-sort .select .input { min-height: 44px; padding-block: 0; font-size: var(--fs-14); }
+.cs-sort__wrap { position: relative; display: inline-flex; align-items: center; gap: 2px; color: var(--ink); }
+.cs-sort__select { appearance: none; -webkit-appearance: none; min-height: 44px; padding: 0 22px 0 8px; margin-right: -22px; border: 0; background: transparent; color: inherit; font: 500 var(--fs-14)/1 var(--font-sans); cursor: pointer; position: relative; z-index: 1; }
+.cs-sort__select:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; border-radius: var(--radius-sm); }
+.cs-sort__wrap svg { flex: none; color: var(--ink-2); pointer-events: none; }
 .cs-sheet .cs-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px var(--space-6); touch-action: pan-y; }
 .cs-sheet[data-snap="peek"] .cs-list { overflow: hidden; }
 
 /* Cards: no photos, hairline between, two quiet icon buttons */
+/* Café rows: three lines, 20px apart, the whole row the target */
 .cs-card { display: flex; align-items: flex-start; gap: var(--space-2); }
+.cs-card + .cs-card { margin-top: 20px; }
 .cs-card:first-child { border-top: 0; }
-.cs-card__main { flex: 1; min-width: 0; display: grid; gap: 4px; padding: var(--space-4) 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cs-card__main { flex: 1; min-width: 0; display: grid; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cs-card__main:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 .cs-card.is-selected .cs-card__name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.cs-card__name { font: 500 var(--fs-16)/1.3 var(--font-sans); }
-.cs-card__meta, .cs-card__hours { font-size: var(--fs-14); color: var(--ink-2); }
+.cs-card__name { font: 500 var(--fs-16)/1.3 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-card__meta { font-size: var(--fs-14); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-card__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .cs-card__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); }
-.cs-card__price { font-size: var(--fs-14); color: var(--ink-2); }
-.cs-card__tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: 2px; }
-.cs-card__acts { display: grid; padding-top: var(--space-2); }
+.cs-card__price { margin-left: auto; font-size: var(--fs-14); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.cs-card .cs-save { flex: none; margin: -10px -10px 0 0; }
+.cs-sheet .cs-list { padding-top: var(--space-2); }
 .cs-save[aria-pressed="true"] svg path { fill: currentColor; }
 .cs-empty { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-5) 0; }
 
@@ -2758,7 +2760,7 @@ li:last-child > .branch-row { border-bottom: 0; }
    base.css) in both modes, a hairline edge, no shadow. About 22 hairline
    rings, centred a little left, lit at top right and bottom left by a
    per-ring gradient (the accent use). Type is sized to the card's width
-   (cqw), so it is larger on the Club tab than in the drawer. Tap turns
+   (cqw), so it is larger on the Club tab than at onboarding. Tap turns
    it over (400ms rotateY; crossfade with reduced motion). */
 .mcard {
   position: relative;
@@ -2839,7 +2841,6 @@ li:last-child > .branch-row { border-bottom: 0; }
   .mcard.is-issuing, .mcard.is-issuing .mcard__who, .mcard.is-issuing .mcard__face--front .mcard__no, .mcard.is-issuing .mcard__rings { animation: none; }
 }
 
-/* Profile drawer: the card at the top, full width */
 
 /* Club tab --------------------------------------------------------------- */
 .club { display: grid; gap: var(--space-5); }
@@ -3265,7 +3266,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 .circle-leave { display: flex; justify-content: space-between; gap: var(--space-3); }
 .circle-leave .btn--quiet { --btn-h: 36px; font-size: var(--fs-14); color: var(--ink-2); }
 
-/* Privacy switches (drawer) */
+/* Privacy switches (Profile) */
 .switch-row { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-2) 0; cursor: pointer; }
 .switch-row__text { flex: 1; display: grid; gap: 2px; }
 .switch-row.is-off { opacity: 0.5; cursor: default; }
@@ -9481,7 +9482,6 @@ export function createContactShadow(THREE, groundY) {
   function bindDrag(sheet) {
     if (sheet._dragBound) return;
     sheet._dragBound = true;
-    if (sheet.classList.contains("sheet--drawer")) { bindSwipe(sheet); return; }
     let startY = 0, dy = 0, t0 = 0, active = false;
     sheet.addEventListener("pointerdown", (e) => {
       const handle = e.target.closest(".sheet__handle");
@@ -9531,7 +9531,7 @@ export function createContactShadow(THREE, groundY) {
       </div>`;
   }
 
-  /* Menu row: the drawer's rows, and any list of places to go in a sheet.
+  /* Menu row: the profile rows, and any list of places to go in a sheet.
      Label left, an optional second line or a value on the right, a
      chevron (or the external-link icon). The whole row is the target.
      attrs: extra attributes, as { "data-x": "y" }.                      */
@@ -9615,39 +9615,6 @@ export function createContactShadow(THREE, groundY) {
       </span>
       ${trail}
     </li>`;
-  }
-
-  /* Side drawer (.sheet--drawer): swipe right on the panel to close.
-     Vertical moves are left alone, so the drawer still scrolls. */
-  function bindSwipe(sheet) {
-    const panel = sheet.querySelector(".sheet__panel");
-    let x0 = 0, y0 = 0, dx = 0, t0 = 0, mode = null; // null: undecided, "x": dragging, "y": scrolling
-    panel.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse") return;
-      x0 = e.clientX; y0 = e.clientY; dx = 0; t0 = performance.now(); mode = null;
-    });
-    panel.addEventListener("pointermove", (e) => {
-      if (mode === "y" || e.pointerType === "mouse") return;
-      const mx = e.clientX - x0, my = e.clientY - y0;
-      if (mode === null) {
-        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
-        mode = Math.abs(mx) > Math.abs(my) ? "x" : "y";
-        if (mode === "x") { sheet.classList.add("is-dragging"); panel.setPointerCapture(e.pointerId); }
-        return;
-      }
-      dx = Math.max(0, mx);
-      sheet.style.setProperty("--drag", `${dx}px`);
-    });
-    const end = () => {
-      if (mode !== "x") { mode = null; return; }
-      mode = null;
-      sheet.classList.remove("is-dragging");
-      const velocity = dx / Math.max(1, performance.now() - t0);
-      if (dx > 80 || velocity > 0.5) closeSheet(sheet);
-      else sheet.style.setProperty("--drag", "0px");
-    };
-    panel.addEventListener("pointerup", end);
-    panel.addEventListener("pointercancel", end);
   }
 
   document.addEventListener("click", (e) => {
@@ -13067,10 +13034,7 @@ export function createContactShadow(THREE, groundY) {
               </div>
               <div class="sheet" id="cafe-sheet" role="dialog" aria-modal="true" aria-labelledby="cafe-sheet-title" aria-hidden="true"></div>
               <div class="sheet" id="bands-sheet" role="dialog" aria-modal="true" aria-labelledby="bands-title" aria-hidden="true"></div>
-              <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
-                <div class="sheet__scrim" data-sheet-close></div>
-                <div class="sheet__panel" data-drawer-body></div>
-              </div>
+              <div class="sheet" id="photo-sheet" role="dialog" aria-modal="true" aria-labelledby="photo-title" aria-hidden="true"></div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
               <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true"></div>
               <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
@@ -13099,6 +13063,7 @@ export function createContactShadow(THREE, groundY) {
         if (a === "circle") return { key: "circle", tab: "circles", make: () => ({ redirect: b ? `#/app/circles/${b}${path[2] === "join" ? "/join" : ""}` : "#/app/circles" }) };
         if (a === "group" && b && REG.group) return { key: `group/${b}`, tab: "home", flow: true, make: () => REG.group(ctx, b) };
         if (a === "order" && b === "done" && path[2] && REG.orderDone) return { key: `order/done/${path[2]}`, tab: "home", flow: true, make: () => REG.orderDone(ctx, path[2]) };
+        if (a === "profile") return { key: b ? `profile/${b}` : "profile", tab: "home", slide: true, make: () => profileScreen(b) };
         if (a === "cups" && REG.cups) return { key: "cups", tab: "home", flow: true, make: () => REG.cups(ctx) };
         if (a === "order" && b === "pay" && REG.orderPay) return { key: "order/pay", tab: "home", flow: true, make: () => REG.orderPay(ctx) };
         if (a === "order" && REG.order) return { key: "order", tab: "home", flow: true, make: () => REG.order(ctx, b) };
@@ -13118,15 +13083,16 @@ export function createContactShadow(THREE, groundY) {
         if (active.key === r.key && !force) return;
         const screen = r.make();
         if (screen.redirect) { history.replaceState(null, "", LCC.sync ? LCC.sync.withRoom(screen.redirect) : screen.redirect); LCC.router.render(); return; }
+        let forward = false;
         if (active.key !== r.key) {
           if (replacing && trail.length) trail[trail.length - 1] = r.key;
           else if (trail[trail.length - 2] === r.key) trail.pop();
-          else trail.push(r.key);
+          else { trail.push(r.key); forward = true; }
         }
         replacing = false;
         if (typeof active.cleanup === "function") active.cleanup();
         ui.closeSheet($("#cafe-sheet", el));
-        ui.closeSheet($("#profile-drawer", el));
+        ui.closeSheet($("#photo-sheet", el));
         $$("[data-tab]", el).forEach((btn) => {
           const on = btn.dataset.tab === r.tab;
           btn.setAttribute("aria-selected", on);
@@ -13137,8 +13103,24 @@ export function createContactShadow(THREE, groundY) {
         // The pass is the moment at the counter: a black screen (BRAND.md)
         $(".phone__screen", el).classList.toggle("theme-dark", r.tab === "pass");
         view.setAttribute("aria-labelledby", `tab-${r.tab}`);
+        // Profile pages slide in from the right over the screen they came from (300ms, transform only)
+        const slide = r.slide && forward && !ui.reducedMotion();
+        $$(".app-ghost", el).forEach((g) => g.remove());
+        const prev = view.firstElementChild;
+        if (slide && prev) {
+          const ghost = document.createElement("div");
+          ghost.className = "app-ghost";
+          ghost.setAttribute("aria-hidden", "true");
+          ghost.inert = true;
+          ghost.style.top = `${view.offsetTop}px`;
+          ghost.style.height = `${view.clientHeight}px`;
+          prev.style.transform = `translateY(${-view.scrollTop}px)`;
+          ghost.appendChild(prev);
+          view.before(ghost);
+          setTimeout(() => ghost.remove(), 320);
+        }
+        view.innerHTML = `<div class="enter${slide ? " slide-in" : ""}">${screen.html}</div>`;
         view.scrollTop = 0;
-        view.innerHTML = `<div class="enter">${screen.html}</div>`;
         active = { key: r.key, tab: r.tab, cleanup: screen.mount ? screen.mount() : null, on: screen.on || {} };
       }
 
@@ -13214,7 +13196,7 @@ export function createContactShadow(THREE, groundY) {
       // One calm, centred block: the brick ring, cups left, renewal, and
       // "Order for pickup" (plan and gift are quieter links under it). An
       // open pickup order sits above the ring, which shrinks to make room.
-      // Recent activity, plan details and help live in the profile drawer.
+      // Recent activity lives in My cups; plan details and help in the profile page.
       function homeScreen() {
         const m = member();
         const hasPickup = () => !!LCC.appOrder?.visible().length;
@@ -13351,19 +13333,17 @@ export function createContactShadow(THREE, groundY) {
         ui.openSheet(sh);
       }
 
-      /* Profile drawer ---------------------------------------------------- */
+      /* Profile (#/app/profile) ------------------------------------------
+         A full page that slides in from the right over the screen (the tab
+         bar stays). Hero (avatar, name in Versailles, number and level),
+         then three groups: Membership, Settings, Support. Sub-pages are
+         their own routes (#/app/profile/plan …) in the same card style. */
       function profileButton() {
-        return html`<button type="button" class="icon-btn profile-btn" data-open-drawer aria-label="Profile and account" aria-haspopup="dialog" aria-controls="profile-drawer">${icon("user")}</button>`;
+        return html`<a class="icon-btn profile-btn" href="#/app/profile" aria-label="Profile and account">${icon("user")}</a>`;
       }
 
-      /* The drawer is a short menu: a name row, three groups of rows, and
-         sub-pages that slide in from the right inside the same panel
-         (250ms, transform only; none with reduced motion). Focus goes to
-         the sub-page title; Back returns it to the row; Escape closes. */
-      let drawerPage = null; // null: the menu; else "photo" | "plan" | "pickups" | "privacy" | "look" | "help"
       const WHATSAPP = "https://wa.me/923100008242";
       const passPct = () => Math.round(S.planConfig().pass.discount * 100);
-
       function planLines(m) {
         const plan = S.memberPlan(m);
         if (!m.plan) return null;
@@ -13392,138 +13372,153 @@ export function createContactShadow(THREE, groundY) {
         const o = LCC.appOrder?.visible()[0];
         return o ? LCC.appOrder.statusLine(o) : "None right now";
       }
-      function drawerLines() {
-        const m = member(), p = planLines(m);
+      function profileLines() {
+        const p = planLines(member());
         return { plan: p ? `${p.name} · ${p.short}` : "No plan yet", cups: lastCupLine(), pickups: pickupsLine(), look: lookValue() };
       }
+      const group = (id, label, rows) => html`<section class="pgroup" aria-labelledby="pg-${id}">
+          <h2 class="eyebrow pgroup__label" id="pg-${id}">${label}</h2>
+          <div class="pcard">${rows}</div>
+        </section>`;
 
-      function drawerMainHtml() {
-        const m = member();
+      function profileHeroHtml(m) {
         const c = S.club(m.id);
-        const L = drawerLines();
-        const row = (o) => ui.menuRow({ ...o, attrs: { "data-drawer-page": o.page, ...(o.attrs || {}) } });
-        return html`
-          <div class="drawer__top">
-            <button type="button" class="drawer__me" data-drawer-page="photo" aria-describedby="drawer-me-line">
-              ${ui.avatar(m, { size: 48 })}
-              <span class="drawer__me-text">
-                <span class="drawer__name" id="drawer-title">${S.fullName(m)}</span>
-                <span class="drawer__me-line num" id="drawer-me-line">${fmt.lcc(m.memberNo)} · ${c.founding ? "Founding Member" : c.level.name}</span>
-              </span>
-            </button>
-            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-          </div>
-          <div class="mgroup">
-            ${row({ page: "plan", label: "Plan", line: L.plan, lineKey: "plan" })}
-            ${ui.menuRow({ label: "My cups", line: L.cups, lineKey: "cups", href: "#/app/cups", attrs: { "data-drawer-cups": "" } })}
-            ${row({ page: "pickups", label: "Pickup orders", line: L.pickups, lineKey: "pickups" })}
-          </div>
-          <div class="mgroup">
-            ${row({ page: "privacy", label: "Privacy" })}
-            ${row({ page: "look", label: "Appearance", value: L.look })}
-            ${row({ page: "help", label: "Help" })}
-          </div>
-          <div class="mgroup">
-            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}
-          </div>`;
+        return html`<div class="phero" data-phero>
+          <button type="button" class="phero__avatar" data-photo-menu aria-haspopup="dialog" aria-label="${m.photo ? "Change or remove your photo" : "Add a photo"}">
+            ${ui.avatar(m, { size: 72 })}
+            <span class="phero__cam" aria-hidden="true">${icon(m.photo ? "sliders" : "plus", { size: 14 })}</span>
+          </button>
+          <h1 class="t-title phero__name">${S.fullName(m)}</h1>
+          <p class="phero__line num">${fmt.lcc(m.memberNo)} · ${c.founding ? "Founding Member" : c.level.name}</p>
+        </div>`;
       }
 
-      const SUB_TITLES = { photo: "Your photo", plan: "Plan", pickups: "Pickup orders", privacy: "Privacy", look: "Appearance", help: "Help" };
-      function drawerSubHtml(page) {
+      function profileMainHtml() {
         const m = member();
-        const body = {
-          photo: () => photoHtml(m),
+        const L = profileLines();
+        return html`
+          ${profileHeroHtml(m)}
+          ${group("member", "Membership", html`
+            ${ui.menuRow({ label: "Plan", line: L.plan, lineKey: "plan", href: "#/app/profile/plan" })}
+            ${ui.menuRow({ label: "My cups", line: L.cups, lineKey: "cups", href: "#/app/cups" })}
+            ${ui.menuRow({ label: "Pickup orders", line: L.pickups, lineKey: "pickups", href: "#/app/profile/pickups" })}`)}
+          ${group("settings", "Settings", html`
+            ${ui.menuRow({ label: "Privacy", href: "#/app/profile/privacy" })}
+            ${ui.menuRow({ label: "Appearance", value: L.look, href: "#/app/profile/look", attrs: { "data-look-row": "" } })}`)}
+          ${group("support", "Support", html`
+            ${ui.menuRow({ label: "Help", href: "#/app/profile/help" })}
+            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}`)}`;
+      }
+
+      const SUB_TITLES = { plan: "Plan", pickups: "Pickup orders", privacy: "Privacy", look: "Appearance", help: "Help" };
+      function profileSubBody(page) {
+        const m = member();
+        return {
           plan: () => {
             const p = planLines(m);
             return p
-              ? html`<div class="drawer-plan">
-                  <p class="drawer-plan__name">${p.name}</p>
-                  <p class="t-body t-muted">${p.what}</p>
-                  <p class="t-small t-muted num">${[p.price, p.date].filter(Boolean).join(" · ")}</p>
-                  ${p.paid ? html`<p class="t-small t-muted num">Paid with ${p.paid}</p>` : ""}
-                </div>
-                <button type="button" class="btn btn--primary btn--block" data-start-plan>Change plan</button>`
-              : html`<p class="t-body t-muted">No plan yet. Pick The Round Pass or a cup pack to start.</p>
-                <button type="button" class="btn btn--primary btn--block" data-start-plan>Choose a plan</button>`;
+              ? html`${group("plan", "Your plan", html`
+                    <div class="pcard__block">
+                      <p class="pcard__name">${p.name}</p>
+                      <p class="t-small t-muted">${p.what}</p>
+                    </div>
+                    ${p.price ? ui.menuRow({ label: "Price", value: p.price, chevron: false, cls: "mrow--static" }) : ""}
+                    ${ui.menuRow({ label: p.date.startsWith("Use") ? "Use by" : "Renews", value: p.date.replace(/^(Renews on|Use by) /, ""), chevron: false, cls: "mrow--static" })}
+                    ${p.paid ? ui.menuRow({ label: "Paid with", value: p.paid, chevron: false, cls: "mrow--static" }) : ""}`)}
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>Change plan</button>`
+              : html`<div class="pcard"><div class="pcard__block"><p class="t-body t-muted">No plan yet. Pick The Round Pass or a cup pack to start.</p></div></div>
+                  <button type="button" class="btn btn--primary btn--block" data-start-plan>Choose a plan</button>`;
           },
-          pickups: () => html`<div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>`,
-          privacy: () => html`<div class="mlist" data-privacy-box>${privacyHtml()}</div>`,
-          look: () => html`<div class="drawer-look">
-              <div class="drawer-look__group"><p class="drawer-look__label" id="look-flavour">Colour</p>
-                ${ui.segmented({ name: "flavour", label: "Colour", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}</div>
-              <div class="drawer-look__group"><p class="drawer-look__label" id="look-mode">Light or dark</p>
-                ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}</div>
+          pickups: () => html`<div class="pstack" data-profile-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>`,
+          privacy: () => html`<div class="pcard" data-privacy-box>${privacyHtml()}</div>`,
+          look: () => html`<div class="pcard">
+              <div class="pcard__block plook">
+                <p class="plook__label">Colour</p>
+                ${ui.segmented({ name: "flavour", label: "Colour", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
+              </div>
+              <div class="pcard__block plook">
+                <p class="plook__label">Light or dark</p>
+                ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}
+              </div>
             </div>`,
-          help: () => html`<div class="mlist drawer-help">
+          help: () => html`<div class="pcard phelp">
               ${ui.disclosure({ id: "help-pass", label: "How do I use my pass?", body: html`<p class="t-small t-muted">Show your pass at the counter. On The Round Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code.</p>` })}
               ${ui.disclosure({ id: "help-plan", label: "What does The Round Pass give me?", body: html`<p class="t-small t-muted">${passPct()}% off one coffee a day at any partner café. The barista takes it off at the till.</p>` })}
               ${ui.disclosure({ id: "help-pack", label: "How long do pack cups last?", body: html`<p class="t-small t-muted num">Pack cups last ${S.planConfig().packDays} days from the day you buy the pack.</p>` })}
             </div>
-            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}`,
+            <div class="pcard">${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}</div>`,
         }[page];
-        return html`
-          <div class="drawer__bar">
-            <button type="button" class="icon-btn" data-drawer-back aria-label="Back">${icon("arrowLeft")}</button>
-            <h2 class="drawer__title" id="drawer-sub-title" tabindex="-1">${SUB_TITLES[page]}</h2>
-          </div>
-          <div class="drawer__subbody">${body ? body() : ""}</div>`;
       }
 
-      function drawerHtml() {
-        return html`<div class="drawer__pages${drawerPage ? " is-sub" : ""}" data-drawer-pages>
-          <div class="drawer__page drawer__main" data-drawer-main ${drawerPage ? raw("inert") : ""}>${drawerMainHtml()}</div>
-          <div class="drawer__page drawer__sub" data-drawer-sub ${drawerPage ? "" : raw("inert")}>${drawerPage ? drawerSubHtml(drawerPage) : ""}</div>
-        </div>`;
-      }
-
-      function openDrawerPage(page) {
-        const d = $("#profile-drawer", el);
-        drawerPage = page;
-        const sub = $("[data-drawer-sub]", d);
-        sub.innerHTML = drawerSubHtml(page).s;
-        sub.scrollTop = 0;
-        sub.removeAttribute("inert");
-        $("[data-drawer-main]", d).setAttribute("inert", "");
-        $("[data-drawer-pages]", d).classList.add("is-sub");
-        $("#drawer-sub-title", d).focus({ preventScroll: true });
-      }
-      function closeDrawerPage() {
-        const d = $("#profile-drawer", el);
-        const was = drawerPage;
-        drawerPage = null;
-        const main = $("[data-drawer-main]", d);
-        main.innerHTML = drawerMainHtml().s; // the Appearance value and lines may have changed
-        main.removeAttribute("inert");
-        $("[data-drawer-sub]", d).setAttribute("inert", "");
-        $("[data-drawer-pages]", d).classList.remove("is-sub");
-        $(`[data-drawer-page="${was}"]`, main)?.focus({ preventScroll: true });
-      }
-      /** Keep the drawer's lines (and an open live sub-page) current. */
-      function repaintDrawer(pages = []) {
-        const d = $("#profile-drawer", el);
-        if (!d || d.dataset.open !== "true") return;
-        const L = drawerLines();
-        Object.entries(L).forEach(([k, v]) => { const n = $(`[data-mrow-line="${k}"]`, d); if (n) n.textContent = v; });
-        const look = $('[data-drawer-page="look"] .mrow__value', d);
-        if (look) look.textContent = L.look;
-        if (drawerPage && pages.includes(drawerPage)) {
-          const box = $("[data-drawer-sub] .drawer__subbody", d);
-          const keep = document.activeElement && box?.contains(document.activeElement);
-          if (drawerPage === "pickups") { const p = $("[data-drawer-pickups]", d); if (p && LCC.appOrder) p.innerHTML = LCC.appOrder.drawerHtml().s; }
-          else if (box) { const t = document.createElement("div"); t.innerHTML = drawerSubHtml(drawerPage).s; box.innerHTML = $(".drawer__subbody", t).innerHTML; }
-          if (keep) $("#drawer-sub-title", d)?.focus({ preventScroll: true });
+      function profileScreen(page) {
+        if (page && !SUB_TITLES[page]) return { redirect: "#/app/profile" };
+        const box = () => $("[data-profile]", view);
+        function paint(pages = []) {
+          const root = box();
+          if (!root) return;
+          if (!page) {
+            const L = profileLines();
+            Object.entries(L).forEach(([k, v]) => { const n = $(`[data-mrow-line="${k}"]`, root); if (n) n.textContent = v; });
+            const look = $("[data-look-row] .mrow__value", root);
+            if (look) look.textContent = L.look;
+            const hero = $("[data-phero]", root);
+            if (hero && pages.includes("profile")) {
+              const focus = hero.contains(document.activeElement);
+              hero.outerHTML = profileHeroHtml(member()).s;
+              if (focus) $("[data-photo-menu]", root)?.focus({ preventScroll: true });
+            }
+            return;
+          }
+          if (page === "pickups" && pages.includes("pickups")) { const p = $("[data-profile-pickups]", root); if (p && LCC.appOrder) p.innerHTML = LCC.appOrder.drawerHtml().s; }
+          if (page === "plan" && pages.includes("plan")) { const b = $("[data-profile-body]", root); if (b && !b.contains(document.activeElement)) b.innerHTML = profileSubBody("plan")().s; }
         }
+        const body = page ? profileSubBody(page) : null;
+        return {
+          html: html`<div class="profile${page ? " profile--sub" : ""}" data-profile>
+              <div class="screen-bar">
+                <button type="button" class="icon-btn" data-back="${page ? "#/app/profile" : "#/app"}" aria-label="Back">${icon("arrowLeft")}</button>
+              </div>
+              <div class="app-screen profile__body">
+                ${page ? html`<h1 class="t-title profile__title" tabindex="-1" data-focus-title>${SUB_TITLES[page]}</h1>
+                  <div class="pstack" data-profile-body>${body()}</div>` : profileMainHtml()}
+              </div>
+            </div>`.s,
+          mount() {
+            const t = () => { const h = $("[data-focus-title]", view); if (h && document.activeElement !== h) h.focus({ preventScroll: true }); };
+            requestAnimationFrame(t);
+            const timer = setTimeout(t, 60); // no frame comes in a background tab
+            return () => clearTimeout(timer);
+          },
+          on: {
+            ledger: () => paint(["plan"]),
+            pickup: () => paint(["pickups"]),
+            order: () => paint(["pickups"]),
+            dismissPickup: () => paint(["pickups"]),
+            plan: () => paint(["plan"]),
+            member: () => paint(["plan"]),
+            profile: () => paint(["profile"]),
+            look: () => paint(),
+            tick: () => paint(),
+          },
+        };
       }
 
-      /** The member's face at the counter: initials by default, or a photo. */
-      function photoHtml(m) {
-        return html`<div class="photo-page" data-photo-row>
-          ${ui.avatar(m, { size: 96 })}
-          <p class="t-small t-muted">Your photo helps the barista recognise you.</p>
-          <button type="button" class="btn btn--primary btn--block" data-add-photo>${m.photo ? "Change photo" : "Add a photo"}</button>
-          ${m.photo ? html`<button type="button" class="btn btn--quiet is-muted" data-remove-photo>Remove photo</button>` : ""}
-        </div>`;
+      /* Photo options: a small sheet from the avatar (add, change, remove) */
+      function openPhotoMenu(btn) {
+        const m = member();
+        const sh = $("#photo-sheet", el);
+        btn?.focus();
+        sh.innerHTML = ui.sheetPanel({
+          id: "photo-title", title: "Your photo", subtitle: "Your photo helps the barista recognise you.",
+          body: html`<div class="photo-sheet__face">${ui.avatar(m, { size: 96 })}</div>
+            <div class="mlist">
+              ${ui.menuRow({ label: m.photo ? "Change photo" : "Add a photo", attrs: { "data-add-photo": "", "data-sheet-close": "" }, chevron: false })}
+              ${m.photo ? ui.menuRow({ label: "Remove photo", attrs: { "data-remove-photo": "", "data-sheet-close": "" }, chevron: false }) : ""}
+            </div>`,
+        }).s;
+        ui.openSheet(sh);
       }
+
       /** A square 160px JPEG from the chosen picture, small enough to sync. */
       function readPhoto(file) {
         return new Promise((resolve, reject) => {
@@ -13618,13 +13613,6 @@ export function createContactShadow(THREE, groundY) {
         </label>`;
         return html`${sw("share", p.share, "Share my coffee with my Circles", "The café and the time, after you’ve had it. Never where you are now.")}
           ${sw("hideBranch", p.hideBranch, "Hide which branch", "Your Circles see “Double Shot”, not the branch.", !p.share)}`;
-      }
-
-      function openDrawer() {
-        const d = $("#profile-drawer", el);
-        drawerPage = null;
-        $("[data-drawer-body]", d).innerHTML = drawerHtml().s;
-        ui.openSheet(d);
       }
 
       function paintRing() {
@@ -14005,12 +13993,8 @@ export function createContactShadow(THREE, groundY) {
         const t = e.target;
         const tab = t.closest("[data-tab]");
         if (tab) { location.hash = hrefFor(tab.dataset.tab); return; }
-        // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
-        const pb = t.closest("[data-open-drawer]");
-        if (pb) { pb.focus(); openDrawer(); return; }
-        const dpg = t.closest("[data-drawer-page]");
-        if (dpg) { openDrawerPage(dpg.dataset.drawerPage); return; }
-        if (t.closest("[data-drawer-back]")) { closeDrawerPage(); return; }
+        const pm = t.closest("[data-photo-menu]");
+        if (pm) { openPhotoMenu(pm); return; }
         const bg = t.closest("[data-bands-guide]");
         if (bg) { openBands(bg); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
@@ -14021,7 +14005,7 @@ export function createContactShadow(THREE, groundY) {
           ui.selectSegment(group, look.dataset.value);
           if (group.dataset.segmented === "flavour") LCC.theme.setFlavour(look.dataset.value);
           else LCC.theme.setMode(look.dataset.value);
-          repaintDrawer();
+          active.on?.look?.();
           return;
         }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
@@ -14093,7 +14077,7 @@ export function createContactShadow(THREE, groundY) {
         location.hash = hrefFor(ids[i]);
       };
 
-      // Drawer: privacy switches
+      // Profile: privacy switches
       const onChange = (e) => {
         const t = e.target;
         if (t.matches("[data-photo-input]")) {
@@ -14118,18 +14102,13 @@ export function createContactShadow(THREE, groundY) {
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
       function repaintPickups() {
         active.on?.dismissPickup?.();
-        repaintDrawer(["pickups"]);
+        active.on?.pickup?.();
       }
-      // The drawer's lines (last cup, plan, pickups) follow the ledger while it is open
-      const offDrawer = store.on("ledger", ({ entries }) => {
-        if (entries.some((e) => e.memberId === member().id)) repaintDrawer(["plan"]);
-      });
       const offs = ["redeem", "undo", "profile", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
-      // Pickup orders: the drawer follows along, and the café's moves get a word
+      // Pickup orders: the café's moves get a word (the profile page repaints through active.on)
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
         if (order.memberId !== member().id) return;
-        repaintDrawer(["pickups"]);
         if (quiet || prev === order.status) return;
         const place = S.pickupPlace(order.cafeId);
         const me = member().id;
@@ -14155,7 +14134,6 @@ export function createContactShadow(THREE, groundY) {
       };
       const earnedNow = () => { const c = S.club(); return { level: c.level.id, badges: c.badges.filter((b) => b.earned).map((b) => b.id) }; };
       let earned = earnedNow();
-      offs.push(offDrawer);
       offs.push(store.on("ledger", ({ entries, catchUp }) => {
         const mine = entries.filter((e) => e.memberId === member().id);
         if (!mine.length) return;
@@ -14195,12 +14173,7 @@ export function createContactShadow(THREE, groundY) {
       }));
       offs.push(store.on("profile", ({ memberId }) => {
         if (memberId !== member().id) return;
-        const d = $("#profile-drawer", el);
-        const av = $(".drawer__me .avatar", d);
-        if (av) av.outerHTML = ui.avatar(member(), { size: 48 }).s;
-        const focusAdd = document.activeElement?.matches?.("[data-add-photo], [data-remove-photo]");
-        repaintDrawer(["photo"]);
-        if (focusAdd) $("[data-add-photo]", d)?.focus({ preventScroll: true });
+        // The profile page repaints its hero through active.on.profile
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase
@@ -14396,6 +14369,7 @@ export function createContactShadow(THREE, groundY) {
 
     /* ---------- Geometry ---------- */
     const worldOf = (c) => M.project(c.x, c.y);
+    const EDGE = 24; // pins keep this far from the map's edges
     const kMin = () => size.w / M.width; // the map is always as wide as the screen
     const kMax = () => kMin() * 4;
     const topInset = () => (root ? $(".cs-top", root).offsetHeight + 12 : 120);
@@ -14419,17 +14393,33 @@ export function createContactShadow(THREE, groundY) {
       const ty = lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, cam.ty));
       return { k, tx, ty };
     }
-    /** A camera that fits these world points inside the visible map. */
+    /** A camera that fits these world points inside the visible map, 24px
+        clear of every edge (plus half a pin). When they are too spread out to
+        fit at the map's smallest zoom (the map is always as wide as the
+        screen), it fits the ones nearest the member that do, and the rest
+        are a pan away. Never leaves a blank strip beside the map. */
     function fitCam(points, { minK = null } = {}) {
       const r = visibleRect();
       if (!points.length) points = S.cafes().map(worldOf);
-      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
-      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-      const pad = 44;
-      let k = Math.min((r.w - pad * 2) / Math.max(1, x1 - x0), (r.h - pad * 2) / Math.max(1, y1 - y0));
-      k = Math.max(minK ?? kMin(), Math.min(kMax(), k));
-      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      return clampCam({ k, tx: r.x + r.w / 2 - cx * k, ty: r.y + r.h / 2 - cy * k });
+      const padX = EDGE + 36, padY = EDGE + 14;
+      const box = (ps) => { const xs = ps.map((p) => p.x), ys = ps.map((p) => p.y); return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; };
+      const kFor = (b) => Math.min((r.w - padX * 2) / Math.max(1, b.x1 - b.x0), (r.h - padY * 2) / Math.max(1, b.y1 - b.y0));
+      const floor = minK ?? kMin();
+      let use = points;
+      if (points.length > 1 && kFor(box(points)) < floor) {
+        const me = M.project(ME.x, ME.y);
+        const byNear = points.slice().sort((p, q) => Math.hypot(p.x - me.x, p.y - me.y) - Math.hypot(q.x - me.x, q.y - me.y));
+        use = [byNear[0]];
+        byNear.slice(1).forEach((p) => { if (kFor(box([...use, p])) >= floor) use.push(p); });
+      }
+      const bb = box(use);
+      const k = Math.max(floor, Math.min(kMin() * 2.5, kMax(), kFor(bb)));
+      const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+      const cam = clampCam({ k, tx: r.x + r.w / 2 - cx * k, ty: r.y + r.h / 2 - cy * k });
+      // Keep the map's own edges at the screen's edges (no empty strip)
+      const w = M.width * cam.k;
+      if (w >= size.w) cam.tx = Math.min(0, Math.max(size.w - w, cam.tx));
+      return cam;
     }
     const centreCam = (p, k) => { const r = visibleRect(); return clampCam({ k, tx: r.x + r.w / 2 - p.x * k, ty: r.y + r.h / 2 - p.y * k }); };
 
@@ -14474,11 +14464,43 @@ export function createContactShadow(THREE, groundY) {
       pinsEl.innerHTML = html`${list.map(pinHtml)}${CS.nearMe ? html`<span class="cs-me" data-cs-me aria-hidden="true"></span>` : ""}`.s;
       positionPins();
     }
+    /* Place every pin; nudge ones near an edge inside (24px); where pins
+       overlap, keep the selected, then the cheaper, then the closer one,
+       and give it a "+N" bubble that zooms in on tap.                   */
     function positionPins() {
       if (!CS.cam) return;
-      $$("[data-cs-pin]", pinsEl).forEach((p) => {
-        const s = toScreen(worldOf(cafeOf(p.dataset.csPin)));
-        p.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
+      const r = visibleRect();
+      const pins = $$("[data-cs-pin]", pinsEl).map((p) => {
+        const c = cafeOf(p.dataset.csPin);
+        if (!p._w) { p._w = p.offsetWidth || 72; p._h = p.offsetHeight || 28; }
+        const s = toScreen(worldOf(c));
+        // On the map (or just off it): nudge the whole pill inside the edges
+        const near = s.x > -p._w && s.x < size.w + p._w && s.y > r.y - p._h && s.y < r.y + r.h + p._h;
+        if (near) {
+          s.x = Math.min(size.w - EDGE - p._w / 2, Math.max(EDGE + p._w / 2, s.x));
+          s.y = Math.min(r.y + r.h - EDGE / 2 - p._h / 2, Math.max(r.y + EDGE / 2 + p._h / 2, s.y));
+        }
+        const ref = refDrink(c);
+        return { p, c, s, near, rank: [CS.selected === c.id ? 0 : 1, c.comingSoon ? 1 : 0, ref ? ref.list : 1e9, c.distanceKm] };
+      });
+      pins.sort((a, b) => { for (let i = 0; i < 4; i++) if (a.rank[i] !== b.rank[i]) return a.rank[i] - b.rank[i]; return 0; });
+      const placed = [];
+      pins.forEach((x) => {
+        const box = { l: x.s.x - x.p._w / 2 - 2, r: x.s.x + x.p._w / 2 + 2, t: x.s.y - x.p._h / 2 - 2, b: x.s.y + x.p._h / 2 + 2 };
+        const hit = x.near && placed.find((o) => o.near && box.l < o.box.r && box.r > o.box.l && box.t < o.box.b && box.b > o.box.t);
+        if (hit) { hit.more.push(x.c.id); x.p.hidden = true; return; }
+        x.p.hidden = false;
+        x.box = box; x.more = [];
+        placed.push(x);
+        x.p.style.transform = `translate(${x.s.x.toFixed(1)}px, ${x.s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
+      });
+      // "+N" bubbles on the pins that hide others
+      $$("[data-cs-cluster]", pinsEl).forEach((n) => n.remove());
+      placed.filter((x) => x.more.length).forEach((x) => {
+        const n = x.more.length;
+        pinsEl.insertAdjacentHTML("beforeend", html`<button type="button" class="cs-cluster num" data-cs-cluster="${x.c.id}" tabindex="-1"
+          aria-label="${n} more ${n === 1 ? "café" : "cafés"} here. Zoom in"
+          style="transform: translate(${(x.box.r - 6).toFixed(1)}px, ${(x.box.t - 4).toFixed(1)}px) translate(-50%, -50%)">+${n}</button>`.s);
       });
       const me = $("[data-cs-me]", pinsEl);
       if (me) { const s = toScreen(M.project(ME.x, ME.y)); me.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%)`; }
@@ -14507,17 +14529,19 @@ export function createContactShadow(THREE, groundY) {
       // Cafés with no menu yet go last, nearest first
       return list.slice().sort((a, b) => (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
     }
+    /* A café row: three lines at most. Name and the bookmark; area,
+       distance and hours; busy dot and word, then the latte's price on the
+       right. The whole row is the target (tap: show on the map; again: open).
+       Tags and "updated" live on the café's page. */
+    const shortHours = (c) => hoursLine(c).replace("Open · closes ", "Open till ");
     function soonCardHtml(c) {
       const sel = CS.selected === c.id;
       return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
         <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${c.name}. Menu coming soon. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
           <span class="cs-card__name">${CS.q ? hl(c.name, CS.q) : c.name}</span>
           <span class="cs-card__meta num">${c.areaLine} · ${c.distanceKm} km</span>
-          <span class="cs-card__hours">Menu coming soon</span>
+          <span class="cs-card__foot"><span class="cs-card__status t-muted">Menu coming soon</span></span>
         </button>
-        <div class="cs-card__acts">
-          <a class="icon-btn" href="#/app/cafes/${c.id}" aria-label="Open ${c.name}">${icon("chevronRight", { size: 20 })}</a>
-        </div>
       </li>`;
     }
     function cardHtml(c) {
@@ -14527,18 +14551,15 @@ export function createContactShadow(THREE, groundY) {
       const saved = CS.saved.has(c.id);
       const name = S.placeName(c.id);
       return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
-        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${name}. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
+        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${name}. ${STATUS_WORD[c.status]}. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
           <span class="cs-card__name">${CS.q ? hl(name, CS.q) : name}</span>
-          <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km</span>
-          <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]} <span class="t-faint" data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span></span>
-          <span class="cs-card__hours" data-cs-hours="${c.id}">${hoursLine(c)}</span>
-          ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
-          ${c.tags.length ? html`<span class="cs-card__tags">${c.tags.slice(0, 2).map((t) => html`<span class="badge">${t}</span>`)}</span>` : ""}
+          <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km · <span data-cs-hours="${c.id}">${shortHours(c)}</span></span>
+          <span class="cs-card__foot">
+            <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]}</span>
+            ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
+          </span>
         </button>
-        <div class="cs-card__acts">
-          <button type="button" class="icon-btn cs-save" data-cs-save="${c.id}" aria-pressed="${saved}" aria-label="${saved ? "Saved" : "Save"} ${name}">${raw(BOOKMARK)}</button>
-          <a class="icon-btn" href="#/app/cafes/${c.chainId || c.id}" aria-label="Open ${name}">${icon("chevronRight", { size: 20 })}</a>
-        </div>
+        <button type="button" class="icon-btn cs-save" data-cs-save="${c.id}" aria-pressed="${saved}" aria-label="${saved ? "Saved" : "Save"} ${name}">${raw(BOOKMARK)}</button>
       </li>`;
     }
     function paintList() {
@@ -14548,7 +14569,7 @@ export function createContactShadow(THREE, groundY) {
       const shown = sorted(all.filter((c) => inView.includes(c.id)));
       // The selected café leads the list (the peek shows its card)
       if (CS.selected) { const i = shown.findIndex((c) => c.id === CS.selected); if (i > 0) shown.unshift(...shown.splice(i, 1)); }
-      $("[data-cs-count]", root).textContent = `${plural(shown.length, "café")} in view`;
+      $("[data-cs-count]", root).textContent = plural(shown.length, "café");
       if (!all.length) {
         listEl.innerHTML = html`<li class="cs-empty"><p class="t-body">Nothing matches yet. Try an area or a drink.</p>
           <button type="button" class="btn btn--secondary btn--compact" data-cs-clear-all>Clear search</button></li>`.s;
@@ -14918,6 +14939,13 @@ export function createContactShadow(THREE, groundY) {
         ui.toast(on ? `Saved ${S.placeName(id)}.` : `Removed ${S.placeName(id)} from saved.`);
         return;
       }
+      const cl = t.closest("[data-cs-cluster]");
+      if (cl && !moved) {
+        // Zoom in on the group, enough to pull the pins apart
+        const c = cafeOf(cl.dataset.csCluster);
+        flyTo(centreCam(worldOf(c), Math.min(kMax(), CS.cam.k * 2)));
+        return;
+      }
       if (t.closest("[data-cs-fit]")) { flyTo(fitCam(filtered().map(worldOf))); return; }
       if (t.closest("[data-cs-clear-all]")) {
         Object.assign(CS, { q: "", drink: null, barLabel: "", areas: [], openNow: false, quiet: false, tags: [], price: null, selected: null });
@@ -14987,9 +15015,9 @@ export function createContactShadow(THREE, groundY) {
               <div class="cs-sheet__head">
                 <p class="cs-sheet__count" id="cs-count" data-cs-count aria-live="polite"></p>
                 <label class="cs-sort"><span class="sr-only">Sort by</span>
-                  <span class="select"><select class="input" data-cs-sort>
+                  <span class="cs-sort__wrap"><select class="cs-sort__select" data-cs-sort>
                     ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
-                  </select></span></label>
+                  </select>${icon("chevronDown", { size: 16 })}</span></label>
               </div>
             </div>
             <ul role="list" class="cs-list" id="cs-list" data-cs-list></ul>
@@ -15026,8 +15054,8 @@ export function createContactShadow(THREE, groundY) {
         paintPins();
         setSnap(CS.snap);
         // First visit: the cafés near the member (the list's default is Nearest)
-        const near = filtered().filter((c) => c.distanceKm <= 3.5).map(worldOf);
-        CS.cam = CS.cam ? clampCam(CS.cam) : fitCam(near.length >= 2 ? near : filtered().map(worldOf));
+        // First open: fit every café being shown (24px clear of each edge)
+        CS.cam = CS.cam ? clampCam(CS.cam) : fitCam(filtered().map(worldOf));
         applyCam();
         computeInView();
         bindSheetDrag();
@@ -15051,7 +15079,7 @@ export function createContactShadow(THREE, groundY) {
       on: {
         // BACKEND: busy status arrives over Realtime (cafe:status); pins and cards repaint
         "cafe:status": () => { paintPins(); paintList(); },
-        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = hoursLine(c); }); },
+        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = shortHours(c); }); },
         cafesView: () => setSnap(CS.snap),
       },
     };
@@ -15978,7 +16006,7 @@ export function createContactShadow(THREE, groundY) {
                         within 10 minutes (cup, online, or the host covers
                         the table); the host sends it as one order
 
-   Also the order status card (Home and the profile drawer):
+   Also the order status card (Home and the profile page):
    Placed → Being made → Ready → Collected, with a 6-digit pickup code.
    The store does the work (store.actions.placePickup / checkoutPickup /
    cancelPickup); the café moves orders on from #/cafe → Orders, and
@@ -16069,7 +16097,7 @@ export function createContactShadow(THREE, groundY) {
   const placeLabel = (cafeId) => S.pickupPlace(cafeId);
 
   /* -------------------------------------------------------------------
-     Order status card: Home and the drawer
+     Order status card: Home and Profile
      ------------------------------------------------------------------- */
   const STEPS = [["placed", "Placed"], ["preparing", "Being made"], ["ready", "Ready"], ["collected", "Collected"]];
   const NOTES = {
@@ -16144,7 +16172,7 @@ export function createContactShadow(THREE, groundY) {
   const cardsHtml = (memberId) => html`${visible(memberId).map((o) => cardHtml(o, { compact: true }))}`;
 
   const DONE = { collected: "Collected", cancelled: "Cancelled", rejected: "Couldn’t be made" };
-  /** The profile drawer's Pickup orders page: live cards, the last few, then one action. */
+  /** The profile page's Pickup orders page: live cards, the last few, then one action. */
   function drawerHtml(memberId = S.member().id) {
     const cards = visible(memberId);
     const past = S.memberPickups(memberId).filter((o) => !S.isPickupOpen(o) && !cards.includes(o)).slice(0, 3);
@@ -16161,7 +16189,7 @@ export function createContactShadow(THREE, groundY) {
       ${!cards.length && !past.length ? html`<p class="t-small t-muted">No pickup orders yet. Order ahead and skip the queue.</p>` : ""}
       <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>`;
   }
-  /** One line for the drawer's row: "Iced Spanish Latte · Being made". */
+  /** One line for the profile row: "Iced Spanish Latte · Being made". */
   function statusLine(o) {
     if (o.status === "rejected") return `${S.pickupDrinkName(o)} · Couldn’t be made`;
     const step = STEPS.find(([id]) => id === o.status);
@@ -17174,7 +17202,7 @@ export function createContactShadow(THREE, groundY) {
    through store.select.club(): status, passport, badges and perks. Beans
    (points) sit at the top, from store.select.beans(); invitations from
    store.select.invitations(). The member card is shared with onboarding
-   and the profile drawer (LCC.memberCard).
+   and the profile page (LCC.memberCard).
    ===================================================================== */
 (function () {
   "use strict";
@@ -17196,7 +17224,7 @@ export function createContactShadow(THREE, groundY) {
   const fullName = (m) => [m.firstName, m.lastName].filter(Boolean).join(" ");
 
   /* -------------------------------------------------------------------
-     Member card (Club tab, profile drawer; onboarding issues it)
+     Member card (Club tab, profile page; onboarding issues it)
      Built in code so the name and number are live. Black (near-black green
      in Matcha) with about 22 hairline rings whose gradient catches the
      light at top right and bottom left. Tap to turn it over.
@@ -17250,7 +17278,7 @@ export function createContactShadow(THREE, groundY) {
   }
   LCC.memberCard = memberCard;
 
-  // One listener for every card (Club tab, drawer, onboarding): tap to turn it over
+  // One listener for every card (Club tab, onboarding): tap to turn it over
   document.addEventListener("click", (e) => {
     const btn = e.target.closest && e.target.closest("[data-card-flip]");
     if (!btn) return;
@@ -18450,7 +18478,7 @@ export function createContactShadow(THREE, groundY) {
    joined members filled, empty slots outlined. The logo isn't redrawn.
 
    Privacy: members see each other's café and time, after the fact, never
-   a location. Each member chooses in the drawer whether to share at all
+   a location. Each member chooses in Profile whether to share at all
    and whether to hide the branch (store.select.privacy).
    ===================================================================== */
 (function () {

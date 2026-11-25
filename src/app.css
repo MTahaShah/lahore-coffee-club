@@ -179,72 +179,57 @@
 .home__lines { display: grid; gap: var(--space-1); }
 .home__actions { display: grid; gap: var(--space-3); width: 100%; max-width: 280px; margin-top: var(--space-2); }
 
-/* Profile drawer: slides in from the right (a .sheet, so focus trap,
-   Escape and scrim come from ui.js; swipe right to close) */
-.sheet--drawer .sheet__panel {
-  top: 0; bottom: 0; left: auto; right: 0;
-  width: min(340px, 88%);
-  max-height: none;
-  overflow: hidden;
-  touch-action: pan-y;
-  background: var(--bg);
-  border-top: 0;
-  border-left: var(--hairline);
-  border-radius: 0;
-  box-shadow: none;
-  transform: translateX(100%);
-}
-.sheet--drawer[data-open="true"] .sheet__panel { transform: translateX(var(--drag, 0px)); }
-/* Two pages side by side: the menu, and the sub-page that slides over it */
-.drawer__pages { position: absolute; inset: 0; overflow: hidden; }
-.drawer__page {
-  position: absolute; inset: 0;
-  overflow-y: auto; overscroll-behavior: contain;
-  background: var(--bg);
-  transition: transform 250ms var(--ease);
-}
-.drawer__main { padding: var(--space-3) 20px calc(var(--space-6) + env(safe-area-inset-bottom)); }
-.drawer__sub { transform: translateX(100%); }
-.drawer__pages.is-sub .drawer__main { transform: translateX(-24%); }
-.drawer__pages.is-sub .drawer__sub { transform: translateX(0); }
-@media (prefers-reduced-motion: reduce) { .drawer__page { transition: none; } }
+/* Profile (#/app/profile and its sub-pages): a full page that slides in
+   from the right over the screen it came from (300ms, transform only).
+   The old screen stays under it as .app-ghost until the slide ends. */
+.app-view { position: relative; z-index: 1; }
+.app-ghost { position: absolute; left: 0; right: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.app-view > .slide-in { background: var(--bg); min-height: 100%; animation: slide-in 300ms var(--ease) both; }
+@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .app-view > .slide-in { animation: none; } }
 
-.drawer__top { display: flex; align-items: center; gap: var(--space-2); margin: 0 calc(-1 * var(--space-2)) var(--space-5) 0; }
-.drawer__me {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3);
-  min-height: 64px; padding: var(--space-2) 0; border: 0; background: none; color: inherit; font: inherit; text-align: left;
-  cursor: pointer; border-radius: var(--radius-sm);
+.profile__body { padding-top: var(--space-2); }
+.phero { display: grid; justify-items: start; padding-bottom: var(--space-6); }
+.phero__avatar { position: relative; padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; }
+.phero__avatar:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.phero__cam {
+  position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 2px var(--bg);
 }
-.drawer__me:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.drawer__me:active { opacity: 0.7; }
-.drawer__me-text { display: grid; gap: 2px; min-width: 0; }
-.drawer__name { font-size: var(--fs-16); font-weight: 600; line-height: 1.3; }
-.drawer__me-line { font-size: var(--fs-12); color: var(--ink-2); }
-/* Groups: a quiet 8px between them, no headings, no dividers */
-.mgroup { display: grid; background: var(--surface); border-radius: var(--radius-card); padding: 0 var(--space-4); }
-.mgroup + .mgroup { margin-top: var(--space-2); }
+.phero__name { margin-top: var(--space-4); font-size: 28px; letter-spacing: 0.12em; line-height: 1.2; overflow-wrap: anywhere; }
+.phero__line { margin-top: var(--space-1); font-size: var(--fs-14); color: var(--ink-2); }
+.profile__title { margin-bottom: var(--space-6); }
+.profile__title:focus, .profile__title:focus-visible { outline: none; } /* moved here on arrival, not a control */
 
-.drawer__bar {
-  position: sticky; top: 0; z-index: 1;
-  display: flex; align-items: center; gap: var(--space-2);
-  min-height: 64px;
-  padding: var(--space-2) 20px var(--space-2) var(--space-2);
-  background: var(--bg);
-}
-.drawer__title { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
-.drawer__title:focus, .drawer__title:focus-visible { outline: none; } /* moved here by the drawer, not a control */
-.drawer__subbody { display: grid; gap: var(--space-5); align-content: start; padding: var(--space-2) 20px calc(var(--space-6) + env(safe-area-inset-bottom)); }
-.drawer-plan { display: grid; gap: var(--space-2); padding: var(--space-5); background: var(--surface); border-radius: var(--radius-card); }
-.drawer-plan__name { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
-.drawer-look { display: grid; gap: var(--space-5); }
-.drawer-look__group { display: grid; gap: var(--space-2); }
-.drawer-look__label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-2); }
-.drawer-help .disclosure { min-height: 56px; }
-.drawer-help .disclosure__label { flex: 1; font-size: var(--fs-16); font-weight: 500; }
-.drawer-help .disclosure__inner > :first-child { margin-top: 0; }
-.drawer-help .disclosure__inner { padding-bottom: var(--space-3); }
-.photo-page { display: grid; justify-items: center; gap: var(--space-4); text-align: center; padding-top: var(--space-4); }
-.photo-page .btn--quiet { margin-top: calc(-1 * var(--space-2)); }
+/* Groups: an eyebrow, then one Surface card (radius 16). Rows 64px (one
+   line) or 72px (two), 20px sides, a hairline inset 20px between rows. */
+.pgroup + .pgroup { margin-top: 28px; }
+.pgroup__label { margin: 0 0 var(--space-2); }
+.pstack { display: grid; gap: 28px; }
+.pstack > .pgroup + .pgroup { margin-top: 0; }
+.pcard { display: grid; background: var(--surface); border-radius: 16px; overflow: hidden; }
+.pcard > * { position: relative; }
+.pcard > * + *::before { content: ""; position: absolute; top: 0; left: 20px; right: 0; border-top: var(--hairline); }
+.pcard .mrow { min-height: 64px; padding: var(--space-2) 20px; border-radius: 0; }
+.pcard .mrow:has(.mrow__line:not(:empty)) { min-height: 72px; }
+.pcard .mrow:focus-visible { outline-offset: -2px; border-radius: 16px; }
+.pcard .mrow__value { max-width: 60%; text-align: right; }
+.mrow--static { cursor: default; }
+.mrow--static:active { opacity: 1; }
+.pcard__block { display: grid; gap: var(--space-1); padding: 20px; }
+.pcard__name { font-size: var(--fs-20); font-weight: 600; line-height: 1.3; }
+.pcard .switch-row { min-height: 72px; padding: var(--space-3) 20px; }
+.plook { gap: var(--space-2); }
+.plook__label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-2); }
+.plook .segmented { width: 100%; }
+.phelp .fold { padding: 0 20px; }
+.phelp .disclosure { min-height: 64px; }
+.phelp .disclosure__label { flex: 1; font-size: var(--fs-16); font-weight: 500; }
+.phelp .disclosure__inner > :first-child { margin-top: 0; }
+.phelp .disclosure__inner { padding-bottom: var(--space-4); }
+.pstack .pickup { padding: var(--space-5); }
+.photo-sheet__face { display: grid; place-items: center; }
 .ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring__cap:empty { display: none; }
 /* Home ring: the logo's bricks (ui.logoRing). Gold in the logo's three
@@ -637,7 +622,6 @@ li:last-child > .branch-row { border-bottom: 0; }
 .pickup__head { align-items: center; }
 .pickup__ok { justify-self: start; }
 .pickup-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
-.drawer__subbody .pickup { padding: var(--space-5); }
 
 .drink-row { width: 100%; text-align: left; cursor: pointer; }
 .drink-row .row__main { display: grid; gap: 2px; }
@@ -714,15 +698,24 @@ li:last-child > .branch-row { border-bottom: 0; }
    ===================================================================== */
 .app-view:has(> .enter > .cs) { overflow: hidden; }
 .enter:has(> .cs) { height: 100%; }
-.cs { position: relative; height: 100%; overflow: hidden; background: var(--bg); touch-action: none; }
+.cs { position: relative; height: 100%; overflow: hidden; contain: paint; background: var(--bg); touch-action: none; overscroll-behavior: none; }
 
 /* The map: the Lahore schematic, panned and zoomed by transform */
-.cs-map.map { position: absolute; inset: 0; width: auto; aspect-ratio: auto; border: 0; background: var(--bg); cursor: grab; touch-action: none; }
+.cs-map.map { position: absolute; inset: 0; width: auto; aspect-ratio: auto; overflow: hidden; contain: paint; border: 0; background: var(--bg); cursor: grab; touch-action: none; }
 .cs-map.map:active { cursor: grabbing; }
 .cs-map:focus-visible { outline: 2px solid var(--primary); outline-offset: -4px; }
 .cs-world { position: absolute; left: 0; top: 0; width: 360px; height: 560px; transform-origin: 0 0; will-change: transform; }
 .cs-world svg { display: block; width: 360px; height: 560px; }
-.cs-pins { position: absolute; inset: 0; pointer-events: none; }
+.cs-pins { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.cs-pin[hidden] { display: none; }
+/* "+2": pins hidden under this one; tap zooms in */
+.cs-cluster {
+  position: absolute; left: 0; top: 0; z-index: 3;
+  min-width: 22px; height: 22px; padding: 0 6px; border: 0; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary); font: 600 11px/22px var(--font-sans);
+  pointer-events: auto; cursor: pointer; box-shadow: 0 0 0 2px var(--bg);
+}
+.cs-cluster::before { content: ""; position: absolute; inset: -11px; } /* 44px tap area */
 
 /* Price pins: a small pill with the member price and a busy dot */
 .cs-pin {
@@ -746,7 +739,8 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-dot[data-status="packed"] { background: var(--status-packed); }
 
 /* Search bar and chips, floating */
-.cs-top { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: grid; gap: var(--space-2); padding: var(--space-3) 0 0; pointer-events: none; }
+/* Search and chips sit on a soft --bg gradient so they read over the map */
+.cs-top { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: grid; gap: var(--space-2); padding: var(--space-3) 0 var(--space-4); pointer-events: none; background: linear-gradient(to bottom, var(--bg) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 65%, transparent 100%); }
 .cs-top > * { pointer-events: auto; }
 .cs-bar { position: relative; margin: 0 20px; }
 .cs-bar__field {
@@ -760,7 +754,9 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-bar__ph { color: var(--ink-3); }
 .cs-bar__field:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .cs-bar__clear { position: absolute; right: 2px; top: 2px; }
-.cs-chips { display: flex; gap: var(--space-2); overflow-x: auto; padding: 4px 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; }
+/* One scrolling row, 20px in at both ends, a soft fade on the right says "more" */
+.cs-chips { display: flex; gap: var(--space-2); overflow-x: auto; padding: 4px 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; overscroll-behavior-x: contain; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.cs-chips::after { content: ""; flex: none; width: 12px; } /* end padding that every browser keeps */
 .cs-chips::-webkit-scrollbar { display: none; }
 .cs-chips .chip { flex: none; background: var(--surface); min-height: 36px; }
 .cs-chips .chip[aria-pressed="true"], .cs-chips .chip.is-on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
@@ -782,22 +778,28 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-sheet__handle:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 20px 20px 0 0; }
 .cs-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 0 20px var(--space-2); }
 .cs-sheet__count { margin: 0; font: 500 var(--fs-16)/1.3 var(--font-sans); }
-.cs-sort .select .input { min-height: 44px; padding-block: 0; font-size: var(--fs-14); }
+.cs-sort__wrap { position: relative; display: inline-flex; align-items: center; gap: 2px; color: var(--ink); }
+.cs-sort__select { appearance: none; -webkit-appearance: none; min-height: 44px; padding: 0 22px 0 8px; margin-right: -22px; border: 0; background: transparent; color: inherit; font: 500 var(--fs-14)/1 var(--font-sans); cursor: pointer; position: relative; z-index: 1; }
+.cs-sort__select:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; border-radius: var(--radius-sm); }
+.cs-sort__wrap svg { flex: none; color: var(--ink-2); pointer-events: none; }
 .cs-sheet .cs-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px var(--space-6); touch-action: pan-y; }
 .cs-sheet[data-snap="peek"] .cs-list { overflow: hidden; }
 
 /* Cards: no photos, hairline between, two quiet icon buttons */
+/* Café rows: three lines, 20px apart, the whole row the target */
 .cs-card { display: flex; align-items: flex-start; gap: var(--space-2); }
+.cs-card + .cs-card { margin-top: 20px; }
 .cs-card:first-child { border-top: 0; }
-.cs-card__main { flex: 1; min-width: 0; display: grid; gap: 4px; padding: var(--space-4) 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cs-card__main { flex: 1; min-width: 0; display: grid; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cs-card__main:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 .cs-card.is-selected .cs-card__name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.cs-card__name { font: 500 var(--fs-16)/1.3 var(--font-sans); }
-.cs-card__meta, .cs-card__hours { font-size: var(--fs-14); color: var(--ink-2); }
+.cs-card__name { font: 500 var(--fs-16)/1.3 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-card__meta { font-size: var(--fs-14); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-card__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .cs-card__status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); }
-.cs-card__price { font-size: var(--fs-14); color: var(--ink-2); }
-.cs-card__tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: 2px; }
-.cs-card__acts { display: grid; padding-top: var(--space-2); }
+.cs-card__price { margin-left: auto; font-size: var(--fs-14); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.cs-card .cs-save { flex: none; margin: -10px -10px 0 0; }
+.cs-sheet .cs-list { padding-top: var(--space-2); }
 .cs-save[aria-pressed="true"] svg path { fill: currentColor; }
 .cs-empty { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-5) 0; }
 

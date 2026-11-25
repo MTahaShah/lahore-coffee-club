@@ -167,6 +167,7 @@
 
     /* ---------- Geometry ---------- */
     const worldOf = (c) => M.project(c.x, c.y);
+    const EDGE = 24; // pins keep this far from the map's edges
     const kMin = () => size.w / M.width; // the map is always as wide as the screen
     const kMax = () => kMin() * 4;
     const topInset = () => (root ? $(".cs-top", root).offsetHeight + 12 : 120);
@@ -190,17 +191,33 @@
       const ty = lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, cam.ty));
       return { k, tx, ty };
     }
-    /** A camera that fits these world points inside the visible map. */
+    /** A camera that fits these world points inside the visible map, 24px
+        clear of every edge (plus half a pin). When they are too spread out to
+        fit at the map's smallest zoom (the map is always as wide as the
+        screen), it fits the ones nearest the member that do, and the rest
+        are a pan away. Never leaves a blank strip beside the map. */
     function fitCam(points, { minK = null } = {}) {
       const r = visibleRect();
       if (!points.length) points = S.cafes().map(worldOf);
-      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
-      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-      const pad = 44;
-      let k = Math.min((r.w - pad * 2) / Math.max(1, x1 - x0), (r.h - pad * 2) / Math.max(1, y1 - y0));
-      k = Math.max(minK ?? kMin(), Math.min(kMax(), k));
-      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      return clampCam({ k, tx: r.x + r.w / 2 - cx * k, ty: r.y + r.h / 2 - cy * k });
+      const padX = EDGE + 36, padY = EDGE + 14;
+      const box = (ps) => { const xs = ps.map((p) => p.x), ys = ps.map((p) => p.y); return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; };
+      const kFor = (b) => Math.min((r.w - padX * 2) / Math.max(1, b.x1 - b.x0), (r.h - padY * 2) / Math.max(1, b.y1 - b.y0));
+      const floor = minK ?? kMin();
+      let use = points;
+      if (points.length > 1 && kFor(box(points)) < floor) {
+        const me = M.project(ME.x, ME.y);
+        const byNear = points.slice().sort((p, q) => Math.hypot(p.x - me.x, p.y - me.y) - Math.hypot(q.x - me.x, q.y - me.y));
+        use = [byNear[0]];
+        byNear.slice(1).forEach((p) => { if (kFor(box([...use, p])) >= floor) use.push(p); });
+      }
+      const bb = box(use);
+      const k = Math.max(floor, Math.min(kMin() * 2.5, kMax(), kFor(bb)));
+      const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+      const cam = clampCam({ k, tx: r.x + r.w / 2 - cx * k, ty: r.y + r.h / 2 - cy * k });
+      // Keep the map's own edges at the screen's edges (no empty strip)
+      const w = M.width * cam.k;
+      if (w >= size.w) cam.tx = Math.min(0, Math.max(size.w - w, cam.tx));
+      return cam;
     }
     const centreCam = (p, k) => { const r = visibleRect(); return clampCam({ k, tx: r.x + r.w / 2 - p.x * k, ty: r.y + r.h / 2 - p.y * k }); };
 
@@ -245,11 +262,43 @@
       pinsEl.innerHTML = html`${list.map(pinHtml)}${CS.nearMe ? html`<span class="cs-me" data-cs-me aria-hidden="true"></span>` : ""}`.s;
       positionPins();
     }
+    /* Place every pin; nudge ones near an edge inside (24px); where pins
+       overlap, keep the selected, then the cheaper, then the closer one,
+       and give it a "+N" bubble that zooms in on tap.                   */
     function positionPins() {
       if (!CS.cam) return;
-      $$("[data-cs-pin]", pinsEl).forEach((p) => {
-        const s = toScreen(worldOf(cafeOf(p.dataset.csPin)));
-        p.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
+      const r = visibleRect();
+      const pins = $$("[data-cs-pin]", pinsEl).map((p) => {
+        const c = cafeOf(p.dataset.csPin);
+        if (!p._w) { p._w = p.offsetWidth || 72; p._h = p.offsetHeight || 28; }
+        const s = toScreen(worldOf(c));
+        // On the map (or just off it): nudge the whole pill inside the edges
+        const near = s.x > -p._w && s.x < size.w + p._w && s.y > r.y - p._h && s.y < r.y + r.h + p._h;
+        if (near) {
+          s.x = Math.min(size.w - EDGE - p._w / 2, Math.max(EDGE + p._w / 2, s.x));
+          s.y = Math.min(r.y + r.h - EDGE / 2 - p._h / 2, Math.max(r.y + EDGE / 2 + p._h / 2, s.y));
+        }
+        const ref = refDrink(c);
+        return { p, c, s, near, rank: [CS.selected === c.id ? 0 : 1, c.comingSoon ? 1 : 0, ref ? ref.list : 1e9, c.distanceKm] };
+      });
+      pins.sort((a, b) => { for (let i = 0; i < 4; i++) if (a.rank[i] !== b.rank[i]) return a.rank[i] - b.rank[i]; return 0; });
+      const placed = [];
+      pins.forEach((x) => {
+        const box = { l: x.s.x - x.p._w / 2 - 2, r: x.s.x + x.p._w / 2 + 2, t: x.s.y - x.p._h / 2 - 2, b: x.s.y + x.p._h / 2 + 2 };
+        const hit = x.near && placed.find((o) => o.near && box.l < o.box.r && box.r > o.box.l && box.t < o.box.b && box.b > o.box.t);
+        if (hit) { hit.more.push(x.c.id); x.p.hidden = true; return; }
+        x.p.hidden = false;
+        x.box = box; x.more = [];
+        placed.push(x);
+        x.p.style.transform = `translate(${x.s.x.toFixed(1)}px, ${x.s.y.toFixed(1)}px) translate(-50%, -50%) scale(var(--pin-s, 1))`;
+      });
+      // "+N" bubbles on the pins that hide others
+      $$("[data-cs-cluster]", pinsEl).forEach((n) => n.remove());
+      placed.filter((x) => x.more.length).forEach((x) => {
+        const n = x.more.length;
+        pinsEl.insertAdjacentHTML("beforeend", html`<button type="button" class="cs-cluster num" data-cs-cluster="${x.c.id}" tabindex="-1"
+          aria-label="${n} more ${n === 1 ? "café" : "cafés"} here. Zoom in"
+          style="transform: translate(${(x.box.r - 6).toFixed(1)}px, ${(x.box.t - 4).toFixed(1)}px) translate(-50%, -50%)">+${n}</button>`.s);
       });
       const me = $("[data-cs-me]", pinsEl);
       if (me) { const s = toScreen(M.project(ME.x, ME.y)); me.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%)`; }
@@ -278,17 +327,19 @@
       // Cafés with no menu yet go last, nearest first
       return list.slice().sort((a, b) => (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
     }
+    /* A café row: three lines at most. Name and the bookmark; area,
+       distance and hours; busy dot and word, then the latte's price on the
+       right. The whole row is the target (tap: show on the map; again: open).
+       Tags and "updated" live on the café's page. */
+    const shortHours = (c) => hoursLine(c).replace("Open · closes ", "Open till ");
     function soonCardHtml(c) {
       const sel = CS.selected === c.id;
       return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
         <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${c.name}. Menu coming soon. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
           <span class="cs-card__name">${CS.q ? hl(c.name, CS.q) : c.name}</span>
           <span class="cs-card__meta num">${c.areaLine} · ${c.distanceKm} km</span>
-          <span class="cs-card__hours">Menu coming soon</span>
+          <span class="cs-card__foot"><span class="cs-card__status t-muted">Menu coming soon</span></span>
         </button>
-        <div class="cs-card__acts">
-          <a class="icon-btn" href="#/app/cafes/${c.id}" aria-label="Open ${c.name}">${icon("chevronRight", { size: 20 })}</a>
-        </div>
       </li>`;
     }
     function cardHtml(c) {
@@ -298,18 +349,15 @@
       const saved = CS.saved.has(c.id);
       const name = S.placeName(c.id);
       return html`<li class="cs-card${sel ? " is-selected" : ""}" data-cs-card="${c.id}">
-        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${name}. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
+        <button type="button" class="cs-card__main" data-cs-select="${c.id}" aria-label="${name}. ${STATUS_WORD[c.status]}. ${sel ? "Selected. Tap again to open." : "Show on the map."}">
           <span class="cs-card__name">${CS.q ? hl(name, CS.q) : name}</span>
-          <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km</span>
-          <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]} <span class="t-faint" data-rel-time="${c.statusUpdatedAt}" data-rel-prefix="updated">${fmt.updated(c.statusUpdatedAt)}</span></span>
-          <span class="cs-card__hours" data-cs-hours="${c.id}">${hoursLine(c)}</span>
-          ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
-          ${c.tags.length ? html`<span class="cs-card__tags">${c.tags.slice(0, 2).map((t) => html`<span class="badge">${t}</span>`)}</span>` : ""}
+          <span class="cs-card__meta num">${S.area(c.area).name} · ${c.distanceKm} km · <span data-cs-hours="${c.id}">${shortHours(c)}</span></span>
+          <span class="cs-card__foot">
+            <span class="cs-card__status"><span class="cs-dot" data-status="${c.status}" aria-hidden="true"></span>${STATUS_WORD[c.status]}</span>
+            ${r ? html`<span class="cs-card__price num">${r.name} ${fmt.rs(r.list)}</span>` : ""}
+          </span>
         </button>
-        <div class="cs-card__acts">
-          <button type="button" class="icon-btn cs-save" data-cs-save="${c.id}" aria-pressed="${saved}" aria-label="${saved ? "Saved" : "Save"} ${name}">${raw(BOOKMARK)}</button>
-          <a class="icon-btn" href="#/app/cafes/${c.chainId || c.id}" aria-label="Open ${name}">${icon("chevronRight", { size: 20 })}</a>
-        </div>
+        <button type="button" class="icon-btn cs-save" data-cs-save="${c.id}" aria-pressed="${saved}" aria-label="${saved ? "Saved" : "Save"} ${name}">${raw(BOOKMARK)}</button>
       </li>`;
     }
     function paintList() {
@@ -319,7 +367,7 @@
       const shown = sorted(all.filter((c) => inView.includes(c.id)));
       // The selected café leads the list (the peek shows its card)
       if (CS.selected) { const i = shown.findIndex((c) => c.id === CS.selected); if (i > 0) shown.unshift(...shown.splice(i, 1)); }
-      $("[data-cs-count]", root).textContent = `${plural(shown.length, "café")} in view`;
+      $("[data-cs-count]", root).textContent = plural(shown.length, "café");
       if (!all.length) {
         listEl.innerHTML = html`<li class="cs-empty"><p class="t-body">Nothing matches yet. Try an area or a drink.</p>
           <button type="button" class="btn btn--secondary btn--compact" data-cs-clear-all>Clear search</button></li>`.s;
@@ -689,6 +737,13 @@
         ui.toast(on ? `Saved ${S.placeName(id)}.` : `Removed ${S.placeName(id)} from saved.`);
         return;
       }
+      const cl = t.closest("[data-cs-cluster]");
+      if (cl && !moved) {
+        // Zoom in on the group, enough to pull the pins apart
+        const c = cafeOf(cl.dataset.csCluster);
+        flyTo(centreCam(worldOf(c), Math.min(kMax(), CS.cam.k * 2)));
+        return;
+      }
       if (t.closest("[data-cs-fit]")) { flyTo(fitCam(filtered().map(worldOf))); return; }
       if (t.closest("[data-cs-clear-all]")) {
         Object.assign(CS, { q: "", drink: null, barLabel: "", areas: [], openNow: false, quiet: false, tags: [], price: null, selected: null });
@@ -758,9 +813,9 @@
               <div class="cs-sheet__head">
                 <p class="cs-sheet__count" id="cs-count" data-cs-count aria-live="polite"></p>
                 <label class="cs-sort"><span class="sr-only">Sort by</span>
-                  <span class="select"><select class="input" data-cs-sort>
+                  <span class="cs-sort__wrap"><select class="cs-sort__select" data-cs-sort>
                     ${[["nearest", "Nearest"], ["quietest", "Quietest"], ["price", "Lowest price"]].map(([v, l]) => html`<option value="${v}" ${CS.sort === v ? raw("selected") : ""}>${l}</option>`)}
-                  </select></span></label>
+                  </select>${icon("chevronDown", { size: 16 })}</span></label>
               </div>
             </div>
             <ul role="list" class="cs-list" id="cs-list" data-cs-list></ul>
@@ -797,8 +852,8 @@
         paintPins();
         setSnap(CS.snap);
         // First visit: the cafés near the member (the list's default is Nearest)
-        const near = filtered().filter((c) => c.distanceKm <= 3.5).map(worldOf);
-        CS.cam = CS.cam ? clampCam(CS.cam) : fitCam(near.length >= 2 ? near : filtered().map(worldOf));
+        // First open: fit every café being shown (24px clear of each edge)
+        CS.cam = CS.cam ? clampCam(CS.cam) : fitCam(filtered().map(worldOf));
         applyCam();
         computeInView();
         bindSheetDrag();
@@ -822,7 +877,7 @@
       on: {
         // BACKEND: busy status arrives over Realtime (cafe:status); pins and cards repaint
         "cafe:status": () => { paintPins(); paintList(); },
-        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = hoursLine(c); }); },
+        tick: () => { $$("[data-cs-hours]", root).forEach((n) => { const c = S.cafe(n.dataset.csHours); if (c) n.textContent = shortHours(c); }); },
         cafesView: () => setSnap(CS.snap),
       },
     };

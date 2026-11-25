@@ -247,6 +247,8 @@ This order overrides any order implied by the spec.
     landing page removed
 18. [x] Neatness pass: profile menu with sub-pages, one sheet style,
     activity grouped by day, member app declutter
+19. [x] Profile page and map fit: full-page profile (#/app/profile), map
+    fits the phone, three-line café rows, cache bumped for the new icons
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -254,28 +256,55 @@ The user's "Pass E" is Pass 9 here.
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
 
+## Profile page and map fit pass (overrides the Neatness pass drawer)
+
+- Profile is a page, `#/app/profile` (`app.js` `profileScreen`), opened by
+  the person icon on Home (a link). It slides in from the right over the
+  screen it came from (300ms, transform only; `.slide-in`, the old screen
+  stays under it as `.app-ghost` until the slide ends; none with reduced
+  motion); the tab bar stays (tab Home). The back arrow and the browser's
+  back both return where you came from (`back()` uses the trail).
+- Hero: `ui.avatar` 72px (a button: the photo sheet `#photo-sheet` with
+  Add / Change / Remove, the same photo logic), the name in Versailles
+  28px tracked 0.12em, "No. 42 · Founding Member" (or the level) in
+  muted 14px, 32px below. Groups, each an eyebrow and one Surface card
+  (`.pgroup`, `.pcard`, radius 16, 28px apart): Membership (Plan, My cups
+  → `#/app/cups`, Pickup orders), Settings (Privacy, Appearance with
+  "Coffee · Auto"), Support (Help, Message us on WhatsApp). Rows 64px (one
+  line) or 72px (two), 20px sides, a hairline inset 20px between rows.
+- Sub-pages are routes: `#/app/profile/plan | pickups | privacy | look |
+  help`, the same slide, back arrow, a Versailles title (focused on
+  arrival), the same cards. The page repaints live through `active.on`
+  (ledger, pickup, order, plan, member, profile, theme changes).
+- The drawer is gone (`#profile-drawer`, `.sheet--drawer`, `drawer__*`,
+  `ui.js` swipe-to-close).
+- Cafés map: `.cs`, the map and the pins layer clip (`overflow: hidden`,
+  `contain: paint`, `touch-action: none`), so the page never scrolls
+  sideways (`scrollWidth` = screen width at 375 and 430). `fitCam` fits
+  the cafés shown with 24px clear of every edge (plus half a pin); when
+  they are too spread out for the map's smallest zoom (the map is always
+  as wide as the screen; the cafés span most of Lahore's height) it fits
+  the ones nearest the member that do, and never leaves a blank strip.
+  Used on first open, after a search, a filter or "Show all". Pins near
+  an edge are nudged 24px inside (`positionPins`). Overlapping pins: the
+  selected, then the cheaper, then the closer one shows, with a "+N"
+  bubble (`.cs-cluster`) that zooms in 2× on tap.
+- Chips: one scrolling row, 20px in at both ends, a fade on the right.
+  The search bar and chips sit on a soft `--bg` gradient.
+- Café rows: three lines, 20px apart, the whole row the target (tap shows
+  it on the map, again opens it; no chevron): name (one line) and the
+  bookmark; "Gulberg · 0.8 km · Open till 11pm"; busy dot and word, then
+  "Latte Rs 699" on the right. Tags and "updated" are on the café page.
+  Sheet header: "9 cafés" and the sort as quiet text with a chevron (a
+  native select underneath).
+- Icons: `icons/` and the inlined favicon are the dark The Round icon
+  (Ink square, Gold ring, Paper R), from `brand/app-icons/`; both
+  manifests point at them. `sw.js` `CACHE_VERSION` "lcc-v11".
+
 ## Neatness pass (member app layout; overrides earlier drawer and sheet notes)
 
-- Profile drawer (`app.js` `drawerMainHtml`, `drawerSubHtml`): a short
-  menu, not the member card. Top: a name row (`ui.avatar` 48px, full name
-  SemiBold, "No. 42 · Founding Member" or the level) that opens Your photo
-  (add, change, remove), and Close. Then three groups (`.mgroup`, Surface
-  cards, 8px apart, no headings): Plan ("The Round Pass · renews 7 Dec"),
-  My cups (the latest cup; goes to `#/app/cups`), Pickup orders ("None
-  right now" or `LCC.appOrder.statusLine`); Privacy, Appearance ("Coffee ·
-  Auto"), Help; Message us on WhatsApp. The member card and the drawer's
-  recent activity are gone (Club tab and My cups have them).
-- Sub-pages slide in from the right inside the drawer (`.drawer__pages`
-  `.is-sub`, 250ms transform, none with reduced motion; the page behind is
-  `inert`). Focus goes to the sub-page title; Back returns it to the row;
-  Escape closes the whole drawer. Plan (name, offer, price and date,
-  payment, one "Change plan" / "Choose a plan"), Pickup orders
-  (`LCC.appOrder.drawerHtml`: cards, tables as menu rows, Earlier, "Order
-  for pickup"), Privacy (two switch rows), Appearance (two segmented
-  controls with labels), Help (three `ui.disclosure` questions and
-  WhatsApp). `repaintDrawer()` keeps the lines and a live sub-page current
-  (ledger, pickup, profile, theme).
-- `ui.menuRow({ label, line, value, href, attrs, external, lineKey })`:
+- Profile: see "Profile page and map fit pass" (the drawer is gone).
+- `ui.menuRow({ label, line, value, href, attrs, external, lineKey, cls })`:
   56px or taller, label left, a muted line or a value, chevron (or the
   external icon), the whole row the target, no dividers. `.mlist` stacks
   them in sheets.
@@ -519,7 +548,7 @@ Prototype listing."). A cup's list price at a café is its latte.
   or of the drink searched for, and a busy dot; selected = primary
   background, accent border, 1.15×. Tap a pin: sheet to peek, its card
   first. Tap a card: its pin highlights and the map centres; tapping the
-  selected card again (or its chevron) opens the café detail.
+  selected card again opens the café detail.
 - The list is the cafés of the search and filters that are in the visible
   map (under the chips, above the sheet; recomputed 300ms after the map
   stops), sorted Nearest (default), Quietest or Lowest price. Cards:
