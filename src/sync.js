@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — sync.js
+   The Round — sync.js
    Live sync between devices in the same demo "room".
 
      #/cafe?room=4821        café tablet

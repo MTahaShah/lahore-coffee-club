@@ -1,6 +1,8 @@
-# Lahore Coffee Club
+# The Round
 
-A clickable, high-fidelity prototype of a monthly coffee membership across
+**waitlist/ is the live waitlist site (lahorecoffeeclub.com). Never edit it in prototype passes.** (deploy/ stays as it is too.)
+
+The Round (formerly Lahore Coffee Club) is a clickable, high-fidelity prototype of a monthly coffee membership across
 Lahore cafés. It is shown to café owners and potential members. There is no
 backend: all data is fictional and all state is in memory. One approved
 exception: live sync between devices over Supabase Realtime Broadcast
@@ -10,55 +12,81 @@ behaviour).
 
 ## Design
 
-**`docs/BRAND.md` is the design source of truth** and replaces the spec's
-design system (colours, type, logos). Visual reference:
-`docs/LCC-Brand-Book.pdf` (pages 15–19: brick ring, app screens, café
-counter screen).
+**`docs/BRAND.md` is the design source of truth** (The Round; copied from
+`brand/BRAND.md`, which stays in the repo as the source of the assets in
+`brand/`). The old Lahore Coffee Club brand book is in
+`docs/archive/LCC-Brand-Book.pdf` (old name and look; layout ideas only).
 
-- Colour: black, white and cream are the base in both modes; the coffee
-  palette is for small accents only (see "Where accents are allowed" in
-  BRAND.md: the cups-left bricks, the QR ring, the monogram's bricks, the
-  active tab, eyebrows, one highlight per screen). Tokens
-  live in `src/base.css`: neutrals (`--bg`, `--surface`, `--ink`, `--line`,
-  `--primary` = black on light, cream on dark), `--accent-text` (the only
-  coffee colour for text), and fixed `--accent`, `--accent-deep`,
-  `--espresso`, `--mocha`, `--roast`, plus `--black`, `--white`, `--cream`.
-  No espresso or brown backgrounds anywhere.
+- Name: people see "The Round", "The Round Cafés" (café app), "The Round
+  Admin", "The Round Pass" / "The Round Pass Plus" (`PLAN_CONFIG` names).
+  Never "LCC" or "Lahore Coffee Club" in visible text. Member numbers read
+  "No. 42" (`fmt.lcc`) and the card number "No. 0042"; the static pass QR
+  still encodes "LCC-0042" (machine-read; `memberByNo` takes "42",
+  "No. 42", "LCC 42" and "LCC-0042"). Internal names stay: the `LCC`
+  namespace, `lcc:` events and keys, `lcc-` classes and ids, file names.
+- Colour: Ink (#0B0B0B), Paper (#FAF8F4) and Stone (#E9E5DD) do the work
+  in both modes; Gold (#C2A878) is the one accent, for small things only
+  (see "Where accents are allowed" in BRAND.md: ring bricks, logo bricks,
+  the active tab, eyebrows, one highlight per screen). Never Gold as text
+  on light (use `--accent-text` = Gold deep #775C38; Gold on dark). No
+  brown backgrounds anywhere. Tokens live in `src/base.css`: neutrals
+  (`--bg`, `--surface`, `--surface-2`, `--ink`…`--ink-4`, `--line`,
+  `--primary` = Ink on light, Paper on dark), `--accent-text`, fixed
+  `--accent`, `--accent-deep`, `--black`, `--cream` (Paper), `--stone`,
+  status colours (the same in both modes). `--espresso`, `--mocha` and
+  `--roast` are gone.
 - No member-facing savings figures or per-cup estimates. Our prices come
   from public menus and may not match the counter, so members never see
   "You save Rs X", a member price next to a menu price, "Pays for itself
   after N", or "Rs X a cup" on packs. The counter (cashier) still sees list
   price, member price and the amount to charge.
-- Dark mode is black with cream text (`prefers-color-scheme`, the theme
+- Dark mode is Ink with Paper text (`prefers-color-scheme`, the theme
   toggle, and `.theme-dark` for surfaces that are always dark, such as the
   pass screen).
-- Type: Glacial Indifference (`src/fonts/`, inlined by `build.sh`) for all
-  Latin text; Urdu uses `--font-urdu` ("29LT Bukra", then "Noto Sans
-  Arabic"). Small caps labels are tracked 0.3em.
-- Logos: the SVGs in `src/logos/`, never retyped. `build.sh` inlines them
-  as `<template id="logo-NAME">`; render with `ui.logo(name)`. Colours come
-  from `--logo-ink` (= `--ink`), and `--logo-face`, `--logo-side`,
-  `--logo-top` (coffee tones, so the bricks are the colour pop).
+- Type: Versailles (`--font-display`, `src/fonts/Versailles-Regular.woff2`)
+  for display only, through `.t-title` (and `.pd-title`): capitals,
+  tracked `--track-display` (0.16em; 0.12em in the phone), five words at
+  most. Used on member app screen titles (Home greeting, Circles, My cups,
+  Choose your plan, Payment, Order for pickup, café and Circle names),
+  console page titles and section headings, the counter's setup screen.
+  Never on buttons, prices, labels, paragraphs or the counter's working
+  UI. Everything else is Montserrat (`--font-sans`; Light 300, Regular,
+  Medium, SemiBold 600; no weight above 600; `b`, `strong`, `th` are
+  600). Tabular figures (`.num`) for prices, counts and codes. Small caps
+  labels are Montserrat Medium 12px tracked 0.2em (`--track-caps`). No
+  Urdu font: `--font-urdu` is "Noto Sans Arabic". `build.sh` inlines the
+  fonts.
+- Logos: the SVGs in `src/logos/` (from `brand/app-logos/`), never retyped.
+  `wordmark.svg` (stacked THE / R◯UND) only where it is at least 160px wide
+  (welcome, console sign-in screens, the counter setup, the DOM passport
+  cover, print); `mark.svg` (ring with an R) everywhere small (app header,
+  Pass, wallet card, member card, gift card, admin header); `ring.svg` is
+  the graphic, not a logo. `build.sh` inlines them as
+  `<template id="logo-NAME">`; render with `ui.logo(name)`. Colours come
+  from `--logo-ink` (= `--ink`), `--logo-face`, `--logo-side`, `--logo-top`
+  (gold tones #C2A878 / #775C38 / #4A341E). `ui.logoRing` reads ring.svg's
+  polygons by layer (the fill names the layer).
 - Brick ring: `ui.brickRing()`, one brick per cup, gap at 3 o'clock, used
   cups outlined (Home ring in `--accent-text`). The Pass has no ring (Calm
-  pass): the QR sits on a plain cream rounded square on black.
+  pass): the QR sits on a plain Paper rounded square on Ink.
 - Calm (member app only, under `.phone__screen`): 20px sides, 32px between
   sections, 24px card padding, cards without borders, list rows without
   dividers. One primary action per screen; secondary things go behind a
   `.disclosure` (button with `aria-expanded`, a panel that opens in 250ms,
   none with reduced motion, `inert` while closed) or a "See all" sheet.
-- Hairlines, no shadows (exceptions: the card, passport and gift card are lifted with depth in dark mode, club.css; and the 3D passport's one soft contact shadow on the ground, `createContactShadow` in `waitlist/js/passport.js`: in the Club tab and the waitlist lab `/lab/passport`). Status colours only for busy status, with text.
+- Hairlines, no shadows (exceptions: the card, passport and gift card are lifted with depth in dark mode, club.css; and the 3D passport's one soft contact shadow on the ground, `createContactShadow` in `src/vendor/passport.js`). Status colours only for busy status, with text.
 - Matcha mode (member app only): a second flavour, `[data-flavour="matcha"]`
-  on `<html>` in `base.css` (colour tokens only, light and dark; coffee
-  stays the default). `router.js` owns flavour and Light / Dark / Auto
-  (`LCC.theme`: `flavour()`, `mode()`, `setFlavour`, `setMode`), sets the
-  attribute only while `#/app` shows (café view, landing and kit stay
-  coffee), crossfades 300ms (`.theme-fading`, none with reduced motion)
-  and sets the theme-color metas from `--bg`. Switch: Appearance in the
-  profile drawer. In Matcha, menus list matcha first and the Cafés list
-  tags cafés whose drinks include matcha (`lcc:flavour` DOM event repaints).
-  Text accent is #4E6A25 on light (the #6E8B3D accent is 3.45:1, rings
-  and bars only).
+  on `<html>` in `base.css`. It keeps the coffee neutrals (Ink, Paper,
+  Stone) and changes only the accent (#6E8B3D rings and bars, #4E6A25 text
+  on light, #A6C46A on dark), the member card tokens and the logo bricks
+  (light #6E8B3D / #3F5A22 / #26361A; dark #A6C46A / #6E8B3D / #3F5A22).
+  `router.js` owns flavour and Light / Dark / Auto (`LCC.theme`:
+  `flavour()`, `mode()`, `setFlavour`, `setMode`), sets the attribute only
+  while `#/app` shows (café view, consoles and kit stay coffee),
+  crossfades 300ms (`.theme-fading`, none with reduced motion) and sets
+  the theme-color metas from `--bg`. Switch: Appearance in the profile
+  drawer. In Matcha, menus list matcha first and the Cafés list tags
+  cafés whose drinks include matcha (`lcc:flavour` DOM event repaints).
 
 ## Build and preview
 
@@ -73,13 +101,15 @@ Live: https://lcc-omega.vercel.app (Vercel). The café
 view's "Pair a phone" QR always points here (`LIVE_URL` in `sync.js`), with
 `#/app/pass?room=XXXX`, even when the café window runs locally.
 
-Routes: `#/` landing, `#/app` member app (phone frame), `#/cafe` the counter
+Routes: `#/` and any unknown route open `#/app` (the landing page was
+removed in the Round rebrand; its waitlist and partner forms went with
+it), `#/app` member app (phone frame), `#/cafe` the counter
 (`#/cafe/<branchId>` sets the device up for a branch), `#/partner` owner
-dashboard, `#/admin` LCC admin panel, `#/kit` component sheet (not in the
+dashboard, `#/admin` The Round Admin, `#/kit` component sheet (not in the
 switcher; for review).
 Any route can carry a sync room: `#/cafe?room=4821`, `#/app/pass?room=4821`.
 `index.html` is generated (one self-contained file: fonts, logos and
-favicon are inlined). Edit `src/`, never `index.html`.
+favicon are inlined; `<title>` "The Round"; `cafe.html` "The Round Cafés"). Edit `src/`, never `index.html`.
 
 ## src/ layout
 
@@ -88,8 +118,17 @@ favicon are inlined). Edit `src/`, never `index.html`.
   `<!-- @scripts -->` markers
 - `base.css` — brand tokens, light/dark themes, `@font-face`,
   typography, components, shells
-- `fonts/` — Glacial Indifference Regular and Bold (woff2)
-- `logos/` — wordmark, horizontal monogram, ring, app icons, favicon
+- `fonts/` — Versailles Regular, Montserrat Light / Regular / Medium /
+  SemiBold (woff2, from `brand/fonts/`)
+- `logos/` — `wordmark.svg`, `mark.svg`, `ring.svg` (from
+  `brand/app-logos/`), app icons and favicon (from `brand/app-icons/`:
+  `app-icon-1024/512/192.png`, `app-icon-maskable-512.png`,
+  `apple-touch-icon-180.png`, `favicon-32.png`; Ink square, Gold ring,
+  Paper R)
+- `vendor/passport.js` — the prototype's own 3D passport module, a
+  rebranded copy of `waitlist/js/passport.js` (name, Gold / Paper palette,
+  Montserrat and Versailles, new logo proportions). The two are separate
+  now: change this one, never the waitlist's
 - `data.js` — seed: 12 real Lahore cafés plus 2 listed "Menu coming soon" (prototype demo data, see "Real cafés pass"), the Double Shot brand (7 branches,
   menu, plans), `BANDS` and `PLANS` (5 Explorer tiers), members with plans and
   member numbers, the ledger (Mumtaz's earlier months, and a month generated
@@ -105,7 +144,7 @@ favicon are inlined). Edit `src/`, never `index.html`.
   admin-only `adjust`. Loads right after `state.js`
 - `ui.js` — templating, icons, logos (`ui.logo`), the brick ring
   (`ui.brickRing`), toast, bottom sheet, steppers, live pills
-- `router.js` — hash router, top switcher (Landing, Member app, Counter
+- `router.js` — hash router, top switcher (Member app, Counter
   with a branch menu, Partner dashboard; the presenter Demo menu), theme
   toggle, Pass 1 shells
 - `sync.js` — live sync per room: BroadcastChannel (same computer) and
@@ -143,8 +182,9 @@ favicon are inlined). Edit `src/`, never `index.html`.
   any 4 digits): Cafés, Members, Ledger, Payouts. Uses partner.css's shell
 - `passport3d.js` — the Club tab's passport as the real 3D object
   (`LCC.passport3d`: `place`, `open`, `close`, `turn`, `ready`). It runs
-  the waitlist's `waitlist/js/passport.js` (one passport for both sites)
-  on three.js r170, which `build.sh` carries as inert text
+  `src/vendor/passport.js` (the prototype's own copy; the waitlist keeps
+  its own, unchanged) on three.js r170 (read from `waitlist/vendor/`),
+  which `build.sh` carries as inert text
   (`<!-- @modules -->`, `<script type="text/plain" id="mod-…">`, blob URLs
   on first use; works on file://). Pages come from the same club data as
   the DOM book (`passportContent` in app-club.js). The DOM book stays
@@ -159,21 +199,18 @@ favicon are inlined). Edit `src/`, never `index.html`.
 - `app-welcome.js` — onboarding (`#/app/welcome`) and card issue
   (`#/app/welcome/card`); `LCC.onboarding`
 - `club.css` — styles for the Club tab, gifting and onboarding
-- `landing.css`, `landing.js` — landing page (`#/`): hero, plans with a live
-  Build-your-own teaser, busy map teaser, café estimator, waitlist and
-  partner forms, FAQ
 - `manifest.json`, `sw.js` — installable app (PWA). `build.sh` copies them,
   and the icons (`logos/app-icon-192.png`, `-512`, `-maskable-512`,
-  `apple-touch-icon-180.png`, resized from `app-icon-cream-1024.png`) into
-  `icons/`, next to `index.html`. The service worker is network first; bump
+  `apple-touch-icon-180.png`) into `icons/`, next to `index.html`. The service worker is network first; bump
   `CACHE_VERSION` to clear old caches
-- `manifest-cafe.json` — the café app, "LCC Cafés" (id `./?app=cafe`; the
+- `manifest-cafe.json` — the café app, "The Round Cafés" (short name
+  "Round Cafés") (id `./?app=cafe`; the
   member manifest is `./?app=member`). `build.sh` also writes `cafe.html`:
-  the same page with this manifest, "LCC Cafés" titles, opening on
+  the same page with this manifest, "The Round Cafés" titles, opening on
   `#/cafe` when there's no route. Installed, the café view keeps the screen
   awake (Wake Lock, re-requested on return, silent if unsupported)
-- `og.png` (repo root) — 1200×630 link-preview image, rendered with
-  headless Chrome; referenced by absolute URL in the template's OG tags
+- `og.png` (repo root) — 1200×630 link-preview image (from `brand/og.png`);
+  referenced by absolute URL in the template's OG tags
 
 Script order matters: data → state → ledger → ui → router → surfaces. New files must
 be added to the lists in `build.sh`. Mark API seams with `// BACKEND:` comments.
@@ -188,7 +225,8 @@ This order overrides any order implied by the spec.
 4. [x] Member app: Cafés, plan builder, payment
 4.5. [x] Cross-device live sync (Supabase Realtime Broadcast)
 5. [x] Member app: Club, gifting, onboarding
-6. [x] Landing page and waitlist
+6. [x] Landing page and waitlist (landing removed in the Round rebrand;
+   the live waitlist is `waitlist/`)
 7. [x] Explorer and My cafés plans, cups ledger
 8. [x] Pickup orders: order ahead with a cup or online payment, café queue
 9. [x] Club: Beans, referrals, group orders
@@ -205,6 +243,8 @@ This order overrides any order implied by the spec.
     Rs 399 / 699 pricing, cross-café daily limit
 16. [x] Real cafés pass: real Lahore cafés as demo data, no member savings
     or per-cup estimates
+17. [x] The Round rebrand: new name, palette, logos and fonts (docs/BRAND.md);
+    landing page removed
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
@@ -315,8 +355,7 @@ next pass until asked.**
 Prototype demo data: real Lahore cafés with menu prices from their public
 menus (Nov 2026). Hours, busy patterns and tags follow the seed pattern and
 are not the cafés' own; blurbs are neutral ("Specialty coffee in Gulberg.
-Prototype listing."). The landing footer keeps "Prototype: prices and
-cafés are for demonstration." A cup's list price at a café is its latte.
+Prototype listing."). A cup's list price at a café is its latte.
 
 | Café | id (drink prefix) | Area | Latte | Old id it replaced |
 |---|---|---|---|---|
@@ -793,14 +832,15 @@ cafés are for demonstration." A cup's list price at a café is its latte.
 - Wallet numbers ending in 0000 simulate a failed payment (presenter
   knowledge only, not shown on screen).
 - "Add to my plan" adds the café with 2 cups (opens My cafés).
-- Landing forms (waitlist, café partner) open WhatsApp to 923100008242 via
+- (Removed with the landing page in the Round rebrand; kept for history.)
+  Landing forms (waitlist, café partner) opened WhatsApp to 923100008242 via
   `wa.me` with the details pre-filled, then show a thank-you. Button label:
   "Send on WhatsApp". Mobile numbers must be 03XX XXXXXXX. Favourite café
   is optional; areas include "Somewhere else".
-- The landing teaser prices with `select.customPrice` and shares the store's
+- (Removed with the landing page.) The landing teaser priced with `select.customPrice` and shares the store's
   builder; "Build your plan in the app" opens `#/app/plan` on My cafés
   with the same cups.
-- The café estimator is members × visits × rate (10–200, 1–8, Rs 300–700),
+- (Removed with the landing page.) The café estimator was members × visits × rate (10–200, 1–8, Rs 300–700),
   showing only what the café enters.
 - FAQ product answers (to confirm): unused cups don't roll over; cancel any
   time and keep cups until the month ends; billing on the day you joined.
@@ -821,12 +861,13 @@ cafés are for demonstration." A cup's list price at a café is its latte.
   `club.membersIssued + 1` (No. 0487 in the demo). Invite code = first name
   + three letters (MUMTAZ-JB9; see Pass 9).
 - Club tab: the passport is the 3D passport (passport3d.js, realistic
-  pass): black leather, caramel foil wordmark and ring, beige deboss,
+  pass, `src/vendor/passport.js`): black leather, gold foil wordmark and
+  ring, a light Stone deboss with "MEMBERSHIP PASSPORT" in Versailles, Paper pages,
   opens in 900ms, pages turn in 700ms, leans toward the mouse; reduced
   motion jumps. In Matcha it uses `MATCHA` from passport.js (the member
   card's colours: matcha foil and ring, foam deboss, matcha-green stamp
-  ink, a green cast in the leather) and rebuilds on `lcc:flavour`. Without WebGL, the CSS book (black cover, cream foil
-  type, the ring logo; 360ms rotateY flip, crossfade with reduced motion). Page 1 is an ID page, then 4 stamps a page from
+  ink, a green cast in the leather) and rebuilds on `lcc:flavour`. Without WebGL, the CSS book (Ink cover, the wordmark,
+  the ring, "Membership Passport" in Versailles foil; 360ms rotateY flip, crossfade with reduced motion). Page 1 is an ID page, then 4 stamps a page from
   `select.club().passport`. Stamps are ink in `--accent-text` (an accent
   use added on request). Badges are one "Badges · X of Y" row that opens a
   sheet (Earned with dates, Still to earn with progress). Earned dates are
@@ -850,11 +891,11 @@ cafés are for demonstration." A cup's list price at a café is its latte.
 - Member card (redesign, ref `docs/ref/member-card.png`): `LCC.memberCard`
   in `app-club.js`, built in code, 7:4, radius 16, no shadow in light; lifted face and shadow in dark. 22 hairline
   rings centred a little left, lit at top right and bottom left by a
-  per-ring gradient; the wordmark (unaltered, it carries "COFFEE CLUB")
+  per-ring gradient; the mark (`mark.svg`, too small for the wordmark)
   top right; name and "Founding Member" (or the level) bottom left;
-  `LCC-0042` bottom right. Card tokens `--card-bg`, `--card-ring`,
+  `No. 0042` bottom right. Card tokens `--card-bg`, `--card-ring`,
   `--card-ink`, `--card-muted`, `--card-edge` in `base.css` (coffee
-  #0B0B0B / caramel / cream; Matcha #0F140E / #93B35A / foam), the same in
+  #0B0B0B / Gold #C2A878 / Paper; Matcha #0C100D / #A6C46A / foam), the same in
   light and dark. Shown at the top of the profile drawer, on the Club tab
   and the onboarding issue screen; type scales with the card width (cqw).
   Tap (a real button over the card) turns it over, 400ms rotateY,

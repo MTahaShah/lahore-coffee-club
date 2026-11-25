@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-circles.js
+   The Round — app-circles.js
    Circles: small private groups (up to 12), in their own tab.
 
      #/app/circles      the Circles tab: Your circles (one card each: area,
@@ -30,7 +30,7 @@
   const max = () => S.circleRules().maxMembers;
   const LIVE = () => (LCC.sync ? LCC.sync.liveUrl : `${location.href.split("#")[0]}`);
   const joinUrl = (c) => `${LIVE()}${LCC.sync ? LCC.sync.withRoom(`#/app/circles/${c.id}/join`) : `#/app/circles/${c.id}/join`}`;
-  const shareText = (c) => `Join ${c.name}, my Circle on Lahore Coffee Club. We see where each other has had coffee, and call rounds together: ${joinUrl(c)}`;
+  const shareText = (c) => `Join ${c.name}, my Circle on The Round. We see where each other has had coffee, and call rounds together: ${joinUrl(c)}`;
   const waHref = (c) => `https://wa.me/?text=${encodeURIComponent(shareText(c))}`;
   const count = (c) => Object.keys(c.members).length;
 
@@ -239,8 +239,8 @@
     else if (g.left <= 0) note = "Every seat is taken. The next one is announced here first.";
     else if (!g.canRsvp) note = `RSVP opens ${fmt.longDate(g.opensAt)}. Founding Members and Connoisseurs book first.`;
     else if (g.priority && !g.openToAll) note = `Founding Members and Connoisseurs book first. Opens to every member on ${fmt.longDate(g.opensAt)}.`;
-    return html`<article class="round card gather-item" aria-label="${title}, hosted by Lahore Coffee Club">
-      <p class="t-micro t-faint">Hosted by Lahore Coffee Club</p>
+    return html`<article class="round card gather-item" aria-label="${title}, hosted by The Round">
+      <p class="t-micro t-faint">Hosted by The Round</p>
       <p class="t-body"><strong>${title}</strong></p>
       <p class="t-small t-muted num">${fmt.date(g.at)} · ${fmt.time(g.at)} · ${title.includes(g.cafe.name) ? g.area.name : `${g.cafe.name}, ${g.area.name}`}${g.inviteOnly ? "" : ` · ${g.left} of ${g.seats} seats left`}</p>
       ${g.inviteOnly ? "" : html`<div class="round__answers" role="group" aria-label="Will you be there?">
@@ -310,7 +310,7 @@
           ${body}
         </div>
       </div>`;
-    const eventsSheetHtml = () => sheetFrame("events-title", "From the club", html`<p class="t-small t-muted">Events Lahore Coffee Club runs itself, open to members.</p>
+    const eventsSheetHtml = () => sheetFrame("events-title", "From the club", html`<p class="t-small t-muted">Events The Round runs itself, open to members.</p>
       <ul role="list" class="event-list">${clubEvents().map(eventRowHtml)}</ul>`);
     const activitySheetHtml = () => sheetFrame("activity-title", "Recent activity", html`<p class="t-small t-muted">From all your Circles, the last ${S.circleRules().activityDays} days.</p>${activityListHtml(recentRows())}`);
     function makeSheet(id, labelId) {
@@ -380,7 +380,7 @@
     let unbind = null;
     return {
       html: html`<div class="app-screen circles-tab">
-          <h1 class="t-h2">Circles</h1>
+          <h1 class="t-title">Circles</h1>
           <div data-cbody>${bodyHtml()}</div>
         </div>`.s,
       mount() {
@@ -429,7 +429,7 @@
         ${ringHtml(cc, { large: true })}
         <div class="stack" style="--stack-gap:var(--space-1)">
           <p class="eyebrow">Circle</p>
-          <h1 class="t-h2" data-detail-title>${cc.name}</h1>
+          <h1 class="t-title" data-detail-title>${cc.name}</h1>
           <p class="t-small t-muted num">${count(cc)} of ${max()} members · hosted by ${host ? name(host).replace(/^You$/, "you") : "a member"}</p>
         </div>
         <ul role="list" class="circle-people">${S.circleMembers(cc).map((m) => html`<li><span class="circle-people__mark" aria-hidden="true">${(m.initials || m.firstName[0]).slice(0, 2)}</span><span>${name(m)}</span></li>`)}</ul>

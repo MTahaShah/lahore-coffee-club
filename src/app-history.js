@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-history.js
+   The Round — app-history.js
    #/app/cups, "My cups" (Profile → My cups): every transaction from the
    ledger (LCC.ledger.ledgerFor), newest first, plus pickups paid online
    (orders, not cups). Date, café, drink and mods, counter or pickup,
@@ -60,11 +60,11 @@
           out.push({ ...base, what: "Café couldn’t make it, cup back", drink: o ? S.pickupDrinkName(o) : "" });
           break;
         }
-        case "reward": out.push({ ...base, what: "Complimentary cup", cafe: "Lahore Coffee Club", note: e.reason === "beans" ? "From your Beans" : e.reason?.startsWith("passport") ? "Passport" : "" }); break;
+        case "reward": out.push({ ...base, what: "Complimentary cup", cafe: "The Round", note: e.reason === "beans" ? "From your Beans" : e.reason?.startsWith("passport") ? "Passport" : "" }); break;
         case "gift": out.push({ ...base, what: `Gift to ${e.toName || "a friend"}`, note: e.giftCode ? `Code ${e.giftCode}` : "" }); break;
         case "expire": out.push({ ...base, what: "Unused cups ended" }); break;
-        case "adjust": out.push({ ...base, what: e.cups > 0 ? "Added by LCC" : "Taken off by LCC", cafe: "Lahore Coffee Club", note: e.reason }); break;
-        case "beans": out.push({ ...base, what: "Beans used", cafe: "Lahore Coffee Club", note: e.title || "" }); break;
+        case "adjust": out.push({ ...base, what: e.cups > 0 ? "Added by The Round" : "Taken off by The Round", cafe: "The Round", note: e.reason }); break;
+        case "beans": out.push({ ...base, what: "Beans used", cafe: "The Round", note: e.title || "" }); break;
         default: break;
       }
     });
@@ -82,7 +82,7 @@
     document.getElementById("print-root")?.remove();
     const root = document.createElement("div");
     root.id = "print-root";
-    const cardNo = `LCC-${String(m.memberNo).padStart(4, "0")}`;
+    const cardNo = String(m.memberNo).padStart(4, "0");
     root.innerHTML = html`
       <header class="pr-head">
         <div class="pr-logo">${ui.logo("wordmark")}</div>
@@ -99,7 +99,7 @@
           <td>${r.channel || "–"}</td><td>${r.what}${r.note ? html`<br><span class="pr-faint">${r.note}</span>` : ""}</td><td class="pr-num">${signed(r.cups)}</td></tr>`)
           : html`<tr><td colspan="7">Nothing this month.</td></tr>`}</tbody>
       </table>
-      <p class="pr-foot">Printed ${fmt.date(Date.now())}. Every line comes from the Lahore Coffee Club ledger; entries are never changed or removed. Questions: WhatsApp 0310 0008242.</p>`.s;
+      <p class="pr-foot">Printed ${fmt.date(Date.now())}. Every line comes from The Round’s ledger; entries are never changed or removed. Questions: WhatsApp 0310 0008242.</p>`.s;
     document.body.appendChild(root);
     const done = () => { root.remove(); window.removeEventListener("afterprint", done); };
     window.addEventListener("afterprint", done);
@@ -150,7 +150,7 @@
           </div>
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-1)">
-              <h1 class="t-h2">My cups</h1>
+              <h1 class="t-title">My cups</h1>
               <p class="t-small t-muted num">${S.fullName(m)} · ${fmt.lcc(m.memberNo)}. Every cup in and out, from the club’s ledger.</p>
             </div>
             <div class="cups-tools">${filterHtml()}

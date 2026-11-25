@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — ledger.js
+   The Round — ledger.js
    One record of every cup, read the same way by the member app, the
    counter, the owner dashboard and (later) the admin panel.
 

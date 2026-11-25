@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-club.js
+   The Round — app-club.js
    Member app: the Club tab (#/app/club) and gifting (#/app/gift).
 
    Everything on the Club tab is earned by use and read from the ledger
@@ -34,7 +34,7 @@
      light at top right and bottom left. Tap to turn it over.
      ------------------------------------------------------------------- */
   let cardSeq = 0;
-  const cardNo = (c) => (c.memberNo != null ? `LCC-${String(c.memberNo).padStart(4, "0")}` : "LCC");
+  const cardNo = (c) => (c.memberNo != null ? `No. ${String(c.memberNo).padStart(4, "0")}` : "");
 
   /** Concentric rings; the gradient is per ring (bounding box), so each one is lit on the same diagonal. */
   function cardRings(cx, faint = false) {
@@ -56,13 +56,13 @@
     const no = cardNo(c);
     const plan = m.plan ? S.planLabel(m) : "No plan yet";
     const circles = S.circlesOf(m.id).length;
-    const front = `Lahore Coffee Club member card, ${fullName(m)}, ${title}, ${no}`;
+    const front = `The Round member card, ${fullName(m)}, ${title}, ${no}`;
     const back = `Back of the card: member since ${fmt.monthYear(c.since)}, ${plan}, ${circles === 1 ? "1 Circle" : `${circles} Circles`}. Show your pass at any partner café.`;
     return html`<div class="mcard${flipped ? " is-flipped" : ""}${issuing ? " is-issuing" : ""}" data-mcard>
       <div class="mcard__inner">
         <div class="mcard__face mcard__face--front" role="img" aria-label="${front}" aria-hidden="${flipped ? "true" : "false"}">
           ${cardRings(162)}
-          <span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span>
+          <span class="mcard__brand">${ui.logo("mark", { label: null })}</span>
           <span class="mcard__who"><span class="mcard__name">${fullName(m)}</span><span class="mcard__title">${title}</span></span>
           <span class="mcard__no num" data-card-no>${no}</span>
         </div>
@@ -181,7 +181,7 @@
     const id = {
       kind: "id", n: 1, gutter: "left", initials: m.initials || (m.firstName || "?")[0], number: no,
       fields: [["Name", fullName(m)], ["Member since", fmt.monthYear(c.since)], ["Plan", S.planLabel(m)]],
-      mrz: [`P<LHR<${mrzName(m.lastName)}<<${mrzName(m.firstName)}`.padEnd(33, "<").slice(0, 33), `LCC${no}<<<<<<MEMBER<<SINCE<<${new Date(c.since).getFullYear()}`.padEnd(33, "<").slice(0, 33)],
+      mrz: [`P<LHR<${mrzName(m.lastName)}<<${mrzName(m.firstName)}`.padEnd(33, "<").slice(0, 33), `THE<ROUND<<${no}<<MEMBER<<SINCE<<${new Date(c.since).getFullYear()}`.padEnd(33, "<").slice(0, 33)],
     };
     const stampPages = bookPages(c).map((st, i) => ({
       kind: "stamps", n: i + 2, gutter: "left", label: `STAMPS · ${st[0].n + 1}–${st[st.length - 1].n + 1} OF ${total}`,
@@ -222,9 +222,9 @@
               aria-label="Passport page ${i + 1} of ${pages.length}" ${!book.open || i !== book.page ? raw("hidden") : ""}>${pg}</section>`)}
           <button type="button" class="pbook__cover theme-dark" data-pbook-open aria-label="Open your coffee passport" ${book.open ? raw("hidden") : ""}>
             <span class="pbook__frame" aria-hidden="true"></span>
-            <span class="pbook__foil pbook__foil--club">Lahore Coffee Club</span>
+            <span class="pbook__wordmark">${ui.logo("wordmark")}</span>
             <span class="pbook__crest">${ui.logo("ring", { label: null })}</span>
-            <span class="pbook__foil pbook__foil--title">Coffee Passport</span>
+            <span class="pbook__foil pbook__foil--title">Membership Passport</span>
             <span class="pbook__holder">${fullName(c.member)}</span>
           </button>
         </div>
@@ -693,7 +693,7 @@
       const code = c.inviteCode;
       const n = S.beans().rules.referral;
       const url = `${LIVE_URL()}#/app/welcome?invite=${code}`;
-      const msg = `I’ve been using Lahore Coffee Club. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
+      const msg = `I’ve been using The Round. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
       const invites = S.invitations(c.member.id);
       return html`<div class="card invite">
         <div class="invite__top">
@@ -872,7 +872,7 @@
   function giftMessage(g, from) {
     const where = g.cafeId ? `at ${S.cafe(g.cafeId).name}` : "at any partner café";
     return [
-      `${from.firstName} sent you ${fmt.cups(g.cups)} of coffee from Lahore Coffee Club, to use ${where}.`,
+      `${from.firstName} sent you ${fmt.cups(g.cups)} of coffee from The Round, to use ${where}.`,
       g.message ? `“${g.message}”` : null,
       `Gift code: ${g.code}`,
       `It keeps for ${rules().giftExpiryDays} days, until ${fmt.longDate(g.expiresAt)}.`,
@@ -914,7 +914,7 @@
       const where = cur && cur.id ? S.cafe(cur.id).name : "Any partner café";
       const expires = Date.now() + rules().giftExpiryDays * 24 * 60 * 60 * 1000;
       return html`<div class="gift-card" aria-label="Gift preview">
-        <div class="gift-card__top"><span class="mcard__brand">${ui.logo("wordmark", { label: null })}</span><span class="t-micro">A gift</span></div>
+        <div class="gift-card__top"><span class="mcard__brand">${ui.logo("mark", { label: null })}</span><span class="t-micro">A gift</span></div>
         <p class="gift-card__cups"><span class="num" data-preview-cups>${gift.cups}</span> <span data-preview-word>${gift.cups === 1 ? "cup" : "cups"}</span> of coffee</p>
         <p class="gift-card__to">For <span data-preview-name>${gift.name.trim() || "your friend"}</span>, from ${m.firstName}</p>
         <p class="gift-card__msg" data-preview-msg ${gift.message.trim() ? "" : raw("hidden")}>“${gift.message.trim()}”</p>
@@ -929,7 +929,7 @@
         return html`<div class="pay-state">
           <span class="pay-state__mark" aria-hidden="true">${icon("gift", { size: 28 })}</span>
           <h2 class="t-h3">No cups to give right now.</h2>
-          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. The ${S.passTier(m).name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
+          <p class="t-small t-muted">${m.plan?.type === "pass" ? `Gifts come out of a cup pack. ${S.passTier(m).name} takes money off, so there are no cups to give.` : m.plan ? `Gifts come out of your cups. ${S.planDateLine(m, { long: true })}.` : "Choose a plan first, then you can share it."}</p>
           <a class="btn btn--secondary btn--block" href="#/app">Back to home</a>
         </div>`;
       }
@@ -1052,7 +1052,7 @@
           </div>
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
-              <h1 class="t-h2">Send a gift</h1>
+              <h1 class="t-title">Send a gift</h1>
               <p class="t-small t-muted">Give a friend a few cups from your month. They get it on WhatsApp.</p>
             </div>
             <div data-gift-body></div>

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-welcome.js
+   The Round — app-welcome.js
    First-run flow (#/app/welcome), then the plan picker and payment
    from app-plan.js, ending on the member card being issued
    (#/app/welcome/card).

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-plan.js
+   The Round — app-plan.js
    Member app: plan picker (#/app/plan) and simulated payment
    (#/app/plan/pay): the LCC Pass (default) and cup packs ("At selected
    cafés"). Prices come from store.select.quote(), which reads data.js
@@ -67,7 +67,7 @@
     const m = S.member();
     const plan = draftPlan();
     if (!S.isCurrentPlan(plan)) return null;
-    if (plan.type === "pass") return `You’re on the ${S.passTier(plan).name}. ${S.planDateLine(m)}.`;
+    if (plan.type === "pass") return `You’re on ${S.passTier(plan).name}. ${S.planDateLine(m)}.`;
     const left = Math.max(0, S.balance().left);
     return left > 0 ? `You have ${fmt.cups(left)} left on this pack. ${S.planDateLine(m)}.` : null;
   }
@@ -181,12 +181,12 @@
           </div>
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
-              <h1 class="t-h2">Choose your plan</h1>
+              <h1 class="t-title">Choose your plan</h1>
               ${m.plan
                 ? html`<p class="t-small t-muted num">A new plan starts today; cups left on a pack don’t carry over.</p>`
                 : html`<p class="t-small t-muted">A monthly pass for money off, or prepaid cups. You can change whenever you like.</p>`}
             </div>
-            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: "LCC Pass" }, { value: "packs", label: "Cup packs" }] })}
+            ${ui.segmented({ name: "plantype", label: "Plan type", value: draft.mode, options: [{ value: "pass", label: "The Round Pass" }, { value: "packs", label: "Cup packs" }] })}
             <div class="plan-body" data-plan-body></div>
           </div>
           <div class="summary-bar" role="region" aria-label="Plan summary">
@@ -320,7 +320,7 @@
       }
       if (pay.phase === "success") {
         const mem = ctx.member();
-        const title = isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready.`;
+        const title = isPass ? `You’re on ${q.name}.` : `Your ${q.name} is ready.`;
         const line = isPass
           ? `${perDay(S.passTier(plan))}, from today. Renews on ${longDate(mem.renewsAt)}.`
           : `${fmt.cups(S.balance(mem.id).total)}, fresh from today. Use by ${longDate(mem.renewsAt)}.`;
@@ -410,7 +410,7 @@
         // A new member's first plan: their card is issued next
         if (res.ok && alive && onboarding()) { pay.phase = "form"; ctx.go("#/app/welcome/card", { replace: true }); return; }
         if (alive) paint();
-        else if (res.ok) ctx.toast(isPass ? `You’re on the ${q.name}.` : `Your ${q.name} is ready. ${fmt.cups(q.cups)} to enjoy.`);
+        else if (res.ok) ctx.toast(isPass ? `You’re on ${q.name}.` : `Your ${q.name} is ready. ${fmt.cups(q.cups)} to enjoy.`);
       });
     }
 
@@ -433,7 +433,7 @@
             ${onboarding() ? html`<span class="t-small t-faint">Step 6 of 6</span>` : ""}
           </div>
           <div class="app-screen flow__body">
-            <h1 class="t-h2">Payment</h1>
+            <h1 class="t-title">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
                 <span class="t-h3">${planTitle}</span>

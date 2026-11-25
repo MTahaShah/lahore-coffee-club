@@ -1,87 +1,105 @@
 /* =====================================================================
-   Lahore Coffee Club — base.css
+   The Round — base.css
    Tokens, light/dark themes, reset, typography, and reusable components.
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
-   0. Brand fonts. Glacial Indifference for all Latin text; 29LT Bukra
-   for Urdu (licensed; Noto Sans Arabic until its files are added).
-   build.sh inlines the font files as base64.
+   0. Brand fonts (docs/BRAND.md). Versailles for display only (capitals,
+   tracked); Montserrat for everything else. build.sh inlines the files
+   as base64. No Urdu font is shipped: Urdu falls back to Noto Sans Arabic.
    --------------------------------------------------------------------- */
 @font-face {
-  font-family: "Glacial Indifference";
-  src: url("fonts/GlacialIndifference-Regular.woff2") format("woff2");
+  font-family: "Versailles";
+  src: url("fonts/Versailles-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Glacial Indifference";
-  src: url("fonts/GlacialIndifference-Bold.woff2") format("woff2");
-  font-weight: 700;
+  font-family: "Montserrat";
+  src: url("fonts/Montserrat-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("fonts/Montserrat-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("fonts/Montserrat-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("fonts/Montserrat-SemiBold.woff2") format("woff2");
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 
 /* ---------------------------------------------------------------------
-   1. Tokens (light): docs/BRAND.md. The base is black, white and cream in
-   both modes. The coffee palette is for small accents only (the brick
-   ring, the QR ring, the monogram's bricks, the active tab, the savings
-   line, eyebrows, one highlight per screen), never for large surfaces.
+   1. Tokens (light): docs/BRAND.md. Ink and Paper do the main work in
+   both modes, Stone separates things, Gold is the single accent (the
+   brick ring, the logo bricks, the active tab, eyebrows, one highlight
+   per screen), never a large surface or text on light.
    --------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
   /* Fixed in both modes */
-  --black: #0B0B0B;
+  --black: #0B0B0B;          /* Ink */
   --white: #FFFFFF;
-  --cream: #FFF7E8;
-  --accent: #CFAB71;         /* caramel */
+  --cream: #FAF8F4;          /* Paper */
+  --stone: #E9E5DD;
+  --accent: #C2A878;         /* Gold: rings, bars, bricks; never text on light */
+  --accent-deep: #775C38;    /* Gold deep */
   /* Member card: the same in light and dark */
   --card-bg: #0B0B0B;
-  --card-ring: #CFAB71;      /* caramel, lit on the rings only */
-  --card-ink: #FFF7E8;
-  --card-muted: rgba(255, 247, 232, 0.62);
-  --card-edge: rgba(255, 247, 232, 0.10);
-  --accent-deep: #713105;    /* cinnamon */
-  --espresso: #341100;
-  --mocha: #7F5E35;
-  --roast: #4F351C;
-
-  /* Neutrals: porcelain, not paper. A neutral near-white with the
-     faintest warmth, white cards, warm-grey hairlines. Cream stays for
-     type on the always-dark card and passport. */
-  --bg: #F6F5F3;
-  --surface: #FFFFFF;
-  --surface-2: #EFEEEB;
-  --ink: #0B0B0B;
-  --ink-2: #474644;
-  --ink-3: #75736F;
-  --ink-4: #B3B1AC;          /* placeholders and decoration only */
-  --line: #E4E2DE;
-  --line-strong: #D0CECA;
-  --primary: #0B0B0B;        /* buttons, selected states: black on light */
-  --primary-hover: #2A2927;
-  --on-primary: #FFFFFF;
-  --primary-soft: #EFEEEB;   /* selected chips, earned badges (neutral) */
-  --accent-text: #713105;    /* the only coffee colour for text on light */
-  --danger: #A33D24;         /* validation text, not a status */
+  --card-ring: #C2A878;      /* gold, lit on the rings only */
+  --card-ink: #FAF8F4;
+  --card-muted: rgba(250, 248, 244, 0.62);
+  --card-edge: rgba(250, 248, 244, 0.10);
   --status-quiet: #4E7D5B;
   --status-moderate: #C9962B;
   --status-packed: #B5503C;
+
+  /* Neutrals */
+  --bg: #FAF8F4;
+  --surface: #F2EFE9;
+  --surface-2: #E9E5DD;
+  --ink: #0B0B0B;
+  --ink-2: #5F5E5C;
+  --ink-3: #8E8D8A;
+  --ink-4: #BDBAB4;          /* placeholders and decoration only */
+  --line: #E9E5DD;
+  --line-strong: #D6D1C7;
+  --primary: #0B0B0B;        /* buttons, selected states: Ink on light */
+  --primary-hover: #2A2A29;
+  --on-primary: #FAF8F4;
+  --primary-soft: #E9E5DD;   /* selected chips, earned badges (neutral) */
+  --accent-text: #775C38;    /* Gold deep: the only gold allowed as text on light */
+  --danger: #A33D24;         /* validation text, not a status */
   --bezel: #0B0B0B;
   --scrim: rgba(11, 11, 11, 0.32);
   --shadow-float: none;      /* hairlines, no shadows */
 
-  /* Logos: wordmark and LCC in ink; the ring's bricks keep coffee tones */
+  /* Logos: letters in ink, the bricks in the three gold tones */
   --logo-ink: var(--ink);
-  --logo-face: #4F351C;
-  --logo-side: #341100;
-  --logo-top: #7F5E35;
+  --logo-face: #C2A878;
+  --logo-side: #775C38;
+  --logo-top: #4A341E;
 
   /* Type */
-  --font-sans: "Glacial Indifference", "Century Gothic", Futura, system-ui, sans-serif;
-  --font-urdu: "29LT Bukra", "Noto Sans Arabic", sans-serif;
+  --font-display: "Versailles", Georgia, "Times New Roman", serif;
+  --font-sans: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-urdu: "Noto Sans Arabic", sans-serif;
   --fs-12: 12px;
   --fs-14: 14px;
   --fs-16: 16px;
@@ -93,7 +111,8 @@
   --lh-tight: 1.08;
   --lh-snug: 1.15;
   --measure: 60ch;
-  --track-caps: 0.3em;
+  --track-caps: 0.2em;
+  --track-display: 0.16em;   /* Versailles: 0.12–0.2em */
 
   /* Spacing (8px grid) */
   --space-1: 4px;
@@ -128,7 +147,7 @@
 }
 
 /* ---------------------------------------------------------------------
-   2. Tokens (dark): black background, cream text, the same small accents.
+   2. Tokens (dark): Ink background, Paper text, the same small accents.
    System preference unless forced light; also forced by the toggle, and
    used on surfaces that are always dark (.theme-dark, the pass screen).
    --------------------------------------------------------------------- */
@@ -136,100 +155,73 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #0B0B0B;
-    --surface: #151515;
-    --surface-2: #1E1D1B;
-    --ink: #FFF7E8;
-    --ink-2: #BDB7AD;
-    --ink-3: #807B74;
-    --ink-4: #5E5A54;
-    --line: #2A2927;
-    --line-strong: #3A3835;
+    --surface: #1E1E1D;
+    --surface-2: #2A2A28;
+    --ink: #FAF8F4;
+    --ink-2: #A6A5A2;
+    --ink-3: #777674;
+    --ink-4: #4A4947;
+    --line: #2A2A28;
+    --line-strong: #3A3A38;
     --hairline: 1px solid var(--line);
-    --primary: #FFF7E8;          /* buttons: cream on dark */
-    --primary-hover: #F4EFE6;
+    --primary: #FAF8F4;          /* buttons: Paper on dark */
+    --primary-hover: #E9E5DD;
     --on-primary: #0B0B0B;
-    --primary-soft: #1E1D1B;
-    --accent-text: #CFAB71;
+    --primary-soft: #2A2A28;
+    --accent-text: #C2A878;
     --danger: #E9A08A;
-    --status-quiet: #79A784;
-    --status-moderate: #D4A548;
-    --status-packed: #D27560;
-    --bezel: #2A2927;
+    --bezel: #2A2A28;
     --scrim: rgba(0, 0, 0, 0.6);
     /* Logo on dark */
     --logo-ink: var(--ink);
-    --logo-face: #CFAB71;
-    --logo-side: #7F5E35;
-    --logo-top: #4F351C;
-}
+    --logo-face: #C2A878;
+    --logo-side: #775C38;
+    --logo-top: #4A341E;
+  }
 }
 
 :root[data-theme="dark"], .theme-dark {
   color-scheme: dark;
   --bg: #0B0B0B;
-  --surface: #151515;
-  --surface-2: #1E1D1B;
-  --ink: #FFF7E8;
-  --ink-2: #BDB7AD;
-  --ink-3: #807B74;
-  --ink-4: #5E5A54;
-  --line: #2A2927;
-  --line-strong: #3A3835;
+  --surface: #1E1E1D;
+  --surface-2: #2A2A28;
+  --ink: #FAF8F4;
+  --ink-2: #A6A5A2;
+  --ink-3: #777674;
+  --ink-4: #4A4947;
+  --line: #2A2A28;
+  --line-strong: #3A3A38;
   --hairline: 1px solid var(--line);
-  --primary: #FFF7E8;          /* buttons: cream on dark */
-  --primary-hover: #F4EFE6;
+  --primary: #FAF8F4;          /* buttons: Paper on dark */
+  --primary-hover: #E9E5DD;
   --on-primary: #0B0B0B;
-  --primary-soft: #1E1D1B;
-  --accent-text: #CFAB71;
+  --primary-soft: #2A2A28;
+  --accent-text: #C2A878;
   --danger: #E9A08A;
-  --status-quiet: #79A784;
-  --status-moderate: #D4A548;
-  --status-packed: #D27560;
-  --bezel: #2A2927;
+  --bezel: #2A2A28;
   --scrim: rgba(0, 0, 0, 0.6);
   /* Logo on dark */
   --logo-ink: var(--ink);
-  --logo-face: #CFAB71;
-  --logo-side: #7F5E35;
-  --logo-top: #4F351C;
+  --logo-face: #C2A878;
+  --logo-side: #775C38;
+  --logo-top: #4A341E;
 }
 
 /* ---------------------------------------------------------------------
    2b. Matcha mode: a second flavour for the member app only. router.js
    sets data-flavour="matcha" on <html> on #/app routes when the member
-   picks it (the café view and landing stay coffee). Colour tokens only;
-   coffee above stays the default. One muted green accent: #6E8B3D for
-   rings and bars, #4E6A25 where it is text (AA on every light surface).
-   Status colours are unchanged.
+   picks it (the café view, consoles and kit stay coffee). The neutrals
+   are the coffee ones (Ink, Paper, Stone): only the accent, the card and
+   the logo bricks turn green. #6E8B3D for rings and bars, #4E6A25 where
+   it is text (AA on every light surface). Status colours are unchanged.
    --------------------------------------------------------------------- */
 :root[data-flavour="matcha"] {
-  --black: #0C0F0D;
-  --cream: #F1F3EA;
   --accent: #6E8B3D;         /* ceremonial matcha */
   --accent-deep: #3F5A22;
-  --espresso: #1E261B;
-  --mocha: #5E7236;
-  --roast: #2F4220;
-
-  --bg: #F5F6F2;             /* porcelain with a breath of green */
-  --surface: #FFFFFF;
-  --surface-2: #EDEFE8;
-  --ink: #161D17;            /* tea leaf, nearly black */
-  --ink-2: #434A44;
-  --ink-3: #676E68;
-  --ink-4: #A6ABA3;          /* placeholders and decoration only */
-  --line: #E0E3DA;
-  --line-strong: #CBD0C4;
-  --primary: #161D17;
-  --primary-hover: #2B332C;
-  --on-primary: #FFFFFF;
-  --primary-soft: #EDEFE8;
   --accent-text: #4E6A25;
-  --bezel: #1E261B;
-  --scrim: rgba(17, 22, 17, 0.32);
-  --logo-face: #3F5A22;
-  --logo-side: #26361A;
-  --logo-top: #6E8B3D;
+  --logo-face: #6E8B3D;
+  --logo-side: #3F5A22;
+  --logo-top: #26361A;
   /* Member card in Matcha: near-black green, matcha rings, foam type */
   --card-bg: #0C100D;
   --card-ring: #A6C46A;
@@ -239,46 +231,16 @@
 }
 @media (prefers-color-scheme: dark) {
   :root[data-flavour="matcha"]:not([data-theme="light"]) {
-    --bg: #0A0C0B;             /* black lacquer, the faintest green */
-    --surface: #121513;
-    --surface-2: #1A1E1B;
-    --ink: #EEF1E6;            /* foam */
-    --ink-2: #B5B9B0;          /* neutral greys: no olive mud */
-    --ink-3: #7E837C;
-    --ink-4: #4F544E;
-    --line: #222724;
-    --line-strong: #303631;
-    --primary: #EEF1E6;
-    --primary-hover: #DDE2D4;
-    --on-primary: #0A0C0B;
-    --primary-soft: #1A1E1B;
     --accent: #A6C46A;         /* fresh ceremonial matcha, used sparingly */
     --accent-text: #A6C46A;
-    --bezel: #222724;
-    --scrim: rgba(0, 0, 0, 0.6);
     --logo-face: #A6C46A;
     --logo-side: #6E8B3D;
     --logo-top: #3F5A22;
   }
 }
 :root[data-flavour="matcha"][data-theme="dark"], [data-flavour="matcha"] .theme-dark {
-  --bg: #0A0C0B;
-  --surface: #121513;
-  --surface-2: #1A1E1B;
-  --ink: #EEF1E6;
-  --ink-2: #B5B9B0;
-  --ink-3: #7E837C;
-  --ink-4: #4F544E;
-  --line: #222724;
-  --line-strong: #303631;
-  --primary: #EEF1E6;
-  --primary-hover: #DDE2D4;
-  --on-primary: #0A0C0B;
-  --primary-soft: #1A1E1B;
   --accent: #A6C46A;
   --accent-text: #A6C46A;
-  --bezel: #222724;
-  --scrim: rgba(0, 0, 0, 0.6);
   --logo-face: #A6C46A;
   --logo-side: #6E8B3D;
   --logo-top: #3F5A22;
@@ -312,7 +274,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01" on, "cv11" on;
   padding-top: calc(var(--proto-h) + env(safe-area-inset-top));
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
@@ -322,6 +283,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
 a { color: inherit; }
 ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
+b, strong, th { font-weight: 600; }   /* no Bold: SemiBold is the heaviest */
 ::selection { background: var(--primary-soft); color: var(--ink); }
 
 :focus { outline: none; }
@@ -386,6 +348,20 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
   line-height: 1.4;
 }
 [lang="ur"], .urdu { font-family: var(--font-urdu); }
+/* Display: Versailles, capitals only, tracked, five words at most.
+   Screen titles in the member app, console page titles and section
+   headings. Never buttons, prices, labels, paragraphs or the counter's
+   working UI. */
+.t-title, .pd-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--track-display);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.t-title { font-size: var(--fs-28); }
+.phone__screen .t-title { font-size: 24px; letter-spacing: 0.12em; }
 .num, .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on, "lnum" on; }
 .measure { max-width: var(--measure); }
 /* Logos are inline SVGs (ui.logo); colours come from --logo-* */
@@ -696,7 +672,7 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink);
   font-size: calc(var(--av, 40px) * 0.38);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1;
 }
@@ -748,9 +724,9 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
   border: 1px solid var(--line-strong);
   color: var(--ink);
   font-size: var(--fs-14);
-  font-weight: 700;
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;          /* centres tracked text */
+  font-weight: 600;
+  letter-spacing: var(--track-caps);
+  text-indent: 0.2em;          /* centres tracked text */
 }
 .status.is-changed .status__icon { animation: status-settle 600ms var(--ease); }
 @keyframes status-settle {
@@ -976,7 +952,6 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 .proto-demo__menu a.proto-demo__branch { padding-left: var(--space-5); }
 .proto-bar__drop .proto-bar__link { border: 0; background: none; cursor: pointer; }
 @media (max-width: 720px) { .proto-bar__long { display: none; } }
-@media (max-width: 460px) { .proto-bar__nav > a[href="#/"] { display: none; } }
 @media (max-width: 560px) {
   .proto-bar { grid-template-columns: auto 1fr; }
   .proto-bar__label { display: none; }
@@ -988,40 +963,6 @@ textarea.input { height: auto; min-height: 120px; padding: var(--space-4); line-
 #main { display: block; min-height: calc(100dvh - var(--proto-h)); }
 #main:focus { outline: none; }
 .surface { animation: enter var(--dur-3) var(--ease) both; }
-
-/* Landing shell ------------------------------------------------------ */
-.landing-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
-  height: 80px;
-}
-.landing-nav__links { display: flex; align-items: center; gap: var(--space-6); }
-.landing-nav__link {
-  font-size: var(--fs-14);
-  color: var(--ink-2);
-  text-decoration: none;
-  transition: color var(--dur-1) var(--ease);
-}
-.landing-nav__link:hover { color: var(--ink); }
-@media (max-width: 760px) { .landing-nav__link { display: none; } }
-.landing-section {
-  padding-block: var(--space-9);
-  border-top: var(--hairline);
-  scroll-margin-top: calc(var(--proto-h) + 16px);
-}
-.landing-section:first-of-type { border-top: 0; padding-top: var(--space-8); }
-.landing-section__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: var(--space-5);
-  align-items: baseline;
-}
-@media (max-width: 760px) {
-  .landing-section { padding-block: var(--space-8); }
-  .landing-section__head { grid-template-columns: 1fr; gap: var(--space-2); }
-}
 
 /* Member app shell: phone frame -------------------------------------- */
 .stage {

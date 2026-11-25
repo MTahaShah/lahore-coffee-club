@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — cafe.js
+   The Round — cafe.js
    The counter (#/cafe), built for speed on a cheap Android phone held in
    one hand. Works for any brand: one branch or many.
 
@@ -190,8 +190,8 @@
         el.innerHTML = html`
           <div class="surface ct ct--setup">
             <form class="ct-setup" data-setup novalidate>
-              ${ui.logo("ring", { label: null, cls: "ct-setup__ring" })}
-              <h1 class="ct-name">Set up this counter</h1>
+              ${ui.logo("wordmark", { cls: "ct-setup__wordmark" })}
+              <h1 class="ct-name t-title">Set up this counter</h1>
               <p class="t-body t-muted">Enter your branch’s setup code. You do this once; after that this device stays on your branch.</p>
               <div class="field" data-invalid="${!!err}">
                 <label class="field__label" for="ct-setup-code">Branch setup code</label>
@@ -254,7 +254,7 @@
         </div>`;
       }
       const fieldLabel = () => (mode === "code" ? "6-digit code" : mode === "name" ? "Name or last 4 digits of phone" : "Member number");
-      const fieldHint = () => (mode === "code" ? "The code under the QR on the member’s pass." : mode === "name" ? "Type a first or last name." : "Ask for their number: “LCC 42”. Also finds a name or the last 4 digits of a phone.");
+      const fieldHint = () => (mode === "code" ? "The code under the QR on the member’s pass." : mode === "name" ? "Type a first or last name." : "Ask for their number: “No. 42”. Also finds a name or the last 4 digits of a phone.");
       function paintField() {
         const q = $("[data-q]", el);
         if (q && q.value !== query) q.value = query;
@@ -531,7 +531,7 @@
             <span class="ct-mod__label t-small">Extras <span class="t-faint">· pay at counter</span></span>
             <div class="ct-extras" role="group" aria-label="Paid extras, pay at counter">${b.extras.map((x) => html`<button type="button" class="chip" data-extra="${x.id}" aria-pressed="${choices.extras.includes(x.id)}">${x.label}</button>`)}</div>
           </div>` : ""}
-          <p class="t-micro t-faint">Mods are free. Extras are paid at the counter, not charged through LCC.</p>`;
+          <p class="t-micro t-faint">Mods are free. Extras are paid at the counter, not charged through The Round.</p>`;
       }
       function paintMods() {
         const box = $("[data-mods]", el);
@@ -637,7 +637,7 @@
           <p class="ct-done__ref num">Ref ${entry.ref || S.redemptionRef(entry)}</p>
           ${modLine(entry) ? html`<p class="t-body">${modLine(entry)}</p>` : ""}
           ${entry.topUp || entry.extras?.length ? html`<p class="ct-collect">Collect at the counter: ${[entry.topUp ? "the top-up" : "", ...(entry.extras || []).map((x) => x.label.toLowerCase())].filter(Boolean).join(", ")}</p>` : ""}
-          <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong></p>
+          <p class="cv-till">Ring it up on your till as: <strong>The Round member</strong></p>
           <p class="t-small t-faint num">${fmt.time(entry.at)} · ${plan.name}, ${fmt.cups(left)} left</p>
           <div class="ct-done__acts">
             <button type="button" class="btn btn--secondary" data-undo="${entry.id}">Undo</button>
@@ -771,7 +771,7 @@
           // The static member pass: the QR is the membership number
           const m = S.memberByNo(payload);
           const msg = $("[data-scan-msg]", el);
-          if (!m) { if (msg) msg.textContent = "That number isn’t an LCC member. Ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
+          if (!m) { if (msg) msg.textContent = "That number isn’t a member of The Round. Ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
           ui.closeSheet($("#ct-scan-sheet", el));
           stopScan();
           if (tab !== "counter") showTab("counter");
@@ -780,7 +780,7 @@
         const [, memberId, code] = payload.split(":");
         const found = store.findMemberByCode(code);
         const msg = $("[data-scan-msg]", el);
-        if (!found || found.member.id !== memberId) { if (msg) msg.textContent = "That isn’t an LCC pass. Try again, or ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
+        if (!found || found.member.id !== memberId) { if (msg) msg.textContent = "That isn’t a pass from The Round. Try again, or ask for their number."; scanLoop = setTimeout(() => openScanLoopResume(), 1200); return; }
         if (found.expired) { if (msg) msg.textContent = `That code has expired. Ask ${found.member.firstName} to open their pass again.`; scanLoop = setTimeout(() => openScanLoopResume(), 1500); return; }
         ui.closeSheet($("#ct-scan-sheet", el));
         stopScan();
@@ -854,7 +854,7 @@
             <div><dt>Placed</dt><dd><span data-rel-time="${o.placedAt}">${fmt.ago(o.placedAt)}</span></dd></div>
           </dl>
           ${o.items ? "" : html`<p class="t-small t-muted num">${ticketPayLine(o)}</p>`}
-          <p class="cv-till">Ring it up on your till as: <strong>LCC member</strong> <span class="t-muted num">· Ref ${S.pickupRef(o)}</span></p>
+          <p class="cv-till">Ring it up on your till as: <strong>The Round member</strong> <span class="t-muted num">· Ref ${S.pickupRef(o)}</span></p>
           ${acts}
         </li>`;
       }
@@ -930,7 +930,7 @@
         const res = A.advancePickup(id);
         if (!res.ok) return paintOrders();
         const o = res.order;
-        if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as LCC member.`, { duration: 4200 });
+        if (o.status === "collected") ui.toast(`${o.memberName}’s ${S.pickupDrinkName(o)} collected · ${S.pickupRef(o)}. Ring it up as The Round member.`, { duration: 4200 });
         else if (o.status === "ready") ui.toast(`${o.memberName} has been told it’s ready.`);
         paintOrders({ focusId: o.status === "collected" ? null : id });
         if (view === "member") paintPanel();
@@ -1175,7 +1175,7 @@
         if (e.target.matches("[data-find]")) {
           e.preventDefault();
           // A USB or Bluetooth scanner reading the static pass types "LCC-0042" and Enter
-          if (STATIC_QR.test(query.trim())) { const sm = S.memberByNo(query.trim()); query = ""; mode = "number"; paintTab(); if (sm) return pickMember(sm.id, "scan"); message = { title: "Number not found", line: "That pass isn’t an LCC member. Ask for their number." }; return paintPanel(); }
+          if (STATIC_QR.test(query.trim())) { const sm = S.memberByNo(query.trim()); query = ""; mode = "number"; paintTab(); if (sm) return pickMember(sm.id, "scan"); message = { title: "Number not found", line: "That pass isn’t a member of The Round. Ask for their number." }; return paintPanel(); }
           if (mode === "code") return query.length === 6 ? checkCode() : (message = { title: `That’s ${query.length} digit${query.length === 1 ? "" : "s"}`, line: "Codes have six." }, paintPanel());
           const res = S.counterSearch(query, branch().id);
           if (res.results.length === 1 || (res.results[0] && String(res.results[0].member.memberNo) === query)) pickMember(res.results[0].member.id, "number", { verified: res.results[0].match === "phone" });

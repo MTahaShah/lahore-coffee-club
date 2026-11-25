@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-brand.js
+   The Round — app-brand.js
    Member app: a brand partner's page (#/app/cafes/doubleshot, also
    reached from any branch's row or pin). Your cups, the drinks menu with
    a Hot / Iced toggle (menu prices), ordering ("Use a cup"), branches.
@@ -45,7 +45,7 @@
 
     /** What this drink costs the member: the Pass's member price, or what a cup covers. */
     const coverLine = (p) => (S.isPass()
-      ? `${Math.round(S.planConfig().pass.discount * 100)}% off with your ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
+      ? `${Math.round(S.planConfig().pass.discount * 100)}% off with ${S.passTier().name}${S.passToday().used ? " tomorrow; today it’s full price" : ", at the counter"}.`
       : p.included ? "Included in your cup." : `Cup + ${fmt.rs(p.topUp)}. Your cups cover up to ${fmt.rs(cover)}; you pay the difference at the till.`);
 
     /* ---------------- Your cups ---------------- */
@@ -211,7 +211,7 @@
               <span class="monogram" aria-hidden="true">${b.monogram}</span>
               <div class="stack" style="--stack-gap:var(--space-1)">
                 <p class="eyebrow">Partner · ${S.branches(b.id).length} branches</p>
-                <h1 class="t-h1" data-detail-title>${b.name}</h1>
+                <h1 class="t-title" data-detail-title>${b.name}</h1>
               </div>
             </div>
             <p class="t-body t-muted">${b.line}</p>

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — data.js
+   The Round — data.js
    Seed data. Fictional, except one demo partner: Double Shot, a real
    Lahore chain, shown by name only (no logo; a neutral "DS" monogram).
    Timestamps are relative to page load so “updated 6 min ago” reads true.
@@ -16,7 +16,7 @@
   const daysAgo = (d, m = 0) => now - d * DAY - m * MIN;
   const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
-  /* Pricing rules, shared by the builder and the landing teaser ------- */
+  /* Pricing rules, shared by the plan builder ------- */
   const rules = {
     roundTo: 50,               // round monthly price to nearest Rs 50
     maxCupsPerCafe: 30,
@@ -54,8 +54,8 @@
     // Prices are per month, tax included. Plus: the second coffee is for the
     // same visit (same branch, within secondCupMinutes of the first), so it can
     // be for a friend. No member-facing savings figures anywhere.
-    pass: { id: "pass", tier: "pass", name: "LCC Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true },
-    plus: { id: "plus", tier: "plus", name: "LCC Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
+    pass: { id: "pass", tier: "pass", name: "The Round Pass", price: 399, discount: 0.20, dailyLimit: 1, taxIncluded: true },
+    plus: { id: "plus", tier: "plus", name: "The Round Pass Plus", price: 699, discount: 0.20, dailyLimit: 2, taxIncluded: true,
       secondCupMinutes: 30 },
     packDays: 45,         // a pack's cups last this many days from purchase
     packDailyLimit: 1,    // pack cups a member can use in a day, at any café (no per-café limit)
@@ -83,7 +83,7 @@
   const BANDS = [
     // From the 17 Nov 2026 menu research (13 Lahore cafés): each band's cup is valued
     // halfway between its average and top price (Classic 694, Signature 922, Reserve 1,270).
-    // A My cafés cup cost the member about 80% (landing teaser only). Cafés are paid by
+    // A My cafés cup cost the member about 80%. Cafés are paid by
     // PLAN_CONFIG.rateSteps, not by band.
     // line, examples: the member app's "What your cup covers" sheet (typical drinks, from the menus above)
     { id: "classic",   label: "Classic",   maxPrice: PLAN_CONFIG.bandLimits.classic,   myCafesPrice: 550,
@@ -462,7 +462,7 @@
     // own cycle); Mumtaz holds one.
     // BACKEND: subscriptions (member_id, plan, cycle, renews_at), many per member
     // BACKEND: member numbers come from a database sequence, issued once at sign-up.
-    // Unique across the whole club: said at the counter as "LCC 42".
+    // Unique across the whole club: said at the counter as "No. 42".
     memberNo: 42,
     // visits and cafesTried are filled in from the ledger below
   };
@@ -1249,7 +1249,7 @@
     { id: "cold",     name: "Cold drinks" },
   ];
 
-  /* Every member has a club-wide number (unique; said "LCC 42"), initials
+  /* Every member has a club-wide number (unique; said "No. 42"), initials
      for the avatar, and a phone (the counter can match its last 4 digits).
      Background members get numbers no one else holds, in a fixed order. */
   (function numberEveryone() {

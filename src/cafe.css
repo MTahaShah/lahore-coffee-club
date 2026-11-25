@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — cafe.css
+   The Round — cafe.css
    Café partner view (#/cafe): header, a slim rail (tablet) or segmented
    tabs (phone), and four sections. Black, white and cream; hairlines,
    not boxes; coffee colours only as small accents (BRAND.md).
@@ -166,7 +166,7 @@
 .cv-success__title { font-size: var(--fs-28); line-height: 1.15; }
 .cv-success__ref { font-size: var(--fs-20); color: var(--ink-2); letter-spacing: 0.04em; }
 .cv-till { width: 100%; padding: var(--space-3) 0; border-block: var(--hairline); }
-.cv-till strong { font-weight: 700; }
+.cv-till strong { font-weight: 600; }
 .cv-success .btn { margin-top: var(--space-2); }
 /* A thin bar that empties over the 6 s before the counter resets */
 .cv-success__timer { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line); transform-origin: left; animation: cv-timer 6s linear both; }
@@ -195,7 +195,7 @@
 .cv-busy__opt:hover { color: var(--ink); }
 .cv-busy__opt[aria-checked="true"] { background: var(--primary); color: var(--on-primary); }
 .cv-busy__icon { width: 16px; height: 16px; flex: none; }
-[data-busy-line] strong { font-weight: 700; color: var(--ink); }
+[data-busy-line] strong { font-weight: 600; color: var(--ink); }
 @media (max-width: 420px) { .cv-busy__icon { display: none; } }
 
 /* Today and Payouts ---------------------------------------------------- */
@@ -225,7 +225,7 @@
 .cv-table .r { text-align: right; padding-right: 0; }
 .cv-table tfoot th, .cv-table tfoot td { border-bottom: 0; color: var(--ink-2); font-weight: 400; }
 .cv-table tfoot td { color: var(--ink); }
-.cv-paid { font-weight: 700; }
+.cv-paid { font-weight: 600; }
 @media (max-width: 520px) {
   .cv-table { font-size: var(--fs-14); }
   .cv-table th, .cv-table td { padding-right: var(--space-2); }
@@ -280,7 +280,7 @@
 .cv-order__head [hidden] { display: none; }
 .cv-order .segmented { max-width: 240px; }
 .cv-order__cover { font-size: var(--fs-16); }
-.cv-topup { font-weight: 700; }
+.cv-topup { font-weight: 600; }
 p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .cv-success__drink { font-size: var(--fs-20); }
 .cv-table tr.is-here td { font-weight: 500; }
@@ -316,8 +316,8 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 }
 .cv-ticket[data-status="placed"] { border-color: var(--ink); }   /* new: needs someone to start it */
 .cv-ticket__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.cv-ticket__state { font-size: var(--fs-12); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-2); }
-.cv-ticket[data-status="placed"] .cv-ticket__state { color: var(--ink); font-weight: 700; }
+.cv-ticket__state { font-size: var(--fs-12); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-2); }
+.cv-ticket[data-status="placed"] .cv-ticket__state { color: var(--ink); font-weight: 600; }
 .cv-ticket__name { font-size: var(--fs-28); line-height: 1.1; }
 .cv-ticket__drink { font-size: var(--fs-20); line-height: 1.25; }
 .cv-ticket__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
@@ -337,7 +337,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .cv-items { display: grid; border-block: var(--hairline); }
 .cv-items li { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr) auto; gap: var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-bottom: var(--hairline); font-size: var(--fs-16); }
 .cv-items li:last-child { border-bottom: 0; }
-.cv-items__who { font-weight: 700; }
+.cv-items__who { font-weight: 600; }
 .cv-items__total { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--fs-16); }
 
 /* =====================================================================
@@ -357,7 +357,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-name { font-size: var(--fs-28); font-weight: 400; line-height: 1.1; }
 .ct-head__status { margin-top: 2px; font-size: var(--fs-14); }
 .ct-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.ct-status strong { font-weight: 700; }
+.ct-status strong { font-weight: 600; }
 .ct-status__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
 .ct-status[data-state="paused"] .ct-status__dot,
 .ct-status[data-state="closed"] .ct-status__dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
@@ -365,7 +365,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-shift__name { min-height: 40px; padding: 0 var(--space-4); font-size: var(--fs-14); }
 .ct-shift { align-items: center; }
 .ct-shift__who { font-size: var(--fs-16); }
-.ct-shift__who strong { font-weight: 700; }
+.ct-shift__who strong { font-weight: 600; }
 .ct-shift__exec { margin-left: auto; font-size: var(--fs-14); }
 .ct-title { font-size: var(--fs-28); font-weight: 400; line-height: 1.15; }
 
@@ -377,7 +377,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 /* Setup and shift start */
 .ct--setup { min-height: calc(100dvh - var(--proto-h)); align-content: center; }
 .ct-setup { display: grid; gap: var(--space-4); width: min(440px, 100%); margin-inline: auto; padding: var(--space-6) 0; }
-.ct-setup__ring { width: 56px; }
+.ct-setup__wordmark { width: 180px; }
 .ct-setup__input { height: 64px; font-size: var(--fs-28); letter-spacing: 0.08em; text-transform: uppercase; }
 .ct-start { display: grid; gap: var(--space-3); padding: var(--space-5) 0; }
 .ct-start__names { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
@@ -414,7 +414,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 }
 
 .ct-field__top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
-.ct-field__label { font-size: var(--fs-14); font-weight: 700; letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-2); }
+.ct-field__label { font-size: var(--fs-14); font-weight: 600; letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-2); }
 .ct-field__links { display: inline-flex; flex-wrap: wrap; gap: var(--space-3); }
 .ct-field__links .btn--link { font-size: var(--fs-14); white-space: normal; text-align: left; }
 .ct-field__row { display: flex; gap: var(--space-2); }
@@ -466,17 +466,17 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 .ct-result:hover { background: var(--surface-2); }
 .ct-result:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .ct-result__main { flex: 1; min-width: 0; display: grid; gap: 2px; }
-.ct-result__name { font-size: var(--fs-20); font-weight: 700; line-height: 1.2; }
+.ct-result__name { font-size: var(--fs-20); font-weight: 600; line-height: 1.2; }
 .ct-result__meta { font-size: var(--fs-14); color: var(--ink-3); }
 .ct-result__trail { flex: none; max-width: 40%; text-align: right; font-size: var(--fs-14); color: var(--ink-2); }
 .ct-result__trail .num { font-size: var(--fs-20); color: var(--ink); }
 .ct-msg { display: grid; gap: var(--space-1); padding: var(--space-4); border: var(--hairline); border-radius: var(--radius-sm); }
-.ct-msg__title { font-size: var(--fs-20); font-weight: 700; }
+.ct-msg__title { font-size: var(--fs-20); font-weight: 600; }
 
 /* Member card */
 .ct-card { display: grid; gap: var(--space-4); }
 .ct-card__who { display: flex; align-items: center; gap: var(--space-4); }
-.ct-card__name { font-size: var(--fs-28); font-weight: 700; line-height: 1.1; }
+.ct-card__name { font-size: var(--fs-28); font-weight: 600; line-height: 1.1; }
 .ct-card__meta { margin-top: 4px; font-size: var(--fs-16); color: var(--ink-2); }
 .ct-card__cups { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: var(--fs-20); }
 .ct-card__cups > .num { font-size: var(--fs-40); line-height: 1; }
@@ -494,9 +494,9 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 /* Last 4 digits of the phone, when a Pass member's number was typed */
 .ct-verify { display: grid; gap: var(--space-3); }
 .ct-verify__input { max-width: 12ch; letter-spacing: 0.2em; }
-.ct-refuse__title { font-size: var(--fs-20); font-weight: 700; line-height: 1.2; }
+.ct-refuse__title { font-size: var(--fs-20); font-weight: 600; line-height: 1.2; }
 .ct-drink { display: grid; gap: 2px; padding: var(--space-3) 0; border-block: var(--hairline); }
-.ct-drink__name { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-20); font-weight: 700; }
+.ct-drink__name { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-20); font-weight: 600; }
 .ct-drink__price { font-size: var(--fs-16); font-weight: 400; color: var(--ink-2); }
 .ct-drink .btn--link { justify-self: start; }
 .ct-redeem { --btn-h: 72px; font-size: var(--fs-20); }
@@ -514,7 +514,7 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
   text-align: left; color: var(--ink); font-size: var(--fs-16);
 }
 .ct-menu__row:hover { background: var(--surface-2); }
-.ct-menu__row[aria-checked="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--ink); font-weight: 700; }
+.ct-menu__row[aria-checked="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--ink); font-weight: 600; }
 .ct-menu__row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .ct-menu__price { flex: none; font-size: var(--fs-14); color: var(--ink-2); font-weight: 400; }
 .ct-menu__row.is-off { color: var(--ink-3); cursor: not-allowed; }
@@ -533,20 +533,20 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 
 /* A pickup waiting, at the top of the member card */
 .ct-pickup { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1.5px solid var(--ink); border-radius: var(--radius-card); }
-.ct-pickup__drink { font-size: var(--fs-20); font-weight: 700; }
+.ct-pickup__drink { font-size: var(--fs-20); font-weight: 600; }
 
 /* placed → preparing → ready → collected */
 .ct-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: var(--space-1) 0; padding: 0; list-style: none; }
 .ct-steps__step { padding-top: 6px; border-top: 2px solid var(--line); font-size: var(--fs-12, 12px); color: var(--ink-3); }
 .ct-steps__step[data-done="true"] { border-top-color: var(--ink); color: var(--ink-2); }
-.ct-steps__step[aria-current="step"] { color: var(--ink); font-weight: 700; }
+.ct-steps__step[aria-current="step"] { color: var(--ink); font-weight: 600; }
 
 /* Done */
 .ct-done { position: relative; display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4) var(--space-6); text-align: center; border: var(--hairline); border-radius: var(--radius-card); overflow: hidden; }
 .ct-done .check-draw { width: 56px; height: 56px; color: var(--ink); }
-.ct-done__title { font-size: var(--fs-28); line-height: 1.15; font-weight: 700; }
+.ct-done__title { font-size: var(--fs-28); line-height: 1.15; font-weight: 600; }
 .ct-done__ref { font-size: var(--fs-28); letter-spacing: 0.06em; }
-.ct-collect { padding: var(--space-2) var(--space-4); border: 1.5px solid var(--ink); border-radius: var(--radius-pill); font-size: var(--fs-20); font-weight: 700; }
+.ct-collect { padding: var(--space-2) var(--space-4); border: 1.5px solid var(--ink); border-radius: var(--radius-pill); font-size: var(--fs-20); font-weight: 600; }
 .ct-done__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-2); }
 .ct-done__acts .btn { --btn-h: 56px; min-width: 140px; }
 .ct-done__timer { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line-strong); transform-origin: left; animation: cv-timer var(--secs, 5s) linear both; }
@@ -567,5 +567,5 @@ p.cv-topup { font-size: var(--fs-28); line-height: 1.15; }
 /* Café pass 2: LCC Pass at the counter (the one place with a price) --- */
 .ct-pass { margin: 0; font-size: var(--fs-16); }
 .ct-charge { margin: 0; font-size: var(--fs-28); }
-.ct-charge strong { font-weight: 700; }
+.ct-charge strong { font-weight: 600; }
 .cv-row__kind { flex: none; }

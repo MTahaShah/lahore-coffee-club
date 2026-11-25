@@ -1,8 +1,10 @@
 /* =====================================================================
-   Lahore Coffee Club — passport3d.js
-   The Club tab's passport as the real object: the same three.js passport
-   as the waitlist (waitlist/js/passport.js), its pages drawn from the
-   member's club data. build.sh carries three.js and the passport module
+   The Round — passport3d.js
+   The Club tab's passport as the real object: the prototype's own
+   three.js passport (src/vendor/passport.js, a rebranded copy of the
+   waitlist's; the two are now separate and waitlist/ is never edited),
+   its pages drawn from the member's club data. build.sh carries three.js
+   (read from waitlist/vendor/) and the passport module
    as inert text (<script type="text/plain" id="mod-…">); they become
    modules (blob URLs) only the first time the Club tab shows.
    The DOM book stays underneath: it's the accessible text, and what

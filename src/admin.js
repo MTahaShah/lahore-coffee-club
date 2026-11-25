@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — admin.js
+   The Round — admin.js
    The LCC admin panel (#/admin), desktop-first. Demo sign-in: any four
    digits. Four sections, all reading the one ledger and the store:
 
@@ -46,7 +46,7 @@
     adjust: "Adjust", reward: "Complimentary", gift: "Gift", expire: "Expire", beans: "Beans",
   };
   const PAGE = 100;
-  const ADMIN = { id: "lcc-admin", name: "LCC admin" };
+  const ADMIN = { id: "lcc-admin", name: "The Round Admin" };
 
   let session = null; // { at }, in memory only
 
@@ -99,9 +99,9 @@
       function renderSignIn(err = "") {
         el.innerHTML = html`<div class="surface pd pd--signin">
           <form class="ct-setup" data-ad-signin novalidate>
-            ${ui.logo("ring", { label: null, cls: "ct-setup__ring" })}
-            <h1 class="ct-name">LCC admin</h1>
-            <p class="t-body t-muted">For the Lahore Coffee Club team.</p>
+            ${ui.logo("wordmark", { cls: "ct-setup__wordmark" })}
+            <h1 class="ct-name t-title">The Round Admin</h1>
+            <p class="t-body t-muted">For the team at The Round.</p>
             <div class="field" data-invalid="${!!err}">
               <label class="field__label" for="ad-pin">Admin PIN</label>
               <input class="input ct-setup__input num" id="ad-pin" name="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-describedby="ad-pin-hint ad-pin-err" aria-invalid="${!!err}">
@@ -120,9 +120,9 @@
         el.innerHTML = html`<div class="surface pd ad">
           <header class="pd-head">
             <div class="ct-head__id">
-              <span class="monogram" aria-hidden="true">LCC</span>
+              <span class="ad-mark">${ui.logo("mark")}</span>
               <div>
-                <h1 class="ct-name">Admin</h1>
+                <h1 class="ct-name t-title">Admin</h1>
                 <p class="t-small t-muted">${S.partnerBrands().length} partners · ${S.cafes().length} branches · ${members().length} members · ${fmt.date(Date.now())}</p>
               </div>
             </div>
@@ -198,14 +198,14 @@
           <h3 class="eyebrow">Menu</h3>
           <p class="t-small t-muted">The band comes from the menu price and sets what a pack covers. The café is paid its rate step for the month (${S.planConfig().rateSteps.map((x) => `${Math.round(x.rate * 100)}%`).join(", ")}) times the drink’s price, up to the pack’s band. “Not in plan” keeps a drink out of cup packs: members pay for it as usual.</p>
           <div class="ad-scroll"><table class="ad-table">
-            <thead><tr><th>Drink</th><th>Section</th><th>Size</th><th class="ad-num">Hot</th><th class="ad-num">Iced</th><th>Band</th><th>LCC</th></tr></thead>
+            <thead><tr><th>Drink</th><th>Section</th><th>Size</th><th class="ad-num">Hot</th><th class="ad-num">Iced</th><th>Band</th><th>In plans</th></tr></thead>
             <tbody>${b.menu.map((d) => {
               const band = S.itemBand(d);
               return html`<tr class="${d.inPlan === false ? "is-off" : ""}">
                 <td>${d.name}</td><td class="t-small t-muted">${d.section || ""}</td><td class="t-small">${d.size || "–"}</td>
                 <td class="ad-num num">${d.hot != null ? fmt.rs(d.hot) : "–"}</td><td class="ad-num num">${d.iced != null ? fmt.rs(d.iced) : "–"}</td>
                 <td>${band ? band.label : "Above Reserve"}</td>
-                <td><label class="ad-switch"><input type="checkbox" role="switch" class="switch" data-ad-inplan="${d.id}" data-fk="inplan-${d.id}" ${d.inPlan === false ? "" : raw("checked")} aria-label="${d.name} in LCC plans">
+                <td><label class="ad-switch"><input type="checkbox" role="switch" class="switch" data-ad-inplan="${d.id}" data-fk="inplan-${d.id}" ${d.inPlan === false ? "" : raw("checked")} aria-label="${d.name} in member plans">
                   <span class="t-small">${d.inPlan === false ? "Not in plan" : "In plan"}</span></label></td>
               </tr>`;
             })}</tbody></table></div>
@@ -228,7 +228,7 @@
           ${head("Members", "Search by membership number or name. Names repeat, so the number is always shown.")}
           <div class="pd-filters">
             <label class="pd-filter ad-grow"><span class="t-micro t-faint">Number or name</span>
-              <input class="input" type="search" data-ad-mq data-fk="mq" value="${memberQuery}" placeholder="42, LCC 42 or Mumtaz" autocomplete="off"></label>
+              <input class="input" type="search" data-ad-mq data-fk="mq" value="${memberQuery}" placeholder="42, No. 42 or Mumtaz" autocomplete="off"></label>
           </div>
           ${memberQuery ? html`<ul class="ad-results" role="list">${results.length ? results.map((x) => html`<li>
               <button type="button" class="ad-result" data-open-member="${x.id}" aria-current="${x.id === memberId}">
@@ -382,7 +382,7 @@
         if (t.matches("[data-ad-inplan]")) {
           const res = A.setInPlan(brandId, t.dataset.adInplan, t.checked);
           paint();
-          return res.ok && ui.toast(`${res.item.name} is ${res.item.inPlan ? "in LCC plans" : "not in plan"} now. Counters and the app follow.`);
+          return res.ok && ui.toast(`${res.item.name} is ${res.item.inPlan ? "in member plans" : "not in plan"} now. Counters and the app follow.`);
         }
         if (t.matches("[data-ad-month]")) { payMonth = Number(t.value); return paint(); }
         const k = t.dataset?.lf;

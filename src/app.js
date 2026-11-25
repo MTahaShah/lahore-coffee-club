@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app.js
+   The Round — app.js
    Member app (#/app). Replaces the Pass 1 shell in router.js.
 
    Routes:  #/app (Home) · #/app/cafes (List | Map) · #/app/cafes/:id
@@ -84,7 +84,7 @@
     </svg>`;
   }
 
-  // The landing page's busy-map teaser draws the same map
+  // The Cafés tab draws this map
   LCC.memberMap = { svg: mapSvg, project, labelSide: LABEL_SIDE, width: MAP_W, height: MAP_H };
 
   /* -------------------------------------------------------------------
@@ -314,12 +314,12 @@
           html: html`
             <div class="app-screen home${hasPickup() ? " has-pickup" : ""}">
               <div class="app-top">
-                <div class="app-brand">${ui.logo("monogram-horizontal")}</div>
+                <div class="app-brand">${ui.logo("mark")}</div>
                 ${profileButton()}
               </div>
               <div>
                 <p class="t-small t-muted">${fmt.date(Date.now())}</p>
-                <h1 class="t-h2">Salaam, ${m.firstName}.</h1>
+                <h1 class="t-title">Salaam, ${m.firstName}</h1>
               </div>
               <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
@@ -502,7 +502,7 @@
 
             <section class="drawer__section" aria-labelledby="dr-help">
               <h3 class="eyebrow" id="dr-help">Help</h3>
-              <p class="t-small t-muted">Show your pass at the counter. On the LCC Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code. On the LCC Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
+              <p class="t-small t-muted">Show your pass at the counter. On The Round Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code. On The Round Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
               <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
             </section>
           </div>`;
@@ -583,7 +583,7 @@
           <h2 class="t-h3" id="wallet-title">${where}</h2>
           <div class="wallet-card">
             <div class="wallet-card__top">
-              <span class="wallet-card__logo">${ui.logo("monogram-horizontal")}</span>
+              <span class="wallet-card__logo">${ui.logo("mark")}</span>
               <span class="t-micro wallet-card__tier">${T.name}</span>
             </div>
             <dl class="wallet-card__rows">
@@ -725,14 +725,14 @@
           const b = S.balance();
           return `${S.planLabel(m2)} · ${Math.max(0, b.left)} of ${b.total} cups left`;
         }
-        function cardNo(n) { return `LCC-${String(n).padStart(4, "0")}`; }
+        function cardNo(n) { return String(n).padStart(4, "0"); }
 
         /** Pass members: today's member coffee, in words, from the ledger (every café). */
         function passTodayLine() {
           const m2 = member();
           const ps = S.passStatus(m2.id);
           const T = ps.tier;
-          if (ps.state === "suspended") return "Your membership is suspended. Please contact LCC.";
+          if (ps.state === "suspended") return "Your membership is suspended. Please contact The Round.";
           if (ps.state === "ended") return `Your pass ended on ${fmt.longDate(m2.renewsAt)}. Renew it in Choose your plan.`;
           if (ps.state === "paused") return "Your pass is paused.";
           if (ps.state === "used") return `Today: used at ${S.pickupPlace(ps.day.last.cafeId)} · ${fmt.time(ps.day.last.at)}. Back tomorrow.`;
@@ -750,9 +750,9 @@
           const ended = S.passEnded(m2.id);
           return html`
             <div class="mpass">
-              <div class="pass__logo">${ui.logo("monogram-horizontal")}</div>
+              <div class="pass__logo">${ui.logo("mark")}</div>
               <p class="pass-who" data-pass-who>${passWho()}</p>
-              <p class="pass__no num" aria-label="Membership number LCC ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
+              <p class="pass__no num" aria-label="Membership number ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
               <p class="eyebrow mpass__tier">${T.name}</p>
               <div class="qr" data-static-qr role="img" aria-label="QR code with your membership number, ${fmt.lcc(m2.memberNo)}">${raw(ui.qrSvg(staticPayload(m2), { fallback: `Tell the counter: ${fmt.lcc(m2.memberNo)}` }))}</div>
               <p class="t-small t-muted num">${ended ? "Ended" : "Valid until"} ${fmt.longDate(m2.renewsAt)}</p>
@@ -777,9 +777,9 @@
           const cafes = passCafes();
           card.innerHTML = html`
             <div class="pass__head">
-              <div class="pass__logo">${ui.logo("monogram-horizontal")}</div>
+              <div class="pass__logo">${ui.logo("mark")}</div>
               <p class="pass-who" data-pass-who>${passWho()}</p>
-              <p class="pass__no num" aria-label="Member number LCC ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
+              <p class="pass__no num" aria-label="Member number ${m2.memberNo}">${fmt.lcc(m2.memberNo)}</p>
             </div>
             <div class="qr" data-qr role="img" aria-label="QR code for your pass"></div>
             <div class="pass__codes">

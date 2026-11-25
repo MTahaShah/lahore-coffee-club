@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — ui.js
+   The Round — ui.js
    Small DOM helpers behind the components in base.css: safe templating,
    icons, toast, bottom sheet, number animation, and live bindings that
    keep status pills and “X min ago” text in sync with the store.
@@ -88,7 +88,7 @@
      --logo-side and --logo-top, so CSS sets the colours (ink for type, coffee tones for bricks).
      name: wordmark | monogram-horizontal | ring | app-icon-mark          */
   const logoCache = {};
-  function logo(name, { label = "Lahore Coffee Club", cls = "" } = {}) {
+  function logo(name, { label = "The Round", cls = "" } = {}) {
     if (!(name in logoCache)) {
       const tpl = document.getElementById(`logo-${name}`);
       logoCache[name] = tpl
@@ -97,7 +97,7 @@
     }
     const svg = logoCache[name];
     const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
-    if (!svg) return raw(`<span class="logo logo--${name} logo--text ${cls}" ${a11y}>Lahore Coffee Club</span>`);
+    if (!svg) return raw(`<span class="logo logo--${name} logo--text ${cls}" ${a11y}>The Round</span>`);
     return raw(`<span class="logo logo--${name} ${cls}" ${a11y}>${svg}</span>`);
   }
 
@@ -126,7 +126,7 @@
   }
 
   /* The logo ring as a meter ---------------------------------------------
-     The brick ring from the LCC logo (src/logos/ring.svg), brick for brick:
+     The brick ring from the logo (src/logos/ring.svg), brick for brick:
      its three layers (face, side, top) split into the 15 bricks, ordered
      clockwise from the gap at 3 o'clock. Filled bricks are gold in the
      logo's own three tones; the rest are empty placeholders, a beige
@@ -137,7 +137,14 @@
     const tpl = document.getElementById("logo-ring");
     const svg = tpl && (tpl.content || tpl).querySelector("svg");
     if (!svg) return (logoBricks = { bricks: [], viewBox: "0 0 100 100" });
-    const layers = [...svg.querySelectorAll("path")].map((p) => (p.getAttribute("d") || "").split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
+    // ring.svg: one <polygon> per brick and layer, the layer named by its
+    // fill (var(--logo-face | side | top)). Older files: one <path> per layer.
+    const polys = [...svg.querySelectorAll("polygon")];
+    const layers = polys.length
+      ? ["face", "side", "top"].map((k) => polys
+        .filter((p) => (p.getAttribute("style") || p.getAttribute("fill") || "").includes(`--logo-${k}`))
+        .map((p) => "M" + (p.getAttribute("points") || "").trim().split(/\s+/).join("L") + "Z"))
+      : [...svg.querySelectorAll("path")].map((p) => (p.getAttribute("d") || "").split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
     const centre = (d) => {
       const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number);
       let x = 0, y = 0, k = 0;

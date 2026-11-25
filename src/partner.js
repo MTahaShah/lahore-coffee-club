@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — partner.js
+   The Round — partner.js
    The owner dashboard (#/partner). Sign in with an executive PIN (6
    digits): the brand owner's sees every branch with per-branch totals
    (demo: Double Shot 000000, Drip 111111), a branch's sees that
@@ -173,8 +173,8 @@
       function renderSignIn(err = "", brandId = "doubleshot") {
         el.innerHTML = html`<div class="surface pd pd--signin">
           <form class="ct-setup" data-signin novalidate>
-            ${ui.logo("ring", { label: null, cls: "ct-setup__ring" })}
-            <h1 class="ct-name">Partner dashboard</h1>
+            ${ui.logo("wordmark", { cls: "ct-setup__wordmark" })}
+            <h1 class="ct-name t-title">Partner dashboard</h1>
             <p class="t-body t-muted">For café owners and branch managers.</p>
             <label class="field"><span class="field__label">Café or brand</span>
               <span class="select"><select class="input" name="brand">${S.partnerBrands().map((b) => html`<option value="${b.id}" ${b.id === brandId ? raw("selected") : ""}>${b.name}${S.branches(b.id).length > 1 ? ` (${S.branches(b.id).length} branches)` : ""}</option>`)}</select></span>
@@ -200,7 +200,7 @@
             <div class="ct-head__id">
               <span class="monogram" aria-hidden="true">${b.monogram}</span>
               <div>
-                <h1 class="ct-name">${b.name}</h1>
+                <h1 class="ct-name t-title">${b.name}</h1>
                 <p class="t-small t-muted">${roleLabel()} · ${fmt.date(Date.now())}</p>
               </div>
             </div>
@@ -285,9 +285,9 @@
           </div>
           <div class="pd-grid2">
             <div class="pd-card">
-              <h3 class="eyebrow">LCC Pass</h3>
+              <h3 class="eyebrow">The Round Pass</h3>
               <p class="t-body num">Pass cups: ${fmt.num(split.pass.cups)} · Discount given ${fmt.rs(split.pass.discount)} · Paid by members ${fmt.rs(split.pass.paid)}</p>
-              <p class="t-small t-faint">Members paid you at the counter. No LCC payout for these.</p>
+              <p class="t-small t-faint">Members paid you at the counter. No payout from The Round for these.</p>
             </div>
             <div class="pd-card">
               <h3 class="eyebrow">Cup packs</h3>
@@ -347,7 +347,7 @@
           const e = x.entry;
           return html`<li class="pd-feed__row pd-feed__row--report${x.report ? " enter" : ""}"><span class="pd-feed__time num">${fmt.time(x.at)}</span><span class="badge badge--accent">Report</span>
             <span class="pd-feed__main"><span><strong>“Not you”</strong> from ${shortName(S.member(x.report.memberId))}${e ? html` · ${S.entryDrinkName(e)} at ${fmt.time(e.at)}` : ""}</span>
-              <span class="pd-feed__meta t-small t-faint">${e ? `Ref ${e.ref || S.redemptionRef(e)} · served by ${S.staffMember(e.staffId)?.name || "the counter"}` : ""}${where} · LCC has a copy and will be in touch</span></span></li>`;
+              <span class="pd-feed__meta t-small t-faint">${e ? `Ref ${e.ref || S.redemptionRef(e)} · served by ${S.staffMember(e.staffId)?.name || "the counter"}` : ""}${where} · The Round has a copy and will be in touch</span></span></li>`;
         }
         const o = x.order;
         return html`<li class="pd-feed__row"><span class="pd-feed__time num">${fmt.time(x.at)}</span><span class="badge">Pickup</span>
@@ -453,7 +453,7 @@
           <div class="pd-stats">
             ${stat("This month so far", fmt.rs(m.earned), `${pl(m.cups, "cup")} and ${pl(m.paidCount, "paid order")}`)}
             ${stat("Pack cups", fmt.rs(m.cupEarned), m.rates.length === 1 ? `at ${Math.round(m.rates[0].rate * 100)}%, this month’s rate step` : `at each branch’s rate step: ${[...new Set(m.rates.map((r) => `${Math.round(r.rate * 100)}%`))].join(" · ")}`)}
-            ${stat("Paid orders", fmt.rs(m.paidNet), `after the ${m.feePct}% LCC fee`)}
+            ${stat("Paid orders", fmt.rs(m.paidNet), `after The Round’s ${m.feePct}% fee`)}
             ${m.paidThisMonth ? stat("This month", "Paid", `on ${fmt.longDate(m.paidThisMonth)} to the ${m.account.label} ending ${m.account.last4}`)
               : stat("Next payout", fmt.longDate(m.nextAt), `to the ${m.account.label} ending ${m.account.last4}`)}
           </div>
@@ -481,11 +481,11 @@
         const max = Math.max(1, ...x.hours.map((h) => h.cups));
         const top = x.busiest[0]?.hour;
         return html`<section class="pd-section">
-          ${head("Insights", `${scopeLabel()} · this month, from LCC cups only.`)}
+          ${head("Insights", `${scopeLabel()} · this month, from member cups only.`)}
           <div class="pd-stats">
-            ${stat("New faces this month", `${x.newPct}%`, `of LCC cups, from ${x.newMembers} ${x.newMembers === 1 ? "member" : "members"} new to ${brand().name}`)}
+            ${stat("New faces this month", `${x.newPct}%`, `of member cups, from ${x.newMembers} ${x.newMembers === 1 ? "member" : "members"} new to ${brand().name}`)}
             ${stat("Returning members", fmt.num(x.returning), `of ${x.members} this month had been before`)}
-            ${stat("LCC cups", fmt.num(x.total), "this month")}
+            ${stat("Member cups", fmt.num(x.total), "this month")}
           </div>
           <div class="pd-grid2">
             <div class="pd-card">

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-cafes.js
+   The Round — app-cafes.js
    Member app: Cafés tab (#/app/cafes) and café detail (#/app/cafes/:id).
    The tab is one map + list screen (Cafés search pass): the Lahore map
    behind everything, a floating search bar and quick chips, and a bottom
@@ -849,7 +849,7 @@
           <div class="app-screen cafe-detail__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
               <p class="eyebrow">${c.areaLine} · ${c.distanceKm} km</p>
-              <h1 class="t-h1">${c.name}</h1>
+              <h1 class="t-title">${c.name}</h1>
               <p class="t-body t-muted">${c.blurb}</p>
             </div>
             <section class="app-section" aria-labelledby="drinks-h">
@@ -948,7 +948,7 @@
           <div class="app-screen cafe-detail__body">
             <div class="stack" style="--stack-gap:var(--space-2)">
               <p class="eyebrow">${area.name} · ${c.distanceKm} km</p>
-              <h1 class="t-h1" data-detail-title>${c.name}</h1>
+              <h1 class="t-title" data-detail-title>${c.name}</h1>
               <p class="t-body t-muted">${c.blurb}</p>
             </div>
             <div class="cafe-detail__status">${ui.statusPill(c.id)}</div>
@@ -961,7 +961,7 @@
 
             <section class="app-section" aria-labelledby="drinks-h">
               <h2 class="eyebrow app-section__title" id="drinks-h">Drinks</h2>
-              <p class="t-small t-muted">Menu prices. With the ${S.passTier().name}: ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier().dailyLimit === 1 ? "one coffee a day" : "two a day, same visit"}.</p>
+              <p class="t-small t-muted">Menu prices. With ${S.passTier().name}: ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier().dailyLimit === 1 ? "one coffee a day" : "two a day, same visit"}.</p>
               <ul role="list">
                 ${(matchaMode() ? [...c.drinks.filter(isMatcha), ...c.drinks.filter((d) => !isMatcha(d))] : c.drinks).map((d) => html`<li>
                   <button type="button" class="row drink-row" data-start-order="${c.id}" data-drink="${d.id}" aria-label="${d.name}, ${fmt.rs(d.price)}, ${bandLabel(c, d)}. Order for pickup">

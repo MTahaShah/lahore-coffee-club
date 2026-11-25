@@ -1,14 +1,14 @@
 {
   "id": "./?app=cafe",
-  "name": "LCC Cafés",
-  "short_name": "LCC Cafés",
-  "description": "The Lahore Coffee Club counter: take member codes, set how busy you are, see payouts. Prototype.",
+  "name": "The Round Cafés",
+  "short_name": "Round Cafés",
+  "description": "The Round’s café counter: take member codes, set how busy you are, see payouts. Prototype.",
   "start_url": "./cafe.html#/cafe",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#FFF7E8",
-  "theme_color": "#FFF7E8",
+  "background_color": "#FAF8F4",
+  "theme_color": "#FAF8F4",
   "icons": [
     {
       "src": "icons/app-icon-192.png",

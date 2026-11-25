@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app.css
+   The Round — app.css
    Member app (#/app): tab bar, Pass, Home, Map, café sheet,
    Cafés, café detail, plan picker and payment.
    Builds on base.css; the phone frame itself lives there.
@@ -118,7 +118,7 @@
 .countdown .track { stroke: var(--line); }
 .countdown .bar { stroke: var(--ink-3); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
 .pass__head { display: grid; justify-items: center; gap: var(--space-2); }
-.pass__logo { width: 104px; margin-bottom: var(--space-2); }
+.pass__logo { width: 44px; margin-bottom: var(--space-2); }
 .pass__logo svg { display: block; width: 100%; height: auto; }
 .pass__no { font-size: var(--fs-16); color: var(--ink-2); letter-spacing: 0.04em; }
 .pass__stack { display: grid; justify-items: center; gap: var(--space-1); }
@@ -132,17 +132,17 @@
 .mpass .qr { margin: var(--space-3) 0 var(--space-1); }
 .mpass__tier { margin-top: var(--space-1); }
 .mpass__today { max-width: 32ch; }
-.mpass__wallets { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+.mpass__wallets { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-2); }
 .mpass__wallets .btn { gap: var(--space-2); }
 /* The simulated wallet card: plain, our own style (no official badges) */
 .wallet-card { display: grid; gap: var(--space-4); padding: var(--space-5); margin: var(--space-4) 0; border-radius: var(--radius-card); background: var(--card-bg); color: var(--card-ink); border: 1px solid var(--card-edge); }
 .wallet-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.wallet-card__logo { width: 88px; --logo-ink: var(--card-ink); }
+.wallet-card__logo { width: 40px; --logo-ink: var(--card-ink); }
 .wallet-card__logo svg { display: block; width: 100%; height: auto; }
-.wallet-card__tier { letter-spacing: 0.3em; text-transform: uppercase; color: var(--card-muted); }
+.wallet-card__tier { letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--card-muted); }
 .wallet-card__rows { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: var(--space-3); margin: 0; }
 .wallet-card__rows dt { color: var(--card-muted); }
-.wallet-card__rows dd { margin: 0; font-weight: 700; }
+.wallet-card__rows dd { margin: 0; font-weight: 600; }
 .wallet-card__qr { justify-self: center; width: min(100%, 200px); }
 .wallet-added { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
 .pass-success { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-2); }
@@ -165,7 +165,7 @@
 
 /* Home header: the horizontal monogram, profile button top right */
 .app-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
-.app-brand { width: 88px; }
+.app-brand { width: 36px; }
 .profile-btn { margin-right: -10px; } /* optically flush with the screen edge */
 
 /* Home: one centred block in the middle of the screen; the header stays left */
@@ -214,7 +214,7 @@
    tones for what's there (an accent use: the cups-left bricks); empty
    places are a golden-beige outline of the brick. Matcha: its own tones. */
 .ring--home {
-  --rb-face: #CFAB71; --rb-side: #7F5E35; --rb-top: #4F351C; --rb-line: rgba(207, 171, 113, 0.55);
+  --rb-face: var(--accent); --rb-side: var(--accent-deep); --rb-top: #4A341E; --rb-line: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 [data-flavour="matcha"] .ring--home { --rb-face: #A6C46A; --rb-side: #6E8B3D; --rb-top: #3F5A22; --rb-line: rgba(166, 196, 106, 0.55); }
 .logo-ring { overflow: visible; }
@@ -244,7 +244,7 @@
 .home.has-pickup .ring--home .ring__unit { font-size: var(--fs-12); }
 .home__saved { color: var(--accent-text); }   /* accent: the savings line (LCC Pass) */
 .drink-row__member { color: var(--ink); }
-.ring__num { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.ring__num { font-family: var(--font-sans); font-weight: 300; font-size: var(--fs-64); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 
 
 /* Map ----------------------------------------------------------------- */
@@ -444,7 +444,7 @@
   transition: background-color var(--dur-1) var(--ease);
 }
 .plan-row__text { min-width: 0; }
-.plan-row__name { font-weight: 700; margin-right: var(--space-2); }
+.plan-row__name { font-weight: 600; margin-right: var(--space-2); }
 .plan-row__price { text-align: right; }
 .plan-row:hover { background: var(--primary-soft); }
 .plan-row:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
@@ -464,7 +464,7 @@
 .pass-tier .pass-offer__price { display: flex; }
 .pass-tier:has(input:checked) { box-shadow: inset 0 0 0 1px var(--primary); }
 .pass-tier:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
-.pass-tier__back { font-weight: 700; }
+.pass-tier__back { font-weight: 600; }
 .plan-row.is-off { opacity: 0.5; cursor: default; }
 .plan-row.is-off:hover { background: transparent; }
 
@@ -595,7 +595,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 .pickup__bar { height: 4px; border-radius: var(--radius-pill); background: var(--line); transition: background-color var(--dur-2) var(--ease); }
 .pickup__step[data-on="true"] .pickup__bar { background: var(--primary); }
 .pickup__label { font-size: var(--fs-12); line-height: 1.2; color: var(--ink-3); }
-.pickup__step[aria-current] .pickup__label { color: var(--ink); font-weight: 700; }
+.pickup__step[aria-current] .pickup__label { color: var(--ink); font-weight: 600; }
 .pickup__code { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding-top: var(--space-3); border-top: var(--hairline); }
 .pickup__codelabel { display: grid; gap: 2px; }
 .pickup__code > .num { font-size: var(--fs-28); line-height: 1; letter-spacing: 0.08em; }
@@ -620,7 +620,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 .table__share .btn--link { justify-self: center; }
 .table__mine { display: flex; align-items: center; gap: var(--space-2); }
 .table__wait { justify-items: center; text-align: center; padding-top: var(--space-8); }
-.table .row.is-mine .row__title { font-weight: 700; }
+.table .row.is-mine .row__title { font-weight: 600; }
 .order-flow .segmented { width: 100%; }
 .pay-state .beans-plus { justify-content: center; }
 .pass-success .beans-plus { margin-top: var(--space-1); }
@@ -657,7 +657,7 @@ li:last-child > .branch-row { border-bottom: 0; }
   background: var(--surface);
   color: var(--ink);
 }
-.cup-alert__title { font-size: var(--fs-16); font-weight: 700; line-height: 1.35; }
+.cup-alert__title { font-size: var(--fs-16); font-weight: 600; line-height: 1.35; }
 .cup-alert__acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* "What your cup covers": a quiet link and its sheet */
@@ -791,7 +791,7 @@ li:last-child > .branch-row { border-bottom: 0; }
 .cs-res { display: grid; width: 100%; min-height: 48px; padding: var(--space-2) 0; gap: 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cs-res:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 .cs-res__label { font-size: var(--fs-16); }
-.cs-res mark, .cs-card__name mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cs-res mark, .cs-card__name mark { background: none; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .cs-noresults { display: grid; justify-items: start; gap: var(--space-3); padding-block: var(--space-6); }
 
 /* Filter sheet */

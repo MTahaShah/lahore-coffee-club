@@ -1,11 +1,11 @@
 /* =====================================================================
-   Lahore Coffee Club — router.js
+   The Round — router.js
    Hash routes:
-     #/            landing
+     #/            opens #/app (no landing page)
      #/app[/…]     member app (phone frame); sub-paths go to the app
      #/cafe[/id]   the counter (a branch id sets this device up for it)
      #/partner     owner dashboard
-     #/admin       LCC admin panel (admin.js)
+     #/admin       The Round Admin panel (admin.js)
      #/kit         component sheet (not in the switcher; for review)
 
    Surfaces register as:
@@ -18,8 +18,8 @@
    ===================================================================== */
 (function () {
   "use strict";
-  // The page's own title: "Lahore Coffee Club", or "LCC Cafés" in cafe.html
-  const BASE_TITLE = document.title || "Lahore Coffee Club";
+  // The page's own title: "The Round", or "The Round Cafés" in cafe.html
+  const BASE_TITLE = document.title || "The Round";
   const LCC = (window.LCC = window.LCC || {});
   const { store, fmt, ui } = LCC;
   const { html, raw, $, icon } = ui;
@@ -47,7 +47,8 @@
 
   function render() {
     const { name, path } = parse();
-    if (!surfaces[name]) { history.replaceState(null, "", "#/"); return render(); }
+    // #/ and any unknown route open the member app (the room query stays)
+    if (!surfaces[name]) { history.replaceState(null, "", "#/app" + (location.hash.match(/\?.*$/)?.[0] || "")); return render(); }
     const main = $("#main");
     const def = surfaces[name];
 
@@ -57,7 +58,7 @@
       if (typeof current.cleanup === "function") current.cleanup();
       const firstLoad = current.name === null && !main.childElementCount;
       main.innerHTML = "";
-      main.dataset.surface = name || "landing";
+      main.dataset.surface = name;
       current = { name, cleanup: def.mount(main, path) || null };
       window.scrollTo(0, 0);
       if (!firstLoad) main.focus({ preventScroll: true });
@@ -71,7 +72,6 @@
      Prototype switcher
      ------------------------------------------------------------------- */
   const SWITCH = [
-    { name: "", href: "#/", label: "Landing" },
     { name: "app", href: "#/app", label: "Member app" },
     { name: "cafe", menu: "counter", label: "Counter" },
     { name: "partner", href: "#/partner", label: "Partner dashboard" },
@@ -81,7 +81,7 @@
   let theme = "auto"; // Light / Dark / Auto (follows the phone); in memory, as before
 
   /* Flavour: Coffee (default) or Matcha, for the member app only. The
-     café view and landing stay coffee, so data-flavour is on <html> only
+     café view, console and kit stay coffee, so data-flavour is on <html> only
      while #/app is showing. Remembered on this device (CLAUDE.md:
      approved localStorage exception); any storage failure means Coffee. */
   const FLAVOUR_KEY = "lcc-flavour";
@@ -157,7 +157,7 @@
           <button type="button" class="proto-bar__theme" data-menu-toggle="proto-demo-menu" aria-expanded="false" aria-controls="proto-demo-menu">Demo</button>
           <div class="proto-demo__menu" id="proto-demo-menu" role="menu" aria-label="Presenter" hidden>
             <button type="button" role="menuitem" data-demo="new">Start as a new member</button>
-            <button type="button" role="menuitem" data-demo="mumtaz">Mumtaz: LCC Pass</button>
+            <button type="button" role="menuitem" data-demo="mumtaz">Mumtaz: The Round Pass</button>
             <button type="button" role="menuitem" data-demo="pack">Alina: Classic 8 pack</button>
           </div>
         </div>
@@ -225,19 +225,6 @@
     if (demo) return demoAction(demo.dataset.demo);
     if (!e.target.closest(".proto-demo")) demoMenu(false);
 
-    // In-page scroll links (hash is taken by the router)
-    const scroller = e.target.closest("[data-scroll]");
-    if (scroller) {
-      e.preventDefault();
-      const target = document.getElementById(scroller.dataset.scroll);
-      if (target) {
-        target.scrollIntoView({ behavior: ui.reducedMotion() ? "auto" : "smooth", block: "start" });
-        target.setAttribute("tabindex", "-1");
-        target.focus({ preventScroll: true });
-      }
-      return;
-    }
-
     const skip = e.target.closest(".skip-link");
     if (skip) { e.preventDefault(); $("#main").focus(); }
   });
@@ -253,46 +240,6 @@
   /* -------------------------------------------------------------------
      Pass 1 shells
      ------------------------------------------------------------------- */
-  const LANDING_SECTIONS = [
-    { id: "how", label: "How it works" },
-    { id: "plans", label: "Plans" },
-    { id: "map", label: "Busy map" },
-    { id: "gifting", label: "Gifting and loyalty" },
-    { id: "partner", label: "For cafés" },
-    { id: "join", label: "Join the waitlist" },
-    { id: "faq", label: "Questions" },
-  ];
-
-  register("", {
-    title: null,
-    mount(el) {
-      el.innerHTML = html`
-        <div class="surface landing">
-          <header class="container landing-nav">
-            <a class="wordmark" href="#/">Lahore Coffee Club</a>
-            <nav class="landing-nav__links" aria-label="Main">
-              <a class="landing-nav__link" href="#/" data-scroll="how">How it works</a>
-              <a class="landing-nav__link" href="#/" data-scroll="plans">Cafés</a>
-              <a class="landing-nav__link" href="#/" data-scroll="join">Join</a>
-              <a class="btn btn--secondary btn--compact" href="#/" data-scroll="partner">Partner with us</a>
-            </nav>
-          </header>
-          <div class="container">
-            ${LANDING_SECTIONS.map((s, i) => html`
-              <section class="landing-section" id="${s.id}" aria-labelledby="${s.id}-h">
-                <div class="landing-section__head">
-                  <p class="eyebrow num">${String(i + 1).padStart(2, "0")}</p>
-                  <div class="placeholder">
-                    <h2 class="t-h3" id="${s.id}-h" style="color:var(--ink)">${s.label}</h2>
-                    <span>Built in Pass 6.</span>
-                  </div>
-                </div>
-              </section>`)}
-          </div>
-        </div>`;
-    },
-  });
-
   register("app", {
     title: "Member app",
     mount(el) {

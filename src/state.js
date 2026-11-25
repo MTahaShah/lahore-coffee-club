@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — state.js
+   The Round — state.js
    One in-memory store shared by every surface, with pub-sub.
 
    Usage:
@@ -19,7 +19,7 @@
      branch   a café: id, brandId, name, area, pin, hours, busy level,
               staff, setupCode, pausedUntil. chainId is set when the brand
               sells its own plans (the member app shows it as a chain)
-     member   memberNo (club-wide, "LCC 42"), name, initials or photo,
+     member   memberNo (club-wide, "No. 42"), name, initials or photo,
               phone, plans: member.plan plus member.extraPlans, each with
               its own cycle; the balance belongs to the plan
      redeem   ledger entry: memberId, brandId, branchId (= cafeId), staffId,
@@ -748,7 +748,7 @@
       if (m.plan.type === "pass") {
         // No cups on the Pass; only complimentary ones (Beans, passport) spend here
         const left = Math.max(0, select.balance(memberId).left);
-        return { type: "pass", left, of: left, used: 0, cap, bonus: left > 0, label: left ? `${fmt.cups(left)} complimentary` : "LCC Pass · member price" };
+        return { type: "pass", left, of: left, used: 0, cap, bonus: left > 0, label: left ? `${fmt.cups(left)} complimentary` : "The Round Pass · member price" };
       }
       if (m.plan.type === "brand") {
         const b = state.brands[m.plan.brandId];
@@ -921,7 +921,7 @@
       const allowance = T.dailyLimit > 1 ? `${T.dailyLimit} today · ${day.left} left` : "";
       const base = { tier: T, day, count: day.count, limit: T.dailyLimit, left: day.left, allowance, cupNo: day.count + 1 };
       const name = m?.firstName || "They";
-      if (m?.suspended) return { ...base, state: "suspended", ok: false, title: "Suspended. Ask them to contact LCC.", line: `${name} can pay the full price as usual.` };
+      if (m?.suspended) return { ...base, state: "suspended", ok: false, title: "Suspended. Ask them to contact The Round.", line: `${name} can pay the full price as usual.` };
       if (select.passEnded(memberId, at)) return { ...base, state: "ended", ok: false, title: `Pass ended ${fmt.shortDate(m.renewsAt)}. They can renew in the app.`, line: "Ring this one up at the menu price." };
       if (m?.plan?.paused) return { ...base, state: "paused", ok: false, title: "Plan paused", line: `${name} paused their pass. They can resume it in the app.` };
       if (day.used) {
@@ -1272,7 +1272,7 @@
       let h = fnv1a(`${entry.id}:ref`);
       let tail = "";
       for (let i = 0; i < 4; i++) { tail += CODE_CHARS[h % CODE_CHARS.length]; h = Math.floor(h / CODE_CHARS.length); }
-      return `${b?.monogram || "LCC"}-${tail}`;
+      return `${b?.monogram || "REF"}-${tail}`;
     },
 
     /** What a member cup covers here, in one plain sentence. */
@@ -1379,7 +1379,7 @@
       const no = (reason, title, line) => ({ ...base, ok: false, reason, title, line });
       const usable = options.filter((o) => o.here > 0 && !o.plan.paused);
       const name = m.firstName;
-      if (m.suspended) return no("suspended", "Suspended. Ask them to contact LCC.", `${name} can pay the full price as usual.`);
+      if (m.suspended) return no("suspended", "Suspended. Ask them to contact The Round.", `${name} can pay the full price as usual.`);
       if (select.isPaused(branchId, at)) return no("paused", `Member cups paused until ${fmt.time(cafe.pausedUntil)}`, `${name} can pay as usual, or come back after.`);
       if (!plans.length) return no("no-plan", "No plan yet", `${name} hasn’t bought a plan yet. They can pay as usual.`);
       if (!options.length && plans.every((p) => p.plan.type === "pass")) {
@@ -1754,7 +1754,7 @@
       const p = select.drinkPrice(cafe.brandId, item, temp, band);
       const q = { drinkId: item.id, temp: p.temp, name: select.drinkLabel(item, p.temp), price: p.price, credits: 1, topUp: p.topUp, band };
       if (!memberId || !state.members[memberId]) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "guest", message: "Guests pay online, or the host covers the table." } };
-      if (item.inPlan === false) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "not-in-plan", message: `${q.name} isn’t in LCC plans here. You can pay the full price.` } };
+      if (item.inPlan === false) return { ...q, cafeId, brandId: cafe.brandId || null, cup: { ok: false, reason: "not-in-plan", message: `${q.name} isn’t in member plans here. You can pay the full price.` } };
       const cup = select.canRedeemHere(memberId, cafeId, q.credits);
       const m = state.members[memberId];
       return { ...q, cafeId, brandId: cafe.brandId || null, cup: cup.ok ? { ok: true, bonus: !!cup.here?.bonus } : { ok: false, reason: cup.reason, message: MEMBER_MESSAGES[cup.reason]?.(m, { cafeId, credits: q.credits, here: cup.here, limit: cup.dailyLimit }) || cup.message } };
@@ -1994,7 +1994,7 @@
   const MEMBER_MESSAGES = {
     "paused": (m, { cafeId }) => `${select.pickupPlace(cafeId)} has paused member cups until ${fmt.time(state.cafes[cafeId].pausedUntil)}.`,
     "cafe-cap": (m, { cafeId }) => `Today’s member cups at ${select.pickupPlace(cafeId)} are used up.`,
-    "no-cups": (m) => (m.plan?.type === "pass" ? `The ${state.planConfig.pass.name} has no cups. Pay the price here, or get a cup pack.` : m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
+    "no-cups": (m) => (m.plan?.type === "pass" ? `${state.planConfig.pass.name} has no cups. Pay the price here, or get a cup pack.` : m.plan ? "You have no cups left this month." : "You don’t have a plan yet."),
     "plan-paused": () => "Your plan is paused. Resume it to use a cup.",
     "not-brand": (m) => `Your cups are for ${state.brands[m.plan.brandId].name}.`,
     "brand-only": (m, { cafeId }) => `${state.cafes[cafeId].name} takes ${state.cafes[cafeId].name} plan cups.`,
@@ -2394,7 +2394,7 @@
       // BACKEND: POST /admin/members/:id/adjust { cups, reason } (admin role checked server-side)
       const m = state.members[memberId];
       const n = Math.trunc(Number(cups));
-      if (!admin?.id) return { ok: false, reason: "not-admin", message: "Only an LCC admin can adjust cups." };
+      if (!admin?.id) return { ok: false, reason: "not-admin", message: "Only The Round Admin can adjust cups." };
       if (!m || !m.plan) return { ok: false, reason: "no-plan", message: "This member has no plan to adjust." };
       if (!n) return { ok: false, reason: "no-cups", message: "Enter a number of cups to add or take." };
       if (!String(reason || "").trim()) return { ok: false, reason: "no-reason", message: "Write a reason for the adjustment." };
@@ -2556,7 +2556,7 @@
       const brands = new Set();
       ids.forEach((id) => {
         const p = select.monthPayout(id, month);
-        const rec = { month, cups: p.cups, amount: p.earned, paidAt: now, by: admin?.name || "LCC", ref: `PO-${String(now).slice(-6)}` };
+        const rec = { month, cups: p.cups, amount: p.earned, paidAt: now, by: admin?.name || "The Round", ref: `PO-${String(now).slice(-6)}` };
         state.partner[id] = state.partner[id] || { payoutDay: 5, payouts: [] };
         state.partner[id].payouts = [rec, ...state.partner[id].payouts].sort((a, b) => b.month - a.month);
         brands.add(state.cafes[id].brandId);
@@ -3066,7 +3066,7 @@
     recordPassSale({ memberId = state.memberId, branchId, drinkId, temp = "hot", staffId = state.counter?.staffId || null, method = "number", mods = null, extras = [], at = Date.now() }) {
       // BACKEND: POST /pass-sales { memberId, branchId, staffId, drinkId, temp } -> one ledger row (server applies plan_config)
       const m = state.members[memberId];
-      if (!m || m.plan?.type !== "pass") return { ok: false, reason: "not-pass", message: "Not on the LCC Pass." };
+      if (!m || m.plan?.type !== "pass") return { ok: false, reason: "not-pass", message: "Not on The Round Pass." };
       const P = select.passTier(m);
       const ps = select.passStatus(memberId, branchId, at); // every café today, from the ledger
       if (!ps.ok) return { ok: false, reason: ps.state === "used" ? "pass-used" : ps.state, message: ps.state === "used" ? "Today’s member coffee is used. This one is full price." : ps.title, status: ps };
@@ -3203,8 +3203,8 @@
     },
     countdown: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`,
     memberNo: (n) => `No.${NBSP}${String(n).padStart(4, "0")}`,
-    /** The number a member says at the counter: "LCC 42". */
-    lcc: (n) => `LCC${NBSP}${n}`,
+    /** The number a member says at the counter: "No. 42". */
+    lcc: (n) => `No.${NBSP}${n}`,
     monthYear: (ts) => new Date(ts).toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
     longDate: (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "long" }),
   };

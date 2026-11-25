@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — kit.js
+   The Round — kit.js
    #/kit: every Pass 1 component on one page, wired to the real store,
    so the design system can be reviewed before screens are built.
    Not linked from the switcher.
@@ -10,7 +10,7 @@
   const { store, fmt, ui } = LCC;
   const { html, raw, $, $$ } = ui;
 
-  const swatches = ["--bg", "--surface", "--surface-2", "--ink", "--ink-2", "--ink-3", "--line", "--primary", "--primary-soft", "--accent-text", "--accent", "--accent-deep", "--espresso", "--mocha", "--roast", "--status-quiet", "--status-moderate", "--status-packed"];
+  const swatches = ["--bg", "--surface", "--surface-2", "--ink", "--ink-2", "--ink-3", "--line", "--primary", "--primary-soft", "--accent-text", "--accent", "--accent-deep", "--stone", "--status-quiet", "--status-moderate", "--status-packed"];
 
   LCC.router.register("kit", {
     title: "Component kit",
@@ -37,10 +37,10 @@
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
               <h2 class="eyebrow">Type</h2>
-              <p class="t-h1">Glacial Indifference 40</p>
-              <p class="t-h2">Glacial Indifference 28, for titles</p>
-              <p class="t-h3">Glacial 20, regular</p>
-              <p class="t-h3" lang="ur" dir="rtl">لاہور کافی کلب</p>
+              <p class="t-title">Versailles titles</p>
+              <p class="t-h1">Montserrat 40</p>
+              <p class="t-h2">Montserrat 28, for headings</p>
+              <p class="t-h3">Montserrat 20, regular</p>
               <p class="t-body">Body 16. We send you regulars. You serve them coffee.</p>
               <p class="t-small t-muted">Small 14, secondary ink.</p>
               <p class="t-micro t-faint num">Micro 12 · Rs 8,650 · 11 of 16</p>
@@ -48,7 +48,7 @@
 
             <section class="card stack" style="--stack-gap:var(--space-3)">
               <h2 class="eyebrow">Buttons</h2>
-              <button class="btn btn--primary btn--block" type="button" data-kit-toast="You’re on the list.">Join the waitlist</button>
+              <button class="btn btn--primary btn--block" type="button" data-kit-toast="Your order is in.">Order for pickup</button>
               <button class="btn btn--secondary btn--block" type="button">See the app</button>
               <div class="cluster">
                 <button class="btn btn--secondary btn--compact" type="button">Partner with us</button>

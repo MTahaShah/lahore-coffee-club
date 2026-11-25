@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — partner.css
+   The Round — partner.css
    Owner dashboard (#/partner). Shares the counter's header and the café
    view's rail (.cv-body, .cv-tabs). Hairlines, no shadows; coffee only
    as small accents (the active rail mark, the busiest-hour bar).
@@ -96,7 +96,7 @@
 .pd-filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); }
 .pd-members { display: grid; border-top: var(--hairline); }
 .pd-member { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: center; padding: var(--space-3) 0; border-bottom: var(--hairline); }
-.pd-member__name { font-size: var(--fs-16); font-weight: 700; }
+.pd-member__name { font-size: var(--fs-16); font-weight: 600; }
 .pd-member__facts { grid-column: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-4); font-size: var(--fs-14); }
 .pd-member__facts dt { font-size: var(--fs-12); color: var(--ink-3); }
 @media (min-width: 1000px) {

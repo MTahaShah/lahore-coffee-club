@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lahore Coffee Club — assemble src/ into one self-contained index.html.
+# The Round — assemble src/ into one self-contained index.html.
 #
 #   ./build.sh            build once
 #   ./build.sh --watch    rebuild whenever a file in src/ changes
@@ -13,15 +13,16 @@
 #   <!-- @scripts -->  the JS files below, in order
 #   <!-- @modules -->  ES modules carried as inert text (<script type="text/plain"
 #                      id="mod-NAME">), turned into modules only when needed
-#                      (passport3d.js): three.js and the waitlist's passport,
-#                      so both sites share one passport
+#                      (passport3d.js): three.js (read from waitlist/vendor/)
+#                      and the prototype's own passport (src/vendor/passport.js,
+#                      a rebranded copy; waitlist/ is never edited)
 # Add new files to these lists.
 #
 # PWA files can't be inlined (the phone fetches them as real files), so
 # they are copied next to index.html with relative paths:
 #   src/manifest.json -> manifest.json, src/sw.js -> sw.js,
 #   src/manifest-cafe.json -> manifest-cafe.json, the icons below -> icons/
-# cafe.html is the same built page as the "LCC Cafés" app: its own
+# cafe.html is the same built page as the "The Round Cafés" app: its own
 # manifest and titles, and it opens on #/cafe when no route is given.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -38,19 +39,20 @@ CSS_FILES=(
   club.css
   history.css
   admin.css
-  landing.css
 )
 
 # Inlined as <template id="logo-NAME">; colours come from --logo-* in CSS
 LOGO_FILES=(
   wordmark.svg
-  monogram-horizontal.svg
+  mark.svg
   ring.svg
-  app-icon-mark.svg
 )
 FONT_FILES=(
-  GlacialIndifference-Regular.woff2
-  GlacialIndifference-Bold.woff2
+  Versailles-Regular.woff2
+  Montserrat-Light.woff2
+  Montserrat-Regular.woff2
+  Montserrat-Medium.woff2
+  Montserrat-SemiBold.woff2
 )
 FAVICON="$SRC/logos/favicon-32.png"
 
@@ -85,14 +87,13 @@ JS_FILES=(
   app-history.js
   app-circles.js
   app-welcome.js
-  landing.js
 )
 
 # Inert module text: id -> file (paths from the repo root)
 MODULES=(
   "three:waitlist/vendor/three/three.module.min.js"
   "room:waitlist/vendor/three/RoomEnvironment.js"
-  "passport:waitlist/js/passport.js"
+  "passport:src/vendor/passport.js"
 )
 
 b64() { base64 < "$1" | tr -d '\n'; }
@@ -176,12 +177,12 @@ build() {
   cafe_tmp="$(mktemp "${TMPDIR:-/tmp}/lcc-cafe.XXXXXX")"
   sed \
     -e 's|<link rel="manifest" href="manifest.json">|<link rel="manifest" href="manifest-cafe.json">|' \
-    -e 's|<meta name="apple-mobile-web-app-title" content="LCC">|<meta name="apple-mobile-web-app-title" content="LCC Cafés">|' \
-    -e 's|<title>Lahore Coffee Club</title>|<title>LCC Cafés</title>|' \
+    -e 's|<meta name="apple-mobile-web-app-title" content="The Round">|<meta name="apple-mobile-web-app-title" content="The Round Cafés">|' \
+    -e 's|<title>The Round</title>|<title>The Round Cafés</title>|' \
     -e 's|<meta charset="utf-8">|<meta charset="utf-8">\
   <script>if (!location.hash \|\| location.hash === "#") history.replaceState(null, "", location.pathname + location.search + "#/cafe");</script>|' \
     "$OUT" > "$cafe_tmp"
-  for want in 'href="manifest-cafe.json"' 'content="LCC Cafés"' '<title>LCC Cafés</title>' '"#/cafe");</script>'; do
+  for want in 'href="manifest-cafe.json"' 'content="The Round Cafés"' '<title>The Round Cafés</title>' '"#/cafe");</script>'; do
     grep -qF "$want" "$cafe_tmp" || { echo "build: cafe.html is missing $want (did the template change?)" >&2; rm -f "$cafe_tmp"; return 1; }
   done
   mv "$cafe_tmp" cafe.html

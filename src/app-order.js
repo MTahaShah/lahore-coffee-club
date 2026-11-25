@@ -1,5 +1,5 @@
 /* =====================================================================
-   Lahore Coffee Club — app-order.js
+   The Round — app-order.js
    Member app: pickup orders. Order ahead, collect at the counter.
 
      #/app/order        choose café (branch), drink, hot or iced, pickup
@@ -490,7 +490,7 @@
           </div>
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-1)">
-              <h1 class="t-h2">Order for pickup</h1>
+              <h1 class="t-title">Order for pickup</h1>
               <p class="t-small t-muted">Order ahead and collect at the counter.</p>
             </div>
             ${ui.segmented({ name: "omode", label: "Who it’s for", value: draft.mode, options: [{ value: "solo", label: "Just me" }, { value: "circle", label: "For your Circle" }] })}
@@ -541,7 +541,7 @@
     const body = () => html`
       <div class="order-done__head">
         <svg class="check-draw" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" pathLength="1"/><path d="M15 24.5l6 6 12-13" pathLength="1"/></svg>
-        <h1 class="t-h2" id="od-title">Order placed</h1>
+        <h1 class="t-title" id="od-title">Order placed</h1>
         <p class="t-body t-muted">${placeLabel(o.cafeId)} has it now.</p>
       </div>
       ${cardHtml(S.pickup(id))}
@@ -624,7 +624,7 @@
             <button type="button" class="icon-btn" data-back="#/app/order" data-opay-back aria-label="Back">${icon("arrowLeft")}</button>
           </div>
           <div class="app-screen flow__body">
-            <h1 class="t-h2">Payment</h1>
+            <h1 class="t-title">Payment</h1>
             <div class="card pay-summary">
               <div class="pay-summary__row">
                 <span class="t-h3">${q.name}</span>
@@ -711,7 +711,7 @@
       const t = g();
       return html`<div class="stack" style="--stack-gap:var(--space-1)">
           <p class="eyebrow">Table order</p>
-          <h1 class="t-h2">${isHost() ? "Your table" : `${t.hostName}’s table`}</h1>
+          <h1 class="t-title">${isHost() ? "Your table" : `${t.hostName}’s table`}</h1>
           <p class="t-small t-muted num">${placeLabel(t.cafeId)} · ${whenLine()}</p>
         </div>
         <p class="table__clock num" data-g-clock aria-live="off">${clockText()}</p>`;
