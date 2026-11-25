@@ -56,6 +56,15 @@ behaviour).
   labels are Montserrat Medium 12px tracked 0.2em (`--track-caps`). No
   Urdu font: `--font-urdu` is "Noto Sans Arabic". `build.sh` inlines the
   fonts.
+- Member app type (Type tuning pass, end of `app.css`): under
+  `.phone__screen` the size tokens step down for Montserrat: body 15px,
+  secondary 13px, micro and eyebrows 11px (`--track-caps` 0.14em), sheet
+  and card titles 18px, big figures about 15% smaller; tracking -0.005em
+  (-0.01em from 18px), line height 1.45 (headings 1.25); inputs stay 16px
+  (iOS zoom); buttons 56px, 15px Medium. Versailles screen titles 21px
+  tracked 0.06em (the Home greeting stays on one line, 18px when the name
+  is long), profile name 22px. Profile rows 64px / 68px. The counter,
+  partner and admin keep the base sizes.
 - Logos: the SVGs in `src/logos/` (from `brand/app-logos/`), never retyped.
   `wordmark.svg` (stacked THE / R◯UND) only where it is at least 160px wide
   (welcome, console sign-in screens, the counter setup, the DOM passport

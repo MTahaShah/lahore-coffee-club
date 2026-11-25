@@ -844,3 +844,53 @@ li:last-child > .branch-row { border-bottom: 0; }
 .ring--home .ring__cap { max-width: 8.5em; line-height: 1.25; text-wrap: balance; }
 .home.has-pickup .ring--home .ring__num { font-size: 40px; }
 .home.has-pickup .ring--home[data-kind="pass"] .ring__cap { display: none; }  /* too long for the small ring; the aria-label keeps it */
+
+/* =====================================================================
+   Type tuning (member app only: everything under .phone__screen, framed
+   or full width on a phone). The sizes were first set for Glacial
+   Indifference; Montserrat is wider and taller at the same px, so the
+   member app steps down to native-app sizes: 15px body, 13px secondary,
+   11px micro and eyebrows, 18px sheet and card titles. Inputs keep 16px
+   (no iOS zoom on focus). The counter, partner and admin keep base.css.
+   ===================================================================== */
+.phone__screen {
+  --fs-16: 15px;
+  --fs-14: 13px;
+  --fs-12: 11px;
+  --fs-20: 18px;
+  --fs-28: 24px;   /* Montserrat headings and big figures: about 15% down */
+  --fs-40: 34px;
+  --fs-64: 54px;
+  --lh-body: 1.45;
+  --lh-snug: 1.25;
+  --track-caps: 0.14em;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+/* Secondary and micro text: no negative tracking under 15px */
+.phone__screen :is(.t-small, .t-micro, .row__meta, .mrow__line, .mrow__value, .arow__line, .arow__note, .sheet__sub, .cs-card__meta, .ring__cap, .phero__line) { letter-spacing: 0; }
+/* 18px and up: a little tighter, headings 1.25 */
+.phone__screen :is(.t-h1, .t-h2, .t-h3, .sheet__title, .pcard__name, .drawer-plan__name, .pickup__drink) { letter-spacing: -0.01em; line-height: 1.25; }
+.phone__screen .t-h1, .phone__screen .t-h2 { letter-spacing: -0.01em; }
+/* Inputs: 16px text (iOS), the same 56px box */
+.phone__screen :is(.input, select.input, textarea.input) { font-size: 16px; letter-spacing: 0; }
+/* Buttons: 56px tap height stays, label 15px Medium */
+.phone__screen .btn { font-size: var(--fs-16); font-weight: 500; }
+.phone__screen .btn--compact { font-size: var(--fs-14); }
+
+/* Versailles: screen titles 21px tracked 0.06em; the greeting stays on one line */
+.phone__screen .t-title { font-size: 21px; letter-spacing: 0.06em; line-height: 1.25; }
+.phone__screen .home__greet { white-space: nowrap; }
+.phone__screen .home__greet.is-long { font-size: 18px; }
+.phone__screen .phero__name { font-size: 22px; letter-spacing: 0.06em; }
+.phone__screen .pbook__foil--title { letter-spacing: 0.06em; }
+
+/* Big Montserrat Light figures: about 15% smaller */
+.phone__screen .ring--home .ring__num { font-size: 61px; }
+.phone__screen .home.has-pickup .ring--home .ring__num { font-size: 34px; }
+.phone__screen .pass__code { font-size: 27px; }
+.phone__screen .welcome-intro__title { font-size: 37px; }
+
+/* Rows grew with the old text: 64px one line, 68px two */
+.phone__screen .pcard .mrow:has(.mrow__line:not(:empty)) { min-height: 68px; }
+.phone__screen .pcard .switch-row { min-height: 68px; }

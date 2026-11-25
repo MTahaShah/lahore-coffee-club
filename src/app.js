@@ -315,7 +315,7 @@
               </div>
               <div>
                 <p class="t-small t-muted">${fmt.date(Date.now())}</p>
-                <h1 class="t-title">Salaam, ${m.firstName}</h1>
+                <h1 class="t-title home__greet${`Salaam, ${m.firstName}`.length > 20 ? " is-long" : ""}">Salaam, ${m.firstName}</h1>
               </div>
               <div class="home__pickups" data-home-pickups>${LCC.appOrder ? LCC.appOrder.cardsHtml() : ""}</div>
 
