@@ -35,6 +35,7 @@
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     chevronRight: '<path d="M9.5 6l6 6-6 6"/>',
     chevronDown: '<path d="M6 9.5l6 6 6-6"/>',
+    external: '<path d="M14 4.5h5.5V10M19.5 4.5L11 13M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>',
     arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     // Tab bar
@@ -274,15 +275,22 @@
   function openSheet(sheet, { onClose } = {}) {
     if (!sheet || sheet.dataset.open === "true") return;
     sheet._returnFocus = document.activeElement;
+    // The opener may be redrawn while the sheet is open (a cheer repaints the
+    // list behind it): remember a selector to find its replacement.
+    const da = [...(document.activeElement?.attributes || [])].find((a) => a.name.startsWith("data-"));
+    sheet._returnSel = da ? `[${da.name}${da.value ? `="${CSS.escape(da.value)}"` : ""}]` : null;
     sheet._onClose = onClose;
     sheet.dataset.open = "true";
     sheet.setAttribute("aria-hidden", "false");
     openSheets.push(sheet);
     bindDrag(sheet);
-    requestAnimationFrame(() => {
+    const focusIn = () => {
+      if (sheet.dataset.open !== "true" || sheet.contains(document.activeElement)) return;
       const target = sheet.querySelector("[autofocus]") || sheet.querySelector(FOCUSABLE) || sheet.querySelector(".sheet__panel");
       if (target) { if (!target.hasAttribute("tabindex") && target.classList.contains("sheet__panel")) target.tabIndex = -1; target.focus({ preventScroll: true }); }
-    });
+    };
+    requestAnimationFrame(focusIn);
+    setTimeout(focusIn, 60); // no frame comes in a background tab
   }
 
   function closeSheet(sheet) {
@@ -292,24 +300,26 @@
     sheet.style.removeProperty("--drag");
     const i = openSheets.indexOf(sheet);
     if (i > -1) openSheets.splice(i, 1);
-    const back = sheet._returnFocus;
+    let back = sheet._returnFocus;
+    if ((!back || !document.contains(back)) && sheet._returnSel) back = document.querySelector(sheet._returnSel);
     if (back && document.contains(back)) back.focus({ preventScroll: true });
     if (typeof sheet._onClose === "function") sheet._onClose();
   }
 
+  // Delegated, so a sheet whose markup is redrawn (most are) keeps its handle
   function bindDrag(sheet) {
     if (sheet._dragBound) return;
     sheet._dragBound = true;
     if (sheet.classList.contains("sheet--drawer")) { bindSwipe(sheet); return; }
-    const handle = sheet.querySelector(".sheet__handle");
-    if (!handle) return;
     let startY = 0, dy = 0, t0 = 0, active = false;
-    handle.addEventListener("pointerdown", (e) => {
+    sheet.addEventListener("pointerdown", (e) => {
+      const handle = e.target.closest(".sheet__handle");
+      if (!handle) return;
       active = true; startY = e.clientY; dy = 0; t0 = performance.now();
       sheet.classList.add("is-dragging");
       handle.setPointerCapture(e.pointerId);
     });
-    handle.addEventListener("pointermove", (e) => {
+    sheet.addEventListener("pointermove", (e) => {
       if (!active) return;
       dy = Math.max(0, e.clientY - startY);
       sheet.style.setProperty("--drag", `${dy}px`);
@@ -322,8 +332,118 @@
       if (dy > 96 || velocity > 0.6) closeSheet(sheet);
       else sheet.style.setProperty("--drag", "0px");
     };
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
+    sheet.addEventListener("pointerup", end);
+    sheet.addEventListener("pointercancel", end);
+  }
+
+  /* One sheet style (member app): handle, a header row (title left, close
+     right, an optional one-line subtitle), the scrolling body, and a
+     sticky footer only when there is a primary action.
+     ui.sheetPanel fills a .sheet; the header and footer stay put while
+     the body scrolls.                                                  */
+  function sheetHead({ id, title, subtitle = "" }) {
+    return html`<div class="sheet__head">
+      <div class="sheet__heading">
+        <h2 class="sheet__title" id="${id}">${title}</h2>
+        ${subtitle ? html`<p class="sheet__sub">${subtitle}</p>` : ""}
+      </div>
+      <button type="button" class="icon-btn sheet__close" data-sheet-close aria-label="Close">${icon("close")}</button>
+    </div>`;
+  }
+  function sheetPanel({ id, title, subtitle = "", body = "", foot = "", cls = "" }) {
+    return html`<div class="sheet__scrim" data-sheet-close></div>
+      <div class="sheet__panel">
+        <div class="sheet__handle" aria-hidden="true"></div>
+        ${sheetHead({ id, title, subtitle })}
+        <div class="sheet__body ${cls}">${body}</div>
+        ${foot ? html`<div class="sheet__foot">${foot}</div>` : ""}
+      </div>`;
+  }
+
+  /* Menu row: the drawer's rows, and any list of places to go in a sheet.
+     Label left, an optional second line or a value on the right, a
+     chevron (or the external-link icon). The whole row is the target.
+     attrs: extra attributes, as { "data-x": "y" }.                      */
+  function menuRow({ label, line = "", value = "", href = null, attrs = {}, external = false, chevron = true, lineKey = "", cls = "" }) {
+    const extra = raw(Object.entries(attrs).map(([k, v]) => (v === true ? esc(k) : `${esc(k)}="${esc(v)}"`)).join(" "));
+    const inner = html`<span class="mrow__main">
+        <span class="mrow__label">${label}</span>
+        ${line || lineKey ? html`<span class="mrow__line num" ${lineKey ? raw(`data-mrow-line="${esc(lineKey)}"`) : ""}>${line}</span>` : ""}
+      </span>
+      ${value ? html`<span class="mrow__value num">${value}</span>` : ""}
+      ${external ? html`<span class="mrow__chev">${icon("external", { size: 18 })}</span>`
+        : chevron ? html`<span class="mrow__chev">${icon("chevronRight", { size: 18 })}</span>` : ""}`;
+    if (href) {
+      const ext = external ? raw(' target="_blank" rel="noopener"') : "";
+      return html`<a class="mrow ${cls}" href="${href}"${ext} ${extra}>${inner}${external ? html`<span class="sr-only"> (opens in a new tab)</span>` : ""}</a>`;
+    }
+    return html`<button type="button" class="mrow ${cls}" ${extra}>${inner}</button>`;
+  }
+
+  /* Disclosure: a row that opens a panel below it (250ms, none with
+     reduced motion, inert while closed). Any [data-disclosure] works on
+     its own; screens with their own state keep their own handlers.     */
+  function disclosure({ id, label, body, open = false, cls = "" }) {
+    return html`<div class="fold ${cls}">
+      <button type="button" class="disclosure" data-disclosure aria-expanded="${open}" aria-controls="${id}">
+        <span class="disclosure__label" id="${id}-h">${label}</span>
+        <span class="disclosure__chev" aria-hidden="true">${icon("chevronRight", { size: 18 })}</span>
+      </button>
+      <div class="disclosure__panel" id="${id}" role="region" aria-labelledby="${id}-h" data-open="${open}" ${open ? "" : raw("inert")}>
+        <div class="disclosure__inner">${body}</div>
+      </div>
+    </div>`;
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest?.("[data-disclosure]");
+    if (!btn) return;
+    const panel = document.getElementById(btn.getAttribute("aria-controls"));
+    if (!panel) return;
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    btn.setAttribute("aria-expanded", String(open));
+    panel.dataset.open = String(open);
+    panel.toggleAttribute("inert", !open);
+  });
+
+  /* Rows grouped by day, under small eyebrows.
+     mode "relative": Today, Yesterday, This week, Earlier (activity).
+     mode "day": Today, Yesterday, then each day by name (My cups).
+     Empty groups don't show. rows need .at; row(r) returns markup.   */
+  function dayGroups(rows, row, { mode = "relative", now = Date.now(), cls = "" } = {}) {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const today = start.getTime(), DAY = 24 * 60 * 60 * 1000;
+    const keyOf = (at) => {
+      if (at >= today) return ["today", "Today"];
+      if (at >= today - DAY) return ["yesterday", "Yesterday"];
+      if (mode === "relative") return at >= today - 6 * DAY ? ["week", "This week"] : ["earlier", "Earlier"];
+      const d = new Date(at); d.setHours(0, 0, 0, 0);
+      return [String(d.getTime()), d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })];
+    };
+    const groups = [];
+    rows.forEach((r) => {
+      const [k, label] = keyOf(r.at);
+      let g = groups[groups.length - 1];
+      if (!g || g.k !== k) { g = { k, label, rows: [] }; groups.push(g); }
+      g.rows.push(r);
+    });
+    return html`${groups.map((g) => html`<section class="daygroup ${cls}" aria-label="${g.label}">
+      <h3 class="eyebrow daygroup__h">${g.label}</h3>
+      <ul role="list" class="daygroup__list">${g.rows.map(row)}</ul>
+    </section>`)}`;
+  }
+
+  /* Activity row: avatar, one sentence, a muted line (place · time), and
+     whatever sits on the right (cheers, an amount).                    */
+  function activityRow({ who = null, sentence, line = "", note = "", trail = "", cls = "", struck = false }) {
+    return html`<li class="arow${struck ? " is-struck" : ""} ${cls}">
+      ${who ? avatar(who, { size: 36 }) : ""}
+      <span class="arow__main">
+        <span class="arow__sentence">${sentence}</span>
+        ${line ? html`<span class="arow__line num">${line}</span>` : ""}
+        ${note ? html`<span class="arow__note">${note}</span>` : ""}
+      </span>
+      ${trail}
+    </li>`;
   }
 
   /* Side drawer (.sheet--drawer): swipe right on the panel to close.
@@ -371,7 +491,7 @@
     if (!top) return;
     if (e.key === "Escape") { e.preventDefault(); closeSheet(top); return; }
     if (e.key === "Tab") {
-      const items = $$(FOCUSABLE, top).filter((el) => el.offsetParent !== null);
+      const items = $$(FOCUSABLE, top).filter((el) => el.offsetParent !== null && !el.closest("[inert]"));
       if (!items.length) return;
       const first = items[0], last = items[items.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -456,6 +576,7 @@
     cupIcon, statusPill, refreshStatusPills, refreshRelativeTimes,
     animateNumber, toast, openSheet, closeSheet, qrSvg,
     stepper, setStepper, segmented, selectSegment,
+    sheetHead, sheetPanel, menuRow, disclosure, dayGroups, activityRow,
     reducedMotion,
   };
 })();

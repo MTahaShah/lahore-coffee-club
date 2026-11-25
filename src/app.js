@@ -132,26 +132,14 @@
                     <span>${t.label}</span>
                   </button>`)}
               </div>
-              <div class="sheet" id="cafe-sheet" role="dialog" aria-modal="true" aria-labelledby="cafe-sheet-title" aria-hidden="true">
-                <div class="sheet__scrim" data-sheet-close></div>
-                <div class="sheet__panel">
-                  <div class="sheet__handle" aria-hidden="true"></div>
-                  <div class="sheet__body" data-sheet-body></div>
-                </div>
-              </div>
+              <div class="sheet" id="cafe-sheet" role="dialog" aria-modal="true" aria-labelledby="cafe-sheet-title" aria-hidden="true"></div>
               <div class="sheet" id="bands-sheet" role="dialog" aria-modal="true" aria-labelledby="bands-title" aria-hidden="true"></div>
               <div class="sheet sheet--drawer" id="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
                 <div class="sheet__scrim" data-sheet-close></div>
                 <div class="sheet__panel" data-drawer-body></div>
               </div>
               <div class="toast-region" style="position:absolute;bottom:104px" role="status" aria-live="polite"></div>
-              <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true">
-                <div class="sheet__scrim" data-sheet-close></div>
-                <div class="sheet__panel">
-                  <div class="sheet__handle" aria-hidden="true"></div>
-                  <div class="sheet__body" data-wallet-body></div>
-                </div>
-              </div>
+              <div class="sheet" id="wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-hidden="true"></div>
               <div class="cup-alert-region" data-cup-alerts aria-live="assertive"></div>
               <input type="file" accept="image/*" class="sr-only" tabindex="-1" aria-hidden="true" data-photo-input>
             </div>
@@ -240,54 +228,47 @@
         const open = S.openState(c);
         const usual = S.usualStatus(c, USUAL_HOUR).status;
         const brand = S.brandOf(cafeId);
+        const facts = html`<div>${ui.statusPill(c.id)}</div>
+          <div class="cafe-sheet__facts">
+            <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
+            <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
+          </div>`;
+        const foot = html`<button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>`;
+        const sheet = $("#cafe-sheet", el);
         if (brand) {
           const cover = S.band(S.bandAt(undefined, brand.id)).maxPrice;
-          $("[data-sheet-body]", el).innerHTML = html`
-            <div class="cafe-sheet">
-              <div class="stack" style="--stack-gap:var(--space-1)">
-                <h2 class="t-h2" id="cafe-sheet-title">${brand.name}</h2>
-                <p class="t-small t-muted">${c.branch} · ${c.distanceKm} km · one of ${S.branches(brand.id).length} branches</p>
-              </div>
-              <div>${ui.statusPill(c.id)}</div>
-              <div class="cafe-sheet__facts">
-                <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
-                <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
-              </div>
+          sheet.innerHTML = ui.sheetPanel({
+            id: "cafe-sheet-title", title: brand.name, cls: "cafe-sheet",
+            subtitle: `${c.branch} · ${c.distanceKm} km · one of ${S.branches(brand.id).length} branches`,
+            body: html`${facts}
               <p class="t-small t-muted">Your cups cover drinks up to ${fmt.rs(cover)}, at any ${brand.name} branch.</p>
-              <div class="cafe-sheet__actions">
-                <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
-                <a class="btn btn--secondary btn--block" href="#/app/cafes/${brand.id}">Menu and plans</a>
-                <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
-              </div>
-            </div>`.s;
-          ui.openSheet($("#cafe-sheet", el));
+              <div class="mlist">
+                ${ui.menuRow({ label: "Menu and branches", href: `#/app/cafes/${brand.id}` })}
+                ${ui.menuRow({ label: "Directions", attrs: { "data-directions": c.id }, chevron: false })}
+              </div>`,
+            foot,
+          }).s;
+          ui.openSheet(sheet);
           return;
         }
-        $("[data-sheet-body]", el).innerHTML = html`
-          <div class="cafe-sheet">
-            <div class="stack" style="--stack-gap:var(--space-1)">
-              <h2 class="t-h2" id="cafe-sheet-title">${c.name}</h2>
-              <p class="t-small t-muted">${S.area(c.area).name} · ${c.distanceKm} km · Latte ${fmt.rs(c.price)}</p>
-            </div>
-            <div>${ui.statusPill(c.id)}</div>
-            <div class="cafe-sheet__facts">
-              <span>${icon("clock")} ${c.hours.label} · ${open.open ? "open now" : "closed now"}</span>
-              <span>${ui.cupIcon(usual, { size: 18, cls: "" })} Usually ${fmt.statusLabel(usual).toLowerCase()} at 6 pm</span>
-            </div>
+        sheet.innerHTML = ui.sheetPanel({
+          id: "cafe-sheet-title", title: c.name, cls: "cafe-sheet",
+          subtitle: `${S.area(c.area).name} · ${c.distanceKm} km · Latte ${fmt.rs(c.price)}`,
+          body: html`${facts}
             <p class="t-small t-muted">${c.blurb}</p>
-            <div>
-              <h3 class="eyebrow">Signature drinks</h3>
+            <section aria-labelledby="cs-sig-h">
+              <h3 class="eyebrow" id="cs-sig-h">Signature drinks</h3>
               <ul role="list">
-                ${c.drinks.map((d) => html`<li class="row"><div class="row__main"><div class="row__title">${d.name}</div></div><span class="badge">${fmt.cups(d.credits)}</span></li>`)}
+                ${c.drinks.map((d) => html`<li class="row"><div class="row__main"><div class="row__title">${d.name}</div></div><span class="row__trail">${fmt.cups(d.credits)}</span></li>`)}
               </ul>
-            </div>
-            <div class="cafe-sheet__actions">
-              <button type="button" class="btn btn--primary btn--block" data-start-order="${c.id}">Order for pickup</button>
-              <a class="btn btn--secondary btn--block" href="#/app/cafes/${c.id}">More about ${c.name}</a>
-              <button type="button" class="btn btn--link" data-directions="${c.id}">Directions</button>
-            </div>
-          </div>`;
-        ui.openSheet($("#cafe-sheet", el));
+            </section>
+            <div class="mlist">
+              ${ui.menuRow({ label: `More about ${c.name}`, href: `#/app/cafes/${c.id}` })}
+              ${ui.menuRow({ label: "Directions", attrs: { "data-directions": c.id }, chevron: false })}
+            </div>`,
+          foot,
+        }).s;
+        ui.openSheet(sheet);
       }
 
       /* ---------------- Screens ---------------- */
@@ -329,8 +310,8 @@
                 <div class="home__actions">
                   <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>
                   <div class="home__more">
-                    <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-                    <a class="btn btn--link" href="#/app/gift">Send a gift</a>
+                    <button type="button" class="btn btn--quiet" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
+                    <a class="btn btn--quiet" href="#/app/gift">Send a gift</a>
                   </div>
                 </div>
               </div>
@@ -413,30 +394,22 @@
         const bands = store.getState().bands;
         const mine = member().plan ? S.bandAt() : null;
         const at = bands.findIndex((b) => b.id === mine);
-        return html`
-          <div class="sheet__scrim" data-sheet-close></div>
-          <div class="sheet__panel">
-            <div class="sheet__handle" aria-hidden="true"></div>
-            <div class="sheet__body bands-sheet">
-              <div class="badges-sheet__bar">
-                <h2 class="t-h3" id="bands-title">What your cup covers</h2>
-                <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-              </div>
-              <p class="t-small t-muted">Every drink sits in a band by its menu price.${at >= 0 ? ` Your plan covers ${S.coversLabel(mine)}.` : ""}</p>
-              <ol class="bands" role="list">
-                ${bands.map((b, i) => html`<li class="bands__item${at >= i ? " is-covered" : ""}">
-                  <div class="bands__head">
-                    <span class="bands__name">${b.label}</span>
-                    <span class="t-small t-faint num">up to ${fmt.rs(b.maxPrice)}</span>
-                    ${at >= i ? html`<span class="badge">In your plan</span>` : ""}
-                  </div>
-                  ${b.line ? html`<p class="t-small t-muted">${b.line}</p>` : ""}
-                  ${b.examples?.length ? html`<p class="t-small bands__eg">${b.examples.join(" · ")}</p>` : ""}
-                </li>`)}
-              </ol>
-              <p class="t-micro t-faint">Above your band, use a cup and pay the difference at the counter. Prices vary by café, so the menu in the app shows each drink’s band.</p>
-            </div>
-          </div>`;
+        return ui.sheetPanel({
+          id: "bands-title", title: "What your cup covers", cls: "bands-sheet",
+          subtitle: `Every drink sits in a band by its menu price.${at >= 0 ? ` Your plan covers ${S.coversLabel(mine)}.` : ""}`,
+          body: html`<ol class="bands" role="list">
+              ${bands.map((b, i) => html`<li class="bands__item${at >= i ? " is-covered" : ""}">
+                <div class="bands__head">
+                  <span class="bands__name">${b.label}</span>
+                  <span class="t-small t-faint num">up to ${fmt.rs(b.maxPrice)}</span>
+                  ${at >= i ? html`<span class="badge">In your plan</span>` : ""}
+                </div>
+                ${b.line ? html`<p class="t-small t-muted">${b.line}</p>` : ""}
+                ${b.examples?.length ? html`<p class="t-small bands__eg">${b.examples.join(" · ")}</p>` : ""}
+              </li>`)}
+            </ol>
+            <p class="t-small t-faint">Above your band, use a cup and pay the difference at the counter. Prices vary by café, so the menu in the app shows each drink’s band.</p>`,
+        });
       }
       function openBands(btn) {
         const sh = $("#bands-sheet", el);
@@ -450,73 +423,172 @@
         return html`<button type="button" class="icon-btn profile-btn" data-open-drawer aria-label="Profile and account" aria-haspopup="dialog" aria-controls="profile-drawer">${icon("user")}</button>`;
       }
 
-      function drawerHtml() {
-        const m = member();
+      /* The drawer is a short menu: a name row, three groups of rows, and
+         sub-pages that slide in from the right inside the same panel
+         (250ms, transform only; none with reduced motion). Focus goes to
+         the sub-page title; Back returns it to the row; Escape closes. */
+      let drawerPage = null; // null: the menu; else "photo" | "plan" | "pickups" | "privacy" | "look" | "help"
+      const WHATSAPP = "https://wa.me/923100008242";
+      const passPct = () => Math.round(S.planConfig().pass.discount * 100);
+
+      function planLines(m) {
         const plan = S.memberPlan(m);
-        const quote = m.plan ? S.quote(m.plan) : null;
+        if (!m.plan) return null;
+        const quote = S.quote(m.plan);
+        const T = plan.type === "pass" ? S.passTier(m) : null;
+        const what = plan.type === "pass" ? `${passPct()}% off ${T.dailyLimit === 1 ? "one coffee" : `${T.dailyLimit} coffees`} a day, at any partner café`
+          : plan.type === "brand" ? "Cups for any branch"
+          : plan.type === "explorer" ? `${fmt.cups(plan.cups)}, any partner café`
+          : `${fmt.cups(plan.cups)} this month at your cafés`;
+        return {
+          name: S.planLabel(m),
+          what,
+          price: quote ? `${fmt.rs(quote.price)}${plan.type === "explorer" ? "" : " a month"}` : "",
+          date: S.planDateLine(m),
+          short: S.planDateLine(m).replace(/^Renews on/, "renews").replace(/^Use by/, "use by"),
+          paid: m.payment ? `${m.payment.method} ending ${m.payment.last4}` : "",
+        };
+      }
+      const LOOK = { coffee: "Coffee", matcha: "Matcha", light: "Light", dark: "Dark", auto: "Auto" };
+      const lookValue = () => `${LOOK[LCC.theme.flavour()]} · ${LOOK[LCC.theme.mode()]}`;
+      function lastCupLine() {
+        const r = S.activity(undefined, ["redeem", "pass-sale"])[0];
+        return r ? `${S.entryDrinkName(r)} at ${S.placeName(r.cafeId)} · ${fmt.ago(r.at)}` : "None yet";
+      }
+      function pickupsLine() {
+        const o = LCC.appOrder?.visible()[0];
+        return o ? LCC.appOrder.statusLine(o) : "None right now";
+      }
+      function drawerLines() {
+        const m = member(), p = planLines(m);
+        return { plan: p ? `${p.name} · ${p.short}` : "No plan yet", cups: lastCupLine(), pickups: pickupsLine(), look: lookValue() };
+      }
+
+      function drawerMainHtml() {
+        const m = member();
+        const c = S.club(m.id);
+        const L = drawerLines();
+        const row = (o) => ui.menuRow({ ...o, attrs: { "data-drawer-page": o.page, ...(o.attrs || {}) } });
         return html`
-          <div class="drawer__bar">
-            <h2 class="t-h3" id="drawer-title">${[m.firstName, m.lastName].filter(Boolean).join(" ")}</h2>
+          <div class="drawer__top">
+            <button type="button" class="drawer__me" data-drawer-page="photo" aria-describedby="drawer-me-line">
+              ${ui.avatar(m, { size: 48 })}
+              <span class="drawer__me-text">
+                <span class="drawer__name" id="drawer-title">${S.fullName(m)}</span>
+                <span class="drawer__me-line num" id="drawer-me-line">${fmt.lcc(m.memberNo)} · ${c.founding ? "Founding Member" : c.level.name}</span>
+              </span>
+            </button>
             <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
           </div>
-          <div class="drawer__body">
-            <div class="drawer__card">${LCC.memberCard ? LCC.memberCard(m.id) : ""}</div>
-            <section class="drawer__section" aria-labelledby="dr-profile">
-              <h3 class="eyebrow" id="dr-profile">Profile</h3>
-              ${photoHtml(m)}
-              ${m.phone ? html`<p class="t-small t-muted num">${fmt.lcc(m.memberNo)} · ${m.phone}</p>` : ""}
-              <a class="btn btn--link" href="#/app/club">Your member card</a>
-              <a class="btn btn--link" href="#/app/cups">My cups</a>
-            </section>
-
-            <section class="drawer__section" aria-labelledby="dr-recent">
-              <h3 class="eyebrow" id="dr-recent">Recent activity</h3>
-              <ul role="list" data-recent aria-live="polite">${recentRows()}</ul>
-            </section>
-
-            <section class="drawer__section" aria-labelledby="dr-pickups">
-              <h3 class="eyebrow" id="dr-pickups">Pickup orders</h3>
-              <div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>
-            </section>
-
-            <section class="drawer__section" aria-labelledby="dr-plan">
-              <h3 class="eyebrow" id="dr-plan">Plan and billing</h3>
-              ${m.plan
-                ? html`<p class="t-body">${S.planLabel(m)}${plan.type === "brand" ? ", any branch" : plan.type === "pass" ? `, ${Math.round(S.planConfig().pass.discount * 100)}% off ${S.passTier(m).dailyLimit === 1 ? "one coffee" : `${S.passTier(m).dailyLimit} coffees`} a day` : plan.type === "explorer" ? `, ${fmt.cups(plan.cups)}` : `, ${fmt.cups(plan.cups)} this month`}</p>
-                    <p class="t-small t-muted num">${quote ? `${fmt.rs(quote.price)}${plan.type === "explorer" ? "" : " a month"} · ` : ""}${S.planDateLine(m).replace(/^./, (c) => c.toLowerCase())}</p>
-                    ${m.payment ? html`<p class="t-small t-muted num">Paid with ${m.payment.method} ending ${m.payment.last4}</p>` : ""}`
-                : html`<p class="t-body">No plan yet</p>`}
-              <button type="button" class="btn btn--link" data-start-plan>${m.plan ? "Change plan" : "Choose a plan"}</button>
-            </section>
-
-            <section class="drawer__section" aria-labelledby="dr-privacy">
-              <h3 class="eyebrow" id="dr-privacy">Privacy</h3>
-              ${privacyHtml()}
-            </section>
-
-            <section class="drawer__section drawer__appearance" aria-labelledby="dr-look">
-              <h3 class="eyebrow" id="dr-look">Appearance</h3>
-              ${ui.segmented({ name: "flavour", label: "Colour theme", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}
-              ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}
-            </section>
-
-            <section class="drawer__section" aria-labelledby="dr-help">
-              <h3 class="eyebrow" id="dr-help">Help</h3>
-              <p class="t-small t-muted">Show your pass at the counter. On The Round Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code. On The Round Pass, the barista takes ${Math.round(S.planConfig().pass.discount * 100)}% off one coffee a day. Pack cups last ${S.planConfig().packDays} days.</p>
-              <a class="btn btn--link" href="https://wa.me/923100008242" target="_blank" rel="noopener">Message us on WhatsApp</a>
-            </section>
+          <div class="mgroup">
+            ${row({ page: "plan", label: "Plan", line: L.plan, lineKey: "plan" })}
+            ${ui.menuRow({ label: "My cups", line: L.cups, lineKey: "cups", href: "#/app/cups", attrs: { "data-drawer-cups": "" } })}
+            ${row({ page: "pickups", label: "Pickup orders", line: L.pickups, lineKey: "pickups" })}
+          </div>
+          <div class="mgroup">
+            ${row({ page: "privacy", label: "Privacy" })}
+            ${row({ page: "look", label: "Appearance", value: L.look })}
+            ${row({ page: "help", label: "Help" })}
+          </div>
+          <div class="mgroup">
+            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}
           </div>`;
+      }
+
+      const SUB_TITLES = { photo: "Your photo", plan: "Plan", pickups: "Pickup orders", privacy: "Privacy", look: "Appearance", help: "Help" };
+      function drawerSubHtml(page) {
+        const m = member();
+        const body = {
+          photo: () => photoHtml(m),
+          plan: () => {
+            const p = planLines(m);
+            return p
+              ? html`<div class="drawer-plan">
+                  <p class="drawer-plan__name">${p.name}</p>
+                  <p class="t-body t-muted">${p.what}</p>
+                  <p class="t-small t-muted num">${[p.price, p.date].filter(Boolean).join(" · ")}</p>
+                  ${p.paid ? html`<p class="t-small t-muted num">Paid with ${p.paid}</p>` : ""}
+                </div>
+                <button type="button" class="btn btn--primary btn--block" data-start-plan>Change plan</button>`
+              : html`<p class="t-body t-muted">No plan yet. Pick The Round Pass or a cup pack to start.</p>
+                <button type="button" class="btn btn--primary btn--block" data-start-plan>Choose a plan</button>`;
+          },
+          pickups: () => html`<div data-drawer-pickups>${LCC.appOrder ? LCC.appOrder.drawerHtml() : ""}</div>`,
+          privacy: () => html`<div class="mlist" data-privacy-box>${privacyHtml()}</div>`,
+          look: () => html`<div class="drawer-look">
+              <div class="drawer-look__group"><p class="drawer-look__label" id="look-flavour">Colour</p>
+                ${ui.segmented({ name: "flavour", label: "Colour", value: LCC.theme.flavour(), options: [{ value: "coffee", label: "Coffee" }, { value: "matcha", label: "Matcha" }] })}</div>
+              <div class="drawer-look__group"><p class="drawer-look__label" id="look-mode">Light or dark</p>
+                ${ui.segmented({ name: "mode", label: "Light or dark", value: LCC.theme.mode(), options: [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "auto", label: "Auto" }] })}</div>
+            </div>`,
+          help: () => html`<div class="mlist drawer-help">
+              ${ui.disclosure({ id: "help-pass", label: "How do I use my pass?", body: html`<p class="t-small t-muted">Show your pass at the counter. On The Round Pass it’s one QR with your membership number; on a cup pack, the QR or your 6-digit code.</p>` })}
+              ${ui.disclosure({ id: "help-plan", label: "What does The Round Pass give me?", body: html`<p class="t-small t-muted">${passPct()}% off one coffee a day at any partner café. The barista takes it off at the till.</p>` })}
+              ${ui.disclosure({ id: "help-pack", label: "How long do pack cups last?", body: html`<p class="t-small t-muted num">Pack cups last ${S.planConfig().packDays} days from the day you buy the pack.</p>` })}
+            </div>
+            ${ui.menuRow({ label: "Message us on WhatsApp", href: WHATSAPP, external: true })}`,
+        }[page];
+        return html`
+          <div class="drawer__bar">
+            <button type="button" class="icon-btn" data-drawer-back aria-label="Back">${icon("arrowLeft")}</button>
+            <h2 class="drawer__title" id="drawer-sub-title" tabindex="-1">${SUB_TITLES[page]}</h2>
+          </div>
+          <div class="drawer__subbody">${body ? body() : ""}</div>`;
+      }
+
+      function drawerHtml() {
+        return html`<div class="drawer__pages${drawerPage ? " is-sub" : ""}" data-drawer-pages>
+          <div class="drawer__page drawer__main" data-drawer-main ${drawerPage ? raw("inert") : ""}>${drawerMainHtml()}</div>
+          <div class="drawer__page drawer__sub" data-drawer-sub ${drawerPage ? "" : raw("inert")}>${drawerPage ? drawerSubHtml(drawerPage) : ""}</div>
+        </div>`;
+      }
+
+      function openDrawerPage(page) {
+        const d = $("#profile-drawer", el);
+        drawerPage = page;
+        const sub = $("[data-drawer-sub]", d);
+        sub.innerHTML = drawerSubHtml(page).s;
+        sub.scrollTop = 0;
+        sub.removeAttribute("inert");
+        $("[data-drawer-main]", d).setAttribute("inert", "");
+        $("[data-drawer-pages]", d).classList.add("is-sub");
+        $("#drawer-sub-title", d).focus({ preventScroll: true });
+      }
+      function closeDrawerPage() {
+        const d = $("#profile-drawer", el);
+        const was = drawerPage;
+        drawerPage = null;
+        const main = $("[data-drawer-main]", d);
+        main.innerHTML = drawerMainHtml().s; // the Appearance value and lines may have changed
+        main.removeAttribute("inert");
+        $("[data-drawer-sub]", d).setAttribute("inert", "");
+        $("[data-drawer-pages]", d).classList.remove("is-sub");
+        $(`[data-drawer-page="${was}"]`, main)?.focus({ preventScroll: true });
+      }
+      /** Keep the drawer's lines (and an open live sub-page) current. */
+      function repaintDrawer(pages = []) {
+        const d = $("#profile-drawer", el);
+        if (!d || d.dataset.open !== "true") return;
+        const L = drawerLines();
+        Object.entries(L).forEach(([k, v]) => { const n = $(`[data-mrow-line="${k}"]`, d); if (n) n.textContent = v; });
+        const look = $('[data-drawer-page="look"] .mrow__value', d);
+        if (look) look.textContent = L.look;
+        if (drawerPage && pages.includes(drawerPage)) {
+          const box = $("[data-drawer-sub] .drawer__subbody", d);
+          const keep = document.activeElement && box?.contains(document.activeElement);
+          if (drawerPage === "pickups") { const p = $("[data-drawer-pickups]", d); if (p && LCC.appOrder) p.innerHTML = LCC.appOrder.drawerHtml().s; }
+          else if (box) { const t = document.createElement("div"); t.innerHTML = drawerSubHtml(drawerPage).s; box.innerHTML = $(".drawer__subbody", t).innerHTML; }
+          if (keep) $("#drawer-sub-title", d)?.focus({ preventScroll: true });
+        }
       }
 
       /** The member's face at the counter: initials by default, or a photo. */
       function photoHtml(m) {
-        return html`<div class="photo-row" data-photo-row>
-          ${ui.avatar(m, { size: 56 })}
-          <div class="photo-row__text">
-            <button type="button" class="btn btn--link" data-add-photo>${m.photo ? "Change photo" : "Add a photo"}</button>
-            ${m.photo ? html`<button type="button" class="btn btn--link" data-remove-photo>Remove</button>` : ""}
-            <p class="t-small t-muted">Your photo helps the barista recognise you.</p>
-          </div>
+        return html`<div class="photo-page" data-photo-row>
+          ${ui.avatar(m, { size: 96 })}
+          <p class="t-small t-muted">Your photo helps the barista recognise you.</p>
+          <button type="button" class="btn btn--primary btn--block" data-add-photo>${m.photo ? "Change photo" : "Add a photo"}</button>
+          ${m.photo ? html`<button type="button" class="btn btn--quiet is-muted" data-remove-photo>Remove photo</button>` : ""}
         </div>`;
       }
       /** A square 160px JPEG from the chosen picture, small enough to sync. */
@@ -579,9 +651,9 @@
         const T = S.passTier(m);
         const sheet = $("#wallet-sheet", el);
         const where = kind === "apple" ? "Apple Wallet" : "Google Wallet";
-        $("[data-wallet-body]", sheet).innerHTML = html`
-          <h2 class="t-h3" id="wallet-title">${where}</h2>
-          <div class="wallet-card">
+        sheet.innerHTML = ui.sheetPanel({
+          id: "wallet-title", title: where,
+          body: html`<div class="wallet-card">
             <div class="wallet-card__top">
               <span class="wallet-card__logo">${ui.logo("mark")}</span>
               <span class="t-micro wallet-card__tier">${T.name}</span>
@@ -593,9 +665,12 @@
             </dl>
             <div class="qr wallet-card__qr" role="img" aria-label="QR code for membership number ${fmt.lcc(m.memberNo)}">${raw(ui.qrSvg(staticPayload(m), { fallback: fmt.lcc(m.memberNo) }))}</div>
           </div>
-          <p class="t-body wallet-added" role="status">${icon("check", { size: 18 })} Added to your wallet.</p>
-          <p class="t-small t-muted">Prototype: nothing was sent to ${where}.</p>
-          <button type="button" class="btn btn--primary btn--block" data-sheet-close>Done</button>`.s;
+          <div class="stack" style="--stack-gap:var(--space-1)">
+            <p class="t-body wallet-added" role="status">${icon("check", { size: 18 })} Added to your wallet.</p>
+            <p class="t-small t-faint">Prototype: nothing was sent to ${where}.</p>
+          </div>`,
+          foot: html`<button type="button" class="btn btn--primary btn--block" data-sheet-close>Done</button>`,
+        }).s;
         ui.openSheet(sheet);
       }
       /** The static pass QR encodes the membership number only ("LCC-0042"). */
@@ -614,44 +689,9 @@
 
       function openDrawer() {
         const d = $("#profile-drawer", el);
+        drawerPage = null;
         $("[data-drawer-body]", d).innerHTML = drawerHtml().s;
         ui.openSheet(d);
-      }
-
-      const REWARD_LINES = { "passport-5": "fifth café", "passport-all": "every café", invite: "a friend joined", invited: "invited by a friend", beans: "from your Beans" };
-      function recentRows(newId) {
-        const rows = S.activity(undefined, ["redeem", "pass-sale", "gift", "reward"]).slice(0, 3);
-        if (!rows.length) return html`<li class="row"><div class="row__main row__meta">No cups used yet. Your first one is waiting.</div></li>`;
-        return html`${rows.map((r) => {
-          const c = S.cafe(r.cafeId);
-          if (r.type === "pass-sale") {
-            return html`<li class="row${r.id === newId ? " enter" : ""}">
-              <div class="row__main">
-                <div class="row__title">${S.entryDrinkName(r)}</div>
-                <div class="row__meta num">${S.placeName(r.cafeId)} · ${fmt.rs(r.memberPrice)} at the till · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
-              </div>
-              <span class="badge">Pass</span>
-            </li>`;
-          }
-          if (r.type !== "redeem") {
-            const title = r.type === "gift" ? `Gift to ${r.toName || "a friend"}` : `Complimentary cup: ${REWARD_LINES[r.reason] || "from the club"}`;
-            const where = r.type === "gift" ? (c ? `For ${c.name}` : "For any partner café") : "Any partner café";
-            return html`<li class="row${r.id === newId ? " enter" : ""}">
-              <div class="row__main">
-                <div class="row__title">${title}</div>
-                <div class="row__meta">${where} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
-              </div>
-              <span class="badge${r.type === "reward" ? " badge--accent" : ""}">${r.type === "reward" ? "+" : "−"}${fmt.cups(Math.abs(r.cups))}</span>
-            </li>`;
-          }
-          return html`<li class="row${r.id === newId ? " enter" : ""}">
-            <div class="row__main">
-              <div class="row__title">${S.entryDrinkName(r)}</div>
-              <div class="row__meta">${S.placeName(r.cafeId)}${r.orderId ? " · pickup" : ""}${r.topUp ? ` · ${fmt.rs(r.topUp)} top-up` : ""} · <span data-rel-time="${r.at}">${fmt.ago(r.at)}</span></div>
-            </div>
-            <span class="badge">${fmt.cups(r.credits)}</span>
-          </li>`;
-        })}`;
       }
 
       function paintRing() {
@@ -710,7 +750,7 @@
         /** Name, with the photo when there is one; "Add a photo" only while there isn't. */
         function passWho() {
           const m2 = member();
-          return html`${m2.photo ? ui.avatar(m2, { size: 32 }) : ""}<span class="pass-who__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--link" data-add-photo>Add a photo</button>`}`;
+          return html`${m2.photo ? ui.avatar(m2, { size: 32 }) : ""}<span class="pass-who__name">${S.fullName(m2)}</span>${m2.photo ? "" : html`<button type="button" class="btn btn--quiet" data-add-photo>Add a photo</button>`}`;
         }
         /** "LCC Pass · 20% off · 1 today", "Cup pack · Classic 8 · 5 of 8 cups left" */
         function planLine() {
@@ -1035,6 +1075,9 @@
         // Focus the button first, so closing the drawer returns there (Safari doesn't focus on tap)
         const pb = t.closest("[data-open-drawer]");
         if (pb) { pb.focus(); openDrawer(); return; }
+        const dpg = t.closest("[data-drawer-page]");
+        if (dpg) { openDrawerPage(dpg.dataset.drawerPage); return; }
+        if (t.closest("[data-drawer-back]")) { closeDrawerPage(); return; }
         const bg = t.closest("[data-bands-guide]");
         if (bg) { openBands(bg); return; }
         const cafeBtn = t.closest("[data-open-cafe], [data-pin]");
@@ -1045,6 +1088,7 @@
           ui.selectSegment(group, look.dataset.value);
           if (group.dataset.segmented === "flavour") LCC.theme.setFlavour(look.dataset.value);
           else LCC.theme.setMode(look.dataset.value);
+          repaintDrawer();
           return;
         }
         const seg = t.closest('[data-segmented="mapmode"] .segmented__option');
@@ -1129,8 +1173,8 @@
         }
         if (!t.matches("[data-privacy]")) return;
         A.setPrivacy({ [t.dataset.privacy]: t.checked });
-        const box = t.closest(".drawer__section");
-        if (box) { $$(".switch-row", box).forEach((n) => n.remove()); box.insertAdjacentHTML("beforeend", privacyHtml().s); $(`[data-privacy="${t.dataset.privacy}"]`, box)?.focus(); }
+        const box = t.closest("[data-privacy-box]");
+        if (box) { box.innerHTML = privacyHtml().s; $(`[data-privacy="${t.dataset.privacy}"]`, box)?.focus(); }
         ui.toast(t.dataset.privacy === "share" ? (t.checked ? "Your Circles can see your coffee again." : "Your coffee is now private.") : (t.checked ? "Your Circles see the café, not the branch." : "Your Circles see the branch."));
       };
       el.addEventListener("change", onChange);
@@ -1141,22 +1185,18 @@
       const dispatch = (type) => (payload) => active.on?.[type]?.(payload);
       function repaintPickups() {
         active.on?.dismissPickup?.();
-        const box = $("#profile-drawer [data-drawer-pickups]", el);
-        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+        repaintDrawer(["pickups"]);
       }
-      // The drawer's recent activity follows the ledger while it is open
+      // The drawer's lines (last cup, plan, pickups) follow the ledger while it is open
       const offDrawer = store.on("ledger", ({ entries }) => {
-        const mine = entries.filter((e) => e.memberId === member().id);
-        const list = $("#profile-drawer [data-recent]", el);
-        if (mine.length && list) list.innerHTML = recentRows(mine[mine.length - 1].id).s;
+        if (entries.some((e) => e.memberId === member().id)) repaintDrawer(["plan"]);
       });
       const offs = ["redeem", "undo", "profile", "ledger", "member", "plan", "builder", "cafe:status", "pass", "tick", "rsvp", "order", "pickup", "group", "snapshot", "circle", "round", "ack", "privacy"].map((type) => store.on(type, dispatch(type)));
 
       // Pickup orders: the drawer follows along, and the café's moves get a word
       offs.push(store.on("pickup", ({ order, prev, quiet }) => {
         if (order.memberId !== member().id) return;
-        const box = $("#profile-drawer [data-drawer-pickups]", el);
-        if (box && LCC.appOrder) box.innerHTML = LCC.appOrder.drawerHtml().s;
+        repaintDrawer(["pickups"]);
         if (quiet || prev === order.status) return;
         const place = S.pickupPlace(order.cafeId);
         const me = member().id;
@@ -1222,8 +1262,12 @@
       }));
       offs.push(store.on("profile", ({ memberId }) => {
         if (memberId !== member().id) return;
-        const row = $("#profile-drawer [data-photo-row]", el);
-        if (row) row.outerHTML = photoHtml(member()).s;
+        const d = $("#profile-drawer", el);
+        const av = $(".drawer__me .avatar", d);
+        if (av) av.outerHTML = ui.avatar(member(), { size: 48 }).s;
+        const focusAdd = document.activeElement?.matches?.("[data-add-photo], [data-remove-photo]");
+        repaintDrawer(["photo"]);
+        if (focusAdd) $("[data-add-photo]", d)?.focus({ preventScroll: true });
       }));
 
       // Another device filled this one in (join handshake): redraw, unless mid-purchase

@@ -8,9 +8,8 @@
 /* My cups -------------------------------------------------------------- */
 .cups-tools { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-3); }
 .cups-filter { flex: 1 1 180px; margin: 0; }
-.cups-log__row { align-items: start; }
-.cups-log__cups { flex: none; min-width: 2.5rem; text-align: right; font-size: var(--fs-16); color: var(--ink); }
-.cups-log__row.is-struck .row__title { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--ink-3); }
+.cups-log .arow { align-items: flex-start; }
+.cups-log .arow__sentence { font-weight: 500; }
 
 /* Pickup confirmation ------------------------------------------------- */
 .order-done { display: grid; gap: var(--space-5); }

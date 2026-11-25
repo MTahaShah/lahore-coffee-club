@@ -73,7 +73,7 @@
       </div>
       ${mine?.going
         ? table && table.status !== "cancelled"
-          ? html`<a class="btn btn--link" href="#/app/group/${table.id}">${table.status === "open" ? "Add your drink to the table" : "See the table"}</a>`
+          ? html`<a class="btn btn--quiet" href="#/app/group/${table.id}">${table.status === "open" ? "Add your drink to the table" : "See the table"}</a>`
           : html`<button type="button" class="btn btn--secondary btn--block" data-round-table="${r.id}">Order together</button>
               <p class="t-micro t-faint">Starts a table at ${place} for ${fmt.time(r.at)}. Everyone coming adds their own drink.</p>`
         : ""}
@@ -81,16 +81,36 @@
     </article>`;
   }
 
+  /* Activity: grouped by day (Today, Yesterday, This week, Earlier); one
+     sentence per row ("Hira had an Iced Matcha"), place and time below,
+     cheers on the right (44px target, filled in --accent once cheered). */
+  const article = (w) => (/^[aeiou]/i.test(w) ? "an" : "a");
+  function activityParts(r) {
+    const who = nameOf(r.member);
+    if (r.kind === "stamp") return { sentence: `${who} got ${article(r.cafeName)} ${r.cafeName} stamp`, thing: `${r.cafeName} stamp`, where: "Passport" };
+    if (r.kind === "badge") return { sentence: `${who} earned the ${r.badgeName} badge`, thing: `${r.badgeName} badge`, where: "Club badge" };
+    return { sentence: `${who} had ${article(r.drink)} ${r.drink}`, thing: r.drink, where: r.place || "" };
+  }
+  function cheerHtml(r) {
+    const p = activityParts(r);
+    const whose = r.own ? "your" : `${r.member.firstName}’s`;
+    const n = r.acks ? `, ${r.acks} ${r.acks === 1 ? "cheer" : "cheers"}` : "";
+    const label = r.own ? `Cheers on your ${p.thing}${n || ", none yet"}` : `Cheer ${whose} ${p.thing}${n}`;
+    return html`<button type="button" class="ack" data-ack="${r.key}" aria-pressed="${r.acked}" ${r.own ? raw("disabled") : ""} aria-label="${label}">
+      ${ui.cupIcon(r.acked ? "packed" : "quiet", { size: 20, cls: "ack__icon" })}<span class="ack__n num" aria-hidden="true">${r.acks || (r.own ? "0" : "Cheer")}</span>
+    </button>`;
+  }
   function activityListHtml(rows) {
     const mine = S.privacy(meId());
-    return html`${!mine.share ? html`<p class="t-small t-muted">You’re not sharing your coffee with your Circles. Change it in your profile.</p>` : ""}
-      ${rows.length ? html`<ul role="list" class="circle-act">${rows.map((r) => html`<li class="circle-act__row">
-        <p class="circle-act__text"><strong>${nameOf(r.member)}</strong> · ${r.text} · <span class="t-muted" data-rel-time="${r.at}">${fmt.ago(r.at)}</span></p>
-        <button type="button" class="ack" data-ack="${r.key}" aria-pressed="${r.acked}" ${r.own ? raw("disabled") : ""}
-          aria-label="${r.own ? "Acknowledgements" : r.acked ? "Acknowledged. Tap to take it back" : "Acknowledge"}${r.acks ? `, ${r.acks}` : ""}">
-          ${ui.cupIcon(r.acked ? "moderate" : "quiet", { size: 16, cls: "ack__icon" })}<span class="num">${r.acks || ""}</span>
-        </button>
-      </li>`)}</ul>` : html`<p class="t-small t-muted">Nothing this week yet.</p>`}`;
+    return html`${!mine.share ? html`<p class="t-small t-muted">You’re not sharing your coffee with your Circles. Change it in Profile, Privacy.</p>` : ""}
+      ${rows.length ? html`<div class="circle-act">${ui.dayGroups(rows, (r) => {
+        const p = activityParts(r);
+        return ui.activityRow({
+          who: r.member, sentence: p.sentence,
+          line: html`${p.where}${p.where ? " · " : ""}<span data-rel-time="${r.at}">${fmt.ago(r.at)}</span>`,
+          trail: cheerHtml(r),
+        });
+      })}</div>` : html`<p class="t-small t-muted">Nothing this week yet.</p>`}`;
   }
 
   /** Round answers, "Order together" and acknowledgements: the same on the tab and a Circle. Returns true when handled. */
@@ -140,7 +160,7 @@
               <p class="field__error" id="circle-name-err">${form.error}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block">Start the Circle</button>
-            <button type="button" class="btn btn--link" data-circle-cancel>Not now</button>
+            <button type="button" class="btn btn--quiet" data-circle-cancel>Not now</button>
           </form>`
         : html`<button type="button" class="btn btn--secondary btn--block" data-circle-start>Start a Circle</button>`}`;
   }
@@ -163,7 +183,7 @@
     const line = circleLine(c);
     const mine = line.round?.answers?.[meId()];
     const act = !line.round ? ""
-      : !mine ? html`<button type="button" class="btn btn--link circle-card__go" data-round-answer="${line.round.id}" data-going="1">I’ll be there</button>`
+      : !mine ? html`<button type="button" class="btn btn--quiet circle-card__go" data-round-answer="${line.round.id}" data-going="1">I’ll be there</button>`
       : mine.going ? html`<p class="t-small circle-card__going">You’re going</p>` : "";
     return html`<li class="card circle-card">
       ${ringHtml(c)}
@@ -266,7 +286,7 @@
       const all = clubEvents();
       if (!all.length) return html`<p class="t-small t-muted">The next club event is announced here first.</p>`;
       return html`${gatheringItemHtml(all[0])}
-        ${all.length > 1 ? html`<button type="button" class="btn btn--link" data-events-all>See all ${all.length} club events</button>` : ""}`;
+        ${all.length > 1 ? html`<button type="button" class="btn btn--quiet" data-events-all>See all ${all.length} club events</button>` : ""}`;
     }
     function recentHtml() {
       const rows = recentRows();
@@ -279,7 +299,7 @@
         <div class="disclosure__panel" id="cr-panel" role="region" aria-labelledby="cr-h" data-open="${recentOpen}" ${recentOpen ? "" : raw("inert")}>
           <div class="disclosure__inner">
             ${activityListHtml(rows.slice(0, 5))}
-            ${rows.length > 5 ? html`<button type="button" class="btn btn--link" data-activity-all>See all ${rows.length}</button>` : ""}
+            ${rows.length > 5 ? html`<button type="button" class="btn btn--quiet" data-activity-all>See all ${rows.length}</button>` : ""}
           </div>
         </div>`;
     }
@@ -298,21 +318,10 @@
     }
 
     /* The two sheets: every club event, and all recent activity */
-    const sheetFrame = (id, title, body) => html`
-      <div class="sheet__scrim" data-sheet-close></div>
-      <div class="sheet__panel">
-        <div class="sheet__handle" aria-hidden="true"></div>
-        <div class="sheet__body circles-sheet">
-          <div class="badges-sheet__bar">
-            <h2 class="t-h3" id="${id}">${title}</h2>
-            <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-          </div>
-          ${body}
-        </div>
-      </div>`;
-    const eventsSheetHtml = () => sheetFrame("events-title", "From the club", html`<p class="t-small t-muted">Events The Round runs itself, open to members.</p>
-      <ul role="list" class="event-list">${clubEvents().map(eventRowHtml)}</ul>`);
-    const activitySheetHtml = () => sheetFrame("activity-title", "Recent activity", html`<p class="t-small t-muted">From all your Circles, the last ${S.circleRules().activityDays} days.</p>${activityListHtml(recentRows())}`);
+    const eventsSheetHtml = () => ui.sheetPanel({ id: "events-title", title: "From the club", subtitle: "Events The Round runs itself, open to members.", cls: "circles-sheet",
+      body: html`<ul role="list" class="event-list">${clubEvents().map(eventRowHtml)}</ul>` });
+    const activitySheetHtml = () => ui.sheetPanel({ id: "activity-title", title: "Recent activity", subtitle: `From all your Circles, the last ${S.circleRules().activityDays} days.`, cls: "circles-sheet",
+      body: activityListHtml(recentRows()) });
     function makeSheet(id, labelId) {
       const sh = document.createElement("div");
       sh.className = "sheet";
@@ -435,7 +444,7 @@
         <ul role="list" class="circle-people">${S.circleMembers(cc).map((m) => html`<li><span class="circle-people__mark" aria-hidden="true">${(m.initials || m.firstName[0]).slice(0, 2)}</span><span>${name(m)}</span></li>`)}</ul>
         ${count(cc) < max()
           ? html`<a class="btn btn--secondary btn--block" href="${waHref(cc)}" target="_blank" rel="noopener">${icon("share")}Add them to your circle</a>
-             <button type="button" class="btn btn--link" data-circle-copy>Copy the invitation link</button>`
+             <button type="button" class="btn btn--quiet" data-circle-copy>Copy the invitation link</button>`
           : html`<p class="t-small t-muted">This Circle is full, ${max()} of ${max()}.</p>`}
       </div>`;
     }
@@ -464,7 +473,7 @@
           : html`<p class="t-small t-muted">${S.pickupPlace(call.cafeId)} has closed for today. Choose another café.</p>`}
         <p class="cv-error" role="alert">${call.error}</p>
         <button type="submit" class="btn btn--primary btn--block" ${t.slots.length ? "" : raw("disabled")}>Call the round</button>
-        <button type="button" class="btn btn--link" data-round-cancel>Not now</button>
+        <button type="button" class="btn btn--quiet" data-round-cancel>Not now</button>
       </form>`;
     }
 
@@ -495,11 +504,11 @@
       const cc = c();
       return html`${manage && isHost() ? html`<ul role="list">${S.circleMembers(cc).filter((m) => m.id !== cc.hostId).map((m) => html`<li class="row">
           <span class="row__main"><span class="row__title">${m.firstName} ${m.lastName || ""}</span><span class="row__meta">Joined ${fmt.shortDate(cc.members[m.id].joinedAt)}</span></span>
-          <button type="button" class="btn btn--link" data-circle-remove="${m.id}">Remove</button>
+          <button type="button" class="btn btn--quiet" data-circle-remove="${m.id}">Remove</button>
         </li>`)}</ul>` : ""}
         <div class="circle-leave">
-          ${isHost() && count(cc) > 1 ? html`<button type="button" class="btn btn--link" data-circle-manage>${manage ? "Done" : "Manage members"}</button>` : ""}
-          <button type="button" class="btn btn--link" data-circle-leave>Leave this Circle</button>
+          ${isHost() && count(cc) > 1 ? html`<button type="button" class="btn btn--quiet" data-circle-manage>${manage ? "Done" : "Manage members"}</button>` : ""}
+          <button type="button" class="btn btn--quiet" data-circle-leave>Leave this Circle</button>
         </div>
         <p class="t-micro t-faint">Your Circle sees the café and the time, after you’ve had your coffee. Never where you are.</p>`;
     }

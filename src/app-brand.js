@@ -123,31 +123,22 @@
       const p = S.drinkPrice(b.id, item, temp, band());
       const both = item.hot != null && item.iced != null;
       const use = canUse();
-      return html`
-        <div class="sheet__scrim" data-sheet-close></div>
-        <div class="sheet__panel">
-          <div class="sheet__handle" aria-hidden="true"></div>
-          <div class="sheet__body order-sheet">
-            <div class="stack" style="--stack-gap:var(--space-1)">
-              <p class="eyebrow">${item.section}</p>
-              <h2 class="t-h2" id="order-title" data-order-name>${S.drinkLabel(item, temp)}</h2>
-              <p class="t-small t-muted num" data-order-price>${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}</p>
-            </div>
-            ${both
-              ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
-              : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
-            <p class="order-sheet__cover num" data-order-cover>${coverLine(p)}</p>
-            <button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
-            ${use
-              ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>
-                  <p class="t-micro t-faint">Order ahead and collect, or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
-              : S.isPass()
-              ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Have it at the counter</button>
-                  <p class="t-micro t-faint">Show your pass: the counter sees this drink and takes the member price.</p>`
-              : html`<p class="t-small t-muted">No cups to use here right now. You can still order and pay for it.</p>`}
-            <button type="button" class="btn btn--link" data-skip-order>Skip, I’ll order at the counter</button>
-          </div>
-        </div>`;
+      return ui.sheetPanel({
+        id: "order-title", cls: "order-sheet",
+        title: html`<span data-order-name>${S.drinkLabel(item, temp)}</span>`,
+        subtitle: html`<span class="num" data-order-price>${fmt.rs(p.price)} at the counter · ${p.band ? p.band.label : "Above Reserve"}</span>`,
+        body: html`${both
+            ? ui.segmented({ name: "ordertemp", label: "Hot or iced", value: p.temp, options: [{ value: "hot", label: "Hot" }, { value: "iced", label: "Iced" }] })
+            : html`<p class="t-small t-muted">${item.hot != null ? "Served hot." : "Served iced."}</p>`}
+          <p class="order-sheet__cover num" data-order-cover>${coverLine(p)}</p>
+          ${use ? html`<p class="t-small t-faint">Or show your pass at the counter: they see this drink when they scan it. Nothing is spent until then.</p>`
+            : S.isPass() ? html`<p class="t-small t-faint">Or show your pass: the counter sees this drink and takes the member price.</p>`
+            : html`<p class="t-small t-muted">No cups to use here right now. You can still order and pay for it.</p>`}`,
+        foot: html`<button type="button" class="btn btn--primary btn--block" data-pickup-order>Order for pickup</button>
+          ${use ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Use a cup at the counter</button>`
+            : S.isPass() ? html`<button type="button" class="btn btn--secondary btn--block" data-use-cup>Have it at the counter</button>` : ""}
+          <button type="button" class="btn btn--quiet is-muted btn--block" data-skip-order>Skip, I’ll order at the counter</button>`,
+      });
     }
 
     function openOrder(btn, drinkId) {

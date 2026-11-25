@@ -239,7 +239,7 @@
           <p class="t-h3 num"><span class="passport__count">${p.count}</span> of ${p.total} cafés</p>
           <p class="t-small t-muted">${rewardLine}</p>
         </div>
-        <button type="button" class="btn btn--link" data-pbook-close ${book.open ? "" : raw("hidden")}>Close passport</button>
+        <button type="button" class="btn btn--quiet" data-pbook-close ${book.open ? "" : raw("hidden")}>Close passport</button>
       </div>`;
   }
 
@@ -440,17 +440,9 @@
     function beansSheetHtml() {
       const b = S.beans();
       const R = b.rules;
-      return html`
-        <div class="sheet__scrim" data-sheet-close></div>
-        <div class="sheet__panel">
-          <div class="sheet__handle" aria-hidden="true"></div>
-          <div class="sheet__body beans-sheet">
-            <div class="badges-sheet__bar">
-              <h2 class="t-h3" id="beans-title">Beans</h2>
-              <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-            </div>
+      return ui.sheetPanel({ id: "beans-title", title: "Beans", cls: "beans-sheet", body: html`
             <p class="beans-sheet__bal"><span aria-hidden="true">${icon("bean", { size: 28 })}</span><span class="num">${fmt.num(b.balance)}</span> Beans</p>
-            <p class="t-small t-muted num">${R.perDrink} Beans for every drink, at the counter or collected for pickup. ${R.referral} each when a friend joins with your code and buys a plan or pays for an order. Hosting a table adds ${R.hostPerFriend} for every friend who joins it.</p>
+            <p class="t-small t-muted num beans-sheet__how">${R.perDrink} Beans for every drink, at the counter or collected for pickup. ${R.referral} each when a friend joins with your code and buys a plan or pays for an order. Hosting a table adds ${R.hostPerFriend} for every friend who joins it.</p>
 
             <section aria-labelledby="beans-rw-h">
               <h3 class="eyebrow" id="beans-rw-h">Rewards</h3>
@@ -479,8 +471,7 @@
                   <span class="row__trail num">${h.beans > 0 ? "+" : "−"}${Math.abs(h.beans)}</span>
                 </li>`)}</ul>` : html`<p class="t-small t-muted">Your first Beans come with your first cup.</p>`}
             </section>
-          </div>
-        </div>`;
+` });
     }
     function paintBeansSheet() {
       if (!beansSheet || beansSheet.dataset.open !== "true") return;
@@ -552,15 +543,7 @@
       const todo = c.badges.filter((b) => !b.earned);
       // Progress only where counting means something (not a one-off like Founding or a first cup)
       const progress = (b) => (b.goal > 1 && b.metric !== "founding" ? ` · ${b.have} of ${b.goal}` : "");
-      return html`
-        <div class="sheet__scrim" data-sheet-close></div>
-        <div class="sheet__panel">
-          <div class="sheet__handle" aria-hidden="true"></div>
-          <div class="sheet__body badges-sheet">
-            <div class="badges-sheet__bar">
-              <h2 class="t-h3" id="badges-title">Badges</h2>
-              <button type="button" class="icon-btn" data-sheet-close aria-label="Close">${icon("close")}</button>
-            </div>
+      return ui.sheetPanel({ id: "badges-title", title: "Badges", subtitle: `${earned.length} of ${c.badges.length} earned`, cls: "badges-sheet", body: html`
             <section aria-labelledby="badges-earned-h">
               <h3 class="eyebrow" id="badges-earned-h">Earned · ${earned.length}</h3>
               ${earned.length
@@ -579,8 +562,7 @@
                   </li>`)}</ul>`
                 : html`<p class="t-small t-muted">Every badge, earned.</p>`}
             </section>
-          </div>
-        </div>`;
+` });
     }
 
     /** Your perks: ready ones first, then used or expired. Locked perks stay off the stack. */
@@ -696,18 +678,16 @@
       const msg = `I’ve been using The Round. Join with my code ${code} and we’ll both receive ${n} Beans.\n${url}`;
       const invites = S.invitations(c.member.id);
       return html`<div class="card invite">
-        <div class="invite__top">
-          <div class="invite__text">
-            <h3 class="t-h3">Invite a friend</h3>
-            <p class="t-small t-muted num">${n} Beans each when they join and buy.</p>
-          </div>
-          <a class="icon-btn invite__share" href="${waLink(msg)}" target="_blank" rel="noopener" aria-label="Share your code on WhatsApp">${icon("share", { size: 20 })}</a>
+        <div class="invite__text">
+          <h3 class="t-h3">Invite a friend</h3>
+          <p class="t-small t-muted num">${n} Beans each when they join and buy.</p>
         </div>
         <div class="invite__code">
-          <span class="t-micro t-faint">Your code</span>
+          <span class="t-micro t-muted">Your code</span>
           <span class="invite__value num" data-invite-code>${code}</span>
-          <button type="button" class="icon-btn" data-copy="${code}" aria-label="Copy your invitation code">${icon("copy", { size: 20 })}</button>
+          <button type="button" class="btn btn--quiet btn--compact" data-copy="${code}" aria-label="Copy your invitation code">${icon("copy", { size: 18 })} Copy</button>
         </div>
+        <a class="btn btn--secondary btn--block" href="${waLink(msg)}" target="_blank" rel="noopener">${icon("share", { size: 18 })} Share on WhatsApp</a>
         ${invites.length ? fold("invites", "Friends who joined", invites.length, html`
           <ul role="list" class="invite__list">${invites.map((x) => html`<li class="row">
             <span class="row__main">

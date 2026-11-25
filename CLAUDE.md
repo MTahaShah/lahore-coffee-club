@@ -245,12 +245,67 @@ This order overrides any order implied by the spec.
     or per-cup estimates
 17. [x] The Round rebrand: new name, palette, logos and fonts (docs/BRAND.md);
     landing page removed
+18. [x] Neatness pass: profile menu with sub-pages, one sheet style,
+    activity grouped by day, member app declutter
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
+
+## Neatness pass (member app layout; overrides earlier drawer and sheet notes)
+
+- Profile drawer (`app.js` `drawerMainHtml`, `drawerSubHtml`): a short
+  menu, not the member card. Top: a name row (`ui.avatar` 48px, full name
+  SemiBold, "No. 42 · Founding Member" or the level) that opens Your photo
+  (add, change, remove), and Close. Then three groups (`.mgroup`, Surface
+  cards, 8px apart, no headings): Plan ("The Round Pass · renews 7 Dec"),
+  My cups (the latest cup; goes to `#/app/cups`), Pickup orders ("None
+  right now" or `LCC.appOrder.statusLine`); Privacy, Appearance ("Coffee ·
+  Auto"), Help; Message us on WhatsApp. The member card and the drawer's
+  recent activity are gone (Club tab and My cups have them).
+- Sub-pages slide in from the right inside the drawer (`.drawer__pages`
+  `.is-sub`, 250ms transform, none with reduced motion; the page behind is
+  `inert`). Focus goes to the sub-page title; Back returns it to the row;
+  Escape closes the whole drawer. Plan (name, offer, price and date,
+  payment, one "Change plan" / "Choose a plan"), Pickup orders
+  (`LCC.appOrder.drawerHtml`: cards, tables as menu rows, Earlier, "Order
+  for pickup"), Privacy (two switch rows), Appearance (two segmented
+  controls with labels), Help (three `ui.disclosure` questions and
+  WhatsApp). `repaintDrawer()` keeps the lines and a live sub-page current
+  (ledger, pickup, profile, theme).
+- `ui.menuRow({ label, line, value, href, attrs, external, lineKey })`:
+  56px or taller, label left, a muted line or a value, chevron (or the
+  external icon), the whole row the target, no dividers. `.mlist` stacks
+  them in sheets.
+- One sheet style: `ui.sheetPanel({ id, title, subtitle, body, foot, cls })`
+  for every member app sheet (café, bands, wallet, brand drink, filters,
+  Beans, badges, club events, recent activity): handle, header (title
+  Montserrat SemiBold 20 left, close right, a subtitle only when useful),
+  a body that scrolls (24px sides, 24px gap, no hairlines), a sticky
+  footer only with a primary action. Radius 20, same scrim and motion.
+  Sheet drag is delegated (works after a redraw); closing returns focus to
+  the opener, or to its redrawn replacement (matched by its first data-
+  attribute).
+- Activity (`app-circles.js` `activityListHtml`): `ui.dayGroups` (Today,
+  Yesterday, This week, Earlier; empty groups hidden) of
+  `ui.activityRow`: initials (36px), one sentence ("Hira had an Iced
+  Matcha", "Mahnoor earned the Explorer badge", "Usman got a Brewtique
+  stamp", "You had a Cappuccino"), place and time below. Cheers (the
+  acknowledgements) on the right: 44px, the cup and a count ("Cheer" at
+  none), aria-label "Cheer Hira’s Iced Matcha, 2 cheers", filled in
+  `--accent` once cheered. `circleActivity` rows carry `place`,
+  `cafeName`, `badgeName` for this.
+- My cups: grouped by day (`dayGroups` mode "day") within the month:
+  drink, "Drip · 8:40 am · The Round Pass", a small note when there is
+  more (mods, top-up, undone), the amount paid or cups on the right.
+- Declutter: underlined links (`.btn--link`) only inside running text
+  (onboarding's "Change number"); actions are `.btn--quiet` (no
+  underline), menu rows or secondary buttons. No dividers in member app
+  lists (menus, branches, Beans, ranking, Cafés cards). Secondary lines
+  `--ink-2` (`.row__meta` too); `--ink-3` for timestamps and hints. The
+  invite card has no card inside it, and Share and Copy have labels.
 
 ## Plans pass (launch model; overrides "Plan types" below where they differ)
 
@@ -896,8 +951,8 @@ Prototype listing."). A cup's list price at a café is its latte.
   `No. 0042` bottom right. Card tokens `--card-bg`, `--card-ring`,
   `--card-ink`, `--card-muted`, `--card-edge` in `base.css` (coffee
   #0B0B0B / Gold #C2A878 / Paper; Matcha #0C100D / #A6C46A / foam), the same in
-  light and dark. Shown at the top of the profile drawer, on the Club tab
-  and the onboarding issue screen; type scales with the card width (cqw).
+  light and dark. Shown on the Club tab and the onboarding issue screen
+  (no longer in the profile drawer since the Neatness pass); type scales with the card width (cqw).
   Tap (a real button over the card) turns it over, 400ms rotateY,
   crossfade with reduced motion: member since, plan, Circles, "Show your
   pass at any partner café". The old seal is gone.

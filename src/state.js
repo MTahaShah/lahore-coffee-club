@@ -1892,10 +1892,10 @@
       const since = at - state.circleRules.activityDays * 24 * 60 * MIN;
       const rows = [];
       select.circleMembers(c).filter((m) => select.privacy(m.id).share).forEach((m) => {
-        select.memberDrinks(m.id, since).forEach((d) => rows.push({ ...d, kind: "drink", member: m, text: `${d.drink} at ${select.circlePlace(m.id, d.cafeId)}` }));
+        select.memberDrinks(m.id, since).forEach((d) => { const place = select.circlePlace(m.id, d.cafeId); rows.push({ ...d, kind: "drink", member: m, place, text: `${d.drink} at ${place}` }); });
         const club = select.club(m.id);
-        club.passport.stamps.filter((st) => st.firstAt && st.firstAt >= since).forEach((st) => rows.push({ key: `s:${m.id}:${st.cafe.id}`, kind: "stamp", member: m, at: st.firstAt + 1, text: `New passport stamp: ${st.cafe.name}` }));
-        club.badges.filter((b) => b.earned && b.earnedAt && b.earnedAt >= since).forEach((b) => rows.push({ key: `b:${m.id}:${b.id}`, kind: "badge", member: m, at: b.earnedAt + 2, text: `Badge earned: ${b.name}` }));
+        club.passport.stamps.filter((st) => st.firstAt && st.firstAt >= since).forEach((st) => rows.push({ key: `s:${m.id}:${st.cafe.id}`, kind: "stamp", member: m, at: st.firstAt + 1, cafeName: st.cafe.name, text: `New passport stamp: ${st.cafe.name}` }));
+        club.badges.filter((b) => b.earned && b.earnedAt && b.earnedAt >= since).forEach((b) => rows.push({ key: `b:${m.id}:${b.id}`, kind: "badge", member: m, at: b.earnedAt + 2, badgeName: b.name, text: `Badge earned: ${b.name}` }));
       });
       return rows.sort((a, b) => b.at - a.at).map((r) => {
         const by = state.acks[r.key] || {};

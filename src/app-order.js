@@ -150,7 +150,7 @@
       <p class="eyebrow">Pickup · ${place}</p>
       <div class="pickup__head">
         <p class="t-small t-muted num">${when(o)}</p>
-        ${canCancel ? html`<button type="button" class="btn btn--link" data-cancel-pickup="${o.id}">Cancel</button>` : ""}
+        ${canCancel ? html`<button type="button" class="btn btn--quiet is-muted btn--compact" data-cancel-pickup="${o.id}">Cancel</button>` : ""}
       </div>
       <p class="pickup__drink" id="pk-${o.id}">${name}</p>
       <ol class="pickup__steps" role="list" aria-label="Status: ${STEPS[idx][1]}">
@@ -164,7 +164,7 @@
         <span class="num" aria-label="Pickup code ${code.split("").join(" ")}">${spaced(code)}</span>
       </div>
       ${compact ? "" : html`<p class="t-small t-muted num">${payLine(o, view)}</p>`}
-      ${o.groupId && !compact && !view ? html`<a class="btn btn--link" href="#/app/group/${o.groupId}">See the table</a>` : ""}
+      ${o.groupId && !compact && !view ? html`<a class="btn btn--quiet" href="#/app/group/${o.groupId}">See the table</a>` : ""}
     </article>`;
   }
 
@@ -176,21 +176,28 @@
   const cardsHtml = (memberId) => html`${visible(memberId).map((o) => cardHtml(o, { compact: true }))}`;
 
   const DONE = { collected: "Collected", cancelled: "Cancelled", rejected: "Couldn’t be made" };
+  /** The profile drawer's Pickup orders page: live cards, the last few, then one action. */
   function drawerHtml(memberId = S.member().id) {
     const cards = visible(memberId);
     const past = S.memberPickups(memberId).filter((o) => !S.isPickupOpen(o) && !cards.includes(o)).slice(0, 3);
+    const tables = openTables(memberId);
     return html`
       ${cards.length ? html`<div class="pickup-list">${cards.map((o) => cardHtml(o))}</div>` : ""}
-      ${past.length ? html`<ul role="list">${past.map((o) => html`<li class="row">
-          <div class="row__main">
-            <div class="row__title">${S.pickupDrinkName(o)}</div>
-            <div class="row__meta">${placeLabel(o.cafeId)} · ${DONE[o.status]} · <span data-rel-time="${o.updatedAt}">${fmt.ago(o.updatedAt)}</span></div>
-          </div>
-          <span class="badge">${o.items ? "Table" : o.pay === "cup" ? "Cup" : fmt.rs(o.amount)}</span>
-        </li>`)}</ul>` : ""}
+      ${tables.length ? html`<div class="mlist">${tables.map((g) => ui.menuRow({ label: `Back to ${g.hostId === memberId ? "your" : `${g.hostName}’s`} table`, line: S.pickupPlace(g.cafeId), href: `#/app/group/${g.id}` }))}</div>` : ""}
+      ${past.length ? html`<section aria-labelledby="dp-past-h"><h3 class="eyebrow" id="dp-past-h">Earlier</h3>
+        <ul role="list" class="daygroup__list">${past.map((o) => ui.activityRow({
+          sentence: S.pickupDrinkName(o),
+          line: raw(html`${placeLabel(o.cafeId)} · ${DONE[o.status]} · <span data-rel-time="${o.updatedAt}">${fmt.ago(o.updatedAt)}</span>`.s),
+          trail: html`<span class="arow__amount t-small">${o.items ? "Table" : o.pay === "cup" ? "Cup" : fmt.rs(o.amount)}</span>`,
+        }))}</ul></section>` : ""}
       ${!cards.length && !past.length ? html`<p class="t-small t-muted">No pickup orders yet. Order ahead and skip the queue.</p>` : ""}
-      <button type="button" class="btn btn--link" data-start-order>Order for pickup</button>
-      ${openTables(memberId).map((g) => html`<a class="btn btn--link" href="#/app/group/${g.id}">Back to ${g.hostId === memberId ? "your" : `${g.hostName}’s`} table</a>`)}`;
+      <button type="button" class="btn btn--primary btn--block" data-start-order>Order for pickup</button>`;
+  }
+  /** One line for the drawer's row: "Iced Spanish Latte · Being made". */
+  function statusLine(o) {
+    if (o.status === "rejected") return `${S.pickupDrinkName(o)} · Couldn’t be made`;
+    const step = STEPS.find(([id]) => id === o.status);
+    return `${o.items ? "Your table" : S.pickupDrinkName(o)} · ${step ? step[1] : ""}`;
   }
 
   /** Tables still gathering drinks that this member hosts or has a drink at. */
@@ -204,7 +211,7 @@
     return res;
   }
 
-  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, visible, dismiss: (id) => dismissed.add(id), backLine, openTables };
+  LCC.appOrder = { startTable, start, draft, cardHtml, cardsHtml, drawerHtml, statusLine, visible, dismiss: (id) => dismissed.add(id), backLine, openTables };
 
   /* -------------------------------------------------------------------
      Simulated payment fields, shared by the order, table and cover forms.
@@ -741,7 +748,7 @@
       return html`<div class="card table__share">
         <p class="t-small">Share the link. Anyone who opens it can add a drink until the time is up.</p>
         <a class="btn btn--secondary btn--block" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${icon("share")}Share on WhatsApp</a>
-        <button type="button" class="btn btn--link" data-copy-link>Copy the link</button>
+        <button type="button" class="btn btn--quiet" data-copy-link>Copy the link</button>
         <label class="method">
           <input class="sr-only" type="checkbox" name="gcover" ${t.covered ? raw("checked") : ""}>
           <span class="method__icon">${icon("users", { size: 22 })}</span>
@@ -815,14 +822,14 @@
           ${cb.html()}
           <p class="cv-error" role="alert">${send.error}</p>
           <button type="submit" class="btn btn--primary btn--block num">Pay ${fmt.rs(due)} and send</button>
-          <button type="button" class="btn btn--link" data-g-cover-back>Not yet</button>
+          <button type="button" class="btn btn--quiet" data-g-cover-back>Not yet</button>
         </form>`;
       }
       const friends = S.groupFriends(t);
       return html`<div class="stack" style="--stack-gap:var(--space-3)">
         <button type="button" class="btn btn--primary btn--block num" data-g-send ${n ? "" : raw("disabled")}>${due ? `Cover ${fmt.rs(due)} and send` : "Send to the café"}</button>
         ${friends ? html`<p class="t-micro t-faint num">+${friends * S.beans().rules.hostPerFriend} Beans for hosting, when it’s collected.</p>` : ""}
-        <button type="button" class="btn btn--link" data-g-cancel>Cancel this table</button>
+        <button type="button" class="btn btn--quiet" data-g-cancel>Cancel this table</button>
       </div>`;
     }
 

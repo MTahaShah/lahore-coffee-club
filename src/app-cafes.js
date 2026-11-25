@@ -579,15 +579,9 @@
     function filterSheetHtml() {
       const chip = (label, attrs, on) => html`<button type="button" class="chip" ${raw(attrs)} aria-pressed="${on}">${label}</button>`;
       const n = filtered({ ...CS, ...draft }).length;
-      return html`
-        <div class="sheet__scrim" data-sheet-close></div>
-        <div class="sheet__panel">
-          <div class="sheet__handle" aria-hidden="true"></div>
-          <div class="sheet__body filters cs-filters">
-            <div class="cs-filters__bar">
-              <h2 class="t-h3" id="cs-filters-title">Filters</h2>
-              <button type="button" class="btn btn--link" data-f-clear>Clear all</button>
-            </div>
+      return ui.sheetPanel({
+        id: "cs-filters-title", title: "Filters", cls: "filters cs-filters",
+        body: html`
             <fieldset class="filters__group"><legend class="eyebrow">Area</legend>
               <div class="cluster" style="--cluster-gap:var(--space-2)">${store.getState().areas.map((a) => chip(a.name, `data-f-area="${a.id}"`, draft.areas.includes(a.id)))}</div>
             </fieldset>
@@ -607,9 +601,10 @@
                 ${chip(`Signature, up to ${fmt.rs(S.band("signature").maxPrice)}`, 'data-f-price="signature"', draft.price === "signature")}
               </div>
             </fieldset>
-            <button type="button" class="btn btn--primary btn--block" data-f-show ${n ? "" : raw("disabled")}>${n ? `Show ${plural(n, "café")}` : "No cafés match"}</button>
-          </div>
-        </div>`;
+`,
+        foot: html`<button type="button" class="btn btn--primary btn--block" data-f-show ${n ? "" : raw("disabled")}>${n ? `Show ${plural(n, "café")}` : "No cafés match"}</button>
+          <button type="button" class="btn btn--quiet is-muted btn--block" data-f-clear>Clear all</button>`,
+      });
     }
     function openFilters(btn) {
       btn?.focus();

@@ -31,6 +31,14 @@
   }
   const place = (cafeId) => (cafeId ? S.placeName(cafeId) || S.venueName?.(cafeId) || S.brand(cafeId)?.name || "" : "Any partner café");
 
+  /** Which plan a cup came from, for the line under it ("Drip · 8:40 am · Classic 8 pack"). */
+  function planOf(e) {
+    if (e.type === "pass-sale" || e.pass) return S.passTier({ type: "pass", tier: e.tier }).name;
+    if (e.bonus) return "Complimentary cup";
+    if (e.packId) return `${S.tier(e.packId)?.name || "Cup"} pack`;
+    return { brand: `${S.brand(e.brandId)?.name || "Brand"} plan`, mycafes: "My cafés", explorer: "Cup pack", pass: "The Round Pass" }[e.planType] || "";
+  }
+
   /** One row per thing that happened, newest first. */
   function rowsFor(m) {
     const es = LCC.ledger.ledgerFor({ memberNo: m.memberNo });
@@ -40,11 +48,11 @@
     es.forEach((e) => {
       const base = { at: e.at, cafe: place(e.cafeId), cups: e.cups, channel: e.channel === "pickup" || e.orderId ? "Pickup" : e.type === "redeem" || e.type === "undo" ? "Counter" : "", drink: "", mods: "", note: "" };
       switch (e.type) {
-        case "purchase": out.push({ ...base, what: e.pass ? `${S.passTier({ type: "pass", tier: e.tier }).name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
-        case "pass-sale": out.push({ ...base, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee" }); break;
+        case "purchase": out.push({ ...base, paid: e.price || 0, what: e.pass ? `${S.passTier({ type: "pass", tier: e.tier }).name}, ${fmt.rs(e.price)}` : e.packId ? `${S.tier(e.packId)?.name || "Cup pack"} pack` : "Plan cups", drink: "", cafe: e.cafeId ? place(e.cafeId) : "Your plan" }); break;
+        case "pass-sale": out.push({ ...base, plan: planOf(e), paid: e.memberPrice, plain: true, channel: "Counter", what: `${S.passTier({ type: "pass", tier: e.tier }).name}${e.cupNo === 2 ? " · second cup" : ""} · ${fmt.rs(e.memberPrice)} paid`, drink: e.drink || "Coffee" }); break;
         case "redeem": {
           const top = e.topUp ? ` · top-up ${fmt.rs(e.topUp)} ${e.topUpOnline ? "paid online" : "paid at the counter"}` : "";
-          out.push({ ...base, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });
+          out.push({ ...base, plan: planOf(e), paid: e.topUp || 0, plain: !e.undone && !e.uncollected, what: e.undone ? "Redeemed, then undone" : e.uncollected ? "Redeemed (not picked up)" : "Redeemed", drink: e.drink || "Coffee", mods: modsText(e), note: `${e.bonus ? "Complimentary cup" : ""}${top}`.replace(/^ · /, ""), struck: !!e.undone });
           break;
         }
         case "undo": out.push({ ...base, what: "Undone, cup back", drink: e.drink || "", note: "The counter took this cup back." }); break;
@@ -71,7 +79,7 @@
     // Pickups paid in full online: money, not cups
     Object.values(orders).filter((o) => o.memberId === m.id && !o.items && o.pay === "paid").forEach((o) => {
       const word = { collected: "Paid", cancelled: "Paid, then cancelled", rejected: "Paid, café couldn’t make it" }[o.status] || "Paid, on its way";
-      out.push({ at: o.placedAt, cafe: place(o.cafeId), cups: 0, channel: "Pickup", what: word, drink: S.pickupDrinkName(o), mods: "",
+      out.push({ at: o.placedAt, cafe: place(o.cafeId), cups: 0, paid: o.amount, channel: "Pickup", what: word, drink: S.pickupDrinkName(o), mods: "",
         note: `${fmt.rs(o.amount)} with ${o.payment?.method || "card"}${o.refunded ? ", refunded" : ""}` });
     });
     return out.sort((a, b) => b.at - a.at);
@@ -119,17 +127,26 @@
     const shown = () => all().filter((r) => month === "all" || monthKey(r.at) === month);
     const months = () => [...new Set(all().map((r) => monthKey(r.at)))].sort().reverse();
 
+    /* Grouped by day within the month: the drink, then "Drip · 8:40 am ·
+       The Round Pass", anything else as a small note, the amount on the right. */
     function listHtml() {
       const rows = shown();
       if (!rows.length) return html`<p class="t-small t-muted">Nothing here yet.</p>`;
-      return html`<ul role="list" class="cups-log">${rows.map((r) => html`<li class="row cups-log__row${r.struck ? " is-struck" : ""}">
-          <div class="row__main">
-            <div class="row__title">${r.drink || r.what}</div>
-            <div class="row__meta num">${day(r.at)}, ${fmt.time(r.at)} · ${r.cafe}${r.channel ? ` · ${r.channel}` : ""}</div>
-            <div class="row__meta">${r.drink ? r.what : ""}${r.drink && (r.mods || r.note) ? " · " : ""}${[r.mods, r.note].filter(Boolean).join(" · ")}</div>
-          </div>
-          <span class="cups-log__cups num" aria-label="${r.cups ? `${r.cups > 0 ? "plus" : "minus"} ${Math.abs(r.cups)} ${Math.abs(r.cups) === 1 ? "cup" : "cups"}` : "no cups"}">${signed(r.cups)}</span>
-        </li>`)}</ul>`;
+      const trail = (r) => {
+        if (r.paid) return html`<span class="arow__amount num">${fmt.rs(r.paid)}</span>`;
+        if (!r.cups) return "";
+        const n = Math.abs(r.cups), word = n === 1 ? "cup" : "cups";
+        return html`<span class="arow__amount num" aria-label="${r.cups > 0 ? "plus" : "minus"} ${n} ${word}">${signed(r.cups)} ${word}</span>`;
+      };
+      return html`<div class="cups-log">${ui.dayGroups(rows, (r) => {
+        const note = [r.drink && !r.plain ? r.what : "", r.mods, r.note].filter(Boolean).join(" · ");
+        return ui.activityRow({
+          struck: r.struck,
+          sentence: r.drink || r.what, note,
+          line: [r.cafe, fmt.time(r.at), r.plan || r.channel].filter(Boolean).join(" · "),
+          trail: trail(r),
+        });
+      }, { mode: "day" })}</div>`;
     }
     function filterHtml() {
       return html`<label class="field cups-filter"><span class="field__label">Month</span>
@@ -151,7 +168,7 @@
           <div class="app-screen flow__body">
             <div class="stack" style="--stack-gap:var(--space-1)">
               <h1 class="t-title">My cups</h1>
-              <p class="t-small t-muted num">${S.fullName(m)} · ${fmt.lcc(m.memberNo)}. Every cup in and out, from the club’s ledger.</p>
+              <p class="t-small t-muted">Every cup in and out, from the club’s ledger.</p>
             </div>
             <div class="cups-tools">${filterHtml()}
               <button type="button" class="btn btn--secondary btn--compact" data-cups-pdf>Download PDF</button></div>
