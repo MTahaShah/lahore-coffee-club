@@ -284,6 +284,11 @@
   LCC.router = { register, navigate, render, parse };
   LCC.theme = { mode: () => theme, flavour: () => flavour, setMode, setFlavour };
 
-  // Defer first render so later scripts (kit.js, screens) can register first
-  document.addEventListener("DOMContentLoaded", render);
+  // Defer first render so later scripts (kit.js, screens) can register first.
+  // Then, once that first screen has painted, the loading screen may go.
+  document.addEventListener("DOMContentLoaded", () => {
+    try { render(); } finally {
+      requestAnimationFrame(() => requestAnimationFrame(() => window.LCC_SPLASH?.ready()));
+    }
+  });
 })();

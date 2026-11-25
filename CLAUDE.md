@@ -249,12 +249,35 @@ This order overrides any order implied by the spec.
     activity grouped by day, member app declutter
 19. [x] Profile page and map fit: full-page profile (#/app/profile), map
     fits the phone, three-line café rows, cache bumped for the new icons
+20. [x] Loading screen: the brick ring builds clockwise, the R fades in
 
 Build order was 1, 2, 3, 4, 4.5, 6, 7, 5, 8, 9, 10 (6 and 7 came first on request).
 The user's "Pass E" is Pass 9 here.
 
 **Rule: build one pass at a time, then stop and report. Do not start the
 next pass until asked.**
+
+## Loading screen
+
+- `src/logos/mark-animated.svg` (from `brand/app-logos/`; every brick a
+  `<g class="brick" style="--i:N">`, 0–14 clockwise from the gap, the R
+  `path.mark-r`), inlined into `<div id="splash" aria-hidden="true">`, the
+  first thing in `<body>`, by `<!-- @splash -->` (also in `LOGO_FILES`).
+  Its styles are `<style id="splash-css">` at the top of `<head>` (no web
+  fonts, no JS files), so it paints before anything else.
+- CSS only: bricks from opacity 0, scale 0.6 and a 6px drop (written as
+  213 logo units) over 420ms, 55ms apart; the R fades in over 400ms from
+  900ms. Mark 112px (96px under 380px). Reduced motion: the whole mark at
+  once.
+- The inline script after it: once per tab (sessionStorage
+  `lcc:splash-seen`), never with `?room=`. Colours: Paper on light, Ink
+  on dark from `prefers-color-scheme` (Light / Dark / Auto isn't saved),
+  Matcha bricks when `lcc-flavour` is matcha and the route is the member
+  app. It hides when `router.js` calls `LCC_SPLASH.ready()` (two frames
+  after the first render) and 1400ms have passed (600ms with reduced
+  motion): fade 300ms, the mark to 1.04, then removed. A tap removes it at
+  once. A 2600ms timer starts the fade whatever happens, so it is gone
+  before 3000ms even if a script fails.
 
 ## Profile page and map fit pass (overrides the Neatness pass drawer)
 

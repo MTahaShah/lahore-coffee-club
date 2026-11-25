@@ -10,6 +10,7 @@
 #   <!-- @styles -->   the CSS files below, with src/fonts/*.woff2 inlined
 #                      as base64 wherever a stylesheet says url("fonts/…")
 #   <!-- @logos -->    the logo SVGs below as hidden <template>s (ui.logo)
+#   <!-- @splash -->   src/logos/mark-animated.svg, inline (the loading screen)
 #   <!-- @scripts -->  the JS files below, in order
 #   <!-- @modules -->  ES modules carried as inert text (<script type="text/plain"
 #                      id="mod-NAME">), turned into modules only when needed
@@ -46,7 +47,11 @@ LOGO_FILES=(
   wordmark.svg
   mark.svg
   ring.svg
+  mark-animated.svg
 )
+# The loading screen's mark (each brick its own <g class="brick">), inlined
+# straight into <div id="splash"> by <!-- @splash -->
+SPLASH_SVG="$SRC/logos/mark-animated.svg"
 FONT_FILES=(
   Versailles-Regular.woff2
   Montserrat-Light.woff2
@@ -155,6 +160,9 @@ build() {
           echo "<template id=\"logo-${f%.svg}\">"; cat "$SRC/logos/$f"; echo; echo "</template>"
         done
         echo "</div>"
+        ;;
+      *"<!-- @splash -->"*)
+        cat "$SPLASH_SVG"; echo
         ;;
       *"<!-- @modules -->"*)
         for m in "${MODULES[@]}"; do

@@ -4,6 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
+  <!-- Loading screen (CLAUDE.md "Loading screen"): only its own styles and
+       colours, before the big stylesheet, so it paints first. No web fonts. -->
+  <style id="splash-css">
+    #splash { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center;
+      background: #FAF8F4; --logo-ink: #0B0B0B; --logo-face: #C2A878; --logo-side: #775C38; --logo-top: #4A341E;
+      transition: opacity 300ms ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    #splash.is-dark { background: #0B0B0B; --logo-ink: #FAF8F4; }
+    #splash.is-matcha { --logo-face: #6E8B3D; --logo-side: #3F5A22; --logo-top: #26361A; }
+    #splash.is-dark.is-matcha { --logo-face: #A6C46A; --logo-side: #6E8B3D; --logo-top: #3F5A22; }
+    #splash svg { display: block; width: 112px; height: auto; transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+    @media (max-width: 379px) { #splash svg { width: 96px; } }
+    /* Bricks build clockwise from the gap: 420ms each, 55ms apart. The bricks'
+       units are the logo's own (about 0.028 screen px each at 112px), so the
+       6px drop is written as 213 units. */
+    #splash .brick { opacity: 0; transform: translateY(-213px) scale(0.6);
+      animation: splash-brick 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards; animation-delay: calc(var(--i) * 55ms); }
+    #splash .mark-r { opacity: 0; animation: splash-r 400ms ease 900ms forwards; }
+    @keyframes splash-brick { to { opacity: 1; transform: none; } }
+    @keyframes splash-r { to { opacity: 1; } }
+    #splash.is-out { opacity: 0; pointer-events: none; }
+    #splash.is-out svg { transform: scale(1.04); }
+    @media (prefers-reduced-motion: reduce) {
+      #splash .brick, #splash .mark-r { animation: none; opacity: 1; transform: none; }
+      #splash svg { transition: none; }
+    }
+  </style>
   <meta name="theme-color" content="#FAF8F4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B0B0B" media="(prefers-color-scheme: dark)">
   <!-- Installable app (PWA): build.sh copies manifest.json and icons/ next to index.html -->
@@ -32,6 +58,46 @@
 <!-- @styles -->
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+<!-- @splash -->
+  </div>
+  <script>
+  /* Loading screen: once per tab (sessionStorage "lcc:splash-seen"), never
+     with ?room= (pairing must feel instant). Colours: the system's light or
+     dark (Light / Dark / Auto isn't saved; Auto is the default), Matcha
+     bricks when "lcc-flavour" is matcha and the route is the member app.
+     Hides when the first screen has rendered (router.js calls
+     LCC_SPLASH.ready()) and 1400ms have passed (600ms with reduced motion);
+     a tap skips it; it is gone by 3000ms whatever happens. */
+  (function () {
+    var s = document.getElementById("splash");
+    if (!s) return;
+    var seen = false;
+    try { seen = sessionStorage.getItem("lcc:splash-seen") === "1"; } catch (e) {}
+    if (seen || /[?&]room=/.test(location.hash + location.search)) { s.parentNode.removeChild(s); return; }
+    try { sessionStorage.setItem("lcc:splash-seen", "1"); } catch (e) {}
+    var mm = function (q) { return window.matchMedia && window.matchMedia(q).matches; };
+    var flavour = "coffee";
+    try { flavour = localStorage.getItem("lcc-flavour") || "coffee"; } catch (e) {}
+    var h = location.hash;
+    var app = !h || h === "#" || h === "#/" || /^#\/app(\/|\?|$)/.test(h);
+    if (mm("(prefers-color-scheme: dark)")) s.classList.add("is-dark");
+    if (flavour === "matcha" && app) s.classList.add("is-matcha");
+    var t0 = Date.now(), min = mm("(prefers-reduced-motion: reduce)") ? 600 : 1400, ready = false, done = false;
+    function remove() { if (s.parentNode) s.parentNode.removeChild(s); }
+    function hide(now) {
+      if (done) { if (now) remove(); return; }
+      done = true;
+      if (now) return remove();
+      s.classList.add("is-out");
+      setTimeout(remove, 300);
+    }
+    function check() { if (ready && Date.now() - t0 >= min) hide(); }
+    window.LCC_SPLASH = { ready: function () { if (ready) return; ready = true; setTimeout(check, Math.max(0, min - (Date.now() - t0))); } };
+    s.addEventListener("click", function () { hide(true); });
+    setTimeout(function () { hide(); }, 2600); // fade starts by 2600ms: gone before 3000ms even if a script fails
+  })();
+  </script>
   <a class="skip-link" href="#main">Skip to content</a>
 <!-- @logos -->
   <header id="proto-bar"></header>
