@@ -146,7 +146,7 @@
   state.cafeOrder.forEach((id) => {
     const c = state.cafes[id];
     const b = state.brands[c.brandId];
-    c.chainId = b && b.plans.length ? b.id : null;
+    c.chainId = b && (b.chain || b.plans.length) ? b.id : null;
     c.busyMode = "auto"; c.pausedUntil = 0;
     if (!state.partner[id]) state.partner[id] = { payoutDay: 5, payouts: [] };
   });
@@ -237,7 +237,7 @@
       let c = state.cafes[x.id];
       if (!c) {
         if (!x.added) return;
-        c = state.cafes[x.id] = { ...clone(x), drinks: b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 })), busyMode: "auto", pausedUntil: 0, chainId: b.plans.length ? b.id : null };
+        c = state.cafes[x.id] = { ...clone(x), drinks: b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 })), busyMode: "auto", pausedUntil: 0, chainId: b.chain || b.plans.length ? b.id : null };
         state.cafeOrder.push(x.id);
         state.partner[x.id] = { payoutDay: 5, payouts: [] };
       }

@@ -170,19 +170,19 @@
       const bump = () => { if (!session?.fromCounter) return; clearTimeout(idleTimer); idleTimer = setTimeout(() => lock({ idle: true }), IDLE_MS); };
 
       /* Sign in ----------------------------------------------------------- */
-      function renderSignIn(err = "", brandId = "doubleshot") {
+      function renderSignIn(err = "", brandId = S.partnerBrands().find((b) => b.featured)?.id || "doubleshot") {
         el.innerHTML = html`<div class="surface pd pd--signin">
           <form class="ct-setup" data-signin novalidate>
             ${ui.logo("wordmark", { cls: "ct-setup__wordmark" })}
             <h1 class="ct-name t-title">Partner dashboard</h1>
             <p class="t-body t-muted">For café owners and branch managers.</p>
             <label class="field"><span class="field__label">Café or brand</span>
-              <span class="select"><select class="input" name="brand">${S.partnerBrands().map((b) => html`<option value="${b.id}" ${b.id === brandId ? raw("selected") : ""}>${b.name}${S.branches(b.id).length > 1 ? ` (${S.branches(b.id).length} branches)` : ""}</option>`)}</select></span>
+              <span class="select"><select class="input" name="brand">${S.partnerBrands().slice().sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0)).map((b) => html`<option value="${b.id}" ${b.id === brandId ? raw("selected") : ""}>${b.name}${S.branches(b.id).length > 1 ? ` (${S.branches(b.id).length} branches)` : ""}</option>`)}</select></span>
             </label>
             <div class="field" data-invalid="${!!err}">
               <label class="field__label" for="pd-pin">Executive PIN</label>
               <input class="input ct-setup__input num" id="pd-pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-describedby="pd-pin-hint pd-pin-err" aria-invalid="${!!err}">
-              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Double Shot owner 000000, Gulberg 111111; Drip 111111.</p>
+              <p class="field__hint" id="pd-pin-hint">Six digits. The owner’s PIN opens every branch; a branch’s PIN opens that branch only. Demo: Extraction Coffee owner 999999, Gulberg 911111; Double Shot owner 000000; Drip 111111.</p>
               <p class="field__error" id="pd-pin-err" role="alert">${err}</p>
             </div>
             <button type="submit" class="btn btn--primary btn--block btn--tall">Sign in</button>
@@ -201,7 +201,7 @@
               <span class="monogram" aria-hidden="true">${b.monogram}</span>
               <div>
                 <h1 class="ct-name t-title">${b.name}</h1>
-                <p class="t-small t-muted">${roleLabel()} · ${fmt.date(Date.now())}</p>
+                <p class="t-small t-muted">${roleLabel()} · ${fmt.date(Date.now())}${b.featured ? " · Demo data: sample month, not real sales" : ""}</p>
               </div>
             </div>
             <div class="pd-head__aside">

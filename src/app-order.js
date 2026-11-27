@@ -48,7 +48,7 @@
     return null;
   }
   const hasDrink = (cafe, id) => cafe.drinks.some((d) => d.id === id);
-  const firstDrink = (cafe) => (cafe.chainId ? (hasDrink(cafe, "ds-latte") ? "ds-latte" : cafe.drinks[0].id) : (cafe.drinks.find((d) => d.credits === 1) || cafe.drinks[0]).id);
+  const firstDrink = (cafe) => (cafe.chainId ? (hasDrink(cafe, cafe.latte || "ds-latte") ? cafe.latte || "ds-latte" : cafe.drinks[0].id) : (cafe.drinks.find((d) => d.credits === 1) || cafe.drinks[0]).id);
 
   /** Where to start: where the member's cups work, nearest first, taking orders now. */
   function defaultCafe(m, brandId = null) {

@@ -58,7 +58,7 @@
   // Where each pin's name sits, so names stay inside the frame and don't collide (default: right)
   const LABEL_SIDE = {
     kite: "left", blank: "left", nofilter: "left", housespecialty: "below", thirdculture: "left", brewtique: "below",
-    extraction: "left", retrograde: "below", luna: "left", slab: "left", sixthree: "left",
+    "ex-gulberg": "left", "ex-dha3": "left", "ex-dha6": "below", "ex-cantt": "left", retrograde: "below", luna: "left", slab: "left", sixthree: "left",
     "ds-gulberg": "left", "ds-cantt": "below", "ds-lalakjan": "left", "ds-dha6": "left", "ds-dolmen": "left", "ds-pine": "left", "ds-modeltown": "left",
   };
   const AREA_LABELS = {
@@ -149,7 +149,7 @@
       function resolve(path) {
         const [a = "home", b] = path;
         // A chain's page (a brand that sells its own plans); single cafés open their café page
-        const brandId = b && (S.brand(b)?.plans.length ? b : S.cafe(b)?.chainId);
+        const brandId = b && (S.brand(b)?.plans.length || S.brand(b)?.chain ? b : S.cafe(b)?.chainId);
         if (a === "cafes" && brandId && REG.brand) return { key: `cafes/${brandId}`, tab: "cafes", make: () => REG.brand(ctx, brandId) };
         if (a === "cafes" && b && S.cafe(b) && REG.cafeDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.cafeDetail(ctx, b) };
         if (a === "cafes" && b && LCC.comingSoonCafe?.(b) && REG.soonDetail) return { key: `cafes/${b}`, tab: "cafes", make: () => REG.soonDetail(ctx, b) };

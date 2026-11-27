@@ -324,8 +324,9 @@
         quietest: (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.distanceKm - b.distanceKm,
         price: (a, b) => (refDrink(a)?.list ?? 1e9) - (refDrink(b)?.list ?? 1e9) || a.distanceKm - b.distanceKm,
       }[CS.sort];
-      // Cafés with no menu yet go last, nearest first
-      return list.slice().sort((a, b) => (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
+      // Pitch branch: a featured brand's branches lead (Extraction Coffee). Cafés with no menu yet go last, nearest first
+      const featured = (c) => (!c.comingSoon && S.brandFor(c.id)?.featured ? 0 : 1);
+      return list.slice().sort((a, b) => featured(a) - featured(b) || (a.comingSoon ? 1 : 0) - (b.comingSoon ? 1 : 0) || (a.comingSoon ? a.distanceKm - b.distanceKm : by(a, b)));
     }
     /* A café row: three lines at most. Name and the bookmark; area,
        distance and hours; busy dot and word, then the latte's price on the

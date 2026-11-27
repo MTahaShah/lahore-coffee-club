@@ -196,8 +196,8 @@
               <div class="field" data-invalid="${!!err}">
                 <label class="field__label" for="ct-setup-code">Branch setup code</label>
                 <input class="input ct-setup__input" id="ct-setup-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
-                  placeholder="DS-GUL" aria-describedby="ct-setup-hint ct-setup-err" aria-invalid="${!!err}">
-                <p class="field__hint" id="ct-setup-hint">Your manager has it. Demo: DS-GUL for Double Shot Gulberg, DR-01 for Drip.</p>
+                  placeholder="EX-01" aria-describedby="ct-setup-hint ct-setup-err" aria-invalid="${!!err}">
+                <p class="field__hint" id="ct-setup-hint">Your manager has it. Demo: EX-01 for Extraction Coffee Gulberg, DS-GUL for Double Shot Gulberg, DR-01 for Drip.</p>
                 <p class="field__error" id="ct-setup-err" role="alert">${err}</p>
               </div>
               <button type="submit" class="btn btn--primary btn--block btn--tall">Set up</button>
@@ -956,7 +956,7 @@
           : forWhat === "members" ? "Your members are for managers and the owner." : "For pausing member cups and moving this counter.";
         const demo = who ? `Demo: ${branch().staff.map((s) => `${s.name} ${s.pin}`).join(", ")}.`
           : forWhat === "exec" ? `Demo: this branch ${branch().executivePin}${S.branches(brand().id).length > 1 ? `, ${brand().name} owner ${brand().executive?.pin}` : ""}.`
-          : "Demo: Gulberg manager 1678, Drip manager 2468, owner 0000 / 1111.";
+          : "Demo: Extraction Gulberg manager 9678, Double Shot Gulberg manager 1678, Drip manager 2468, owner 9999 / 0000 / 1111.";
         $("[data-ct-pin-sheet-body]", el).innerHTML = html`
           <h2 class="ct-title" id="ct-pin-title">${title}</h2>
           <p class="t-small t-muted">${line}</p>

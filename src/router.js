@@ -128,7 +128,7 @@
   /** Counter menu: brands with several branches first (a heading, then each branch), then single cafés. */
   function counterMenuItems() {
     const S = store.select;
-    const brands = S.partnerBrands();
+    const brands = S.partnerBrands().slice().sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0)); // pitch branch: Extraction Coffee first
     const multi = brands.filter((b) => S.branches(b.id).length > 1);
     const single = brands.filter((b) => S.branches(b.id).length === 1);
     const link = (c, label, cls = "") => html`<a role="menuitem" class="${cls}" href="${withRoom(`#/cafe/${c.id}`)}">${label}</a>`;

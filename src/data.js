@@ -241,8 +241,50 @@
         { id: "ds-protein",       section: "Zero shot and more", name: "Espresso Protein Shake", hot: null, iced: 980, inPlan: false },
       ],
     },
+    /* DEMO DATA (pitch branch demo/extraction): Extraction Coffee as a
+       four-branch brand, the same structure as Double Shot. List prices
+       from Extraction's public menu (Nov 2026); bands from
+       PLAN_CONFIG.bandLimits; member prices from the Pass discount
+       (select.memberPrice), never stored here. Hours other than Gulberg's
+       and every busy pattern follow the seed pattern.                    */
+    {
+      id: "extraction",
+      name: "Extraction Coffee",
+      monogram: "EX",
+      ownerPin: "9999",
+      executive: { name: "Brand owner", pin: "999999" },
+      rules: { perMemberPerDay: 2, branchCupsPerDay: 40 },
+      account: { label: "Extraction Coffee head office account", last4: "5310" },
+      line: "Specialty coffee and a roastery. Four branches across Lahore.",
+      menuNote: "Prices from Extraction Coffee’s public menu, Nov 2026. Demo only.",
+      plans: [],
+      chain: true,    // a chain in the member app (brand page, branch picker) without selling its own plans
+      featured: true, // pitch branch: first in the Cafés list, the Counter menu and the dashboard sign-in
+      menu: [
+        { id: "ex-espresso",   section: "Espresso",   name: "Espresso",             hot: 490,  iced: null },
+        { id: "ex-americano",  section: "Espresso",   name: "Americano",            hot: 530,  iced: 530 },
+        { id: "ex-piccolo",    section: "Espresso",   name: "Piccolo",              hot: 650,  iced: null },
+        { id: "ex-cortado",    section: "Espresso",   name: "Cortado",              hot: 650,  iced: null },
+        { id: "ex-capp",       section: "Espresso",   name: "Cappuccino",           hot: 710,  iced: null },
+        { id: "ex-flat",       section: "Espresso",   name: "Flat White",           hot: 710,  iced: null },
+        { id: "ex-latte",      section: "Espresso",   name: "Latte",                hot: 710,  iced: 710 },
+        { id: "ex-matcha",     section: "Lattes",     name: "Matcha Latte",         hot: 740,  iced: null },
+        { id: "ex-caramel",    section: "Lattes",     name: "Caramel Latte",        hot: 850,  iced: null },
+        { id: "ex-rose",       section: "Lattes",     name: "Rose Latte",           hot: 890,  iced: null },
+        { id: "ex-vanilla",    section: "Lattes",     name: "Vanilla Latte",        hot: 890,  iced: null },
+        { id: "ex-honey",      section: "Lattes",     name: "Honey Latte",          hot: 895,  iced: null },
+        { id: "ex-lotus",      section: "Lattes",     name: "Lotus Latte",          hot: 1350, iced: null },
+        { id: "ex-mocha",      section: "Lattes",     name: "Dark Chocolate Mocha", hot: 1450, iced: null },
+        { id: "ex-spanish",    section: "Signatures", name: "Spanish Latte",        hot: 795,  iced: 795, signature: true },
+        { id: "ex-hazelnut",   section: "Signatures", name: "Hazelnut Latte",       hot: 950,  iced: null, signature: true },
+        { id: "ex-coldbrew",   section: "Signatures", name: "Cold Brew",            hot: null, iced: 950, signature: true },
+      ],
+    },
   ];
-  const DS = brands[0];
+  const DS = brands.find((b) => b.id === "doubleshot");
+  const EX = brands.find((b) => b.id === "extraction");
+  // Each menu item's band by its top price (PLAN_CONFIG.bandLimits; null above Rs 1,500)
+  EX.menu.forEach((d) => { d.band = bandOf(Math.max(d.hot || 0, d.iced || 0))?.id || null; });
   // Branches read the brand menu as their drinks (one cup each; any top-up is separate)
   const brandDrinks = (b) => b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 }));
   // Double Shot staff per branch: the counter team (cashier PINs: branch number, then 101 / 202),
@@ -291,8 +333,6 @@
       ["Pastries", "Work-friendly"], "moderate", 6, { open: "8:00", close: "23:00", label: "8 am – 11 pm" }, 0.8, 9, [0.2, 0.45, 0.6, 0.5, 0.4, 0.45, 0.5, 0.4, 0.45, 0.6, 0.8, 0.85, 0.7, 0.55, 0.4, 0.2]],
     ["artisan", "Artisan Coffee Roasters", "gulberg", 575, 395, [490, 690, 690, 690, 750], [["Sticky Toffee Latte", 800], ["Saffron Latte", 1090], ["Pistachio Latte", 1190]],
       ["Pastries", "Breakfast", "Outdoor"], "quiet", 22, { open: "7:00", close: "20:00", label: "7 am – 8 pm" }, 1.1, 6, [0.6, 0.75, 0.6, 0.45, 0.5, 0.55, 0.4, 0.3, 0.3, 0.35, 0.3, 0.2, 0.1, 0, 0, 0]],
-    ["extraction", "Extraction", "gulberg", 505, 385, [490, 710, 710, 710, 795], [["Vietnamese Espresso", 710], ["Rose Latte", 890], ["Lotus Latte", 1350]],
-      ["Work-friendly"], "moderate", 11, { open: "9:00", close: "24:00", label: "9 am – midnight" }, 1.3, 6, [0.15, 0.3, 0.45, 0.5, 0.5, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.85, 0.75, 0.6, 0.45, 0.3]],
     ["retrograde", "Retrograde", "gulberg", 560, 320, [600, 700, 750, 700, 825], [["Matcha", 850], ["Mocha Latte", 950], ["Iced Pistachio Latte", 950, "iced"]],
       ["Work-friendly", "Late night"], "quiet", 15, { open: "10:00", close: "1:00", label: "10 am – 1 am" }, 0.9, 5, [0.05, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.65, 0.75, 0.8, 0.85, 0.75, 0.6]],
     ["zyah", "Zyah", "gulberg", 605, 360, [580, 820, 820, null, 880], [["Mandarin Americano", 860], ["Coconut Cloud", 950, "iced"], ["Caffeinated Milo", 980]],
@@ -333,6 +373,30 @@
     { id: "slab", name: "Slab Coffee", area: "dha", x: 765, y: 690, distanceKm: 9.9, blurb: "Specialty coffee in DHA Phase 6. Prototype listing.", areaLine: "DHA Phase 6", comingSoon: true },
     { id: "sixthree", name: "6.3 Coffee", area: "dha", x: 845, y: 705, distanceKm: 12.1, blurb: "Specialty coffee in DHA Phase 8. Prototype listing.", areaLine: "DHA Phase 8", comingSoon: true },
   ];
+  /* DEMO DATA: Extraction Coffee branches. Gulberg keeps the old single
+     café's staff, setup code EX-01 and manager PIN 9678. Branch executive
+     PINs are 9 then the branch number five times; the owner's is 999999. */
+  const EX_BRANCHES = [
+    // id, branch name, pin name, area, map x, y, address, hours, busy, mins since update, km, staff (two, then the manager), manager PIN, setup code
+    ["ex-gulberg", "Gulberg · Gurmani Road", "EX · Gulberg", "gulberg", 505, 385, "23-P Mushtaq Ahmed Gurmani Rd, Gulberg", { open: "7:00", close: "1:00", label: "7 am – 1 am" }, "moderate", 11, 1.3, ["Owais", "Zoya", "Imran"], "9678", "EX-01"],
+    ["ex-dha3", "DHA · Phase 3", "EX · Phase 3", "dha", 745, 545, "C-47 Sector Z, DHA Phase 3", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "quiet", 14, 7.0, ["Rayyan", "Mariam", "Shehroz"], "9778", "EX-02"],
+    ["ex-dha6", "DHA · Phase 6", "EX · Phase 6", "dha", 835, 675, "Main Boulevard, DHA Phase 6", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "moderate", 7, 10.1, ["Arslan", "Hania", "Wahab"], "9878", "EX-03"],
+    ["ex-cantt", "Cantt · Shami Road", "EX · Cantt", "cantt", 705, 425, "Shell, Shami Rd, Cantt", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "quiet", 19, 4.1, ["Moeez", "Alishba", "Nauman"], "9978", "EX-04"],
+  ];
+  const EX_BUSY = [0.3, 0.45, 0.55, 0.5, 0.45, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.85, 0.75, 0.6, 0.45, 0.3];
+  const exBranch = ([id, branchName, pinName, area, x, y, address, hours, status, mins, distanceKm, [a, b, manager], managerPin, setupCode], i) => ({
+    id, brandId: EX.id, name: EX.name, branch: branchName, short: pinName.replace(/^EX · /, ""), label: `${EX.name} · ${branchName.replace(" · ", " ")}`, pinName,
+    area, address, price: EX.menu.find((d) => d.id === "ex-latte").hot, latte: "ex-latte",
+    tags: ["Specialty", "Roastery", ...(id === "ex-gulberg" ? ["Late night", "Work-friendly"] : ["Work-friendly"])],
+    status, statusUpdatedAt: minsAgo(mins), hours, blurb: EX.line, distanceKm, x, y, drinks: brandDrinks(EX), busyByHour: EX_BUSY,
+    avgDailyCups: id === "ex-gulberg" ? 6 : 3, setupCode, demo: true,
+    executivePin: `9${String(i + 1).repeat(5)}`, // Gulberg 911111, Phase 3 922222, Phase 6 933333, Cantt 944444
+    staff: [
+      { id: `st_${id}_1`, name: a, role: "staff", pin: `9${i + 1}01` },
+      { id: `st_${id}_2`, name: b, role: "staff", pin: `9${i + 1}02` },
+      { id: `st_${id}_m`, name: manager, role: "manager", pin: managerPin },
+    ],
+  });
   const cafes = [
     branch("ds-gulberg",  "Gulberg · Falcon Complex", "DS · Gulberg",  "gulberg",    480, 315, "moderate", 4,  LATE, 1.1, 16, EVENING),
     branch("ds-cantt",    "Cantt · C Block",          "DS · Cantt",    "cantt",      740, 430, "quiet",    9,  LATE, 4.2, 9,  EVENING),
@@ -341,6 +405,8 @@
     branch("ds-lalakjan", "DHA · Lalak Jan Chowk",    "DS · Lalak Jan", "dha",       720, 505, "moderate", 12, LATE, 7.3, 11, EVENING),
     branch("ds-pine",     "Pine Avenue",              "DS · Pine Ave", "dha",        630, 670, "quiet",    16, LATE, 8.8, 8,  EVENING),
     branch("ds-dolmen",   "DHA · Dolmen Mall",        "DS · Dolmen",   "dha",        800, 640, "moderate", 6,  { open: "10:00", close: "23:00", label: "10 am – 11 pm" }, 9.9, 12, [0, 0, 0.35, 0.45, 0.5, 0.55, 0.6, 0.6, 0.65, 0.75, 0.85, 0.85, 0.7, 0.5, 0.3, 0.1]),
+    // DEMO DATA: Extraction Coffee's four branches (pitch branch)
+    ...EX_BRANCHES.map(exBranch),
     // Real Lahore cafés as prototype demo data (menu prices from their public menus, Nov 2026).
     // Hours, busy patterns and tags follow the seed pattern; they are not the cafés' own.
     ...REAL.map(real),
@@ -361,7 +427,6 @@
     kite:           ["KT", "6666", "KT-01", ["Zain", "Anaya", "Fahad"], "6678", 35],
     artisan:        ["AC", "7777", "AC-01", ["Huzaifa", "Maham", "Adeel"], "7678", 30],
     nofilter:       ["NF", "8888", "NF-01", ["Talha", "Ayesha", "Kashif"], "8678", 30],
-    extraction:     ["EX", "9999", "EX-01", ["Owais", "Zoya", "Imran"], "9678", 30],
     retrograde:     ["RG", "1212", "RG-01", ["Hamid", "Sadia", "Moiz"], "1278", 25],
     zyah:           ["ZY", "1313", "ZY-01", ["Faizan", "Rameen", "Usama"], "1378", 25],
     luna:           ["LN", "1414", "LN-01", ["Danyal", "Areesha", "Bilawal"], "1478", 30],
@@ -422,7 +487,7 @@
 
   // A brand that sells its own plans (Double Shot) shows in the member app as a chain: a brand page,
   // a branch picker, brand cups. Single cafés are on Explorer and My cafés.
-  const isChain = (c) => brands.find((b) => b.id === c.brandId).plans.length > 0;
+  const isChain = (c) => { const b = brands.find((x) => x.id === c.brandId); return !!b.chain || b.plans.length > 0; };
 
   /* Members --------------------------------------------------------------
      Plan types:
@@ -870,7 +935,7 @@
     const METHODS = ["JazzCash", "Easypaisa", "Card", "JazzCash"];
     let n = 0;
     cafes.forEach((cafe) => {
-      const pool = isChain(cafe) ? dsRegulars : regulars;
+      const pool = cafe.brandId === DS.id ? dsRegulars : regulars;
       for (let d = 9; d >= 0; d--) {
         const dayStart = startOfToday - d * DAY;
         if (dayStart < monthStart.getTime()) continue;
@@ -880,7 +945,8 @@
           const m = pool[Math.floor(rnd() * pool.length)];
           let drinkId, temp = null, price;
           if (isChain(cafe)) {
-            const item = dsItem(DS_POPULAR[Math.floor(rnd() * DS_POPULAR.length)][0]);
+            const menu = menuOf(cafe.id);
+            const item = cafe.brandId === DS.id ? dsItem(DS_POPULAR[Math.floor(rnd() * DS_POPULAR.length)][0]) : menu[Math.floor(rnd() * menu.length)];
             temp = item.hot != null && item.iced != null ? (rnd() < 0.55 ? "iced" : "hot") : item.hot != null ? "hot" : "iced";
             drinkId = item.id; price = item[temp];
           } else {
@@ -1075,7 +1141,8 @@
           memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
       }
     }
-    const TARGETS = { drip: 143, "ds-gulberg": 236 };
+    // DEMO DATA: Extraction Coffee's month, Pass cups only (76 across the branches, most at Gulberg)
+    const TARGETS = { drip: 143, "ds-gulberg": 236, "ex-gulberg": 42, "ex-dha3": 14, "ex-dha6": 11, "ex-cantt": 9 };
     cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
   })();
 
@@ -1097,7 +1164,7 @@
       const came = [...new Set(ledger.filter((e) => coffee(e) && e.cafeId === c.id && e.at >= monthStart).map((e) => e.memberId))];
       came.forEach((id) => {
         const m = byMember[id];
-        if (!m?.background || id.startsWith("m_c_") || before.has(id) || rh() > 0.84) return;
+        if (!m?.background || id.startsWith("m_c_") || before.has(id) || rh() > (c.demo ? 0.66 : 0.84)) return; // Extraction (demo): about a third are new customers
         const menu = menuOf(c.id);
         const d = menu[Math.floor(rh() * menu.length)];
         const temp = d.hot != null ? "hot" : "iced";
@@ -1234,7 +1301,7 @@
       payoutDay: 5,
       payouts: [1, 2, 3].map((k) => {
         const cups = c.id === "drip" ? KILN_CUPS[k - 1] : Math.round(c.avgDailyCups * 30 * (1.02 - k * 0.11));
-        const perCup = isChain(c) ? DS_AVG_PAYOUT[i] : CLUB_AVG_PAYOUT;
+        const perCup = c.brandId === DS.id ? DS_AVG_PAYOUT[i] : CLUB_AVG_PAYOUT;
         return { month: monthStart(k), cups, amount: cups * perCup, paidAt: monthStart(k - 1) + 4 * DAY };
       }),
     };
