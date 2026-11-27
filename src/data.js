@@ -242,8 +242,8 @@
       ],
     },
     /* DEMO DATA (pitch branch demo/extraction): Extraction Coffee as a
-       four-branch brand, the same structure as Double Shot. List prices
-       from Extraction's public menu (Nov 2026); bands from
+       five-branch brand, the same structure as Double Shot. In-store list
+       prices (Nov 2026; hot and iced priced separately); bands from
        PLAN_CONFIG.bandLimits; member prices from the Pass discount
        (select.memberPrice), never stored here. Hours other than Gulberg's
        and every busy pattern follow the seed pattern.                    */
@@ -255,35 +255,45 @@
       executive: { name: "Brand owner", pin: "999999" },
       rules: { perMemberPerDay: 2, branchCupsPerDay: 40 },
       account: { label: "Extraction Coffee head office account", last4: "5310" },
-      line: "Specialty coffee and a roastery. Four branches across Lahore.",
+      line: "Specialty coffee and a roastery. Five branches across Lahore.",
       menuNote: "Prices from Extraction Coffee’s public menu, Nov 2026. Demo only.",
       plans: [],
       chain: true,    // a chain in the member app (brand page, branch picker) without selling its own plans
       featured: true, // pitch branch: first in the Cafés list, the Counter menu and the dashboard sign-in
       menu: [
-        { id: "ex-espresso",   section: "Espresso",   name: "Espresso",             hot: 490,  iced: null },
-        { id: "ex-americano",  section: "Espresso",   name: "Americano",            hot: 530,  iced: 530 },
-        { id: "ex-piccolo",    section: "Espresso",   name: "Piccolo",              hot: 650,  iced: null },
-        { id: "ex-cortado",    section: "Espresso",   name: "Cortado",              hot: 650,  iced: null },
-        { id: "ex-capp",       section: "Espresso",   name: "Cappuccino",           hot: 710,  iced: null },
-        { id: "ex-flat",       section: "Espresso",   name: "Flat White",           hot: 710,  iced: null },
-        { id: "ex-latte",      section: "Espresso",   name: "Latte",                hot: 710,  iced: 710 },
-        { id: "ex-matcha",     section: "Lattes",     name: "Matcha Latte",         hot: 740,  iced: null },
-        { id: "ex-caramel",    section: "Lattes",     name: "Caramel Latte",        hot: 850,  iced: null },
-        { id: "ex-rose",       section: "Lattes",     name: "Rose Latte",           hot: 890,  iced: null },
-        { id: "ex-vanilla",    section: "Lattes",     name: "Vanilla Latte",        hot: 890,  iced: null },
-        { id: "ex-honey",      section: "Lattes",     name: "Honey Latte",          hot: 895,  iced: null },
-        { id: "ex-lotus",      section: "Lattes",     name: "Lotus Latte",          hot: 1350, iced: null },
-        { id: "ex-mocha",      section: "Lattes",     name: "Dark Chocolate Mocha", hot: 1450, iced: null },
-        { id: "ex-spanish",    section: "Signatures", name: "Spanish Latte",        hot: 795,  iced: 795, signature: true },
-        { id: "ex-hazelnut",   section: "Signatures", name: "Hazelnut Latte",       hot: 950,  iced: null, signature: true },
-        { id: "ex-coldbrew",   section: "Signatures", name: "Cold Brew",            hot: null, iced: 950, signature: true },
+        { id: "ex-espresso",       section: "Espresso",   name: "Espresso",              hot: 380,  iced: null },
+        { id: "ex-espresso-honey", section: "Espresso",   name: "Espresso with Honey",   hot: 480,  iced: null },
+        { id: "ex-americano",      section: "Espresso",   name: "Americano",             hot: 480,  iced: 500 },
+        { id: "ex-americano-honey", section: "Espresso",  name: "Americano with Honey",  hot: 580,  iced: null },
+        { id: "ex-piccolo",        section: "Espresso",   name: "Piccolo",               hot: 450,  iced: null },
+        { id: "ex-cortado",        section: "Espresso",   name: "Cortado",               hot: 480,  iced: null },
+        { id: "ex-affogato",       section: "Espresso",   name: "Affogato",              hot: 570,  iced: null },
+        { id: "ex-vietnamese",     section: "Espresso",   name: "Vietnamese Espresso",   hot: 600,  iced: null },
+        { id: "ex-capp",           section: "Espresso",   name: "Cappuccino",            hot: 650,  iced: null },
+        { id: "ex-flat",           section: "Espresso",   name: "Flat White",            hot: 650,  iced: null },
+        { id: "ex-latte",          section: "Espresso",   name: "Latte",                 hot: 650,  iced: 690 },
+        { id: "ex-honey",          section: "Lattes",     name: "Honey Latte",           hot: 700,  iced: null },
+        { id: "ex-caramel",        section: "Lattes",     name: "Caramel Latte",         hot: 700,  iced: null },
+        { id: "ex-rose",           section: "Lattes",     name: "Rose Latte",            hot: 750,  iced: 850 },
+        { id: "ex-vanilla",        section: "Lattes",     name: "Vanilla Latte",         hot: 800,  iced: null },
+        { id: "ex-lotus",          section: "Lattes",     name: "Lotus Latte",           hot: 1080, iced: 1200 },
+        { id: "ex-mocha",          section: "Lattes",     name: "Dark Chocolate Mocha",  hot: 1150, iced: null },
+        { id: "ex-white-mocha",    section: "Lattes",     name: "White Chocolate Mocha", hot: 1200, iced: null },
+        { id: "ex-spanish",        section: "Signatures", name: "Spanish Latte",         hot: 700,  iced: 750, signature: true },
+        { id: "ex-hazelnut",       section: "Signatures", name: "Hazelnut Latte",        hot: 850,  iced: null, signature: true },
+        { id: "ex-coldbrew",       section: "Signatures", name: "Cold Brew",             hot: null, iced: 950, signature: true },
+        { id: "ex-caramel-f",      section: "Frappuccinos", name: "Caramel Frappuccino", hot: null, iced: 950 },
+        { id: "ex-oreo-f",         section: "Frappuccinos", name: "Oreo Frappuccino",    hot: null, iced: 980 },
+        { id: "ex-lotus-f",        section: "Frappuccinos", name: "Lotus Frappuccino",   hot: null, iced: 1250 },
+        { id: "ex-matcha-amer",    section: "Matcha",     name: "Matcha Americano",      hot: 600,  iced: null },
+        { id: "ex-matcha",         section: "Matcha",     name: "Matcha Latte",          hot: 700,  iced: null },
+        { id: "ex-matcha-coconut", section: "Matcha",     name: "Matcha Coconut Latte",  hot: 850,  iced: null },
       ],
     },
   ];
   const DS = brands.find((b) => b.id === "doubleshot");
   const EX = brands.find((b) => b.id === "extraction");
-  // Each menu item's band by its top price (PLAN_CONFIG.bandLimits; null above Rs 1,500)
+  // Each menu item's band by its higher price, hot or iced (as select.itemBand reads it) (PLAN_CONFIG.bandLimits; null above Rs 1,500)
   EX.menu.forEach((d) => { d.band = bandOf(Math.max(d.hot || 0, d.iced || 0))?.id || null; });
   // Branches read the brand menu as their drinks (one cup each; any top-up is separate)
   const brandDrinks = (b) => b.menu.map((d) => ({ id: d.id, name: d.name, price: d.hot ?? d.iced, credits: 1 }));
@@ -382,6 +392,7 @@
     ["ex-dha3", "DHA · Phase 3", "EX · Phase 3", "dha", 745, 545, "C-47 Sector Z, DHA Phase 3", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "quiet", 14, 7.0, ["Rayyan", "Mariam", "Shehroz"], "9778", "EX-02"],
     ["ex-dha6", "DHA · Phase 6", "EX · Phase 6", "dha", 835, 675, "Main Boulevard, DHA Phase 6", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "moderate", 7, 10.1, ["Arslan", "Hania", "Wahab"], "9878", "EX-03"],
     ["ex-cantt", "Cantt · Shami Road", "EX · Cantt", "cantt", 705, 425, "Shell, Shami Rd, Cantt", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "quiet", 19, 4.1, ["Moeez", "Alishba", "Nauman"], "9978", "EX-04"],
+    ["ex-legends", "Legends Arena", "EX · Legends Arena", "dha", 690, 610, "Legends Arena, Lahore", { open: "9:00", close: "24:00", label: "9 am – midnight" }, "moderate", 9, 6.4, ["Hamza", "Iman", "Sufyan"], "9478", "EX-05"],
   ];
   const EX_BUSY = [0.3, 0.45, 0.55, 0.5, 0.45, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.85, 0.75, 0.6, 0.45, 0.3];
   const exBranch = ([id, branchName, pinName, area, x, y, address, hours, status, mins, distanceKm, [a, b, manager], managerPin, setupCode], i) => ({
@@ -390,7 +401,7 @@
     tags: ["Specialty", "Roastery", ...(id === "ex-gulberg" ? ["Late night", "Work-friendly"] : ["Work-friendly"])],
     status, statusUpdatedAt: minsAgo(mins), hours, blurb: EX.line, distanceKm, x, y, drinks: brandDrinks(EX), busyByHour: EX_BUSY,
     avgDailyCups: id === "ex-gulberg" ? 6 : 3, setupCode, demo: true,
-    executivePin: `9${String(i + 1).repeat(5)}`, // Gulberg 911111, Phase 3 922222, Phase 6 933333, Cantt 944444
+    executivePin: `9${String(i + 1).repeat(5)}`, // Gulberg 911111, Phase 3 922222, Phase 6 933333, Cantt 944444, Legends Arena 955555
     staff: [
       { id: `st_${id}_1`, name: a, role: "staff", pin: `9${i + 1}01` },
       { id: `st_${id}_2`, name: b, role: "staff", pin: `9${i + 1}02` },
@@ -1141,8 +1152,8 @@
           memberPrice: Math.round(listPrice * (1 - PLAN_CONFIG.pass.discount)), discount: PLAN_CONFIG.pass.discount, at, cycle: m.cycle, ...served(cafeId, id) });
       }
     }
-    // DEMO DATA: Extraction Coffee's month, Pass cups only (76 across the branches, most at Gulberg)
-    const TARGETS = { drip: 143, "ds-gulberg": 236, "ex-gulberg": 42, "ex-dha3": 14, "ex-dha6": 11, "ex-cantt": 9 };
+    // DEMO DATA: Extraction Coffee's month, Pass cups only (78 across the branches, most at Gulberg)
+    const TARGETS = { drip: 143, "ds-gulberg": 236, "ex-gulberg": 40, "ex-dha3": 12, "ex-dha6": 10, "ex-cantt": 8, "ex-legends": 8 };
     cafes.forEach((c, i) => addSales(c.id, TARGETS[c.id] ? Math.max(0, TARGETS[c.id] - thisMonth(c.id)) : 6 + (i % 5) * 3));
   })();
 
